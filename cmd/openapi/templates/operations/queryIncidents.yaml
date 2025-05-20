@@ -1,0 +1,42 @@
+tags:
+  - Incidents
+summary: Query incidents
+description: >
+  Performs an incident query.
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/IncidentCriteria"
+responses:
+  "200":
+    description: OK
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/IncidentRes"
+        example:
+          count: 1
+          results:
+            - partition: "2025-05-01"
+              id: 1
+              elementId: 8
+              elementInstanceId: 2298
+              jobId: 576
+              processId: 2
+              processInstanceId: 576
+              createdAt: "2025-05-01T18:17:08.044Z"
+              createdBy: go-bpmn
+              resolvedAt: "2025-05-01T18:44:26.608Z"
+              resolvedBy: go-bpmn
+  "400":
+    description: Bad request
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          invalid_limit:
+            $ref: "#/components/examples/QueryLimitProblem"
+          invalid_offset:
+            $ref: "#/components/examples/QueryOffsetProblem"

@@ -1,0 +1,53 @@
+tags:
+  - Process instances
+summary: Query process instances
+description: >
+  Performs a process instance query.
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/ProcessInstanceCriteria"
+responses:
+  "200":
+    description: OK
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/ProcessInstanceRes"
+        example:
+          count: 2
+          results:
+            - partition: "2025-05-09"
+              id: 47
+              processId: 1
+              bpmnProcessId: serviceTest
+              correlationKey: "123456"
+              createdAt: "2025-05-09T17:43:52.417Z"
+              createdBy: default-worker
+              endedAt: "2025-05-09T17:44:02.421Z"
+              startedAt: "2025-05-09T17:43:52.417Z"
+              state: ENDED
+              stateChangedBy: default-worker
+              version: "1"
+            - partition: "2025-05-09"
+              id: 48
+              processId: 2
+              bpmnProcessId: parallelServiceTasksTest"
+              createdAt: "2025-05-09T17:43:56.392Z"
+              createdBy: go-bpmn
+              startedAt: "2025-05-09T17:43:56.392Z"
+              state: STARTED
+              stateChangedBy: go-bpmn
+              version: 1
+  "400":
+    description: Bad request
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          invalid_limit:
+            $ref: "#/components/examples/QueryLimitProblem"
+          invalid_offset:
+            $ref: "#/components/examples/QueryOffsetProblem"

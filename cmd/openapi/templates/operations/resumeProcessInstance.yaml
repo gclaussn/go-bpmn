@@ -1,0 +1,43 @@
+tags:
+  - Process instances
+summary: Resume process instance
+description: >
+  Resumes a suspended process instance.
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/ResumeProcessInstanceCmd"
+      example:
+        workerId: go-bpmn
+responses:
+  "204":
+    description: Process instance resumed
+  "404":
+    description: Not found
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          process_instance_not_found:
+            summary: Process instance not found
+            value:
+              status: 404
+              type: NOT_FOUND
+              title: failed to resume process instance
+              detail: process instance 2025-05-01/577 could not be found
+  "409":
+    description: Conflict
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          process_instance_not_suspended:
+            summary: Process instance not suspended
+            value:
+              status: 409,
+              type: CONFLICT
+              title: failed to resume process instance
+              detail: process instance 2025-05-01/576 is not in state SUSPENDED, but STARTED

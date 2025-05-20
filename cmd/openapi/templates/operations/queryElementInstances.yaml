@@ -1,0 +1,76 @@
+tags:
+  - Element instances
+summary: Query element instances
+description: >
+  Performs an element instance query.
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/ElementInstanceCriteria"
+      examples:
+        by_partition_and_process_instance_id:
+          summary: By partition and process instance ID
+          value:
+            partition: "2025-05-01"
+            processInstanceId: 576
+responses:
+  "200":
+    description: OK
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/ElementInstanceRes"
+        example:
+          count: 3
+          results:
+            - partition: "2025-05-01"
+              id: 2295
+              elementId: 5
+              processId: 2
+              processInstanceId: 576
+              bpmnElementId: parallelServiceTasksTest
+              bpmnElementType: PROCESS
+              createdAt: "2025-05-01T17:44:19.997Z"
+              createdBy: go-bpmn
+              startedAt: "2025-05-01T17:44:19.997Z"
+              state: SUSPENDED
+              stateChangedBy: go-bpmn
+            - partition: "2025-05-01"
+              id: 2296
+              parentId: 2295
+              elementId: 6
+              processId: 2
+              processInstanceId: 576
+              bpmnElementId: startEvent
+              bpmnElementType: NONE_START_EVENT
+              createdAt: "2025-05-01T17:44:19.997Z"
+              createdBy: go-bpmn
+              endedAt: "2025-05-01T17:44:19.997Z"
+              startedAt: "2025-05-01T17:44:19.997Z"
+              state: ENDED
+              stateChangedBy: go-bpmn
+            - partition: "2025-05-01"
+              id: 2297
+              parentId: 2295
+              elementId: 8
+              processId: 2
+              processInstanceId: 576
+              bpmnElementId: serviceTaskA
+              bpmnElementType: SERVICE_TASK
+              createdAt: "2025-05-01T17:44:19.997Z"
+              createdBy: go-bpmn
+              startedAt: "2025-05-01T17:44:19.997Z"
+              state: STARTED
+              stateChangedBy: go-bpmn
+  "400":
+    description: Bad request
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          invalid_limit:
+            $ref: "#/components/examples/QueryLimitProblem"
+          invalid_offset:
+            $ref: "#/components/examples/QueryOffsetProblem"

@@ -1,0 +1,9 @@
+*.exe
+
+build/
+coverage.html
+coverage.out
+go-bpmn
+go-bpmn-memd
+go-bpmn-pgd
+openapi.yaml

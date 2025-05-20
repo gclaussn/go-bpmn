@@ -1,0 +1,18 @@
+summary: Check readiness
+description: >
+  Determines if the server is ready to accept requests.
+responses:
+  "200":
+    description: Ready
+    content:
+      text/plain:
+        schema:
+          type: string
+        example: ready
+  "503":
+    description: Not found
+    content:
+      text/plain:
+        schema:
+          type: string
+        example: server is shutting down

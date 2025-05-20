@@ -1,0 +1,77 @@
+services:
+  db:
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d test"]
+      retries: 6
+      interval: 5s
+    image: postgres:15.2-alpine
+    ports:
+      - "5432:5432"
+
+  engine:
+    build:
+      dockerfile: test/Dockerfile-pgd
+      context: ..
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GO_BPMN_HTTP_BIND_ADDRESS: 0.0.0.0:8080
+      GO_BPMN_PG_DATABASE_URL: postgres://postgres:postgres@db:5432/test
+      GO_BPMN_SET_TIME_ENABLED: true
+      GOMAXPROCS: 2
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /conf/authorization"]
+      retries: 6
+      interval: 5s
+    image: go-bpmn:test-pgd
+    ports:
+      - "8080:8080"
+    volumes:
+      - conf:/conf
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        if [ ! -f /conf/authorization ]; then
+          ./go-bpmn-pgd -create-api-key -secret-id test-worker > /conf/authorization
+        fi
+
+        if [ ! -f /conf/encryption_key ]; then
+          ./go-bpmn-pgd -create-encryption-key > /conf/encryption_key
+        fi
+
+        export GO_BPMN_ENCRYPTION_KEYS="$(cat /conf/encryption_key)"
+
+        ./go-bpmn-pgd
+
+  worker:
+    build:
+      dockerfile: test/Dockerfile-worker
+      context: ..
+    depends_on:
+      engine:
+        condition: service_healthy
+    environment:
+      GO_BPMN_URL: http://engine:8080
+      GOMAXPROCS: 1
+    image: go-bpmn:test-worker
+    volumes:
+      - conf:/conf
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        export GO_BPMN_AUTHORIZATION="$(cat /conf/authorization)"
+
+        ./worker
+
+networks:
+  default:
+    name: go-bpmn-test-pg
+
+volumes:
+  conf:
+    name: go-bpmn-test-pg-conf

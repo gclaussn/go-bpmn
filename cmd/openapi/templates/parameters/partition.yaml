@@ -1,0 +1,6 @@
+in: path
+description: Entity partition.
+required: true
+schema:
+  type: string
+  format: date

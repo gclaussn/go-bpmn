@@ -1,0 +1,34 @@
+<bpmn:definitions id="test">
+  <bpmn:process id="parallelServiceTasksTest" isExecutable="true">
+    <bpmn:startEvent id="startEvent">
+      <bpmn:outgoing>f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:sequenceFlow id="f1" sourceRef="startEvent" targetRef="fork" />
+    <bpmn:parallelGateway id="fork">
+      <bpmn:incoming>f1</bpmn:incoming>
+      <bpmn:outgoing>f2</bpmn:outgoing>
+      <bpmn:outgoing>f3</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:sequenceFlow id="f2" sourceRef="fork" targetRef="serviceTaskA" />
+    <bpmn:sequenceFlow id="f3" sourceRef="fork" targetRef="serviceTaskB" />
+    <bpmn:serviceTask id="serviceTaskA">
+      <bpmn:incoming>f2</bpmn:incoming>
+      <bpmn:outgoing>f4</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="serviceTaskB">
+      <bpmn:incoming>f3</bpmn:incoming>
+      <bpmn:outgoing>f5</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="f4" sourceRef="serviceTaskA" targetRef="join" />
+    <bpmn:sequenceFlow id="f5" sourceRef="serviceTaskB" targetRef="join" />
+    <bpmn:parallelGateway id="join">
+      <bpmn:incoming>f4</bpmn:incoming>
+      <bpmn:incoming>f5</bpmn:incoming>
+      <bpmn:outgoing>f6</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:sequenceFlow id="f6" sourceRef="join" targetRef="endEvent" />
+    <bpmn:endEvent id="endEvent">
+      <bpmn:incoming>f6</bpmn:incoming>
+    </bpmn:endEvent>
+  </bpmn:process>
+</bpmn:definitions>

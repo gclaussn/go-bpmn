@@ -1,0 +1,126 @@
+tags:
+  - Jobs
+summary: Complete job
+description: >
+  Completes a locked job.
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/CompleteJobCmd"
+      examples:
+        execute:
+          summary: EXECUTE
+          value:
+            processVariables:
+              a:
+                encoding: json
+                value: "{...}"
+            workerId: go-bpmn
+        execute_with_error_no_retries:
+          summary: EXECUTE with error and no retries
+          value:
+            elementVariables:
+              b:
+                encoding: json
+                value: "{...}"
+            error: an error occurred
+            workerId: go-bpmn
+responses:
+  "200":
+    description: Job completed
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/Job"
+        examples:
+          execute:
+            summary: EXECUTE
+            value:
+              partition: "2025-05-01"
+              id: 1042
+              elementId: 8
+              elementInstanceId: 2298
+              processId: 2
+              processInstanceId: 576
+              bpmnElementId: serviceTaskA
+              completedAt: "2025-05-01T18:17:08.044Z"
+              createdAt: "2025-05-01T17:44:19.997Z"
+              createdBy: go-bpmn
+              dueAt: "2025-05-01T17:44:19.997Z"
+              lockedAt: "2025-05-01T17:59:30.657Z"
+              lockedBy: go-bpmn
+              retryCount: 0
+              type: EXECUTE
+  "400":
+    description: Bad request
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        example:
+          status: 400
+          type: VALIDATION
+          title: invalid request body
+          detail: failed to validate request body
+          errors:
+            - pointer: "#/processVariables/,"
+              type: variable_name
+              detail: must match regex ^[a-zA-Z0-9_-]+$
+              value: ","
+            - pointer: "#/processVariables/,/encoding"
+              type: required
+              detail: is required
+            - pointer: "#/processVariables/,/value"
+              type: required
+              detail: is required
+            - pointer: "#/retryCount"
+              type: gte
+              detail: must be greater than or equal to 0
+              value: "-1"
+            - pointer: "#/retryTimer"
+              type: iso8601_duration
+              detail: is invalid
+              value: PT
+  "404":
+    description: Not found
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          job_not_found:
+            summary: Job not found
+            value:
+              status: 404
+              type: NOT_FOUND
+              title: failed to complete job
+              detail: job 2025-04-01/123 could not be found
+  "409":
+    description: Conflict
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          job_completed:
+            summary: Job completed
+            value:
+              status: 409,
+              type: CONFLICT
+              title: failed to complete job
+              detail: job 2025-04-01/123 is completed
+          job_not_locked:
+            summary: Job not locked
+            value:
+              status: 409,
+              type: CONFLICT
+              title: failed to complete job
+              detail: job 2025-04-01/123 is not locked
+          job_not_locked_by_worker:
+            summary: Job not locked by worker
+            value:
+              status: 409,
+              type: CONFLICT
+              title: failed to complete job
+              detail: job 2025-04-01/123 is not locked by worker go-bpmn, but test-worker

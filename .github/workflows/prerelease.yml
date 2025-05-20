@@ -1,0 +1,24 @@
+name: Prerelease
+on:
+  release:
+    types:
+      - published
+env:
+  GO_VERSION: 1.24.3
+jobs:
+  publish:
+    if: github.event.release.prerelease
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up go ${{ env.GO_VERSION }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: "${{ env.GO_VERSION }}"
+      - name: Build
+        run: bash ./.github/workflows/build.sh ${{ github.event.release.tag_name }}
+      - name: Upload assets
+        run: bash ./.github/workflows/upload-release-assets.sh ${{ github.event.release.id }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

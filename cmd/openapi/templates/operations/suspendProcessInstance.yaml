@@ -1,0 +1,43 @@
+tags:
+  - Process instances
+summary: Suspend process instance
+description: >
+  Suspends a started process instance.
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/SuspendProcessInstanceCmd"
+      example:
+        workerId: go-bpmn
+responses:
+  "204":
+    description: Process instance suspended
+  "404":
+    description: Not found
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          process_instance_not_found:
+            summary: Process instance not found
+            value:
+              status: 404
+              type: NOT_FOUND
+              title: failed to suspend process instance
+              detail: process instance 2025-05-01/577 could not be found
+  "409":
+    description: Conflict
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          process_instance_not_started:
+            summary: Process instance not started
+            value:
+              status: 409,
+              type: CONFLICT
+              title: failed to suspend process instance
+              detail: process instance 2025-05-01/576 is not in state STARTED, but SUSPENDED

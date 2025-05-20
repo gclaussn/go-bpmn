@@ -1,0 +1,7 @@
+in: query
+description: >
+  Comma separated list of variables to include.
+schema:
+  type: string
+  examples:
+    - a,b,c

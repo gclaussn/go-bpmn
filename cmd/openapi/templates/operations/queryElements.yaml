@@ -1,0 +1,47 @@
+tags:
+  - Elements
+summary: Query elements
+description: >
+  Performs an element query.
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/ElementCriteria"
+responses:
+  "200":
+    description: OK
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/ElementRes"
+        example:
+          count: 4
+          results:
+            - id: 1
+              processId: 1
+              bpmnElementId: serviceTest
+              bpmnElementType: PROCESS
+            - id: 2
+              processId: 1
+              bpmnElementId: startEvent
+              bpmnElementType: NONE_START_EVENT
+            - id: 3
+              processId: 1
+              bpmnElementId: serviceTask
+              bpmnElementType: SERVICE_TASK
+            - id: 4
+              processId: 1
+              bpmnElementId: endEvent
+              bpmnElementType: NONE_END_EVENT
+  "400":
+    description: Bad request
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          invalid_limit:
+            $ref: "#/components/examples/QueryLimitProblem"
+          invalid_offset:
+            $ref: "#/components/examples/QueryOffsetProblem"

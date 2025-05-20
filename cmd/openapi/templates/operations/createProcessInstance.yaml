@@ -1,0 +1,97 @@
+tags:
+  - Process instances
+summary: Create process instance
+description: >
+  Creates a process instance from an existing process.
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/CreateProcessInstanceCmd"
+      example:
+        bpmnProcessId: parallelServiceTasksTest
+        correlationKey: "123456"
+        tags:
+          x: y
+        variables:
+          a:
+            encoding: "json"
+            encrypted: true
+            value: "{...}"
+        version: "1"
+        workerId: go-bpmn
+responses:
+  "200":
+    description: Process instance created
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/ProcessInstance"
+        example:
+          partition: "2025-04-11"
+          id: 576
+          processId: 2
+          bpmnProcessId: parallelServiceTasksTest
+          correlationKey: "123456"
+          createdAt: "2025-05-01T17:44:19.997Z"
+          createdBy: go-bpmn
+          startedAt: "2025-05-01T17:44:19.997Z"
+          state: STARTED
+          stateChangedBy: go-bpmn
+          tags:
+            x: y
+          version: "1"
+  "400":
+    description: Bad request
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        example:
+          status: 400
+          type: VALIDATION
+          title: invalid request body
+          detail: failed to validate request body
+          errors:
+            - pointer: "#/tags/,"
+              type: tag_name
+              detail: must match regex ^[a-zA-Z0-9_-]+$
+              value: ","
+            - pointer: "#/variables/ "
+              type: variable_name
+              detail: must match regex ^[a-zA-Z0-9_-]+$
+              value: " "
+            - pointer: "#/variables/a/encoding"
+              type: required
+              detail: is required
+            - pointer: "#/variables/a/value"
+              type: required
+              detail: is required
+  "404":
+    description: Not found
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          process_not_found:
+            summary: Process not found
+            value:
+              status: 404
+              type: NOT_FOUND
+              title: failed to create process instance
+              detail: process parallelServiceTasksTest:2 could not be found
+  "422":
+    description: Unprocessable entity
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          bpmn_process_has_no_none_start_event:
+            summary: BPMN process has no none start event
+            value:
+              status: 422
+              type: PROCESS_MODEL
+              title: failed to create execution
+              detail: BPMN scope parallelServiceTasksTest has no none start event element

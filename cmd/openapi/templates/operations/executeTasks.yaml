@@ -1,0 +1,67 @@
+tags:
+  - Tasks
+summary: Execute tasks
+description: >
+  Locks and executes due tasks, which match the specified conditions.
+
+
+  Due tasks are normally handled by a task executor, running inside the engine.
+  When waiting for a due task to be completed during testing, this operation must be called!
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/ExecuteTasksCmd"
+      examples:
+        by_partition_and_process_id:
+          summary: By partition and process ID
+          value:
+            partition: "2025-05-01"
+            processInstanceId: 576
+            limit: 1
+responses:
+  "200":
+    description: OK
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/ExecuteTasksRes"
+        example:
+          locked: 1
+          completed: 1
+          failed: 0
+          completedTasks:
+            - partition: "2025-05-01"
+              id: 2
+              elementId: 10
+              elementInstanceId: 4932
+              processId: 2
+              processInstanceId: 576
+              completedAt: "2025-05-01T19:38:23.021Z"
+              createdAt: "2025-05-01T19:38:16.633Z"
+              createdBy: go-bpmn
+              dueAt: "2025-05-01T19:38:16.633Z"
+              lockedAt: "2025-05-01T19:38:23.001Z"
+              lockedBy: default-engine
+              retryCount: 0
+              type: JOIN_PARALLEL_GATEWAY
+  "400":
+    description: Bad request
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        example:
+          status: 400
+          type: VALIDATION
+          title: invalid request body
+          detail: failed to validate request body
+          errors:
+            - pointer: "#/limit"
+              type: gte
+              detail: must be greater than or equal to 1
+              value: "0"
+            - pointer: "#/limit"
+              type: lte
+              detail: must be less than or equal to 100
+              value: "101"

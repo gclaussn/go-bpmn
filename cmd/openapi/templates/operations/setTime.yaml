@@ -1,0 +1,29 @@
+summary: Set time
+description: >
+  Increases the engine's time for testing purposes.
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/SetTimeCmd"
+      example:
+        time: "2025-05-10T00:00:00.000Z"
+responses:
+  "204":
+    description: Time set
+  "403":
+    description: Operation not enabled
+  "409":
+    description: Conflict
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          time_is_before_engine_time:
+            summary: Time is before engine time
+            value:
+              status: 409,
+              type: CONFLICT
+              title: failed to set time
+              detail: time 2025-05-08T17:43:56Z is before engine time 2025-05-09T19:19:21Z

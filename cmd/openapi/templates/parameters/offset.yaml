@@ -1,0 +1,8 @@
+in: query
+description: >
+  The number of results to skip, before returning any result.
+  If offset is `0`, no results are skipped.
+schema:
+  type: integer
+  format: int32
+  min: 0

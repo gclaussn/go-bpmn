@@ -1,0 +1,115 @@
+tags:
+  - Processes
+summary: Create process
+description: >
+  Creates a process that is modeled as BPMN XML.
+
+
+  If a process with the same BPMN process ID and version exists, the BPMN XML is compared.
+  When the BPMN XML equals, the existing process is returned.
+  When the BPMN XML differs, a problem of type `CONFLICT` is returned.
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/CreateProcessCmd"
+      example:
+        bpmnProcessId: parallelServiceTasksTest
+        bpmnXml: "<...>"
+        parallelism: 5
+        tags:
+          x: y
+        version: "1"
+        workerId: go-bpmn
+responses:
+  "200":
+    description: Process created
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/Process"
+        example:
+          id: 2
+          bpmnProcessId: parallelServiceTasksTest
+          createdAt: "2025-05-01T17:43:34.956Z"
+          createdBy: go-bpmn
+          parallelism: 5
+          tags:
+            x: y
+          version: "1"
+  "400":
+    description: Bad request
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        example:
+          status: 400,
+          type: VALIDATION,
+          title: invalid request body
+          detail: failed to validate request body
+          errors:
+            - pointer: "#/parallelism"
+              type: gte
+              detail: must be greater than or equal to 0
+              value: "-1"
+            - pointer: "#/tags/,"
+              type: tag_name
+              detail: must match regex ^[a-zA-Z0-9_-]+$
+              value: ","
+  "409":
+    description: Conflict
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          process_exists_with_different_bpmn_xml:
+            summary: Process already exists with a different BPMN XML
+            value:
+              status: 409
+              type: CONFLICT
+              title: failed to create process
+              detail: process example:1 already exists with a different BPMN XML
+  "422":
+    description: Unprocessable entity
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          bpmn_xml_invalid:
+            summary: BPMN XML invalid
+            value:
+              status: 422
+              type: PROCESS_MODEL
+              title: failed to parse BPMN XML
+              detail: XML is invalid
+          bpmn_model_has_no_process:
+            summary: BPMN model has no process
+            value:
+              status: 422
+              type: PROCESS_MODEL
+              title: failed to find BPMN process element
+              detail: BPMN model has no process example, but [test]
+          bpmn_process_not_executable:
+            summary: BPMN process not executable
+            value:
+              status: 422
+              type: PROCESS_MODEL
+              title: failed to validate BPMN process
+              detail: BPMN process is not executable
+          bpmn_sequence_flow_has_no_source_or_target:
+            summary: BPMN sequence flow has no source or target
+            value:
+              status: 422
+              type: PROCESS_MODEL
+              title: failed to validate BPMN process
+              detail: BPMN sequence flow f1 has no target element; BPMN sequence flow f2 has no source element
+          bpmn_element_unsupported:
+            summary: BPMN element unsupported
+            value:
+              status: 422
+              type: PROCESS_MODEL
+              title: failed to validate BPMN process
+              detail: "BPMN element join is not supported: joining inclusive gateway"

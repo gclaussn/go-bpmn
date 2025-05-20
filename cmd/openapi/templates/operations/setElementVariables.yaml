@@ -1,0 +1,87 @@
+tags:
+  - Element instances
+  - Variables
+summary: Set element variables
+description: >
+  Sets or deletes variables of an active element instance.
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/SetElementVariablesCmd"
+      examples:
+        set_variable:
+          summary: Set variable
+          value:
+            variables:
+              a:
+                encoding: "json"
+                encrypted: true
+                value: "{...}"
+            workerId: go-bpmn
+        delete_variable:
+          summary: Delete variable
+          value:
+            variables:
+              b: null
+            workerId: go-bpmn
+responses:
+  "204":
+    description: Element variables set or deleted
+  "400":
+    description: Bad request
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        example:
+          status: 400
+          type: VALIDATION
+          title: invalid request body
+          detail: failed to validate request body
+          errors:
+            - pointer: "#/variables/,"
+              type: variable_name
+              detail: must match regex ^[a-zA-Z0-9_-]+$
+              value: ","
+            - pointer: "#/variables/,/encoding"
+              type: required
+              detail: is required
+            - pointer: "#/variables/,/value"
+              type: required
+              detail: is required
+  "404":
+    description: Not found
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          element_instance_not_found:
+            summary: Element instance not found
+            value:
+              status: 404
+              type: NOT_FOUND
+              title: failed to set element variables
+              detail: element instance 2025-04-01/123 could not be found
+  "409":
+    description: Conflict
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          process_instance_ended:
+            summary: Process instance ended
+            value:
+              status: 409,
+              type: CONFLICT
+              title: failed to set element variables
+              detail: process instance 2025-04-01/935 is ended
+          element_instance_ended:
+            summary: Element instance ended
+            value:
+              status: 409,
+              type: CONFLICT
+              title: failed to set element variables
+              detail: element instance 2025-04-01/724 is ended

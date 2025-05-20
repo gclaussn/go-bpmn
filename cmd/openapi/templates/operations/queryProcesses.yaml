@@ -1,0 +1,44 @@
+tags:
+  - Processes
+summary: Query processes
+description: >
+  Performs a process query.
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/ProcessCriteria"
+responses:
+  "200":
+    description: OK
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/ProcessRes"
+        example:
+          count: 2
+          results:
+            - id: 1
+              bpmnProcessId: serviceTest
+              createdAt: "2025-05-01T16:04:17.911Z"
+              createdBy: default-worker
+              version: "1"
+            - id: 2
+              bpmnProcessId: "parallelServiceTasksTest"
+              createdAt: "2025-05-01T17:43:34.956Z"
+              createdBy: go-bpmn
+              parallelism: 5
+              tags:
+                x: y
+              version: "1"
+  "400":
+    description: Bad request
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          invalid_limit:
+            $ref: "#/components/examples/QueryLimitProblem"
+          invalid_offset:
+            $ref: "#/components/examples/QueryOffsetProblem"

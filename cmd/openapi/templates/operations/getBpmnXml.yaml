@@ -1,0 +1,26 @@
+tags:
+  - Processes
+summary: Get BPMN XML
+description: >
+  Gets the BPMN XML of an existing process.
+responses:
+  "200":
+    description: OK
+    content:
+      text/xml:
+        schema:
+          type: string
+  "404":
+    description: Not found
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          process_not_found:
+            summary: Process not found
+            value:
+              status: 404
+              type: NOT_FOUND
+              title: failed to get BPMN XML
+              detail: process 7 could not be found

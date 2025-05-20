@@ -1,0 +1,63 @@
+services:
+  engine:
+    build:
+      dockerfile: test/Dockerfile-memd
+      context: ..
+    environment:
+      GO_BPMN_HTTP_BASIC_AUTH_USERNAME: testusername
+      GO_BPMN_HTTP_BASIC_AUTH_PASSWORD: testpassword
+      GO_BPMN_HTTP_BIND_ADDRESS: 0.0.0.0:8080
+      GO_BPMN_SET_TIME_ENABLED: true
+      GOMAXPROCS: 2
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /conf/authorization"]
+      retries: 3
+      interval: 5s
+    image: go-bpmn:test-memd
+    ports:
+      - "8080:8080"
+    volumes:
+      - conf:/conf
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        if [ ! -f /conf/authorization ]; then
+          echo -n "Basic " >> /conf/authorization
+          echo -n "$${GO_BPMN_HTTP_BASIC_AUTH_USERNAME}:$${GO_BPMN_HTTP_BASIC_AUTH_PASSWORD}" | base64 >> /conf/authorization
+        fi
+
+        if [ ! -f /conf/encryption_key ]; then
+          ./go-bpmn-memd -create-encryption-key > /conf/encryption_key
+        fi
+
+        export GO_BPMN_ENCRYPTION_KEYS="$(cat /conf/encryption_key)"
+
+        ./go-bpmn-memd
+
+  worker:
+    build:
+      dockerfile: test/Dockerfile-worker
+      context: ..
+    depends_on:
+      engine:
+        condition: service_healthy
+    environment:
+      GO_BPMN_URL: http://engine:8080
+      GOMAXPROCS: 1
+    image: go-bpmn:test-worker
+    volumes:
+      - conf:/conf
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        export GO_BPMN_AUTHORIZATION="$(cat /conf/authorization)"
+
+        ./worker
+
+networks:
+  default:
+    name: go-bpmn-test-mem
+
+volumes:
+  conf:
+    name: go-bpmn-test-mem-conf

@@ -1,0 +1,16 @@
+<bpmn:definitions id="test">
+  <bpmn:process id="businessRuleTest" isExecutable="true">
+    <bpmn:startEvent id="startEvent">
+      <bpmn:outgoing>f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:sequenceFlow id="f1" sourceRef="startEvent" targetRef="businessRuleTask" />
+    <bpmn:businessRuleTask id="businessRuleTask">
+      <bpmn:incoming>f1</bpmn:incoming>
+      <bpmn:outgoing>f2</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:sequenceFlow id="f2" sourceRef="businessRuleTask" targetRef="endEvent" />
+    <bpmn:endEvent id="endEvent">
+      <bpmn:incoming>f2</bpmn:incoming>
+    </bpmn:endEvent>
+  </bpmn:process>
+</bpmn:definitions>

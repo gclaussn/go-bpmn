@@ -1,0 +1,61 @@
+tags:
+  - Jobs
+summary: Query jobs
+description: >
+  Performs a job query.
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/JobCriteria"
+      examples:
+        by_partition_and_process_instance_id:
+          summary: By partition and process instance ID
+          value:
+            partition: "2025-04-11"
+            processInstanceId: 576
+responses:
+  "200":
+    description: OK
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/JobRes"
+        example:
+          count: 2
+          results:
+            - partition: "2025-05-01"
+              id: 1042
+              elementId: 8
+              elementInstanceId: 2298
+              processId: 2
+              processInstanceId: 576
+              bpmnElementId: serviceTaskA
+              createdAt: "2025-05-01T17:44:19.997Z"
+              createdBy: go-bpmn
+              dueAt: "2025-05-01T17:44:19.997Z"
+              retryCount: 0
+              type: EXECUTE
+            - partition: "2025-05-01"
+              id: 1043
+              elementId: 9
+              elementInstanceId: 2299
+              processId: 2
+              processInstanceId: 576
+              bpmnElementId: serviceTaskB
+              createdAt: "2025-05-01T17:44:19.997Z"
+              createdBy: go-bpmn
+              dueAt: "2025-05-01T17:44:19.997Z"
+              retryCount: 0
+              type: EXECUTE
+  "400":
+    description: Bad request
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          invalid_limit:
+            $ref: "#/components/examples/QueryLimitProblem"
+          invalid_offset:
+            $ref: "#/components/examples/QueryOffsetProblem"

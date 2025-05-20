@@ -1,0 +1,43 @@
+tags:
+  - Incidents
+summary: Resolve incident
+description: >
+  Resolves a job or task related incident.
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/ResolveIncidentCmd"
+      example:
+        workerId: go-bpmn
+responses:
+  "204":
+    description: Incident resolved
+  "404":
+    description: Not found
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          incident_not_found:
+            summary: Incident not found
+            value:
+              status: 404
+              type: NOT_FOUND
+              title: failed to resolve incident
+              detail: incident 2025-05-01/2 could not be found
+  "409":
+    description: Conflict
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          incident_resolved:
+            summary: Incident resolved
+            value:
+              status: 409,
+              type: CONFLICT
+              title: failed to resolve incident
+              detail: incident 2025-05-01/1 is resolved

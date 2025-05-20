@@ -1,0 +1,37 @@
+tags:
+  - Element instances
+  - Variables
+summary: Get element variables
+description: >
+  Gets variables of an active or ended element instance.
+responses:
+  "200":
+    description: OK
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/GetVariablesRes"
+        example:
+          count: 2
+          variables:
+            a:
+              encoding: json
+              encrypted: true
+              value: "{...}"
+            b:
+              encoding: text
+              value: any text
+  "404":
+    description: Not found
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          element_instance_not_found:
+            summary: Element instance not found
+            value:
+              status: 404
+              type: NOT_FOUND
+              title: failed to get element variables
+              detail: element instance 2025-05-01/3162 could not be found

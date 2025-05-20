@@ -1,0 +1,133 @@
+openapi: 3.1.0
+info:
+  title: go-bpmn HTTP API
+  version: v0.1.0
+  description: >
+    API to interact with a process engine via HTTP.
+tags:
+  - name: Elements
+  - name: Element instances
+  - name: Incidents
+  - name: Jobs
+  - name: Processes
+  - name: Process instances
+  - name: Tasks
+  - name: Variables
+paths:
+{{- range $path, $methods := .paths}}
+  {{$path}}:
+  {{- range $method, $operation := $methods}}
+    {{$method}}:
+      operationId: {{$operation.Id}}
+      security:
+        - ApiKeyAuth: []
+    {{- if $operation.Parameters}}
+      parameters:
+      {{- range $parameterName := $operation.Parameters }}
+        - $ref: "#/components/parameters/{{$parameterName}}"
+      {{- end }}
+    {{- end}}
+      {{- includeOperation $operation.Id | indent 6}}
+  {{- end}}
+{{end}}
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+  parameters:
+{{- range $parameterName, $_ := .parameters}}
+    {{$parameterName}}:
+      name: {{$parameterName}}
+      {{- includeParameter $parameterName | indent 6}}
+{{end}}
+  schemas:
+{{- range $schemaName, $schema := .schemas}}
+    {{ $schemaName }}:
+      description: >
+        {{- or $schema.Description "" | indent 8}}
+      type: {{$schema.Type}}
+      {{- $required := $schema.Required}}
+  {{- if $required}}
+      required:
+    {{- range $required}}
+        - {{.}}
+    {{- end}}
+  {{- end}}
+  {{- if $schema.Enum}}
+      enum:
+    {{- range $value := $schema.Enum}}
+        - {{$value}}
+    {{- end}}
+  {{- end}}
+  {{- if $schema.Properties}}
+      properties:
+    {{- range $propertyName, $property := $schema.Properties}}
+        {{$propertyName}}:
+      {{- if not $property.TypeReference}}
+          description: >
+            {{- or $property.Description "" | indent 12}}
+          type: {{$property.Type}}
+        {{- if $property.Format}}
+          format: {{$property.Format}}
+        {{- end}}
+        {{- if $property.PropertyNamesPattern}}
+          propertyNames:
+            pattern: "{{$property.PropertyNamesPattern}}"
+        {{- end}}
+        {{- if $property.AdditionalPropertiesType}}
+          additionalProperties:
+            type: {{$property.AdditionalPropertiesType}}
+        {{- end}}
+        {{- if $property.AdditionalPropertiesTypeReference}}
+          additionalProperties:
+            $ref: "#/components/schemas/{{$property.AdditionalPropertiesTypeReference | stripPackage}}"
+        {{- end}}
+        {{- if $property.Items}}
+          items:
+          {{- if not $property.Items.TypeReference}}
+            type: {{$property.Items.Type}}
+            {{- if $property.Items.Format}}
+            format: {{$property.Items.Format}}
+            {{- end}}
+          {{- end}}
+          {{- if $property.Items.TypeReference}}
+            $ref: "#/components/schemas/{{$property.Items.TypeReference | stripPackage}}"
+          {{- end}}
+        {{- end}}
+        {{- if $property.Maximum}}
+          maximum: {{$property.Maximum}}
+        {{- end}}
+        {{- if $property.MaxItems}}
+          maxItems: {{$property.MaxItems}}
+        {{- end}}
+        {{- if $property.Minimum}}
+          minimum: {{$property.Minimum}}
+        {{- end}}
+        {{- if $property.MinItems}}
+          minItems: {{$property.MinItems}}
+        {{- end}}
+        {{- if $property.UniqueItems}}
+          uniqueItems: {{$property.UniqueItems}}
+        {{- end}}
+      {{- end}}
+      {{- if $property.TypeReference}}
+          $ref: "#/components/schemas/{{$property.TypeReference | stripPackage}}"
+      {{- end}}
+    {{- end}}
+  {{- end}}
+{{end}}
+  examples:
+    QueryLimitProblem:
+      value:
+        status: 400
+        type: HTTP_REQUEST_URI
+        title: invalid query parameter limit
+        detail: failed to parse value -1
+    QueryOffsetProblem:
+      value:
+        status: 400
+        type: HTTP_REQUEST_URI
+        title: invalid query parameter offset
+        detail: failed to parse value -1

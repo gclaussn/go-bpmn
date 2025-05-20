@@ -1,0 +1,17 @@
+FROM golang:1.24.3-alpine3.21
+
+WORKDIR /src
+
+COPY ./go.mod ./go.sum .
+
+RUN go mod download
+
+COPY ./cmd ./cmd
+COPY ./daemon ./daemon
+COPY ./engine ./engine
+COPY ./http ./http
+COPY ./model ./model
+
+RUN CGO_ENABLED=0 GOOS=linux go build -o go-bpmn-memd ./cmd/go-bpmn-memd
+
+ENTRYPOINT ["go-bpmn-memd"]

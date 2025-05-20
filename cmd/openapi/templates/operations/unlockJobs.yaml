@@ -1,0 +1,40 @@
+tags:
+  - Jobs
+summary: Unlock jobs
+description: >
+  Unlocks locked, but uncompleted, jobs that are currently locked by a specific worker.
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/UnlockJobsCmd"
+      examples:
+        by_partition:
+          summary: By partition
+          value:
+            partition: "2025-05-01"
+            workerId: default-worker
+responses:
+  "200":
+    description: OK
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/CountRes"
+        example:
+          count: 1
+  "400":
+    description: Bad request
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        example:
+          status: 400,
+          type: VALIDATION,
+          title: invalid request body
+          detail: failed to validate request body
+          errors:
+            - pointer: "#/workerId"
+              type: required
+              detail: is required

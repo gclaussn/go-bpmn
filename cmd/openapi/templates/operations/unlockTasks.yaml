@@ -1,0 +1,40 @@
+tags:
+  - Tasks
+summary: Unlock tasks
+description: >
+  Unlocks locked, but uncompleted, tasks that are currently locked by a specific engine.
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/UnlockTasksCmd"
+      examples:
+        by_partition:
+          summary: By partition
+          value:
+            partition: "2025-05-01"
+            engineId: default-engine
+responses:
+  "200":
+    description: OK
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/CountRes"
+        example:
+          count: 1
+  "400":
+    description: Bad request
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        example:
+          status: 400,
+          type: VALIDATION,
+          title: invalid request body
+          detail: failed to validate request body
+          errors:
+            - pointer: "#/engineId"
+              type: required
+              detail: is required

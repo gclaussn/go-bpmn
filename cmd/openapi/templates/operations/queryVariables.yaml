@@ -1,0 +1,52 @@
+tags:
+  - Variables
+summary: Query variables
+description: >
+  Performs a variable query.
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/VariableCriteria"
+      examples:
+        by_partition_and_process_instance_id_only_specific_names:
+          summary: By partition and process instance ID, but only specific names
+          value:
+            partition: "2025-05-09"
+            processInstanceId: 48
+            names:
+              - x
+              - y
+              - z
+responses:
+  "200":
+    description: OK
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/VariableRes"
+        example:
+          count: 1
+          results:
+            - partition: "2025-05-09"
+              id: 48
+              processId: 2
+              processInstanceId: 48
+              createdAt: "2025-05-09T17:43:56.392Z"
+              createdBy: go-bpmn
+              encoding: text
+              encrypted: true
+              name: x
+              updatedAt: "2025-05-09T17:43:56.392Z"
+              updatedBy: go-bpmn
+  "400":
+    description: Bad request
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          invalid_limit:
+            $ref: "#/components/examples/QueryLimitProblem"
+          invalid_offset:
+            $ref: "#/components/examples/QueryOffsetProblem"

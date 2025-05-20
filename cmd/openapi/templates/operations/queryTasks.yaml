@@ -1,0 +1,61 @@
+tags:
+  - Tasks
+summary: Query tasks
+description: >
+  Performs a task query.
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/TaskCriteria"
+responses:
+  "200":
+    description: OK
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/TaskRes"
+        example:
+          count: 3
+          results:
+            - partition: "2025-05-01"
+              id: 1
+              elementId: 10
+              elementInstanceId: 4259
+              processId: 2
+              processInstanceId: 576
+              completedAt: "2025-05-01T19:26:16.694Z"
+              createdAt: "2025-05-01T19:25:42.749Z"
+              createdBy: go-bpmn
+              dueAt: "2025-05-01T19:25:42.749Z"
+              lockedAt: "2025-05-01T19:26:16.671Z"
+              lockedBy: default-engine
+              retryCount: 0
+              type: JOIN_PARALLEL_GATEWAY
+            - partition: "2025-05-02"
+              id: 1
+              createdAt: "2025-05-01T16:04:11.365Z"
+              createdBy: default-engine
+              dueAt: "2025-05-02T00:00:00Z"
+              retryCount: 0
+              serializedTask: "{\"Partition\":\"2025-05-04\"}"
+              type: CREATE_PARTITION
+            - partition: "2025-05-03"
+              id: 1
+              createdAt: "2025-05-01T16:04:11.365Z"
+              createdBy: "default-engine"
+              dueAt: "2025-05-03T00:05:00Z"
+              retryCount: 0
+              serializedTask: "{\"Partition\":\"2025-05-01\"}"
+              type: DETACH_PARTITION
+  "400":
+    description: Bad request
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          invalid_limit:
+            $ref: "#/components/examples/QueryLimitProblem"
+          invalid_offset:
+            $ref: "#/components/examples/QueryOffsetProblem"
