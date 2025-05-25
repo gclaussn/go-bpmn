@@ -1,0 +1,31 @@
+name: Publish
+on:
+  workflow_dispatch:
+    inputs:
+      releaseTagName:
+        description: Name of a released tag
+        required: true
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+      - name: Build
+        run: bash ./.github/workflows/build.sh ${{ github.event.inputs.releaseTagName }}
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v3
+        id: upload
+        with:
+          path: dist/
+
+  deploy:
+    runs-on: ubuntu-22.04
+    needs: build
+    steps:
+      - name: Deploy pages
+        uses: actions/deploy-pages@v4

@@ -9,6 +9,8 @@ import BpmnTask from '../../../components/BpmnTask.astro';
 
 import Grid from '../../../components/Grid.astro';
 
+BPMN elements highlighted in <span style="font-weight: bold; color: green">green</span> are supported by the BPMN XML parser and implemented by the process process.
+
 ## Tasks
 
 <Grid isContainer>
@@ -204,8 +206,25 @@ import Grid from '../../../components/Grid.astro';
 
 ### End
 
+<Grid isContainer>
+  <Grid sm="4" md="2">
+    <BpmnEvent label="None">
+      <g>
+        <circle cx="18" cy="18" r="18" style="stroke-linecap: round; stroke-linejoin: round; stroke: green; stroke-width: 4px; fill: white; fill-opacity: 0.95;"></circle>
+      </g>
+    </BpmnEvent>
+  </Grid>
+</Grid>
+
 ### Throw
 
-### Catch
-
-### Boundary
+<Grid isContainer>
+  <Grid sm="4" md="2">
+    <BpmnEvent label="None">
+      <g>
+        <circle cx="18" cy="18" r="18" style="stroke-linecap: round; stroke-linejoin: round; stroke: green; stroke-width: 1.5px; fill: white; fill-opacity: 0.95;"></circle>
+        <circle cx="18" cy="18" r="15" style="stroke-linecap: round; stroke-linejoin: round; stroke: green; stroke-width: 1.5px; fill: none;"></circle>
+      </g>
+    </BpmnEvent>
+  </Grid>
+</Grid>
