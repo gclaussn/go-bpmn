@@ -2,8 +2,7 @@ name: Publish
 on:
   push:
     branches:
-      - main
-      - feature/docs-*
+      - docs
   workflow_dispatch:
     inputs:
       releaseTagName:
