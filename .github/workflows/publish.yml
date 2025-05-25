@@ -1,5 +1,9 @@
 name: Publish
 on:
+  push:
+    branches:
+      - main
+      - feature/docs-*
   workflow_dispatch:
     inputs:
       releaseTagName:
@@ -20,7 +24,7 @@ jobs:
       - name: Clean install
         run: npm ci
       - name: Build
-        run: bash ./.github/workflows/build.sh ${{ github.event.inputs.releaseTagName }}
+        run: bash ./.github/workflows/build.sh v0.1.0 # ${{ github.event.inputs.releaseTagName }}
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v3
         id: upload
