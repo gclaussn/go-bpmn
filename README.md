@@ -1,6 +1,6 @@
-# go-bpmn
-
-go-bpmn is a native BPMN 2.0 process engine, built on top of PostgreSQL.
+<p align="center">
+  <a href="https://gclaussn.github.io/go-bpmn/">go-bpmn</a> is a native BPMN 2.0 process engine, built on top of PostgreSQL.
+</p>
 
 ## Features
 
@@ -17,11 +17,11 @@ go-bpmn is a native BPMN 2.0 process engine, built on top of PostgreSQL.
 requires Go 1.24+
 
 ```sh
-# pg engine daemon
-go install github.com/gclaussn/go-bpmn/cmd/go-bpmn-pgd
+# process engine daemon
+go install github.com/gclaussn/go-bpmn/cmd/go-bpmn-pgd@latest
 
 # CLI
-go install github.com/gclaussn/go-bpmn/cmd/go-bpmn
+go install github.com/gclaussn/go-bpmn/cmd/go-bpmn@latest
 ```
 
 When used in a Go module:
