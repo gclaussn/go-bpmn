@@ -1,5 +1,11 @@
 /*
 openapi generates the API documentation.
+
+Following two program arguments are required:
+
+1. A base path to the go-bpmn module directory.
+
+2. An output path for the generated YAML file.
 */
 package main
 
@@ -12,6 +18,7 @@ import (
 	"go/parser"
 	"go/token"
 	"log"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -27,7 +34,11 @@ import (
 var resources embed.FS
 
 func main() {
-	generator := newGenerator(".")
+	if len(os.Args) != 3 {
+		log.Fatalf("arg #1 must be a base path, arg #2 must be an output path")
+	}
+
+	generator := newGenerator(os.Args[1])
 
 	// model
 	elementType, elementTypeValues := describeEnum(model.ElementType(0))
@@ -54,7 +65,17 @@ func main() {
 
 	yaml := generator.generateYaml()
 
-	print(yaml)
+	outputFile, err := os.OpenFile(os.Args[2], os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
+	if err != nil {
+		log.Fatalf("failed to open output file: %v", err)
+	}
+
+	defer outputFile.Close()
+
+	_, err = outputFile.WriteString(yaml)
+	if err != nil {
+		log.Fatalf("failed to write output file: %v", err)
+	}
 }
 
 func newGenerator(basePath string) *generator {

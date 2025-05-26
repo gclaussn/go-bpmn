@@ -13,7 +13,7 @@ rm -rf ./build && mkdir ./build
 export CGO_ENABLED=0
 
 # generate OpenAPI YAML
-go run cmd/openapi/main.go 2> ./build/go-bpmn-openapi.yaml
+go run cmd/openapi/main.go . ./build/go-bpmn-openapi.yaml
 
 # build executables
 goos=("linux" "windows")

@@ -39,5 +39,5 @@ CGO_ENABLED=0 go build -o go-bpmn-pgd ./cmd/go-bpmn-pgd
 
 ```sh
 # generate YAML
-go run cmd/openapi/main.go 2> openapi.yaml
+go run cmd/openapi/main.go . openapi.yaml
 ```
