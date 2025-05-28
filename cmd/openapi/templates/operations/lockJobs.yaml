@@ -59,7 +59,7 @@ responses:
               value: "[a b c c]"
             - pointer: "#/processIds"
               type: max
-              detail: exceeded a maximum of 100
+              detail: exceeds a maximum of 100
               value: "[1 2 ... 100 101]"
             - pointer: "#/limit"
               type: gte
