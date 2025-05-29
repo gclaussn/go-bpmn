@@ -3,15 +3,15 @@ title: Run a process engine
 description: A guide on how to run a process engine.
 ---
 
-For running a process engine, only a PostgreSQL database connection string is required:
+For running a process engine, only a connection to a PostgreSQL database is required. To configure a database connection, the environment variable `GO_BPMN_PG_DATABASE_URL` must be set - an example:
 
 ```sh
-export GO_BPMN_PG_DATABASE_URL="postgres://testusername:testpassword@db:5432/test_database?search_path=test_schema"
+export GO_BPMN_PG_DATABASE_URL="postgres://testusername:testpassword@localhost:5432/test_database?search_path=test_schema"
 ```
 
 Connection string examples and connection pool variables can be found in the [pgxpool](https://pkg.go.dev/github.com/jackc/pgx/v5/pgxpool@v5.7.4#ParseConfig) Go package documentation.
 
-After the environment variable `GO_BPMN_PG_DATABASE_URL` is set, the daemon can be started:
+After PostgreSQL database connection is configured, the daemon can be started:
 
 ```sh
 go-bpmn-pgd
@@ -35,7 +35,7 @@ go-bpmn-pgd -list-conf
 
 :::tip[How to create a custom configuration?]
 
-As a starting point, the daemon's default configuration can be used to write an `env` file.
+As a starting point, the daemon's default configuration can be used to create an `env` file.
 
 ```sh
 go-bpmn-pgd -list-conf > ~/go-bpmn-pgd.env

@@ -12,11 +12,17 @@ export default defineConfig({
 			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/gclaussn/go-bpmn' }],
 			sidebar: [
 				{
+					label: 'Getting started',
+					items: [
+						{ label: 'Introduction', slug: 'getting-started/introduction' },
+					],
+				},
+				{
 					label: 'Guides',
 					items: [
 						{ label: 'Installation', slug: 'guides/installation' },
 						{ label: 'Run a process engine', slug: 'guides/run-process-engine' },
-						{ label: 'Use CLI', slug: 'guides/use-cli' },
+						{ label: 'Using CLI', slug: 'guides/using-cli' },
 					],
 				},
 				{

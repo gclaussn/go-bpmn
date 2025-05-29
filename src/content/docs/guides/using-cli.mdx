@@ -1,22 +1,26 @@
 ---
-title: Use CLI
+title: Using CLI
 description: A guide on how to connect and use the CLI.
 ---
 
-To connect and use the CLI `go-bpmn`, the URL of a process engine HTTP API as well as an API key is required.
+To connect and use the `go-bpmn` command-line interface, the URL of a process engine HTTP API as well as an API key is required.
 
-The URL's host and port are specified in the `GO_BPMN_HTTP_BIND_ADDRESS` environment variable of the process engine daemon. The default value is `127.0.0.1:8080`.
+The URL's host and port are specified in the environment variable `GO_BPMN_HTTP_BIND_ADDRESS` of the process engine daemon. The default value is `127.0.0.1:8080`.
 
-An API key must be created once, using following command. The result is an authorization string, which is a **secret**.
+An API key must be created **once**, using following command:
 
 ```sh
 go-bpmn-pgd -create-api-key -secret-id test-worker > ~/test-worker-authorization
 ```
 
-The URL can be provided as environment or option (`--url`). Whereas the authorization string **must** be configured per an environment variable.
+The result is an authorization string, which is a **secret**.
+
+When done, the CLI must be configured.
+The URL can be provided as environment or as global CLI option `--url`.
+Whereas the authorization string must be configured per an environment variable.
 
 ```sh
-export GO_BPMN_URL="http://localhost:8080"
+export GO_BPMN_URL="http://127.0.0.1:8080"
 export GO_BPMN_AUTHORIZATION="$(cat ~/test-worker-authorization)"
 ```
 
