@@ -3,11 +3,6 @@ on:
   push:
     branches:
       - docs
-  workflow_dispatch:
-    inputs:
-      releaseTagName:
-        description: Name of a released tag
-        required: true
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -23,12 +18,11 @@ jobs:
       - name: Clean install
         run: npm ci
       - name: Build
-        run: bash ./.github/workflows/build.sh v0.1.0 # ${{ github.event.inputs.releaseTagName }}
+        run: bash ./.github/workflows/build.sh v0.1.0
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist/
-
   deploy:
     runs-on: ubuntu-22.04
     needs: build
