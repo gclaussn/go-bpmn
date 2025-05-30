@@ -16,11 +16,11 @@ As a result, processes can be modeled, using any modeler that produces valid BPM
 
 ### Job delegation
 
-When an execution reaches a BPMN element that requires process-specific logic, like an exclusive gateway or a service task, this work is delegated in form of a job.
+When an execution reaches a BPMN element that requires process-specific logic, like an exclusive gateway or a service task, the process engine delegates the work in form of a job.
 A job is a unit of work, which must be locked, executed and completed by a worker - an application, system or user that automates a process.
 
 Due to this design, process automation is completely independent of process modelling.
-Moreover the delegation of jobs allows workload as well as workers to scale without affecting the process engine.
+Moreover job delegation allows to execute any logic in any language, and to scale workers without affecting the process engine.
 
 ### PostgreSQL based
 

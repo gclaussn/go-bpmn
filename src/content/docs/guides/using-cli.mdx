@@ -7,13 +7,15 @@ To connect and use the `go-bpmn` command-line interface, the URL of a process en
 
 The URL's host and port are specified in the environment variable `GO_BPMN_HTTP_BIND_ADDRESS` of the process engine daemon. The default value is `127.0.0.1:8080`.
 
-An API key must be created **once**, using following command:
+An API key must be created, using following command:
 
 ```sh
 go-bpmn-pgd -create-api-key -secret-id test-worker > ~/test-worker-authorization
 ```
 
-The result is an authorization string, which is a **secret**.
+:::caution
+The result of the command is an authorization string - a **secret** that is shown only **once**.
+:::
 
 When done, the CLI must be configured.
 The URL can be provided as environment or as global CLI option `--url`.

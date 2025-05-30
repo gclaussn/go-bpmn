@@ -1,0 +1,102 @@
+---
+title: Automate a process
+description: Tutorial on how to automate a prcess.
+---
+
+import { Code, Tabs, TabItem } from '@astrojs/starlight/components';
+
+TBD
+
+<Tabs>
+  <TabItem label="Example process">
+
+<p align="center">
+  <img src="/go-bpmn/getting-started/automate-process/example.svg" alt="example.bpmn"></img>
+</p>
+
+  </TabItem>
+  <TabItem label="example.bpmn">
+
+```xml
+<bpmn:definitions>
+  <bpmn:process id="example" isExecutable="true">
+    <bpmn:startEvent id="startEvent" name="Start">
+      <bpmn:outgoing>f1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:sequenceFlow id="f1" sourceRef="startEvent" targetRef="fork" />
+    <bpmn:exclusiveGateway id="fork" name="X or Y?">
+      <bpmn:incoming>f1</bpmn:incoming>
+      <bpmn:outgoing>f2</bpmn:outgoing>
+      <bpmn:outgoing>f3</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="f2" sourceRef="fork" targetRef="doX" />
+    <bpmn:serviceTask id="doX" name="Do X">
+      <bpmn:incoming>f2</bpmn:incoming>
+      <bpmn:outgoing>f4</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="f4" sourceRef="doX" targetRef="join" />
+    <bpmn:sequenceFlow id="f3" sourceRef="fork" targetRef="doY" />
+    <bpmn:serviceTask id="doY" name="Do Y">
+      <bpmn:incoming>f3</bpmn:incoming>
+      <bpmn:outgoing>f5</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="f5" sourceRef="doY" targetRef="join" />
+    <bpmn:exclusiveGateway id="join">
+      <bpmn:incoming>f4</bpmn:incoming>
+      <bpmn:incoming>f5</bpmn:incoming>
+      <bpmn:outgoing>f6</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="f6" sourceRef="join" targetRef="endEvent" />
+    <bpmn:endEvent id="endEvent" name="End">
+      <bpmn:incoming>f6</bpmn:incoming>
+    </bpmn:endEvent>
+  </bpmn:process>
+</bpmn:definitions>
+```
+
+  </TabItem>
+</Tabs>
+
+## Create process
+
+<Tabs syncKey="lang">
+  <TabItem label="curl">
+  </TabItem>
+  <TabItem label="CLI">
+  </TabItem>
+  <TabItem label="Go">
+  </TabItem>
+</Tabs>
+
+## Create process instance
+
+<Tabs syncKey="lang">
+  <TabItem label="curl">
+  </TabItem>
+  <TabItem label="CLI">
+  </TabItem>
+  <TabItem label="Go">
+  </TabItem>
+</Tabs>
+
+## Evaluate exclusive gateway
+
+<Tabs syncKey="lang">
+  <TabItem label="curl">
+  </TabItem>
+  <TabItem label="CLI">
+  </TabItem>
+  <TabItem label="Go">
+  </TabItem>
+</Tabs>
+
+## Execute service task
+
+<Tabs syncKey="lang">
+  <TabItem label="curl">
+  </TabItem>
+  <TabItem label="CLI">
+  </TabItem>
+  <TabItem label="Go">
+  </TabItem>
+</Tabs>
