@@ -1,0 +1,32 @@
+---
+title: API documentation
+description: API documentation reference.
+---
+
+import { Code, Tabs, TabItem } from '@astrojs/starlight/components';
+
+import release from '../../../assets/release.json';
+
+## HTTP API
+
+To integrate a process engine in any language, application or system, go-bpmn provides an HTTP API.
+The API is described using OpenAPI standard in version [3.1.0](https://spec.openapis.org/oas/v3.1.0.html).
+
+:::tip[Explore the API]
+see [OpenAPI documentation](/go-bpmn/openapi.html) as HTML version
+:::
+
+The structured API description in form of a `yaml` file, can be downloaded from the go-bpmn release artifacts:
+
+<Tabs syncKey="osarch">
+  <TabItem label="linux">
+    <Code code={`curl -L -o go-bpmn-openapi.yaml https://github.com/gclaussn/go-bpmn/releases/download/${release.version}/go-bpmn-openapi.yaml`} lang="sh" />
+  </TabItem>
+  <TabItem label="windows">
+    <Code code={`curl.exe -L -o go-bpmn-openapi.yaml https://github.com/gclaussn/go-bpmn/releases/download/${release.version}/go-bpmn-openapi.yaml`} lang="powershell" title="PowerShell" />
+  </TabItem>
+</Tabs>
+
+## Go API
+
+For embedding a process engine or automating a process, in Go, visit the documentation of Go module [github.com/gclaussn/go-bpmn](https://pkg.go.dev/github.com/gclaussn/go-bpmn).

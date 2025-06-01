@@ -1,0 +1,64 @@
+---
+title: Installation
+description: A guide on how to install daemon and CLI.
+---
+
+import { Code, Tabs, TabItem } from '@astrojs/starlight/components';
+
+import release from '../../../assets/release.json';
+
+import linuxPath from 'installation-linux-path.mdx';
+import windowsPath from 'installation-windows-path.mdx';
+
+This guide shows how to install the go-bpmn process engine daemon and CLI.
+
+1. Download a compatible release artifact:
+
+<Tabs syncKey="osarch">
+  {release.artifacts.map((artifact) => (
+    <TabItem label={artifact.osarch}>
+      {artifact.os === "windows" ?
+        <Code code={`curl.exe -L -o go-bpmn-${artifact.osarch}.tar.gz https://github.com/gclaussn/go-bpmn/releases/download/${release.version}/go-bpmn-${artifact.osarch}.tar.gz`} lang="powershell" title="PowerShell" /> :
+        <Code code={`curl -L -o go-bpmn-${artifact.osarch}.tar.gz https://github.com/gclaussn/go-bpmn/releases/download/${release.version}/go-bpmn-${artifact.osarch}.tar.gz`} lang="sh" />
+      }
+    </TabItem>
+  ))}
+</Tabs>
+
+Looking for a specific version? - [View releases on Github](https://github.com/gclaussn/go-bpmn/releases)
+
+2. Validate the downloaded archive:
+
+<Tabs syncKey="osarch">
+  {release.artifacts.map((artifact) => (
+    <TabItem label={artifact.osarch}>
+      {artifact.os === "windows" ?
+        <Code code={`(Get-FileHash go-bpmn-${artifact.osarch}.tar.gz).Hash -eq "${artifact.checksum}"`} lang="powershell" title="PowerShell" /> :
+        <Code code={`echo "${artifact.checksum} go-bpmn-${artifact.osarch}.tar.gz" | sha256sum -c`} lang="sh" />
+      }
+    </TabItem>
+  ))}
+</Tabs>
+
+3. Extract the archive:
+
+<Tabs syncKey="osarch">
+  {release.artifacts.map((artifact) => (
+    <TabItem label={artifact.osarch}>
+      {artifact.os === "windows" ?
+        <Code code={`tar.exe -xvzf go-bpmn-${artifact.osarch}.tar.gz`} lang="powershell" title="PowerShell" /> :
+        <Code code={`tar -xvzf go-bpmn-${artifact.osarch}.tar.gz`} lang="sh" />
+      }
+    </TabItem>
+  ))}
+</Tabs>
+
+4. Add executables to `PATH` environment variable:
+
+<Tabs syncKey="osarch">
+  {release.artifacts.map((artifact) => (
+    <TabItem label={artifact.osarch}>
+      {artifact.os === "linux" ? linuxPath() : (artifact.os === "windows" ? windowsPath() : null)}
+    </TabItem>
+  ))}
+</Tabs>
