@@ -243,14 +243,14 @@ type Data struct {
 
 // Element represents a BPMN element of a process.
 type Element struct {
-	Id int32 `json:"id"` // Element ID.
+	Id int32 `json:"id" validate:"required"` // Element ID.
 
-	ProcessId int32 `json:"processId"` // ID of the enclosing process.
+	ProcessId int32 `json:"processId" validate:"required"` // ID of the enclosing process.
 
-	BpmnElementId   string            `json:"bpmnElementId"`             // Element ID within the BPMN XML.
-	BpmnElementName string            `json:"bpmnElementName,omitempty"` // Element name within the BPMN XML.
-	BpmnElementType model.ElementType `json:"bpmnElementType"`           // BPMN element type.
-	IsMultiInstance bool              `json:"multiInstance,omitempty"`   // Determines if the element is a multi instance.
+	BpmnElementId   string            `json:"bpmnElementId" validate:"required"`   // Element ID within the BPMN XML.
+	BpmnElementName string            `json:"bpmnElementName,omitempty"`           // Element name within the BPMN XML.
+	BpmnElementType model.ElementType `json:"bpmnElementType" validate:"required"` // BPMN element type.
+	IsMultiInstance bool              `json:"multiInstance,omitempty"`             // Determines if the element is a multi instance.
 }
 
 func (v Element) String() string {
@@ -262,26 +262,26 @@ type ElementCriteria struct {
 	ProcessId int32 `json:"processId,omitempty"` // Process filter.
 }
 
-// ElementInstance represents an instance of a BPMN element in the scope of an process instance.
+// ElementInstance is an instance of a BPMN element in the scope of an process instance.
 type ElementInstance struct {
-	Partition Partition `json:"partition"` // Element instance partition.
-	Id        int32     `json:"id"`        // Element instance ID.
+	Partition Partition `json:"partition" validate:"required"` // Element instance partition.
+	Id        int32     `json:"id" validate:"required"`        // Element instance ID.
 
 	ParentId int32 `json:"parentId,omitempty"` // ID of the parent element instance, the enclosing scope.
 
-	ElementId         int32 `json:"elementId"`         // ID of the related element.
-	ProcessId         int32 `json:"processId"`         // ID of the related process.
-	ProcessInstanceId int32 `json:"processInstanceId"` // ID of the enclosing process instance.
+	ElementId         int32 `json:"elementId" validate:"required"`         // ID of the related element.
+	ProcessId         int32 `json:"processId" validate:"required"`         // ID of the related process.
+	ProcessInstanceId int32 `json:"processInstanceId" validate:"required"` // ID of the enclosing process instance.
 
-	BpmnElementId   string            `json:"bpmnElementId"`           // Element ID within the BPMN XML.
-	BpmnElementType model.ElementType `json:"bpmnElementType"`         // BPMN element type.
-	CreatedAt       time.Time         `json:"createdAt"`               // Creation time.
-	CreatedBy       string            `json:"createdBy"`               // ID of the worker or engine that created the element instance.
-	EndedAt         *time.Time        `json:"endedAt,omitempty"`       // End time.
-	IsMultiInstance bool              `json:"multiInstance,omitempty"` // Determines if the element instance is a multi instance.
-	StartedAt       *time.Time        `json:"startedAt,omitempty"`     // Start time.
-	State           InstanceState     `json:"state"`                   // Current state.
-	StateChangedBy  string            `json:"stateChangedBy"`          // ID of the worker or engine that changed the state.
+	BpmnElementId   string            `json:"bpmnElementId" validate:"required"`   // Element ID within the BPMN XML.
+	BpmnElementType model.ElementType `json:"bpmnElementType" validate:"required"` // BPMN element type.
+	CreatedAt       time.Time         `json:"createdAt" validate:"required"`       // Creation time.
+	CreatedBy       string            `json:"createdBy" validate:"required"`       // ID of the worker or engine that created the element instance.
+	EndedAt         *time.Time        `json:"endedAt,omitempty"`                   // End time.
+	IsMultiInstance bool              `json:"multiInstance,omitempty"`             // Determines if the element instance is a multi instance.
+	StartedAt       *time.Time        `json:"startedAt,omitempty"`                 // Start time.
+	State           InstanceState     `json:"state" validate:"required"`           // Current state.
+	StateChangedBy  string            `json:"stateChangedBy" validate:"required"`  // ID of the worker or engine that changed the state.
 }
 
 func (v ElementInstance) HasParent() bool {
@@ -309,10 +309,10 @@ type ElementInstanceCriteria struct {
 }
 
 // Incident represents a failed job or task, which has no more retries left.
-// An incident can only be related to either a job or a task.
+// An incident is related to either a job or a task.
 type Incident struct {
-	Partition Partition `json:"partition"` // Incident partition.
-	Id        int32     `json:"id"`        // Incident ID.
+	Partition Partition `json:"partition" validate:"required"` // Incident partition.
+	Id        int32     `json:"id" validate:"required"`        // Incident ID.
 
 	ElementId         int32 `json:"elementId,omitempty"`         // ID of the related element.
 	ElementInstanceId int32 `json:"elementInstanceId,omitempty"` // ID of the related element instance.
@@ -321,10 +321,10 @@ type Incident struct {
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // ID of the enclosing process instance.
 	TaskId            int32 `json:"taskId,omitempty"`            // ID of the related task.
 
-	CreatedAt  time.Time  `json:"createdAt"`            // Creation time
-	CreatedBy  string     `json:"createdBy"`            // ID of the engine that created the incident.
-	ResolvedAt *time.Time `json:"resolvedAt,omitempty"` // Resolution time.
-	ResolvedBy string     `json:"resolvedBy,omitempty"` // ID of the worker that resolved the incident.
+	CreatedAt  time.Time  `json:"createdAt" validate:"required"` // Creation time
+	CreatedBy  string     `json:"createdBy" validate:"required"` // ID of the engine that created the incident.
+	ResolvedAt *time.Time `json:"resolvedAt,omitempty"`          // Resolution time.
+	ResolvedBy string     `json:"resolvedBy,omitempty"`          // ID of the worker that resolved the incident.
 }
 
 func (v Incident) IsResolved() bool {
@@ -345,32 +345,32 @@ type IncidentCriteria struct {
 	TaskId            int32 `json:"taskId,omitempty"`            // Process filter.
 }
 
-// Job represents a unit of work in the scope of an element instance, which must be locked, executed and completed by a worker.
+// Job is a unit of work related to an element instance, which must be locked, executed and completed by a worker.
 type Job struct {
-	Partition Partition `json:"partition"` // Job partition.
-	Id        int32     `json:"id"`        // Job ID.
+	Partition Partition `json:"partition" validate:"required"` // Job partition.
+	Id        int32     `json:"id" validate:"required"`        // Job ID.
 
-	ElementId         int32 `json:"elementId"`         // ID of the related element.
-	ElementInstanceId int32 `json:"elementInstanceId"` // ID of the related element instance.
-	ProcessId         int32 `json:"processId"`         // ID of the related process.
-	ProcessInstanceId int32 `json:"processInstanceId"` // ID of the enclosing process instance.
+	ElementId         int32 `json:"elementId" validate:"required"`         // ID of the related element.
+	ElementInstanceId int32 `json:"elementInstanceId" validate:"required"` // ID of the related element instance.
+	ProcessId         int32 `json:"processId" validate:"required"`         // ID of the related process.
+	ProcessInstanceId int32 `json:"processInstanceId" validate:"required"` // ID of the enclosing process instance.
 
-	BpmnElementId      string     `json:"bpmnElementId"`                // Element ID within the BPMN XML.
-	BpmnErrorCode      string     `json:"bpmnErrorCode,omitempty"`      // Code, indicating a BPMN error.
-	BpmnEscalationCode string     `json:"bpmnEscalationCode,omitempty"` // Code, indicating a BPMN escalation.
-	CompletedAt        *time.Time `json:"completedAt,omitempty"`        // Completion time.
-	CorrelationKey     string     `json:"correlationKey,omitempty"`     // Correlation key of the process instance.
-	CreatedAt          time.Time  `json:"createdAt"`                    // Creation time.
-	CreatedBy          string     `json:"createdBy"`                    // ID of the worker or engine that created the job.
-	DueAt              time.Time  `json:"dueAt"`                        // Due date.
-	Error              string     `json:"error,omitempty"`              // Error, indicating a technical problem.
-	LockedAt           *time.Time `json:"lockedAt,omitempty"`           // Lock time.
-	LockedBy           string     `json:"lockedBy,omitempty"`           // ID of the worker that locked the job.
-	RetryCount         int        `json:"retryCount"`                   // Number of retries left. If `0` an incident is created. Otherwise, a retry job is created.
+	BpmnElementId      string     `json:"bpmnElementId" validate:"required"`    // Element ID within the BPMN XML.
+	BpmnErrorCode      string     `json:"bpmnErrorCode,omitempty"`              // Code, indicating a BPMN error.
+	BpmnEscalationCode string     `json:"bpmnEscalationCode,omitempty"`         // Code, indicating a BPMN escalation.
+	CompletedAt        *time.Time `json:"completedAt,omitempty"`                // Completion time.
+	CorrelationKey     string     `json:"correlationKey,omitempty"`             // Correlation key of the process instance.
+	CreatedAt          time.Time  `json:"createdAt" validate:"required"`        // Creation time.
+	CreatedBy          string     `json:"createdBy" validate:"required"`        // ID of the worker or engine that created the job.
+	DueAt              time.Time  `json:"dueAt" validate:"required"`            // Due date.
+	Error              string     `json:"error,omitempty"`                      // Error, indicating a technical problem.
+	LockedAt           *time.Time `json:"lockedAt,omitempty"`                   // Lock time.
+	LockedBy           string     `json:"lockedBy,omitempty"`                   // ID of the worker that locked the job.
+	RetryCount         int        `json:"retryCount" validate:"required,gte=0"` // Number of retries left. If `0` an incident is created. Otherwise, a retry job is created.
 	// Duration until a retry job becomes due.
 	// At this point in time a retry job can be locked by a worker.
 	RetryTimer ISO8601Duration `json:"retryTimer,omitempty"`
-	Type       JobType         `json:"type"` // Job type.
+	Type       JobType         `json:"type" validate:"required"` // Job type.
 }
 
 func (v Job) HasError() bool {
@@ -414,15 +414,16 @@ type JobCriteria struct {
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // Process instance filter.
 }
 
+// Process represents a BPMN process that consists of a set of BPMN elements.
 type Process struct {
-	Id int32 `json:"id"` // Process ID.
+	Id int32 `json:"id" validate:"required"` // Process ID.
 
-	BpmnProcessId string            `json:"bpmnProcessId"`         // ID of the process element within the BPMN XML.
-	CreatedAt     time.Time         `json:"createdAt"`             // Creation time.
-	CreatedBy     string            `json:"createdBy"`             // ID of the worker that created the process.
-	Parallelism   int               `json:"parallelism,omitempty"` // Maximum number of parallel process instances being executed.
-	Tags          map[string]string `json:"tags,omitempty"`        // Tags, consisting of name and value pairs.
-	Version       string            `json:"version"`               // Process version.
+	BpmnProcessId string            `json:"bpmnProcessId" validate:"required"`      // ID of the process element within the BPMN XML.
+	CreatedAt     time.Time         `json:"createdAt" validate:"required"`          // Creation time.
+	CreatedBy     string            `json:"createdBy" validate:"required"`          // ID of the worker that created the process.
+	Parallelism   int               `json:"parallelism,omitempty" validate:"gte=0"` // Maximum number of parallel process instances being executed.
+	Tags          map[string]string `json:"tags,omitempty"`                         // Tags, consisting of name and value pairs.
+	Version       string            `json:"version" validate:"required"`            // Process version.
 }
 
 func (v Process) String() string {
@@ -436,25 +437,26 @@ type ProcessCriteria struct {
 	Tags map[string]string `json:"tags,omitempty"` // Tags, a process must have, to be included.
 }
 
+// Process instance is an instance of a BPMN process.
 type ProcessInstance struct {
-	Partition Partition `json:"partition"` // Process instance partition
-	Id        int32     `json:"id"`        // Process instance ID
+	Partition Partition `json:"partition" validate:"required"` // Process instance partition
+	Id        int32     `json:"id" validate:"required"`        // Process instance ID
 
 	ParentId int32 `json:"parentId,omitempty"` // ID of the parent process instance.
 	RootId   int32 `json:"rootId,omitempty"`   // ID of the root process instance.
 
 	ProcessId int32 `json:"processId"` // ID of the related process.
 
-	BpmnProcessId  string            `json:"bpmnProcessId"`            // ID of the process element within the BPMN XML.
-	CorrelationKey string            `json:"correlationKey,omitempty"` // Key, used to correlate a process instance with a business entity.
-	CreatedAt      time.Time         `json:"createdAt"`                // Creation time.
-	CreatedBy      string            `json:"createdBy"`                // ID of the worker or engine that created the process instance.
-	EndedAt        *time.Time        `json:"endedAt,omitempty"`        // End time.
-	StartedAt      *time.Time        `json:"startedAt,omitempty"`      // Start time.
-	State          InstanceState     `json:"state"`                    // Current state.
-	StateChangedBy string            `json:"stateChangedBy"`           // ID of the worker or engine that changed the state.
-	Tags           map[string]string `json:"tags,omitempty"`           // Tags, consisting of name and value pairs.
-	Version        string            `json:"version"`                  // Process version.
+	BpmnProcessId  string            `json:"bpmnProcessId" validate:"required"`  // ID of the process element within the BPMN XML.
+	CorrelationKey string            `json:"correlationKey,omitempty"`           // Key, used to correlate a process instance with a business entity.
+	CreatedAt      time.Time         `json:"createdAt" validate:"required"`      // Creation time.
+	CreatedBy      string            `json:"createdBy" validate:"required"`      // ID of the worker or engine that created the process instance.
+	EndedAt        *time.Time        `json:"endedAt,omitempty"`                  // End time.
+	StartedAt      *time.Time        `json:"startedAt,omitempty"`                // Start time.
+	State          InstanceState     `json:"state" validate:"required"`          // Current state.
+	StateChangedBy string            `json:"stateChangedBy" validate:"required"` // ID of the worker or engine that changed the state.
+	Tags           map[string]string `json:"tags,omitempty"`                     // Tags, consisting of name and value pairs.
+	Version        string            `json:"version" validate:"required"`        // Process version.
 }
 
 func (v ProcessInstance) HasParent() bool {
@@ -483,29 +485,29 @@ type ProcessInstanceCriteria struct {
 	Tags map[string]string `json:"tags,omitempty"` // Tags, a process instance must have, to be included.
 }
 
-// Task represents a unit of work, which must be locked and executed by an engine.
+// Task is a unit of work, which must be locked, executed and completed by an engine.
 type Task struct {
-	Partition Partition `json:"partition"` // Task partition.
-	Id        int32     `json:"id"`        // Task ID.
+	Partition Partition `json:"partition" validate:"required"` // Task partition.
+	Id        int32     `json:"id" validate:"required"`        // Task ID.
 
 	ElementId         int32 `json:"elementId,omitempty"`         // ID of the related element.
 	ElementInstanceId int32 `json:"elementInstanceId,omitempty"` // ID of the related element instance.
 	ProcessId         int32 `json:"processId,omitempty"`         // ID of the related process.
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // ID of the enclosing process instance.
 
-	CompletedAt *time.Time `json:"completedAt,omitempty"` // Completion time.
-	CreatedAt   time.Time  `json:"createdAt"`             // Creation time.
-	CreatedBy   string     `json:"createdBy"`             // ID of the worker or engine that created the task.
-	DueAt       time.Time  `json:"dueAt"`                 // Due date.
-	Error       string     `json:"error,omitempty"`       // Error, indicating a technical problem.
-	LockedAt    *time.Time `json:"lockedAt,omitempty"`    // Lock time.
-	LockedBy    string     `json:"lockedBy,omitempty"`    // ID of the engine that locked the task.
-	RetryCount  int        `json:"retryCount"`            // Number of retries left. If `0` an incident is created. Otherwise, a retry task is created.
+	CompletedAt *time.Time `json:"completedAt,omitempty"`                // Completion time.
+	CreatedAt   time.Time  `json:"createdAt" validate:"required"`        // Creation time.
+	CreatedBy   string     `json:"createdBy" validate:"required"`        // ID of the worker or engine that created the task.
+	DueAt       time.Time  `json:"dueAt" validate:"required"`            // Due date.
+	Error       string     `json:"error,omitempty"`                      // Error, indicating a technical problem.
+	LockedAt    *time.Time `json:"lockedAt,omitempty"`                   // Lock time.
+	LockedBy    string     `json:"lockedBy,omitempty"`                   // ID of the engine that locked the task.
+	RetryCount  int        `json:"retryCount" validate:"required,gte=0"` // Number of retries left. If `0` an incident is created. Otherwise, a retry task is created.
 	// Duration until a retry task becomes due.
 	// At this point in time a retry task can be locked by an engine.
 	RetryTimer     ISO8601Duration `json:"retryTimer,omitempty"`
 	SerializedTask string          `json:"serializedTask,omitempty"` // JSON serialized task.
-	Type           TaskType        `json:"type"`                     // Task type.
+	Type           TaskType        `json:"type" validate:"required"` // Task type.
 }
 
 func (v Task) HasError() bool {
@@ -536,22 +538,23 @@ type TaskCriteria struct {
 	Type TaskType `json:"type,omitempty"` // Task type.
 }
 
+// Variable is data, identified by a name, that exists in the scope of a process instance or element instance.
 type Variable struct {
-	Partition Partition `json:"partition"` // Variable partition.
-	Id        int32     `json:"id"`        // Variable ID.
+	Partition Partition `json:"partition" validate:"required"` // Variable partition.
+	Id        int32     `json:"id" validate:"required"`        // Variable ID.
 
-	ElementId         int32 `json:"elementId,omitempty"`         // ID of the related element - set if the variable exists at element instance scope.
-	ElementInstanceId int32 `json:"elementInstanceId,omitempty"` // ID of the related element instance - set if the variable exists at element instance scope.
-	ProcessId         int32 `json:"processId"`                   // ID of the related process.
-	ProcessInstanceId int32 `json:"processInstanceId"`           // ID of the enclosing process instance.
+	ElementId         int32 `json:"elementId,omitempty"`                   // ID of the related element - set if the variable exists at element instance scope.
+	ElementInstanceId int32 `json:"elementInstanceId,omitempty"`           // ID of the related element instance - set if the variable exists at element instance scope.
+	ProcessId         int32 `json:"processId" validate:"required"`         // ID of the related process.
+	ProcessInstanceId int32 `json:"processInstanceId" validate:"required"` // ID of the enclosing process instance.
 
-	CreatedAt   time.Time `json:"createdAt"` // Creation time.
-	CreatedBy   string    `json:"createdBy"` // ID of the worker that created the variable.
-	Encoding    string    `json:"encoding"`  // Encoding of the variable value - e.g. `json`.
-	IsEncrypted bool      `json:"encrypted"` // Determines if the variable value is encrypted.
-	Name        string    `json:"name"`      // Variable name.
-	UpdatedAt   time.Time `json:"updatedAt"` // Last modification time.
-	UpdatedBy   string    `json:"updatedBy"` // ID of the worker that updated the variable.
+	CreatedAt   time.Time `json:"createdAt" validate:"required"` // Creation time.
+	CreatedBy   string    `json:"createdBy" validate:"required"` // ID of the worker that created the variable.
+	Encoding    string    `json:"encoding" validate:"required"`  // Encoding of the variable value - e.g. `json`.
+	IsEncrypted bool      `json:"encrypted"`                     // Determines if the variable value is encrypted.
+	Name        string    `json:"name" validate:"required"`      // Variable name.
+	UpdatedAt   time.Time `json:"updatedAt" validate:"required"` // Last modification time.
+	UpdatedBy   string    `json:"updatedBy" validate:"required"` // ID of the worker that updated the variable.
 }
 
 func (v Variable) String() string {

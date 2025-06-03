@@ -6,13 +6,33 @@ info:
     API to interact with a process engine via HTTP.
 tags:
   - name: Elements
+    description: |
+      An element represents a BPMN element of a process.
   - name: Element instances
+    description: >
+      An element instance is an instance of a BPMN element in the scope of an process instance.
   - name: Incidents
+    description: >
+      An incident represents a failed job or task, which has no more retries left.
+      An incident is related to either a job or a task.
   - name: Jobs
+    description: >
+      A job is a unit of work related to an element instance, which must be locked, executed and completed by a worker.
   - name: Processes
+    description: >
+      A process represents a BPMN process that consists of a set of BPMN elements.
   - name: Process instances
+    description: >
+      A process instance is an instance of a BPMN process.
   - name: Tasks
+    description: >
+      A task is a unit of work, which must be locked, executed and completed by an engine.
   - name: Variables
+    description: >
+      A variable is data, identified by a name, that exists in the scope of a process instance or element instance.
+servers:
+  - url: http://127.0.0.1:8080
+    description: Default configuration
 paths:
 {{- range $path, $methods := .paths}}
   {{$path}}:

@@ -83,26 +83,38 @@ func (v *ProblemType) UnmarshalJSON(data []byte) error {
 
 // Error represents a validation error, pointing on a JSON property.
 type Error struct {
-	Pointer string `json:"pointer"`
-	Type    string `json:"type"`
-	Detail  string `json:"detail"`
-	Value   string `json:"value,omitempty"`
+	// A JSON pointer, locating the invalid property.
+	Pointer string `json:"pointer" validate:"required"`
+	// Error type.
+	//
+	// Possible values:
+	//   - `gte`: value must be greater than or equal to
+	//   - `lte`: value must be less than or equal to
+	//   - `max`: array exceeds a maximum of number of items
+	//   - `required`: value is required
+	//   - `unique`: items of an array must be unique
+	//   - `iso8601_duration`: value is not a valid ISO 8601 duration
+	//   - `tag_name`: key is not a valid tag name
+	//   - `variable_name`: key is not a valid variable name
+	Type string `json:"type" validate:"required"`
+	// Human-readable, detailed information about the error.
+	Detail string `json:"detail" validate:"required"`
+	// Value or key that caused the validation error.
+	Value string `json:"value,omitempty"`
 }
 
 func (v Error) String() string {
 	return fmt.Sprintf("%s: %s", v.Pointer, v.Detail)
 }
 
-// inspired by https://datatracker.ietf.org/doc/html/rfc9457
-
-// ...
+// Common format for HTTP 4xx error responses, based on https://datatracker.ietf.org/doc/html/rfc9457.
 type Problem struct {
-	Status int         `json:"status"`
-	Type   ProblemType `json:"type"`
-	Title  string      `json:"title"`
-	Detail string      `json:"detail"`
+	Status int         `json:"status" validate:"required"` // HTTP status code.
+	Type   ProblemType `json:"type" validate:"required"`   // Problem type.
+	Title  string      `json:"title" validate:"required"`  // Human-readable problem summary.
+	Detail string      `json:"detail" validate:"required"` // Human-readable, detailed information about the problem.
 
-	Errors []Error `json:"errors,omitempty"`
+	Errors []Error `json:"errors,omitempty"` // Validation errors - only set if problem type is `VALIDATION`.
 }
 
 func (v Problem) Error() string {

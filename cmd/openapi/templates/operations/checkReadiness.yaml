@@ -10,7 +10,7 @@ responses:
           type: string
         example: ready
   "503":
-    description: Not found
+    description: Not ready
     content:
       text/plain:
         schema:
