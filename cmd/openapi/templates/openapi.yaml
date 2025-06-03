@@ -63,8 +63,8 @@ components:
   {{- end}}
   {{- if $schema.Properties}}
       properties:
-    {{- range $propertyName, $property := $schema.Properties}}
-        {{$propertyName}}:
+    {{- range $property := $schema.Properties}}
+        {{$property.Name}}:
       {{- if not $property.TypeReference}}
           description: >
             {{- or $property.Description "" | indent 12}}
@@ -96,13 +96,13 @@ components:
             $ref: "#/components/schemas/{{$property.Items.TypeReference | stripPackage}}"
           {{- end}}
         {{- end}}
-        {{- if $property.Maximum}}
+        {{- if ne $property.Maximum -1}}
           maximum: {{$property.Maximum}}
         {{- end}}
         {{- if $property.MaxItems}}
           maxItems: {{$property.MaxItems}}
         {{- end}}
-        {{- if $property.Minimum}}
+        {{- if ne $property.Minimum -1}}
           minimum: {{$property.Minimum}}
         {{- end}}
         {{- if $property.MinItems}}

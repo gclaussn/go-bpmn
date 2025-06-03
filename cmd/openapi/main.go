@@ -19,7 +19,6 @@ import (
 	"go/token"
 	"log"
 	"os"
-	"slices"
 	"strconv"
 	"strings"
 	"text/template"
@@ -239,10 +238,7 @@ func (g *generator) generateSchemas(name string) {
 
 				schema = g.schemas[typeName]
 				if schema == nil {
-					schema = &Schema{
-						Properties: make(map[string]Property),
-						Type:       extractType(n.Type),
-					}
+					schema = &Schema{Type: extractType(n.Type)}
 					g.schemas[typeName] = schema
 				}
 
@@ -262,7 +258,12 @@ func (g *generator) generateSchemas(name string) {
 						continue
 					}
 
-					property := Property{}
+					property := Property{
+						Name: json[0],
+
+						Maximum: -1,
+						Minimum: -1,
+					}
 
 					typeName := extractType(field.Type)
 
@@ -282,15 +283,13 @@ func (g *generator) generateSchemas(name string) {
 						description = field.Comment.Text()
 					} else if field.Doc != nil {
 						description = field.Doc.Text()
-
 					}
 
 					if description != "" {
 						property.Description = description[:len(description)-1]
 					}
 
-					name := json[0]
-					schema.Properties[name] = property
+					schema.Properties = append(schema.Properties, property)
 				}
 
 				// delete empty schemas e.g. GetBpmnXmlCmd
@@ -609,6 +608,7 @@ type Operation struct {
 }
 
 type Property struct {
+	Name          string
 	Description   string
 	Format        string
 	Type          string
@@ -632,17 +632,16 @@ type Property struct {
 type Schema struct {
 	Description string
 	Enum        []string
-	Properties  map[string]Property
+	Properties  []Property
 	Type        string
 }
 
 func (s *Schema) Required() []string {
 	var required []string
-	for propertyName, p := range s.Properties {
+	for _, p := range s.Properties {
 		if p.required {
-			required = append(required, propertyName)
+			required = append(required, p.Name)
 		}
 	}
-	slices.Sort(required)
 	return required
 }
