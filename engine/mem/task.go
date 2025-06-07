@@ -140,7 +140,7 @@ func (r *taskRepository) Lock(cmd engine.ExecuteTasksCmd, lockedAt time.Time) ([
 				break
 			}
 
-			if e.LockedAt.Valid || e.DueAt.After(lockedAt) {
+			if e.LockedAt.Valid || lockedAt.Before(e.DueAt) {
 				continue
 			}
 

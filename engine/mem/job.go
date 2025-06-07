@@ -131,7 +131,7 @@ func (r *jobRepository) Lock(cmd engine.LockJobsCmd, lockedAt time.Time) ([]*int
 				break
 			}
 
-			if e.LockedAt.Valid || e.DueAt.After(lockedAt) {
+			if e.LockedAt.Valid || lockedAt.Before(e.DueAt) {
 				continue
 			}
 

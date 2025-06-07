@@ -165,14 +165,14 @@ type pgEngineWithContext struct {
 }
 
 func (e *pgEngineWithContext) require() (*pgContext, error) {
+	now := time.Now()
+
 	pgEngine := e.e
 
 	select {
 	case <-pgEngine.requireCtx.Done():
 		return nil, pgEngine.requireCtx.Err()
 	case pgCtx := <-pgEngine.pgCtxPool:
-		now := time.Now()
-
 		tx, err := pgEngine.pgPool.Begin(e.ctx)
 		if err != nil {
 			pgEngine.pgCtxPool <- pgCtx
@@ -486,7 +486,7 @@ func (e *pgEngineWithContext) SetTime(cmd engine.SetTimeCmd) error {
 	}
 
 	old := ctx.Time()
-	new := cmd.Time.UTC()
+	new := cmd.Time.UTC().Truncate(time.Millisecond)
 
 	sub := new.Sub(old)
 	if sub.Milliseconds() < 0 {

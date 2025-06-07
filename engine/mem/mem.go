@@ -190,7 +190,7 @@ func (e *memEngine) SetTime(cmd engine.SetTimeCmd) error {
 	ctx := e.wlock()
 
 	old := ctx.Time()
-	new := cmd.Time.UTC()
+	new := cmd.Time.UTC().Truncate(time.Millisecond)
 
 	sub := new.Sub(old)
 	if sub.Milliseconds() < 0 {
@@ -238,21 +238,25 @@ func (e *memEngine) Shutdown() {
 }
 
 func (e *memEngine) rlock() *memContext {
+	now := time.Now()
+
 	e.ctxMutex.RLock()
 	e.isReadLock = true
 
-	// must be UTC and truncated to millis (see engine/pg/pg.go)
-	e.ctx.time = time.Now().Add(e.offset).Truncate(time.Millisecond).UTC()
+	// must be UTC and truncated to millis (see engine/pg/pg.go:pgEngineWithContext#require)
+	e.ctx.time = now.UTC().Add(e.offset).Truncate(time.Millisecond)
 
 	return e.ctx
 }
 
 func (e *memEngine) wlock() *memContext {
+	now := time.Now()
+
 	e.ctxMutex.Lock()
 	e.isReadLock = false
 
-	// must be UTC and truncated to millis (see engine/pg/pg.go)
-	e.ctx.time = time.Now().Add(e.offset).Truncate(time.Millisecond).UTC()
+	// must be UTC and truncated to millis (see engine/pg/pg.go:pgEngineWithContext#require)
+	e.ctx.time = now.UTC().Add(e.offset).Truncate(time.Millisecond)
 
 	return e.ctx
 }
