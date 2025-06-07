@@ -51,14 +51,14 @@ func main() {
 	generator.generateEnum(jobType, jobTypeValues)
 	taskType, taskTypeValues := describeEnum(engine.TaskType(0))
 	generator.generateEnum(taskType, taskTypeValues)
-	generator.generateSchemas("engine/model.go")
 	generator.generateSchemas("engine/command.go")
+	generator.generateSchemas("engine/model.go")
 
 	// server
 	problemType, problemTypeValues := describeEnum(server.ProblemType(0))
 	generator.generateEnum(problemType, problemTypeValues)
-	generator.generateSchemas("http/server/response.go")
 	generator.generateSchemas("http/server/problem.go")
+	generator.generateSchemas("http/server/response.go")
 
 	generator.generateOperations()
 
@@ -258,13 +258,6 @@ func (g *generator) generateSchemas(name string) {
 						continue
 					}
 
-					property := Property{
-						Name: json[0],
-
-						Maximum: -1,
-						Minimum: -1,
-					}
-
 					typeName := extractType(field.Type)
 
 					// when type is exported, prepend the package name
@@ -275,8 +268,15 @@ func (g *generator) generateSchemas(name string) {
 						typeName = fmt.Sprintf("[]%s.%s", packageName, typeName[2:])
 					}
 
-					setPropertyType(&property, typeName, g.schemas)
-					setPropertyConstraint(&property, validate)
+					property := Property{
+						Name: json[0],
+
+						Maximum: -1,
+						Minimum: -1,
+
+						typeName: typeName,
+						validate: validate,
+					}
 
 					var description string
 					if field.Comment != nil {
@@ -289,7 +289,7 @@ func (g *generator) generateSchemas(name string) {
 						property.Description = description[:len(description)-1]
 					}
 
-					schema.Properties = append(schema.Properties, property)
+					schema.Properties = append(schema.Properties, &property)
 				}
 
 				// delete empty schemas e.g. GetBpmnXmlCmd
@@ -363,6 +363,11 @@ func (g *generator) generateYaml() string {
 
 	schemas := make(map[string]*Schema)
 	for schemaName, schema := range g.schemas {
+		for _, property := range schema.Properties {
+			setPropertyType(property, property.typeName, g.schemas)
+			setPropertyConstraint(property, property.validate)
+		}
+
 		// strip package names of schemas to have them globally sorted
 		split := strings.SplitN(schemaName, ".", 2)
 		if len(split) > 1 {
@@ -627,12 +632,14 @@ type Property struct {
 	UniqueItems bool
 
 	required bool
+	typeName string
+	validate []string
 }
 
 type Schema struct {
 	Description string
 	Enum        []string
-	Properties  []Property
+	Properties  []*Property
 	Type        string
 }
 

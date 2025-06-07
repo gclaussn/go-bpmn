@@ -81,6 +81,28 @@ func (v *ProblemType) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// Common format for HTTP 4xx error responses, based on https://datatracker.ietf.org/doc/html/rfc9457.
+type Problem struct {
+	Status int         `json:"status" validate:"required"` // HTTP status code.
+	Type   ProblemType `json:"type" validate:"required"`   // Problem type.
+	Title  string      `json:"title" validate:"required"`  // Human-readable problem summary.
+	Detail string      `json:"detail" validate:"required"` // Human-readable, detailed information about the problem.
+
+	Errors []Error `json:"errors,omitempty"` // Validation errors - only set if problem type is `VALIDATION`.
+}
+
+func (v Problem) Error() string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("HTTP %d: %s: %s: %s", v.Status, v.Type, v.Title, v.Detail))
+
+	for i := 0; i < len(v.Errors); i++ {
+		sb.WriteRune('\n')
+		sb.WriteString(v.Errors[i].String())
+	}
+
+	return sb.String()
+}
+
 // Error represents a validation error, pointing on a JSON property.
 type Error struct {
 	// A JSON pointer, locating the invalid property.
@@ -105,28 +127,6 @@ type Error struct {
 
 func (v Error) String() string {
 	return fmt.Sprintf("%s: %s", v.Pointer, v.Detail)
-}
-
-// Common format for HTTP 4xx error responses, based on https://datatracker.ietf.org/doc/html/rfc9457.
-type Problem struct {
-	Status int         `json:"status" validate:"required"` // HTTP status code.
-	Type   ProblemType `json:"type" validate:"required"`   // Problem type.
-	Title  string      `json:"title" validate:"required"`  // Human-readable problem summary.
-	Detail string      `json:"detail" validate:"required"` // Human-readable, detailed information about the problem.
-
-	Errors []Error `json:"errors,omitempty"` // Validation errors - only set if problem type is `VALIDATION`.
-}
-
-func (v Problem) Error() string {
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("HTTP %d: %s: %s: %s", v.Status, v.Type, v.Title, v.Detail))
-
-	for i := 0; i < len(v.Errors); i++ {
-		sb.WriteRune('\n')
-		sb.WriteString(v.Errors[i].String())
-	}
-
-	return sb.String()
 }
 
 func encodeJSONProblemResponseBody(w http.ResponseWriter, r *http.Request, err error) {
