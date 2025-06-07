@@ -79,7 +79,7 @@ func (g graph) createExecution(scope *ElementInstanceEntity) (ElementInstanceEnt
 	var noneStartEvents []*model.Element
 	switch scopeNode.element.Type {
 	case model.ElementProcess:
-		noneStartEvents = scopeNode.element.FindElementsByType(model.ElementNoneStartEvent)
+		noneStartEvents = scopeNode.element.ElementsByType(model.ElementNoneStartEvent)
 	}
 
 	if len(noneStartEvents) == 0 {
@@ -166,7 +166,7 @@ func (g graph) ensureSequenceFlow(sourceId string, targetId string) error {
 	if !ok {
 		return fmt.Errorf("BPMN process has no element %s", sourceId)
 	}
-	if node.element.FindOutgoing(targetId) == nil {
+	if node.element.OutgoingById(targetId) == nil {
 		return fmt.Errorf("BPMN element %s has no outgoing sequence flow to %s", sourceId, targetId)
 	}
 	return nil

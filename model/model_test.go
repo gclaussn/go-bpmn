@@ -25,6 +25,25 @@ func TestInvalidXml(t *testing.T) {
 	}
 }
 
+func TestUnknownElement(t *testing.T) {
+	assert := assert.New(t)
+
+	// when
+	model := mustCreateModel(t, "invalid/element-unknown.bpmn")
+
+	// then
+	assert.Equal("test", model.Definitions.Id)
+	assert.Len(model.Definitions.Processes, 1)
+
+	processElement := model.Definitions.Processes[0]
+	assert.Len(processElement.Elements, 2)
+
+	assert.NotNil(processElement.SequenceFlows[0].Source)
+	assert.Nil(processElement.SequenceFlows[0].Target)
+	assert.Nil(processElement.SequenceFlows[1].Source)
+	assert.NotNil(processElement.SequenceFlows[1].Target)
+}
+
 func TestServiceTask(t *testing.T) {
 	assert := assert.New(t)
 
@@ -51,7 +70,7 @@ func TestServiceTask(t *testing.T) {
 	process := processElement.Model.(*Process)
 	assert.True(process.IsExecutable)
 
-	startEvent := processElement.FindElementById("startEvent")
+	startEvent := processElement.ElementById("startEvent")
 	assert.NotNil(startEvent)
 	assert.Empty(startEvent.Incoming)
 	assert.Equal("", startEvent.Name)
@@ -59,7 +78,7 @@ func TestServiceTask(t *testing.T) {
 	assert.Equal(processElement, startEvent.Parent)
 	assert.Equal(ElementNoneStartEvent, startEvent.Type)
 
-	serviceTask := processElement.FindElementById("serviceTask")
+	serviceTask := processElement.ElementById("serviceTask")
 	assert.NotNil(serviceTask)
 	assert.Len(serviceTask.Incoming, 1)
 	assert.Equal("", serviceTask.Name)
@@ -67,7 +86,7 @@ func TestServiceTask(t *testing.T) {
 	assert.Equal(processElement, serviceTask.Parent)
 	assert.Equal(ElementServiceTask, serviceTask.Type)
 
-	endEvent := processElement.FindElementById("endEvent")
+	endEvent := processElement.ElementById("endEvent")
 	assert.NotNil(endEvent)
 	assert.Len(endEvent.Incoming, 1)
 	assert.Equal("", endEvent.Name)
@@ -86,31 +105,9 @@ func TestServiceTask(t *testing.T) {
 	assert.Equal(serviceTask, sequenceFlow2.Source)
 	assert.Equal(endEvent, sequenceFlow2.Target)
 
-	noneStartEvents := processElement.FindElementsByType(ElementNoneStartEvent)
+	noneStartEvents := processElement.ElementsByType(ElementNoneStartEvent)
 	assert.Len(noneStartEvents, 1)
 	assert.Equal(noneStartEvents[0], startEvent)
 
-	assert.Nil(processElement.FindElementById("not-existing"))
-}
-
-func TestUnknownElement(t *testing.T) {
-	assert := assert.New(t)
-
-	// when
-	model := mustCreateModel(t, "invalid/element-unknown.bpmn")
-
-	// then
-	assert.Equal("test", model.Definitions.Id)
-	assert.Len(model.Definitions.Processes, 1)
-
-	processElement, err := model.ProcessById("elementUnknownTest")
-	assert.NotNil(processElement)
-	assert.Nil(err)
-
-	assert.Len(processElement.Elements, 2)
-
-	assert.NotNil(processElement.SequenceFlows[0].Source)
-	assert.Nil(processElement.SequenceFlows[0].Target)
-	assert.Nil(processElement.SequenceFlows[1].Source)
-	assert.NotNil(processElement.SequenceFlows[1].Target)
+	assert.Nil(processElement.ElementById("not-existing"))
 }

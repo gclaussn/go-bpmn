@@ -1,0 +1,16 @@
+<definitions id="test">
+  <process id="catchEventUnknownTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="unknownCatchEvent" />
+    <intermediateCatchEvent id="unknownCatchEvent">
+      <incoming>f1</incoming>
+      <outgoing>f2</outgoing>
+    </intermediateCatchEvent>
+    <sequenceFlow id="f2" sourceRef="unknownCatchEvent" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f2</incoming>
+    </endEvent>
+  </process>
+</definitions>

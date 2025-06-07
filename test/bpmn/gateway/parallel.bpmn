@@ -1,24 +1,24 @@
-<bpmn:definitions id="test">
-  <bpmn:process id="parallelTest" isExecutable="true">
-    <bpmn:startEvent id="startEvent">
-      <bpmn:outgoing>f1</bpmn:outgoing>
-    </bpmn:startEvent>
-    <bpmn:sequenceFlow id="f1" sourceRef="startEvent" targetRef="fork" />
-    <bpmn:parallelGateway id="join">
-      <bpmn:incoming>f2</bpmn:incoming>
-      <bpmn:incoming>f3</bpmn:incoming>
-      <bpmn:outgoing>f4</bpmn:outgoing>
-    </bpmn:parallelGateway>
-    <bpmn:sequenceFlow id="f2" sourceRef="fork" targetRef="join" />
-    <bpmn:sequenceFlow id="f3" sourceRef="fork" targetRef="join" />
-    <bpmn:parallelGateway id="fork">
-      <bpmn:incoming>f1</bpmn:incoming>
-      <bpmn:outgoing>f2</bpmn:outgoing>
-      <bpmn:outgoing>f3</bpmn:outgoing>
-    </bpmn:parallelGateway>
-    <bpmn:sequenceFlow id="f4" sourceRef="join" targetRef="endEvent" />
-    <bpmn:endEvent id="endEvent">
-      <bpmn:incoming>f4</bpmn:incoming>
-    </bpmn:endEvent>
-  </bpmn:process>
-</bpmn:definitions>
+<definitions id="test">
+  <process id="parallelTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="fork" />
+    <parallelGateway id="join">
+      <incoming>f2</incoming>
+      <incoming>f3</incoming>
+      <outgoing>f4</outgoing>
+    </parallelGateway>
+    <sequenceFlow id="f2" sourceRef="fork" targetRef="join" />
+    <sequenceFlow id="f3" sourceRef="fork" targetRef="join" />
+    <parallelGateway id="fork">
+      <incoming>f1</incoming>
+      <outgoing>f2</outgoing>
+      <outgoing>f3</outgoing>
+    </parallelGateway>
+    <sequenceFlow id="f4" sourceRef="join" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f4</incoming>
+    </endEvent>
+  </process>
+</definitions>

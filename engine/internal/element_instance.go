@@ -71,29 +71,3 @@ type ElementInstanceRepository interface {
 
 	Query(engine.ElementInstanceCriteria, engine.QueryOptions) ([]any, error)
 }
-
-type JoinParallelGatewayTask struct {
-}
-
-func (t JoinParallelGatewayTask) Execute(ctx Context, task *TaskEntity) error {
-	processInstance, err := ctx.ProcessInstances().Select(task.Partition, task.ProcessInstanceId.Int32)
-	if err != nil {
-		return err
-	}
-	if processInstance.State != engine.InstanceStarted && processInstance.State != engine.InstanceSuspended {
-		return nil
-	}
-
-	process, err := ctx.ProcessCache().GetOrCacheById(ctx, processInstance.ProcessId)
-	if err != nil {
-		return err
-	}
-
-	ec := executionContext{
-		engineOrWorkerId: ctx.Options().EngineId,
-		process:          process,
-		processInstance:  processInstance,
-	}
-
-	return ec.handleParallelGateway(ctx, task)
-}

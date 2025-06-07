@@ -1,3 +1,3 @@
-<bpmn:definitions id="test">
-  <bpmn:process id="emptyTest" isExecutable="true" />
-</bpmn:definitions>
+<definitions id="test">
+  <process id="emptyTest" isExecutable="true" />
+</definitions>

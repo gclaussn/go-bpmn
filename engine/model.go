@@ -87,9 +87,11 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 
 // JobType describes the different types of jobs, a worker needs to execute.
 //
-//   - [JobEvaluateExclusiveGateway] must result in a job completion with exactly one BPMN element ID to continue with
-//   - [JobEvaluateInclusiveGateway] must result in a job completion with one or multiple BPMN element IDs to continue with
-//   - [JobExecute] execution of a BPMN element with type business rule, script, send or service task
+// Each type is used for a specific set of BPMN element types:
+//
+//   - [JobEvaluateExclusiveGateway]: forking exclusive gateway
+//   - [JobEvaluateInclusiveGateway]: forking inclusive gateway
+//   - [JobExecute]: business rule, script, send and service task
 type JobType int
 
 const (
@@ -391,11 +393,6 @@ func (v Job) String() string {
 
 // JobCompletion is used to complete jobs of various types.
 type JobCompletion struct {
-	// Code of a BPMN error to trigger.
-	BpmnErrorCode string `json:"bpmnErrorCode,omitempty"`
-	// Code of a BPMN escalation to trigger.
-	BpmnEscalationCode string `json:"bpmnEscalationCode,omitempty"`
-
 	// Evaluated BPMN element ID to continue with after the exclusive gateway.
 	// Applicable when job type is `EVALUATE_EXCLUSIVE_GATEWAY`.
 	ExclusiveGatewayDecision string `json:"exclusiveGatewayDecision,omitempty"`

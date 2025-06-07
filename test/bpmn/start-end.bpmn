@@ -1,11 +1,11 @@
-<bpmn:definitions id="test">
-  <bpmn:process id="startEndTest" isExecutable="true">
-    <bpmn:startEvent id="startEvent">
-      <bpmn:outgoing>f1</bpmn:outgoing>
-    </bpmn:startEvent>
-    <bpmn:endEvent id="endEvent">
-      <bpmn:incoming>f1</bpmn:incoming>
-    </bpmn:endEvent>
-    <bpmn:sequenceFlow id="f1" sourceRef="startEvent" targetRef="endEvent" />
-  </bpmn:process>
-</bpmn:definitions>
+<definitions id="test">
+  <process id="startEndTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <endEvent id="endEvent">
+      <incoming>f1</incoming>
+    </endEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="endEvent" />
+  </process>
+</definitions>

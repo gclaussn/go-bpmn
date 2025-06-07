@@ -23,6 +23,10 @@ func NewTaskExecutor(e engine.Engine, interval time.Duration, taskLimit int) *Ta
 }
 
 type Task interface {
+	// Execute executes the task's logic, using the context of an entity.
+	//
+	// If [engine.Error] is returned, the task completes, but a retry task or an incident is created.
+	// If a different error is returned, the task fails.
 	Execute(Context, *TaskEntity) error
 }
 

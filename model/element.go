@@ -27,7 +27,7 @@ func (e *Element) AllElements() []*Element {
 	return all
 }
 
-func (e *Element) FindElementById(id string) *Element {
+func (e *Element) ElementById(id string) *Element {
 	for i := 0; i < len(e.Elements); i++ {
 		if e.Elements[i].Id == id {
 			return e.Elements[i]
@@ -36,7 +36,7 @@ func (e *Element) FindElementById(id string) *Element {
 	return nil
 }
 
-func (e *Element) FindElementsByType(elementType ElementType) []*Element {
+func (e *Element) ElementsByType(elementType ElementType) []*Element {
 	var elements []*Element
 	for i := 0; i < len(e.Elements); i++ {
 		if e.Elements[i].Type == elementType {
@@ -46,7 +46,7 @@ func (e *Element) FindElementsByType(elementType ElementType) []*Element {
 	return elements
 }
 
-func (e *Element) FindOutgoing(targetId string) *Element {
+func (e *Element) OutgoingById(targetId string) *Element {
 	for i := 0; i < len(e.Outgoing); i++ {
 		target := e.Outgoing[i].Target
 		if target != nil && target.Id == targetId {

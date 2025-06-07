@@ -339,7 +339,7 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 	switch job.Type {
 	case engine.JobEvaluateExclusiveGateway:
 		if jobCompletion == nil || jobCompletion.ExclusiveGatewayDecision == "" {
-			job.Error = pgtype.Text{String: "expected exclusive gateway decision as a result", Valid: true}
+			job.Error = pgtype.Text{String: "expected an exclusive gateway decision", Valid: true}
 			return nil
 		}
 
@@ -366,12 +366,12 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 		executions = append(executions, &next)
 	case engine.JobEvaluateInclusiveGateway:
 		if jobCompletion == nil || len(jobCompletion.InclusiveGatewayDecision) == 0 {
-			job.Error = pgtype.Text{String: "expected inclusive gateway decision as a result", Valid: true}
+			job.Error = pgtype.Text{String: "expected an inclusive gateway decision", Valid: true}
 			return nil
 		}
 
 		bpmnElementIds := jobCompletion.InclusiveGatewayDecision
-		for i := 0; i < len(bpmnElementIds); i++ {
+		for i := range bpmnElementIds {
 			for j := i + 1; j < len(bpmnElementIds); j++ {
 				if bpmnElementIds[i] == bpmnElementIds[j] {
 					job.Error = pgtype.Text{String: fmt.Sprintf("decision contains duplicate BPMN element ID %s", bpmnElementIds[i]), Valid: true}
@@ -379,7 +379,7 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 				}
 			}
 		}
-		for i := 0; i < len(bpmnElementIds); i++ {
+		for i := range bpmnElementIds {
 			if err := ec.process.graph.ensureSequenceFlow(job.BpmnElementId, bpmnElementIds[i]); err != nil {
 				job.Error = pgtype.Text{String: err.Error(), Valid: true}
 				return nil
@@ -404,11 +404,11 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 			executions = append(executions, &next)
 		}
 	case engine.JobExecute:
-		if jobCompletion != nil && jobCompletion.BpmnErrorCode != "" {
+		if job.BpmnErrorCode.Valid {
 			job.Error = pgtype.Text{String: "BPMN error code is not supported", Valid: true}
 			return nil
 		}
-		if jobCompletion != nil && jobCompletion.BpmnEscalationCode != "" {
+		if job.BpmnEscalationCode.Valid {
 			job.Error = pgtype.Text{String: "BPMN escalation code is not supported", Valid: true}
 			return nil
 		}

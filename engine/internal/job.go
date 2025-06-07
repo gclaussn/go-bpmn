@@ -192,6 +192,12 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 
 	if cmd.Error != "" {
 		job.Error = pgtype.Text{String: cmd.Error, Valid: true}
+	} else if job.Type == engine.JobExecute {
+		if cmd.BpmnErrorCode != "" {
+			job.BpmnErrorCode = pgtype.Text{String: cmd.BpmnErrorCode, Valid: true}
+		} else if cmd.BpmnEscalationCode != "" {
+			job.BpmnEscalationCode = pgtype.Text{String: cmd.BpmnEscalationCode, Valid: true}
+		}
 	}
 
 	if !job.Error.Valid {

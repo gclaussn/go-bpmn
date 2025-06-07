@@ -1,16 +1,16 @@
-<bpmn:definitions id="test">
-  <bpmn:process id="sendTest" isExecutable="true">
-    <bpmn:startEvent id="startEvent">
-      <bpmn:outgoing>f1</bpmn:outgoing>
-    </bpmn:startEvent>
-    <bpmn:sequenceFlow id="f1" sourceRef="startEvent" targetRef="sendTask" />
-    <bpmn:sendTask id="sendTask">
-      <bpmn:incoming>f1</bpmn:incoming>
-      <bpmn:outgoing>f2</bpmn:outgoing>
-    </bpmn:sendTask>
-    <bpmn:sequenceFlow id="f2" sourceRef="sendTask" targetRef="endEvent" />
-    <bpmn:endEvent id="endEvent">
-      <bpmn:incoming>f2</bpmn:incoming>
-    </bpmn:endEvent>
-  </bpmn:process>
-</bpmn:definitions>
+<definitions id="test">
+  <process id="sendTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="sendTask" />
+    <sendTask id="sendTask">
+      <incoming>f1</incoming>
+      <outgoing>f2</outgoing>
+    </sendTask>
+    <sequenceFlow id="f2" sourceRef="sendTask" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f2</incoming>
+    </endEvent>
+  </process>
+</definitions>

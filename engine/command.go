@@ -9,7 +9,11 @@ type CompleteJobCmd struct {
 	// Job ID.
 	Id int32 `json:"-"`
 
-	// Optional job completion, used to succeed any type of job.
+	// Optional code, used to trigger a BPMN error.
+	BpmnErrorCode string `json:"bpmnErrorCode,omitempty"`
+	// Optional code, used to trigger a BPMN escalation.
+	BpmnEscalationCode string `json:"bpmnEscalationCode,omitempty"`
+	// Optional completion, used to succeed a job.
 	Completion *JobCompletion `json:"completion,omitempty"`
 	// Variables to set or delete at element instance scope.
 	ElementVariables map[string]*Data `json:"elementVariables,omitempty" validate:"dive,keys,variable_name,endkeys,omitnil,required"`
@@ -19,8 +23,8 @@ type CompleteJobCmd struct {
 	ProcessVariables map[string]*Data `json:"processVariables,omitempty" validate:"dive,keys,variable_name,endkeys,omitnil,required"`
 	// Number of retries left. If `> 0`, a retry job is created. Otherwise, an incident is created.
 	RetryCount int `json:"retryCount,omitempty" validate:"gte=0"`
-	// Duration until a retry job becomes due. At this point in time a retry job can be locked by a worker.
-	RetryTimer ISO8601Duration `json:"retryTimer,omitempty" validate:"iso8601_duration"`
+	// ISO 8601 duration that specifies when a retry job becomes due. At this point in time a retry job can be locked by a worker.
+	RetryTimer ISO8601Duration `json:"retryTimer" validate:"iso8601_duration"`
 	// ID of the worker that locked and completed the job.
 	WorkerId string `json:"workerId" validate:"required"`
 }
@@ -141,7 +145,7 @@ type ResolveIncidentCmd struct {
 	// Number of retries the newly created job or task has left.
 	RetryCount int `json:"retryCount,omitempty" validate:"gte=1"`
 	// Duration until the retry job or task becomes due.
-	RetryTimer ISO8601Duration `json:"retryTimer,omitempty" validate:"iso8601_duration"`
+	RetryTimer ISO8601Duration `json:"retryTimer" validate:"iso8601_duration"`
 
 	// ID of the worker that resolved the incident
 	WorkerId string `json:"workerId" validate:"required"`
