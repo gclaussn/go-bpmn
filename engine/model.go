@@ -92,12 +92,14 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 //   - [JobEvaluateExclusiveGateway]: forking exclusive gateway
 //   - [JobEvaluateInclusiveGateway]: forking inclusive gateway
 //   - [JobExecute]: business rule, script, send and service task
+//   - [JobSetTimer]: timer catch event
 type JobType int
 
 const (
 	JobEvaluateExclusiveGateway JobType = iota + 1
 	JobEvaluateInclusiveGateway
 	JobExecute
+	JobSetTimer
 )
 
 func MapJobType(s string) JobType {
@@ -108,6 +110,8 @@ func MapJobType(s string) JobType {
 		return JobEvaluateInclusiveGateway
 	case "EXECUTE":
 		return JobExecute
+	case "SET_TIMER":
+		return JobSetTimer
 	default:
 		return 0
 	}
@@ -129,6 +133,8 @@ func (v JobType) String() string {
 		return "EVALUATE_INCLUSIVE_GATEWAY"
 	case JobExecute:
 		return "EXECUTE"
+	case JobSetTimer:
+		return "SET_TIMER"
 	default:
 		return ""
 	}
@@ -154,6 +160,7 @@ func (v *JobType) UnmarshalJSON(data []byte) error {
 //   - [TaskDequeueProcessInstance] dequeues a queued process instance
 //   - [TaskJoinParallelGateway] continues a parallel gateway by joining executions
 //   - [TaskStartProcessInstance] starts a queued process instance
+//   - [TaskTriggerTimerEvent] triggers a timer catch event
 //
 // Management related types, that are only relevant for a pg engine:
 //
@@ -166,6 +173,7 @@ const (
 	TaskDequeueProcessInstance TaskType = iota + 1
 	TaskJoinParallelGateway
 	TaskStartProcessInstance
+	TaskTriggerTimerEvent
 
 	// management
 	TaskCreatePartition
@@ -181,6 +189,8 @@ func MapTaskType(s string) TaskType {
 		return TaskJoinParallelGateway
 	case "START_PROCESS_INSTANCE":
 		return TaskStartProcessInstance
+	case "TRIGGER_TIMER_EVENT":
+		return TaskTriggerTimerEvent
 	// management
 	case "CREATE_PARTITION":
 		return TaskCreatePartition
@@ -209,6 +219,8 @@ func (v TaskType) String() string {
 		return "JOIN_PARALLEL_GATEWAY"
 	case TaskStartProcessInstance:
 		return "START_PROCESS_INSTANCE"
+	case TaskTriggerTimerEvent:
+		return "TRIGGER_TIMER_EVENT"
 	// management
 	case TaskCreatePartition:
 		return "CREATE_PARTITION"
@@ -389,16 +401,6 @@ func (v Job) IsLocked() bool {
 
 func (v Job) String() string {
 	return fmt.Sprintf("%s/%d", v.Partition, v.Id)
-}
-
-// JobCompletion is used to complete jobs of various types.
-type JobCompletion struct {
-	// Evaluated BPMN element ID to continue with after the exclusive gateway.
-	// Applicable when job type is `EVALUATE_EXCLUSIVE_GATEWAY`.
-	ExclusiveGatewayDecision string `json:"exclusiveGatewayDecision,omitempty"`
-	// Evaluated BPMN element IDs to continue with after the inclusive gateway.
-	// Applicable when job type is `EVALUATE_INCLUSIVE_GATEWAY`.
-	InclusiveGatewayDecision []string `json:"inclusiveGatewayDecision,omitempty"`
 }
 
 // JobCriteria specifies the results, returned by a job query.

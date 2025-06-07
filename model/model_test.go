@@ -44,6 +44,28 @@ func TestUnknownElement(t *testing.T) {
 	assert.NotNil(processElement.SequenceFlows[1].Target)
 }
 
+func TestUnknownCatchEvent(t *testing.T) {
+	assert := assert.New(t)
+
+	// when
+	model := mustCreateModel(t, "invalid/catch-event-unknown.bpmn")
+
+	// then
+	assert.Equal("test", model.Definitions.Id)
+	assert.Len(model.Definitions.Processes, 1)
+
+	processElement := model.Definitions.Processes[0]
+	assert.Len(processElement.Elements, 3)
+
+	unknownCatchEvent := processElement.ElementById("unknownCatchEvent")
+	assert.NotNil(unknownCatchEvent)
+	assert.Len(unknownCatchEvent.Incoming, 1)
+	assert.Equal("", unknownCatchEvent.Name)
+	assert.Len(unknownCatchEvent.Outgoing, 1)
+	assert.Equal(processElement, unknownCatchEvent.Parent)
+	assert.Equal(ElementNoneThrowEvent, unknownCatchEvent.Type)
+}
+
 func TestServiceTask(t *testing.T) {
 	assert := assert.New(t)
 
@@ -110,4 +132,23 @@ func TestServiceTask(t *testing.T) {
 	assert.Equal(noneStartEvents[0], startEvent)
 
 	assert.Nil(processElement.ElementById("not-existing"))
+}
+
+func TestTimerCatchEvent(t *testing.T) {
+	assert := assert.New(t)
+
+	// when
+	model := mustCreateModel(t, "event/timer-catch.bpmn")
+
+	// then
+	processElement := model.Definitions.Processes[0]
+	assert.Len(processElement.Elements, 3)
+
+	timerCatchEvent := processElement.ElementById("timerCatchEvent")
+	assert.NotNil(timerCatchEvent)
+	assert.Len(timerCatchEvent.Incoming, 1)
+	assert.Equal("", timerCatchEvent.Name)
+	assert.Len(timerCatchEvent.Outgoing, 1)
+	assert.Equal(processElement, timerCatchEvent.Parent)
+	assert.Equal(ElementTimerCatchEvent, timerCatchEvent.Type)
 }

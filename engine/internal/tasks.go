@@ -177,3 +177,59 @@ func (t StartProcessInstanceTask) Execute(ctx Context, task *TaskEntity) error {
 
 	return ctx.ProcessInstances().Update(processInstance)
 }
+
+// TriggerTimerEventTask is executed when a timer is due.
+//
+// In case of a timer
+//
+//   - catch event: continues the execution, if the process instance and element instance are not ended
+type TriggerTimerEventTask struct {
+}
+
+func (t TriggerTimerEventTask) Execute(ctx Context, task *TaskEntity) error {
+	processInstance, err := ctx.ProcessInstances().Select(task.Partition, task.ProcessInstanceId.Int32)
+	if err == pgx.ErrNoRows {
+		return engine.Error{
+			Type:   engine.ErrorNotFound,
+			Title:  "failed to find process instance",
+			Detail: fmt.Sprintf("process instance %s/%d could not be found", task.Partition.Format(time.DateOnly), task.ProcessInstanceId.Int32),
+		}
+	}
+	if err != nil {
+		return err
+	}
+
+	if processInstance.EndedAt.Valid {
+		return nil
+	}
+
+	execution, err := ctx.ElementInstances().Select(task.Partition, task.ElementInstanceId.Int32)
+	if err != nil {
+		return err
+	}
+
+	if execution.EndedAt.Valid {
+		return nil
+	}
+
+	process, err := ctx.ProcessCache().GetOrCacheById(ctx, processInstance.ProcessId)
+	if err != nil {
+		return err
+	}
+
+	ec := executionContext{
+		engineOrWorkerId: ctx.Options().EngineId,
+		process:          process,
+		processInstance:  processInstance,
+	}
+
+	if err := ec.continueExecutions(ctx, []*ElementInstanceEntity{execution}); err != nil {
+		if _, ok := err.(engine.Error); ok {
+			task.Error = pgtype.Text{String: err.Error(), Valid: true}
+		} else {
+			return fmt.Errorf("failed to continue execution %+v: %v", execution, err)
+		}
+	}
+
+	return nil
+}

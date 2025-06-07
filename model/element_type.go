@@ -18,6 +18,7 @@ const (
 	ElementSendTask
 	ElementServiceTask
 	ElementTask
+	ElementTimerCatchEvent
 )
 
 func MapElementType(s string) ElementType {
@@ -48,6 +49,8 @@ func MapElementType(s string) ElementType {
 		return ElementServiceTask
 	case "TASK":
 		return ElementTask
+	case "TIMER_CATCH_EVENT":
+		return ElementTimerCatchEvent
 	default:
 		return 0
 	}
@@ -89,6 +92,8 @@ func (v ElementType) String() string {
 		return "SERVICE_TASK"
 	case ElementTask:
 		return "TASK"
+	case ElementTimerCatchEvent:
+		return "TIMER_CATCH_EVENT"
 	default:
 		return ""
 	}

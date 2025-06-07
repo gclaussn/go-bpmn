@@ -26,6 +26,13 @@ requestBody:
                 value: "{...}"
             error: an error occurred
             workerId: go-bpmn
+        set_timer:
+          summary: SET_TIMER
+          value:
+            completion:
+              timer:
+                time: "2025-05-02T10:30:00.000Z"
+            workerId: go-bpmn
 responses:
   "200":
     description: Job completed

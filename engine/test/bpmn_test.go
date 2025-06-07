@@ -66,4 +66,12 @@ func TestBpmn(t *testing.T) {
 			t.Run(engineTypes[i]+"completes with error completed with BPMN esclation code", taskTest.errorBpmnEscalationCodeNotSupported)
 		}
 	})
+
+	t.Run("timer event", func(t *testing.T) {
+		for i, e := range engines {
+			timerEventTest := newTimerEventTest(t, e)
+
+			t.Run(engineTypes[i]+"catch", timerEventTest.catch)
+		}
+	})
 }

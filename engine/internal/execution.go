@@ -3,6 +3,7 @@ package internal
 import (
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/model"
@@ -83,7 +84,8 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 				model.ElementBusinessRuleTask,
 				model.ElementScriptTask,
 				model.ElementSendTask,
-				model.ElementServiceTask:
+				model.ElementServiceTask,
+				model.ElementTimerCatchEvent:
 				execution.State = engine.InstanceCreated
 			case
 				model.ElementExclusiveGateway,
@@ -199,6 +201,8 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 		case model.ElementParallelGateway:
 			taskType = engine.TaskJoinParallelGateway
 			taskInstance = JoinParallelGatewayTask{}
+		case model.ElementTimerCatchEvent:
+			jobType = engine.JobSetTimer
 		default:
 			return engine.Error{ // indicates a bug
 				Type:   engine.ErrorProcessModel,
@@ -412,6 +416,43 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 			job.Error = pgtype.Text{String: "BPMN escalation code is not supported", Valid: true}
 			return nil
 		}
+	case engine.JobSetTimer:
+		if jobCompletion == nil || jobCompletion.Timer == nil {
+			job.Error = pgtype.Text{String: "expected a timer", Valid: true}
+			return nil
+		}
+
+		timer := jobCompletion.Timer
+
+		var dueAt time.Time
+		if !timer.Time.IsZero() {
+			// must be UTC and truncated to millis (see engine/pg/pg.go:pgEngineWithContext#require)
+			dueAt = timer.Time.UTC().Truncate(time.Millisecond)
+		} else {
+			dueAt = timer.TimeDuration.Calculate(ctx.Time())
+		}
+
+		triggerTimerEvent := TaskEntity{
+			Partition: execution.Partition,
+
+			ElementId:         pgtype.Int4{Int32: execution.ElementId, Valid: true},
+			ElementInstanceId: pgtype.Int4{Int32: execution.Id, Valid: true},
+			ProcessId:         pgtype.Int4{Int32: execution.ProcessId, Valid: true},
+			ProcessInstanceId: pgtype.Int4{Int32: execution.ProcessInstanceId, Valid: true},
+
+			CreatedAt: ctx.Time(),
+			CreatedBy: ec.engineOrWorkerId,
+			DueAt:     dueAt,
+			Type:      engine.TaskTriggerTimerEvent,
+
+			Instance: TriggerTimerEventTask{},
+		}
+
+		if err := ctx.Tasks().Insert(&triggerTimerEvent); err != nil {
+			return err
+		}
+
+		return nil // do not continue execution
 	}
 
 	if err := ec.continueExecutions(ctx, executions); err != nil {

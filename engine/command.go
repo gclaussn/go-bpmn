@@ -226,3 +226,26 @@ type UnlockTasksCmd struct {
 	// Condition that restricts the tasks, to be locked by a specific engine.
 	EngineId string `json:"engineId" validate:"required"`
 }
+
+// command related types
+
+// A job completion is used to complete jobs of various types.
+type JobCompletion struct {
+	// Evaluated BPMN element ID to continue with after the exclusive gateway.
+	// Applicable when job type is `EVALUATE_EXCLUSIVE_GATEWAY`.
+	ExclusiveGatewayDecision string `json:"exclusiveGatewayDecision,omitempty"`
+	// Evaluated BPMN element IDs to continue with after the inclusive gateway.
+	// Applicable when job type is `EVALUATE_INCLUSIVE_GATEWAY`.
+	InclusiveGatewayDecision []string `json:"inclusiveGatewayDecision,omitempty"`
+	// A timer definition.
+	// Applicable when job type is `SET_TIMER`.
+	Timer *Timer `json:"timer,omitempty"`
+}
+
+// A timer defines when a timer catch event is triggered.
+type Timer struct {
+	// A future point in time.
+	Time time.Time `json:"time"`
+	// ISO 8601 duration that specifies the time delta.
+	TimeDuration ISO8601Duration `json:"timeDuration" validate:"iso8601_duration"`
+}

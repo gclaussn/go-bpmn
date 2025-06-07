@@ -75,6 +75,8 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				element = newElement(ElementInclusiveGateway, t.Attr)
 			case "incoming":
 				isIncoming = true
+			case "intermediateCatchEvent":
+				element = newElement(0, t.Attr) // unknown type
 			case "intermediateThrowEvent":
 				element = newElement(ElementNoneThrowEvent, t.Attr)
 			case "manualTask":
@@ -107,6 +109,8 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				element = newElement(ElementNoneStartEvent, t.Attr)
 			case "task":
 				element = newElement(ElementTask, t.Attr)
+			case "timerEventDefinition":
+				element.Type = ElementTimerCatchEvent
 			default:
 				element = nil
 			}
@@ -132,6 +136,10 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 			switch t.Name.Local {
 			case "incoming":
 				isIncoming = false
+			case "intermediateCatchEvent":
+				if element.Type == 0 { // if unknown, handle as pass through element
+					element.Type = ElementNoneThrowEvent
+				}
 			case "outgoing":
 				isOutgoing = false
 			}

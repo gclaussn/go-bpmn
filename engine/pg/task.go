@@ -284,6 +284,8 @@ func (r taskRepository) Lock(cmd engine.ExecuteTasksCmd, lockedAt time.Time) ([]
 			entity.Instance = internal.JoinParallelGatewayTask{}
 		case engine.TaskStartProcessInstance:
 			entity.Instance = internal.StartProcessInstanceTask{}
+		case engine.TaskTriggerTimerEvent:
+			entity.Instance = internal.TriggerTimerEventTask{}
 		// management
 		case engine.TaskCreatePartition:
 			task := createPartitionTask{}
