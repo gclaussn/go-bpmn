@@ -130,6 +130,7 @@ func newRootCmd(cli *Cli) *cobra.Command {
 				cli.engine.Shutdown()
 			}
 		},
+		Annotations: map[string]string{noEngineRequired: ""},
 	}
 
 	c.PersistentFlags().StringVar(&url, "url", "", "HTTP server URL")
