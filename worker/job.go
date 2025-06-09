@@ -86,6 +86,34 @@ func (d Delegator) Execute(bpmnElementId string, delegation func(jc JobContext) 
 	}
 }
 
+// ExecuteGeneric delegates jobs of any type. The delegation function allows to return a job-specific completion.
+func (d Delegator) ExecuteGeneric(bpmnElementId string, delegation func(jc JobContext) (*engine.JobCompletion, error)) {
+	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
+		return delegation(jc)
+	}
+}
+
+// SetTimer delegates jobs of type [engine.JobSetTimer].
+//
+// Applicable for BPMN element types:
+//   - Timer catch event
+func (d Delegator) SetTimer(bpmnElementId string, delegation func(jc JobContext) (engine.Timer, error)) {
+	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
+		if jc.Job.Type != engine.JobSetTimer {
+			return nil, fmt.Errorf("expected job type %s, but got %s", engine.JobSetTimer, jc.Job.Type)
+		}
+
+		timer, err := delegation(jc)
+		if err != nil {
+			return nil, err
+		}
+
+		return &engine.JobCompletion{
+			Timer: &timer,
+		}, nil
+	}
+}
+
 type JobContext struct {
 	Engine engine.Engine
 
