@@ -14,56 +14,6 @@ type processInstanceQueueRepository struct {
 	txCtx context.Context
 }
 
-func (r processInstanceQueueRepository) Insert(entity *internal.ProcessInstanceQueueEntity) error {
-	row := r.tx.QueryRow(r.txCtx, `
-INSERT INTO process_instance_queue (
-	bpmn_process_id,
-
-	parallelism,
-	active_count,
-	queued_count,
-	head_partition,
-	head_id,
-	tail_partition,
-	tail_id
-) VALUES (
-	$1,
-
-	$2,
-	$3,
-	$4,
-	$5,
-	$6,
-	$7,
-	$8
-) ON CONFLICT (bpmn_process_id) DO UPDATE
-SET
-	parallelism = EXCLUDED.parallelism
-RETURNING
-	active_count,
-	queued_count
-`,
-		entity.BpmnProcessId,
-
-		entity.Parallelism,
-		entity.ActiveCount,
-		entity.QueuedCount,
-		entity.HeadPartition,
-		entity.HeadId,
-		entity.TailPartition,
-		entity.TailId,
-	)
-
-	if err := row.Scan(
-		&entity.ActiveCount,
-		&entity.QueuedCount,
-	); err != nil {
-		return fmt.Errorf("failed to insert process instance queue %+v: %v", entity, err)
-	}
-
-	return nil
-}
-
 func (r processInstanceQueueRepository) InsertElement(entity *internal.ProcessInstanceQueueElementEntity) error {
 	if _, err := r.tx.Exec(r.txCtx, `
 INSERT INTO process_instance_queue_element (
@@ -224,6 +174,56 @@ WHERE
 		entity.PrevId,
 	); err != nil {
 		return fmt.Errorf("failed to update process instance queue element %+v: %v", entity, err)
+	}
+
+	return nil
+}
+
+func (r processInstanceQueueRepository) Upsert(entity *internal.ProcessInstanceQueueEntity) error {
+	row := r.tx.QueryRow(r.txCtx, `
+INSERT INTO process_instance_queue (
+	bpmn_process_id,
+
+	parallelism,
+	active_count,
+	queued_count,
+	head_partition,
+	head_id,
+	tail_partition,
+	tail_id
+) VALUES (
+	$1,
+
+	$2,
+	$3,
+	$4,
+	$5,
+	$6,
+	$7,
+	$8
+) ON CONFLICT (bpmn_process_id) DO UPDATE
+SET
+	parallelism = EXCLUDED.parallelism
+RETURNING
+	active_count,
+	queued_count
+`,
+		entity.BpmnProcessId,
+
+		entity.Parallelism,
+		entity.ActiveCount,
+		entity.QueuedCount,
+		entity.HeadPartition,
+		entity.HeadId,
+		entity.TailPartition,
+		entity.TailId,
+	)
+
+	if err := row.Scan(
+		&entity.ActiveCount,
+		&entity.QueuedCount,
+	); err != nil {
+		return fmt.Errorf("failed to upsert process instance queue %+v: %v", entity, err)
 	}
 
 	return nil

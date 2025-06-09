@@ -9,32 +9,32 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewGraph(t *testing.T) {
+func TestValidateProcess(t *testing.T) {
 	assert := assert.New(t)
 
-	t.Run("returns error when BPMN process is not executable", func(t *testing.T) {
-		_, err := mustCreateGraphE(t, "invalid/process-not-executable.bpmn", "processNotExecutableTest")
-		assert.NotNil(err)
-		assert.Contains(err.Error(), "not executable")
+	t.Run("returns problem when BPMN process is not executable", func(t *testing.T) {
+		problems := mustValidateProcess(t, "invalid/process-not-executable.bpmn", "processNotExecutableTest")
+		assert.Len(problems, 1)
+		assert.Contains(problems[0], "not executable")
 	})
 
-	t.Run("returns error when BPMN element has no ID", func(t *testing.T) {
-		_, err := mustCreateGraphE(t, "invalid/element-without-id.bpmn", "elementWithoutIdTest")
-		assert.NotNil(err)
-		assert.Equal("BPMN element of type NONE_START_EVENT has no ID", err.Error())
+	t.Run("returns problem when BPMN element has no ID", func(t *testing.T) {
+		problems := mustValidateProcess(t, "invalid/element-without-id.bpmn", "elementWithoutIdTest")
+		assert.Len(problems, 1)
+		assert.Equal("BPMN element of type NONE_START_EVENT has no ID", problems[0])
 	})
 
-	t.Run("returns error when BPMN process contains joining inclusive gateway", func(t *testing.T) {
-		_, err := mustCreateGraphE(t, "invalid/inclusive-gateway-join.bpmn", "inclusiveGatewayJoinTest")
-		assert.NotNil(err)
-		assert.Equal("BPMN element join is not supported: joining inclusive gateway", err.Error())
+	t.Run("returns problem when BPMN process contains joining inclusive gateway", func(t *testing.T) {
+		problems := mustValidateProcess(t, "invalid/inclusive-gateway-join.bpmn", "inclusiveGatewayJoinTest")
+		assert.Len(problems, 1)
+		assert.Equal("BPMN element join is not supported: joining inclusive gateway", problems[0])
 	})
 
-	t.Run("returns error when BPMN sequence flow has no source or target", func(t *testing.T) {
-		_, err := mustCreateGraphE(t, "invalid/element-unknown.bpmn", "elementUnknownTest")
-		assert.NotNil(err)
-		assert.Contains(err.Error(), "BPMN sequence flow f1 has no target element")
-		assert.Contains(err.Error(), "BPMN sequence flow f2 has no source element")
+	t.Run("returns problem when BPMN sequence flow has no source or target", func(t *testing.T) {
+		problems := mustValidateProcess(t, "invalid/element-unknown.bpmn", "elementUnknownTest")
+		assert.Len(problems, 2)
+		assert.Contains(problems[0], "BPMN sequence flow f1 has no target element")
+		assert.Contains(problems[1], "BPMN sequence flow f2 has no source element")
 	})
 }
 

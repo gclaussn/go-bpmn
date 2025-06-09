@@ -44,16 +44,19 @@ type ProcessInstanceQueueElementEntity struct {
 }
 
 type ProcessInstanceQueueRepository interface {
-	// Insert inserts an entity for a specific BPMN process ID.
-	// If the queue already exists, only the parallelism value is updated.
-	// Moreover the current active and queued process instance counts are returned and made available through the entity.
-	Insert(*ProcessInstanceQueueEntity) error
-
 	InsertElement(*ProcessInstanceQueueElementEntity) error
+
+	// Select selects and locks the queue for a BPMN process ID.
 	Select(bpmnProcessId string) (*ProcessInstanceQueueEntity, error)
+
 	SelectElement(partition time.Time, id int32) (*ProcessInstanceQueueElementEntity, error)
 	Update(*ProcessInstanceQueueEntity) error
 	UpdateElement(*ProcessInstanceQueueElementEntity) error
+
+	// Upsert inserts or updates the queue for a BPMN process ID.
+	// If the queue already exists, only the parallelism value is updated.
+	// Moreover the current active and queued process instance counts are returned and made available through the entity.
+	Upsert(*ProcessInstanceQueueEntity) error
 }
 
 func enqueueProcessInstance(ctx Context, processInstance *ProcessInstanceEntity) error {

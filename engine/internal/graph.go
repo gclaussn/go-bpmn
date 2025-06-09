@@ -3,60 +3,79 @@ package internal
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/model"
 )
 
-func newGraph(processElements []*model.Element, elements []*ElementEntity) (graph, error) {
-	ids := make(map[string]int32, len(elements))
-	for i := 0; i < len(elements); i++ {
-		ids[elements[i].BpmnElementId] = elements[i].Id
+// validateProcess validates if the process and its elements can be executed.
+func validateProcess(processElements []*model.Element) (problems []string) {
+	if len(processElements) == 0 { // indicates a bug
+		problems = append(problems, "expected process model")
+		return
 	}
 
-	var e []string
-
-	processElement := processElements[0]
-	process := processElement.Model.(*model.Process)
-	if !process.IsExecutable {
-		e = append(e, "BPMN process is not executable")
+	processModel, ok := processElements[0].Model.(*model.Process)
+	if !ok { // indicates a bug
+		problems = append(problems, "expected process model")
+		return
 	}
 
-	nodes := make(map[string]node, len(processElements))
+	if !processModel.IsExecutable {
+		problems = append(problems, "BPMN process is not executable")
+	}
+
 	for _, element := range processElements {
 		if element.Id == "" {
-			e = append(e, fmt.Sprintf("BPMN element of type %s has no ID", element.Type))
-			continue
-		}
-
-		id, ok := ids[element.Id]
-		if !ok {
-			e = append(e, fmt.Sprintf("BPMN element %s has no entity", element.Id)) // indicates a bug
+			problems = append(problems, fmt.Sprintf("BPMN element of type %s has no ID", element.Type))
 			continue
 		}
 
 		switch element.Type {
 		case model.ElementInclusiveGateway:
 			if len(element.Incoming) > 1 {
-				e = append(e, fmt.Sprintf("BPMN element %s is not supported: joining inclusive gateway", element.Id))
+				problems = append(problems, fmt.Sprintf("BPMN element %s is not supported: joining inclusive gateway", element.Id))
 			}
 		}
 
 		for _, sequenceFlow := range element.SequenceFlows {
 			if sequenceFlow.Source == nil {
-				e = append(e, fmt.Sprintf("BPMN sequence flow %s has no source element", sequenceFlow.Id))
+				problems = append(problems, fmt.Sprintf("BPMN sequence flow %s has no source element", sequenceFlow.Id))
 			}
 			if sequenceFlow.Target == nil {
-				e = append(e, fmt.Sprintf("BPMN sequence flow %s has no target element", sequenceFlow.Id))
+				problems = append(problems, fmt.Sprintf("BPMN sequence flow %s has no target element", sequenceFlow.Id))
 			}
 		}
-
-		nodes[element.Id] = node{id: id, element: element}
 	}
 
-	if len(e) != 0 {
-		return graph{}, errors.New(strings.Join(e, "; "))
+	return
+}
+
+func newGraph(processElements []*model.Element, elements []*ElementEntity) (graph, error) {
+	if len(processElements) == 0 { // indicates a bug
+		return graph{}, errors.New("expected process elements not to be empty")
+	}
+	if len(processElements) != len(elements) { // indicates a bug
+		return graph{}, errors.New("expected number of process elements and entities to be equal")
+	}
+
+	ids := make(map[string]int32, len(elements))
+	for i := 0; i < len(elements); i++ {
+		ids[elements[i].BpmnElementId] = elements[i].Id
+	}
+
+	processElement := processElements[0]
+	if processElement.Type != model.ElementProcess { // indicates a bug
+		return graph{}, errors.New("expected process")
+	}
+
+	nodes := make(map[string]node, len(processElements))
+	for _, element := range processElements {
+		id, ok := ids[element.Id]
+		if !ok { // indicates a bug
+			return graph{}, fmt.Errorf("BPMN element %s has no entity", element.Id)
+		}
+		nodes[element.Id] = node{id: id, element: element}
 	}
 
 	return graph{

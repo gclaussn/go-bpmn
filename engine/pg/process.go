@@ -35,7 +35,7 @@ INSERT INTO process (
 	$6,
 	$7,
 	$8
-) ON CONFLICT (bpmn_process_id,version) DO NOTHING RETURNING id 
+) ON CONFLICT (bpmn_process_id,version) DO NOTHING RETURNING id
 `,
 		entity.BpmnProcessId,
 		entity.BpmnXml,
@@ -47,20 +47,14 @@ INSERT INTO process (
 		entity.Version,
 	)
 
-	err := row.Scan(&entity.Id)
-	if err == nil {
-		return nil
-	} else if err != pgx.ErrNoRows {
-		return fmt.Errorf("failed to insert process %+v: %v", entity, err)
+	if err := row.Scan(&entity.Id); err != nil {
+		if err == pgx.ErrNoRows { // indicates a conflict
+			return err
+		} else {
+			return fmt.Errorf("failed to insert process %+v: %v", entity, err)
+		}
 	}
 
-	// concurrent insert caused a conflict, therefore select the concurrently inserted entity
-	insertedEntity, err := r.SelectByBpmnProcessIdAndVersion(entity.BpmnProcessId, entity.Version)
-	if err != nil {
-		return err
-	}
-
-	*entity = *insertedEntity
 	return nil
 }
 

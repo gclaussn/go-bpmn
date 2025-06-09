@@ -8,14 +8,6 @@ import (
 )
 
 func mustCreateGraph(t *testing.T, fileName string, bpmnProcessId string) graph {
-	graph, err := mustCreateGraphE(t, fileName, bpmnProcessId)
-	if err != nil {
-		t.Fatalf("failed to create graph: %v", err)
-	}
-	return graph
-}
-
-func mustCreateGraphE(t *testing.T, fileName string, bpmnProcessId string) (graph, error) {
 	fileName = "../../test/bpmn/" + fileName
 
 	bpmnFile, err := os.Open(fileName)
@@ -50,5 +42,33 @@ func mustCreateGraphE(t *testing.T, fileName string, bpmnProcessId string) (grap
 		elements[i] = &element
 	}
 
-	return newGraph(processElements, elements)
+	graph, err := newGraph(processElements, elements)
+	if err != nil {
+		t.Fatalf("failed to create execution graph: %v", err)
+	}
+
+	return graph
+}
+
+func mustValidateProcess(t *testing.T, fileName string, bpmnProcessId string) []string {
+	fileName = "../../test/bpmn/" + fileName
+
+	bpmnFile, err := os.Open(fileName)
+	if err != nil {
+		t.Fatalf("failed to open BPMN file %s: %v", fileName, err)
+	}
+
+	defer bpmnFile.Close()
+
+	model, err := model.New(bpmnFile)
+	if err != nil {
+		t.Fatalf("failed to parse BPMN XML: %v", err)
+	}
+
+	processElement, err := model.ProcessById(bpmnProcessId)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	return validateProcess(processElement.AllElements())
 }

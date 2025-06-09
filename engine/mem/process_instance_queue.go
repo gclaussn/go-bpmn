@@ -13,20 +13,6 @@ type processInstanceQueueRepository struct {
 	queueElementPartitions map[string][]internal.ProcessInstanceQueueElementEntity
 }
 
-func (r *processInstanceQueueRepository) Insert(entity *internal.ProcessInstanceQueueEntity) error {
-	queue, ok := r.queues[entity.BpmnProcessId]
-	if ok {
-		queue.Parallelism = entity.Parallelism
-		r.queues[entity.BpmnProcessId] = queue
-
-		entity.ActiveCount = queue.ActiveCount
-		entity.QueuedCount = queue.QueuedCount
-	} else {
-		r.queues[entity.BpmnProcessId] = *entity
-	}
-	return nil
-}
-
 func (r *processInstanceQueueRepository) InsertElement(entity *internal.ProcessInstanceQueueElementEntity) error {
 	key := entity.Partition.Format(time.DateOnly)
 	entities := r.queueElementPartitions[key]
@@ -67,4 +53,18 @@ func (r *processInstanceQueueRepository) UpdateElement(entity *internal.ProcessI
 		}
 	}
 	return fmt.Errorf("failed to update process instance queue element %s/%d: %v", key, entity.Id, pgx.ErrNoRows)
+}
+
+func (r *processInstanceQueueRepository) Upsert(entity *internal.ProcessInstanceQueueEntity) error {
+	queue, ok := r.queues[entity.BpmnProcessId]
+	if ok {
+		queue.Parallelism = entity.Parallelism
+		r.queues[entity.BpmnProcessId] = queue
+
+		entity.ActiveCount = queue.ActiveCount
+		entity.QueuedCount = queue.QueuedCount
+	} else {
+		r.queues[entity.BpmnProcessId] = *entity
+	}
+	return nil
 }

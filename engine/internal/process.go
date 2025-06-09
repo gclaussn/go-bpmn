@@ -177,7 +177,11 @@ func (e ProcessEntity) Process() engine.Process {
 }
 
 type ProcessRepository interface {
+	// Insert inserts a process.
+	//
+	// If a concurrent insert caused an conflict (BPMN process ID and version must be unique), [pgx.ErrNoRows] is returned.
 	Insert(*ProcessEntity) error
+
 	Select(id int32) (*ProcessEntity, error)
 
 	// SelectByBpmnProcessIdAndVersion selects a process by BPMN process ID and version.
@@ -193,104 +197,79 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	md5Hash.Write([]byte(cmd.BpmnXml))
 	bpmnXmlMd5 := hex.EncodeToString(md5Hash.Sum(nil))
 
-	process, err := ctx.Processes().SelectByBpmnProcessIdAndVersion(cmd.BpmnProcessId, cmd.Version)
-	if err != nil && err != pgx.ErrNoRows {
-		return engine.Process{}, err
+	model, err := model.New(strings.NewReader(cmd.BpmnXml))
+	if err != nil {
+		return engine.Process{}, engine.Error{
+			Type:   engine.ErrorProcessModel,
+			Title:  "failed to parse BPMN XML",
+			Detail: err.Error(),
+		}
 	}
 
-	var processInstanceQueue *ProcessInstanceQueueEntity
-	if process == nil {
-		model, err := model.New(strings.NewReader(cmd.BpmnXml))
+	// find process
+	processElement, err := model.ProcessById(cmd.BpmnProcessId)
+	if err != nil {
+		// collect actual BPMN process IDs
+		bpmnProcessIds := make([]string, len(model.Definitions.Processes))
+		for i := 0; i < len(bpmnProcessIds); i++ {
+			bpmnProcessIds[i] = model.Definitions.Processes[i].Id
+		}
+
+		return engine.Process{}, engine.Error{
+			Type:   engine.ErrorProcessModel,
+			Title:  "failed to find BPMN process element",
+			Detail: fmt.Sprintf("BPMN model has no process %s, but [%s]", cmd.BpmnProcessId, strings.Join(bpmnProcessIds, ", ")),
+		}
+	}
+
+	// validate process
+	processElements := processElement.AllElements()
+	problems := validateProcess(processElements)
+	if len(problems) != 0 {
+		return engine.Process{}, engine.Error{
+			Type:   engine.ErrorProcessModel,
+			Title:  "failed to validate BPMN process",
+			Detail: strings.Join(problems, "; "),
+		}
+	}
+
+	// insert process
+	var tags string
+	if len(cmd.Tags) != 0 {
+		b, err := json.Marshal(cmd.Tags)
 		if err != nil {
-			return engine.Process{}, engine.Error{
-				Type:   engine.ErrorProcessModel,
-				Title:  "failed to parse BPMN XML",
-				Detail: err.Error(),
-			}
+			return engine.Process{}, fmt.Errorf("failed to marshal tags: %v", err)
 		}
+		tags = string(b)
+	}
 
-		processElement, err := model.ProcessById(cmd.BpmnProcessId)
-		if err != nil {
-			// collect actual BPMN process IDs
-			bpmnProcessIds := make([]string, len(model.Definitions.Processes))
-			for i := 0; i < len(bpmnProcessIds); i++ {
-				bpmnProcessIds[i] = model.Definitions.Processes[i].Id
-			}
+	process := &ProcessEntity{
+		BpmnProcessId: cmd.BpmnProcessId,
+		BpmnXml:       cmd.BpmnXml,
+		BpmnXmlMd5:    bpmnXmlMd5,
+		CreatedAt:     ctx.Time(),
+		CreatedBy:     cmd.WorkerId,
+		Parallelism:   cmd.Parallelism,
+		Tags:          pgtype.Text{String: tags, Valid: tags != ""},
+		Version:       cmd.Version,
+	}
 
-			return engine.Process{}, engine.Error{
-				Type:   engine.ErrorProcessModel,
-				Title:  "failed to find BPMN process element",
-				Detail: fmt.Sprintf("BPMN model has no process %s, but [%s]", cmd.BpmnProcessId, strings.Join(bpmnProcessIds, ", ")),
-			}
-		}
-
-		var tags string
-		if len(cmd.Tags) != 0 {
-			b, err := json.Marshal(cmd.Tags)
-			if err != nil {
-				return engine.Process{}, fmt.Errorf("failed to marshal tags: %v", err)
-			}
-			tags = string(b)
-		}
-
-		process = &ProcessEntity{
-			BpmnProcessId: cmd.BpmnProcessId,
-			BpmnXml:       cmd.BpmnXml,
-			BpmnXmlMd5:    bpmnXmlMd5,
-			CreatedAt:     ctx.Time(),
-			CreatedBy:     cmd.WorkerId,
-			Parallelism:   cmd.Parallelism,
-			Tags:          pgtype.Text{String: tags, Valid: tags != ""},
-			Version:       cmd.Version,
-		}
-
-		if err := ctx.Processes().Insert(process); err != nil {
+	var isConflict bool
+	if err := ctx.Processes().Insert(process); err != nil {
+		if err != pgx.ErrNoRows {
 			return engine.Process{}, err
 		}
 
-		processElements := processElement.AllElements()
+		isConflict = true
 
-		elements := make([]*ElementEntity, len(processElements))
-		for i, e := range processElements {
-			element := ElementEntity{
-				ProcessId: process.Id,
-
-				BpmnElementId:   e.Id,
-				BpmnElementName: e.Name,
-				BpmnElementType: e.Type,
-			}
-
-			elements[i] = &element
-		}
-
-		if err := ctx.Elements().Insert(elements); err != nil {
-			return engine.Process{}, err
-		}
-
-		graph, err := newGraph(processElements, elements)
+		// select the concurrently inserted entity due to a conflict
+		process, err = ctx.Processes().SelectByBpmnProcessIdAndVersion(cmd.BpmnProcessId, cmd.Version)
 		if err != nil {
-			return engine.Process{}, engine.Error{
-				Type:   engine.ErrorProcessModel,
-				Title:  "failed to validate BPMN process",
-				Detail: err.Error(),
-			}
-		}
-
-		process.graph = &graph
-		ctx.ProcessCache().Add(process)
-
-		processInstanceQueue = &ProcessInstanceQueueEntity{
-			BpmnProcessId: process.BpmnProcessId,
-			Parallelism:   process.Parallelism,
-		}
-
-		if err := ctx.ProcessInstanceQueues().Insert(processInstanceQueue); err != nil {
 			return engine.Process{}, err
 		}
 	}
 
-	// compare checksums after a possible concurrent insert
-	// see pg/process.go:processRepository#Insert
+	// compare checksums
 	if process.BpmnXmlMd5 != bpmnXmlMd5 {
 		return engine.Process{}, engine.Error{
 			Type:   engine.ErrorConflict,
@@ -299,7 +278,55 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		}
 	}
 
-	if processInstanceQueue != nil && processInstanceQueue.MustDequeue() {
+	if isConflict {
+		return process.Process(), nil
+	}
+
+	// insert elements
+	elements := make([]*ElementEntity, len(processElements))
+	for i, e := range processElements {
+		element := ElementEntity{
+			ProcessId: process.Id,
+
+			BpmnElementId:   e.Id,
+			BpmnElementName: e.Name,
+			BpmnElementType: e.Type,
+		}
+
+		elements[i] = &element
+	}
+
+	if err := ctx.Elements().Insert(elements); err != nil {
+		return engine.Process{}, err
+	}
+
+	// cache process
+	graph, err := newGraph(processElements, elements)
+	if err != nil {
+		return engine.Process{}, engine.Error{
+			Type:   engine.ErrorProcessModel,
+			Title:  "failed to create execution graph",
+			Detail: err.Error(),
+		}
+	}
+
+	process.graph = &graph
+	ctx.ProcessCache().Add(process)
+
+	// update parallelism
+	if err := ctx.ProcessInstanceQueues().Upsert(&ProcessInstanceQueueEntity{
+		BpmnProcessId: process.BpmnProcessId,
+		Parallelism:   process.Parallelism,
+	}); err != nil {
+		return engine.Process{}, err
+	}
+
+	processInstanceQueue, err := ctx.ProcessInstanceQueues().Select(process.BpmnProcessId)
+	if err != nil {
+		return engine.Process{}, err
+	}
+
+	if processInstanceQueue.MustDequeue() {
 		dequeueProcessInstance := TaskEntity{
 			Partition: ctx.Date(),
 

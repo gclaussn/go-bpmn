@@ -6,6 +6,7 @@ import (
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/engine/internal"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
 )
@@ -311,13 +312,9 @@ func TestProcessRepository(t *testing.T) {
 
 		<-insert2Ctx.Done()
 
-		if insertErr2 != nil {
-			t.Errorf("failed to insert process 2: %v", insertErr2)
-		}
+		assert.Equal(pgx.ErrNoRows, insertErr2)
 
 		w.release(ctx2, insertErr2)
-
-		assert.Equal(process1.Id, process2.Id, "must be the same entity")
 
 		ctx, err := w.require()
 		if err != nil {
