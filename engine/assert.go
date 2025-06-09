@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func NewProcessInstanceAssert(t *testing.T, e Engine, processInstance ProcessInstance) *ProcessInstanceAssert {
+func Assert(t *testing.T, e Engine, processInstance ProcessInstance) *ProcessInstanceAssert {
 	results, err := e.Query(ElementCriteria{
 		ProcessId: processInstance.ProcessId,
 	})

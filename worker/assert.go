@@ -7,8 +7,8 @@ import (
 	"github.com/gclaussn/go-bpmn/engine"
 )
 
-func NewProcessInstanceAssert(t *testing.T, worker *Worker, processInstance engine.ProcessInstance) *ProcessInstanceAssert {
-	assert := engine.NewProcessInstanceAssert(t, worker.engine, processInstance)
+func Assert(t *testing.T, worker *Worker, processInstance engine.ProcessInstance) *ProcessInstanceAssert {
+	assert := engine.Assert(t, worker.engine, processInstance)
 	return &ProcessInstanceAssert{t, worker, assert}
 }
 

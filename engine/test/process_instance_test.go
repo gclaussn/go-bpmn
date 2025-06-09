@@ -85,7 +85,7 @@ func TestCreateProcessInstance(t *testing.T) {
 				assert.False(processInstance.IsEnded())
 				assert.True(processInstance.IsRoot())
 
-				piAssert := engine.NewProcessInstanceAssert(t, e, processInstance)
+				piAssert := engine.Assert(t, e, processInstance)
 
 				assert.Equal(engine.ProcessInstance{
 					Partition: processInstance.Partition,
@@ -170,9 +170,9 @@ func TestCreateProcessInstance(t *testing.T) {
 				assert.Empty(processInstance3.StartedAt)
 				assert.Equal(engine.InstanceQueued, processInstance3.State)
 
-				piAssert1 := engine.NewProcessInstanceAssert(t, e, processInstance1)
-				piAssert2 := engine.NewProcessInstanceAssert(t, e, processInstance2)
-				piAssert3 := engine.NewProcessInstanceAssert(t, e, processInstance3)
+				piAssert1 := engine.Assert(t, e, processInstance1)
+				piAssert2 := engine.Assert(t, e, processInstance2)
+				piAssert3 := engine.Assert(t, e, processInstance3)
 
 				// when process instance 1 is ended
 				piAssert1.IsWaitingAt("sendTask")
@@ -245,7 +245,7 @@ func TestCreateProcessInstance(t *testing.T) {
 						t.Fatalf("failed to create process instance: %v", err)
 					}
 
-					piAsserts = append(piAsserts, engine.NewProcessInstanceAssert(t, e, processInstance))
+					piAsserts = append(piAsserts, engine.Assert(t, e, processInstance))
 				}
 
 				executeTasks := func(taskType engine.TaskType) []engine.Task {

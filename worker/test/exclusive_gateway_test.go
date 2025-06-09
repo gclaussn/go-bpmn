@@ -36,7 +36,7 @@ func TestExclusiveGatewayProcess(t *testing.T) {
 	e := mustCreateEngine(t)
 	defer e.Shutdown()
 
-	w, _ := worker.New(e)
+	w := mustCreateWorker(t, e)
 
 	exclusiveGatewayProcess, err := w.Register(&exclusiveGatewayDelegate{})
 	if err != nil {
@@ -48,7 +48,7 @@ func TestExclusiveGatewayProcess(t *testing.T) {
 		t.Fatalf("failed to create process instance: %v", err)
 	}
 
-	piAssert := worker.NewProcessInstanceAssert(t, w, processInstance)
+	piAssert := worker.Assert(t, w, processInstance)
 
 	piAssert.IsWaitingAt("fork")
 	piAssert.ExecuteJob()

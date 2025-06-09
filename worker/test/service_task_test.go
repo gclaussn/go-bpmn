@@ -76,7 +76,7 @@ func TestServiceTaskProcess(t *testing.T) {
 	e := mustCreateEngine(t)
 	defer e.Shutdown()
 
-	w, _ := worker.New(e)
+	w := mustCreateWorker(t, e)
 
 	serviceTaskProcess, err := w.Register(&serviceTaskDelegate{t})
 	if err != nil {
@@ -107,7 +107,7 @@ func TestServiceTaskProcess(t *testing.T) {
 
 	assert.Equal(int32(1), processInstance.Id)
 
-	piAssert := worker.NewProcessInstanceAssert(t, w, processInstance)
+	piAssert := worker.Assert(t, w, processInstance)
 
 	var variableA string
 	piAssert.GetProcessVariable("a", &variableA)

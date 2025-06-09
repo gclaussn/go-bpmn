@@ -49,7 +49,7 @@ func TestServiceTaskErrorProcess(t *testing.T) {
 	e := mustCreateEngine(t)
 	defer e.Shutdown()
 
-	w, _ := worker.New(e)
+	w := mustCreateWorker(t, e)
 
 	serviceTaskErrorProcess, err := w.Register(&serviceTaskErrorDelegate{})
 	if err != nil {
@@ -61,7 +61,7 @@ func TestServiceTaskErrorProcess(t *testing.T) {
 		t.Fatalf("failed to create process instance: %v", err)
 	}
 
-	piAssert := worker.NewProcessInstanceAssert(t, w, processInstance)
+	piAssert := worker.Assert(t, w, processInstance)
 
 	piAssert.IsWaitingAt("serviceTask")
 	piAssert.ExecuteJobWithError()

@@ -122,7 +122,7 @@ func mustCreateProcessInstance(t *testing.T, e engine.Engine, process engine.Pro
 		t.Fatalf("failed to create process instance: %v", err)
 	}
 
-	return engine.NewProcessInstanceAssert(t, e, processInstance)
+	return engine.Assert(t, e, processInstance)
 }
 
 func mustReadBpmnFile(t *testing.T, fileName string) string {
