@@ -79,8 +79,8 @@ func TestCreateExecution(t *testing.T) {
 			ProcessId:         processInstance.ProcessId,
 			ProcessInstanceId: processInstance.Id,
 
-			BpmnElementId:   startEvent.element.Id,
-			BpmnElementType: startEvent.element.Type,
+			BpmnElementId:   startEvent.bpmnElement.Id,
+			BpmnElementType: startEvent.bpmnElement.Type,
 			State:           engine.InstanceCreated,
 
 			parent: &scope,
@@ -133,8 +133,8 @@ func TestCreateProcessScope(t *testing.T) {
 		ProcessId:         processInstance.ProcessId,
 		ProcessInstanceId: processInstance.Id,
 
-		BpmnElementId:   node.element.Id,
-		BpmnElementType: node.element.Type,
+		BpmnElementId:   node.bpmnElement.Id,
+		BpmnElementType: node.bpmnElement.Type,
 		CreatedAt:       processInstance.CreatedAt,
 		CreatedBy:       processInstance.CreatedBy,
 		State:           engine.InstanceStarted,

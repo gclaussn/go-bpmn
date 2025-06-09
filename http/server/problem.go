@@ -160,6 +160,9 @@ func encodeJSONProblemResponseBody(w http.ResponseWriter, r *http.Request, err e
 			case engine.ErrorQuery:
 				status = http.StatusBadRequest
 				problemType = ProblemTypeQuery
+			case engine.ErrorValidation:
+				status = http.StatusBadRequest
+				problemType = ProblemTypeValidation
 			default:
 				status = http.StatusInternalServerError
 			}

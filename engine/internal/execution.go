@@ -90,13 +90,13 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 			case
 				model.ElementExclusiveGateway,
 				model.ElementInclusiveGateway:
-				if len(node.element.Outgoing) > 1 {
+				if len(node.bpmnElement.Outgoing) > 1 {
 					execution.State = engine.InstanceCreated
 				} else {
 					execution.State = engine.InstanceEnded
 				}
 			case model.ElementParallelGateway:
-				if len(node.element.Incoming) > 1 {
+				if len(node.bpmnElement.Incoming) > 1 {
 					execution.State = engine.InstanceCreated
 				} else {
 					execution.State = engine.InstanceEnded
@@ -117,7 +117,7 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 		}
 
 		if execution.State == engine.InstanceEnded {
-			outgoing := node.element.Outgoing
+			outgoing := node.bpmnElement.Outgoing
 			for j := 0; j < len(outgoing); j++ {
 				target := outgoing[j].Target
 				targetNode := graph.nodes[target.Id]

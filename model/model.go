@@ -110,7 +110,12 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 			case "task":
 				element = newElement(ElementTask, t.Attr)
 			case "timerEventDefinition":
-				element.Type = ElementTimerCatchEvent
+				switch element.Type {
+				case ElementNoneStartEvent:
+					element.Type = ElementTimerStartEvent
+				default:
+					element.Type = ElementTimerCatchEvent
+				}
 			default:
 				element = nil
 			}

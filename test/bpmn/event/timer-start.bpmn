@@ -1,0 +1,12 @@
+<definitions id="test">
+  <process id="timerStartTest" isExecutable="true">
+    <startEvent id="timerStartEvent">
+      <outgoing>f1</outgoing>
+      <timerEventDefinition id="timerStartEventDefinition" />
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="timerStartEvent" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f1</incoming>
+    </endEvent>
+  </process>
+</definitions>

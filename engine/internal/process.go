@@ -197,7 +197,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	md5Hash.Write([]byte(cmd.BpmnXml))
 	bpmnXmlMd5 := hex.EncodeToString(md5Hash.Sum(nil))
 
-	model, err := model.New(strings.NewReader(cmd.BpmnXml))
+	bpmnModel, err := model.New(strings.NewReader(cmd.BpmnXml))
 	if err != nil {
 		return engine.Process{}, engine.Error{
 			Type:   engine.ErrorProcessModel,
@@ -207,12 +207,12 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	}
 
 	// find process
-	processElement, err := model.ProcessById(cmd.BpmnProcessId)
+	processElement, err := bpmnModel.ProcessById(cmd.BpmnProcessId)
 	if err != nil {
 		// collect actual BPMN process IDs
-		bpmnProcessIds := make([]string, len(model.Definitions.Processes))
+		bpmnProcessIds := make([]string, len(bpmnModel.Definitions.Processes))
 		for i := 0; i < len(bpmnProcessIds); i++ {
-			bpmnProcessIds[i] = model.Definitions.Processes[i].Id
+			bpmnProcessIds[i] = bpmnModel.Definitions.Processes[i].Id
 		}
 
 		return engine.Process{}, engine.Error{
@@ -223,13 +223,36 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	}
 
 	// validate process
-	processElements := processElement.AllElements()
-	problems := validateProcess(processElements)
+	bpmnElements := processElement.AllElements()
+	problems := validateProcess(bpmnElements)
 	if len(problems) != 0 {
 		return engine.Process{}, engine.Error{
 			Type:   engine.ErrorProcessModel,
 			Title:  "failed to validate BPMN process",
 			Detail: strings.Join(problems, "; "),
+		}
+	}
+
+	// validate timers
+	for _, bpmnElement := range bpmnElements {
+		_, ok := cmd.Timers[bpmnElement.Id]
+
+		if ok {
+			if bpmnElement.Type != model.ElementTimerStartEvent { // invalid timer
+				return engine.Process{}, engine.Error{
+					Type:   engine.ErrorValidation,
+					Title:  "failed to validate timer",
+					Detail: fmt.Sprintf("BPMN element %s is not a timer start event", bpmnElement.Id),
+				}
+			}
+		} else {
+			if bpmnElement.Type == model.ElementTimerStartEvent { // missing timer
+				return engine.Process{}, engine.Error{
+					Type:   engine.ErrorValidation,
+					Title:  "failed to validate timer",
+					Detail: fmt.Sprintf("no timer specified for BPMN element %s", bpmnElement.Id),
+				}
+			}
 		}
 	}
 
@@ -283,14 +306,14 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	}
 
 	// insert elements
-	elements := make([]*ElementEntity, len(processElements))
-	for i, e := range processElements {
+	elements := make([]*ElementEntity, len(bpmnElements))
+	for i, bpmnElement := range bpmnElements {
 		element := ElementEntity{
 			ProcessId: process.Id,
 
-			BpmnElementId:   e.Id,
-			BpmnElementName: e.Name,
-			BpmnElementType: e.Type,
+			BpmnElementId:   bpmnElement.Id,
+			BpmnElementName: bpmnElement.Name,
+			BpmnElementType: bpmnElement.Type,
 		}
 
 		elements[i] = &element
@@ -301,7 +324,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	}
 
 	// cache process
-	graph, err := newGraph(processElements, elements)
+	graph, err := newGraph(bpmnElements, elements)
 	if err != nil {
 		return engine.Process{}, engine.Error{
 			Type:   engine.ErrorProcessModel,
@@ -312,6 +335,23 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 	process.graph = &graph
 	ctx.ProcessCache().Add(process)
+
+	// prepare timer events
+	timerEvents := make([]*TimerEventEntity, len(cmd.Timers))
+	for bpmnElementId, timer := range cmd.Timers {
+		timerEvents[len(timerEvents)] = &TimerEventEntity{
+			ElementId: graph.nodes[bpmnElementId].id,
+
+			ProcessId: process.Id,
+
+			BpmnProcessId: process.BpmnProcessId,
+			IsSuspended:   false,
+			Time:          pgtype.Timestamp{Time: timer.Time, Valid: !timer.Time.IsZero()},
+			TimeCycle:     pgtype.Text{},
+			TimeDuration:  pgtype.Text{String: timer.TimeDuration.String(), Valid: !timer.TimeDuration.IsZero()},
+			Version:       process.Version,
+		}
+	}
 
 	// update parallelism
 	if err := ctx.ProcessInstanceQueues().Upsert(&ProcessInstanceQueueEntity{
@@ -343,6 +383,16 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		if err := ctx.Tasks().Insert(&dequeueProcessInstance); err != nil {
 			return engine.Process{}, err
 		}
+	}
+
+	// suspend timer events
+	if err := suspendTimerEvents(ctx, process.BpmnProcessId); err != nil {
+		return engine.Process{}, err
+	}
+
+	// insert timer events
+	if err := ctx.TimerEvents().Insert(timerEvents); err != nil {
+		return engine.Process{}, err
 	}
 
 	return process.Process(), nil

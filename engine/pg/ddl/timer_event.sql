@@ -1,7 +1,6 @@
 CREATE TABLE IF NOT EXISTS timer_event (
-	id SERIAL PRIMARY KEY,
+	element_id PRIMARY KEY,
 
-	element_id INTEGER NOT NULL,
 	process_id INTEGER NOT NULL,
 
 	bpmn_process_id VARCHAR NOT NULL,

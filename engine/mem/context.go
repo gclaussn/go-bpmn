@@ -42,6 +42,7 @@ type memContext struct {
 	processInstances      processInstanceRepository
 	processInstanceQueues processInstanceQueueRepository
 	tasks                 taskRepository
+	timerEvents           timerEventRepository
 	variables             variableRepository
 }
 
@@ -91,6 +92,10 @@ func (c *memContext) ProcessInstanceQueues() internal.ProcessInstanceQueueReposi
 
 func (c *memContext) Tasks() internal.TaskRepository {
 	return &c.tasks
+}
+
+func (c *memContext) TimerEvents() internal.TimerEventRepository {
+	return &c.timerEvents
 }
 
 func (c *memContext) Variables() internal.VariableRepository {

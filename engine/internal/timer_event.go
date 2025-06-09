@@ -1,11 +1,12 @@
 package internal
 
-import "github.com/jackc/pgx/v5/pgtype"
+import (
+	"github.com/jackc/pgx/v5/pgtype"
+)
 
 type TimerEventEntity struct {
-	Id int32
-
 	ElementId int32
+
 	ProcessId int32
 
 	BpmnProcessId string
@@ -17,5 +18,26 @@ type TimerEventEntity struct {
 }
 
 type TimerEventRepository interface {
-	Insert(*TimerEventEntity) error
+	Insert([]*TimerEventEntity) error
+	SelectByBpmnProcessId(bpmnProcessId string) ([]*TimerEventEntity, error)
+	Update([]*TimerEventEntity) error
+}
+
+func suspendTimerEvents(ctx Context, bpmnProcessId string) error {
+	timerEvents, err := ctx.TimerEvents().SelectByBpmnProcessId(bpmnProcessId)
+	if err != nil {
+		return err
+	}
+
+	var timerEventsToUpdate []*TimerEventEntity
+	for _, timerEvent := range timerEvents {
+		if timerEvent.IsSuspended {
+			continue
+		}
+
+		timerEvent.IsSuspended = true
+		timerEventsToUpdate = append(timerEventsToUpdate, timerEvent)
+	}
+
+	return ctx.TimerEvents().Update(timerEventsToUpdate)
 }
