@@ -14,7 +14,7 @@ After the gateway is evaluated, one service task must be executed to end an inst
 <Tabs>
   <TabItem label="Example process">
 
-<p align="center">
+<p align="center" style="background-color: white">
   <img src="/go-bpmn/getting-started/automate-process/example.svg" alt="example.bpmn"></img>
 </p>
 
@@ -194,7 +194,7 @@ In case of an exclusive gateway, a job needs to be completed with a decision tha
 <Tabs syncKey="lang">
   <TabItem label="curl">
 
-Lock job:
+Lock job to allow an exclusive execution:
 
 ```sh
 curl -v \
@@ -225,7 +225,7 @@ curl -v \
   </TabItem>
   <TabItem label="CLI">
 
-Lock job:
+Lock job to allow an exclusive execution:
 
 ```sh
 go-bpmn job lock
@@ -249,7 +249,7 @@ go-bpmn job complete \
   </TabItem>
   <TabItem label="Go">
 
-Lock job:
+Lock job to allow an exclusive execution:
 
 ```go
 lockedJobs, err := e.LockJobs(engine.LockJobsCmd{
@@ -304,7 +304,7 @@ In case of a service task, no type-specific completion is required.
 <Tabs syncKey="lang">
   <TabItem label="curl">
 
-Lock job:
+Lock job to allow an exclusive execution:
 
 ```sh
 curl -v \
@@ -337,7 +337,7 @@ curl -v \
   </TabItem>
   <TabItem label="CLI">
 
-Lock job:
+Lock job to allow an exclusive execution:
 
 ```sh
 go-bpmn job lock
@@ -347,7 +347,6 @@ Complete job, which confirms the execution of service task `doX`:
 
 ```sh
 go-bpmn job complete \
---exclusive-gateway-decision doX \
 --partition $(date -I) \
 --process-variable result='{"encoding": "json", "value": "x done"}' \
 --id 2
@@ -362,7 +361,7 @@ go-bpmn process-instance query
   </TabItem>
   <TabItem label="Go">
 
-Lock job:
+Lock job to allow an exclusive execution:
 
 ```go
 lockedJobs, err := e.LockJobs(engine.LockJobsCmd{
