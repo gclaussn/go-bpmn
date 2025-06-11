@@ -9,6 +9,7 @@ type TimerEventEntity struct {
 
 	ProcessId int32
 
+	BpmnElementId string
 	BpmnProcessId string
 	IsSuspended   bool
 	Time          pgtype.Timestamp
@@ -19,6 +20,7 @@ type TimerEventEntity struct {
 
 type TimerEventRepository interface {
 	Insert([]*TimerEventEntity) error
+	Select(elementId int32) (*TimerEventEntity, error)
 	SelectByBpmnProcessId(bpmnProcessId string) ([]*TimerEventEntity, error)
 	Update([]*TimerEventEntity) error
 }

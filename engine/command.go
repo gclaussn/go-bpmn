@@ -244,10 +244,12 @@ type JobCompletion struct {
 	Timer *Timer `json:"timer,omitempty"`
 }
 
-// A timer defines when a timer catch event is triggered.
+// A timer defines when a timer start or catch event is triggered.
 type Timer struct {
-	// A future point in time.
+	// A point in time.
 	Time time.Time `json:"time"`
-	// ISO 8601 duration that specifies the time delta.
+	// CRON expression that specifies a cyclic trigger.
+	TimeCycle string `json:"timeCycle,omitempty"`
+	// ISO 8601 duration that specifies a time delta.
 	TimeDuration ISO8601Duration `json:"timeDuration" validate:"iso8601_duration"`
 }

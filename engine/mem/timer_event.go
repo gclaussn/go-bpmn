@@ -2,6 +2,7 @@ package mem
 
 import (
 	"github.com/gclaussn/go-bpmn/engine/internal"
+	"github.com/jackc/pgx/v5"
 )
 
 type timerEventRepository struct {
@@ -13,6 +14,15 @@ func (r *timerEventRepository) Insert(entities []*internal.TimerEventEntity) err
 		r.entities[entity.ElementId] = *entity
 	}
 	return nil
+}
+
+func (r *timerEventRepository) Select(elementId int32) (*internal.TimerEventEntity, error) {
+	for _, e := range r.entities {
+		if e.ElementId == elementId {
+			return &e, nil
+		}
+	}
+	return nil, pgx.ErrNoRows
 }
 
 func (r *timerEventRepository) SelectByBpmnProcessId(bpmnProcessId string) ([]*internal.TimerEventEntity, error) {

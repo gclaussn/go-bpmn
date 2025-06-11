@@ -108,7 +108,6 @@ func enqueueProcessInstance(ctx Context, processInstance *ProcessInstanceEntity)
 	}
 
 	if queue.HeadId.Valid {
-		processInstance.StartedAt = pgtype.Timestamp{}
 		processInstance.State = engine.InstanceQueued
 
 		if err := ctx.ProcessInstances().Update(processInstance); err != nil {
@@ -119,6 +118,9 @@ func enqueueProcessInstance(ctx Context, processInstance *ProcessInstanceEntity)
 		queue.TailPartition = pgtype.Date{Time: processInstance.Partition, Valid: true}
 		queue.TailId = pgtype.Int4{Int32: processInstance.Id, Valid: true}
 	} else {
+		processInstance.StartedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
+		processInstance.State = engine.InstanceStarted
+
 		queue.ActiveCount = queue.ActiveCount + 1
 	}
 

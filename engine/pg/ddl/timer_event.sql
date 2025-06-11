@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS timer_event (
 
 	process_id INTEGER NOT NULL,
 
+	bpmn_element_id VARCHAR NOT NULL,
 	bpmn_process_id VARCHAR NOT NULL,
 	is_suspended BOOLEAN NOT NULL,
 	time TIMESTAMP(3),

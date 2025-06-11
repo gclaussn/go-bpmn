@@ -235,14 +235,14 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 	// validate timers
 	for _, bpmnElement := range bpmnElements {
-		_, ok := cmd.Timers[bpmnElement.Id]
+		timer, ok := cmd.Timers[bpmnElement.Id]
 
 		if ok {
 			if bpmnElement.Type != model.ElementTimerStartEvent { // invalid timer
 				return engine.Process{}, engine.Error{
 					Type:   engine.ErrorValidation,
 					Title:  "failed to validate timer",
-					Detail: fmt.Sprintf("BPMN element %s is not a timer start event", bpmnElement.Id),
+					Detail: fmt.Sprintf("timer for BPMN element %s is invalid: not a timer start event", bpmnElement.Id),
 				}
 			}
 		} else {
@@ -250,8 +250,27 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 				return engine.Process{}, engine.Error{
 					Type:   engine.ErrorValidation,
 					Title:  "failed to validate timer",
-					Detail: fmt.Sprintf("no timer specified for BPMN element %s", bpmnElement.Id),
+					Detail: fmt.Sprintf("timer for BPMN element %s is missing", bpmnElement.Id),
 				}
+			}
+		}
+
+		v := 0
+		if !timer.Time.IsZero() {
+			v++
+		}
+		if timer.TimeCycle != "" {
+			v++
+		}
+		if !timer.TimeDuration.IsZero() {
+			v++
+		}
+
+		if v != 1 {
+			return engine.Process{}, engine.Error{
+				Type:   engine.ErrorValidation,
+				Title:  "failed to validate timer",
+				Detail: fmt.Sprintf("timer for BPMN element %s is invalid: one of time, time cycle or time duration must be specified", bpmnElement.Id),
 			}
 		}
 	}
@@ -323,7 +342,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		return engine.Process{}, err
 	}
 
-	// cache process
+	// create execution graph
 	graph, err := newGraph(bpmnElements, elements)
 	if err != nil {
 		return engine.Process{}, engine.Error{
@@ -333,23 +352,46 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		}
 	}
 
-	process.graph = &graph
-	ctx.ProcessCache().Add(process)
-
-	// prepare timer events
+	// prepare timer events and tasks
 	timerEvents := make([]*TimerEventEntity, len(cmd.Timers))
+	timerEventTasks := make([]*TaskEntity, len(timerEvents))
+
 	for bpmnElementId, timer := range cmd.Timers {
 		timerEvents[len(timerEvents)] = &TimerEventEntity{
 			ElementId: graph.nodes[bpmnElementId].id,
 
 			ProcessId: process.Id,
 
+			BpmnElementId: bpmnElementId,
 			BpmnProcessId: process.BpmnProcessId,
 			IsSuspended:   false,
 			Time:          pgtype.Timestamp{Time: timer.Time, Valid: !timer.Time.IsZero()},
-			TimeCycle:     pgtype.Text{},
+			TimeCycle:     pgtype.Text{String: timer.TimeCycle, Valid: timer.TimeCycle != ""},
 			TimeDuration:  pgtype.Text{String: timer.TimeDuration.String(), Valid: !timer.TimeDuration.IsZero()},
 			Version:       process.Version,
+		}
+
+		dueAt, err := evaluateTimer(timer, ctx.Time())
+		if err != nil {
+			return engine.Process{}, engine.Error{
+				Type:   engine.ErrorValidation,
+				Title:  "failed to evaluate timer",
+				Detail: err.Error(),
+			}
+		}
+
+		timerEventTasks[len(timerEventTasks)] = &TaskEntity{
+			Partition: ctx.Date(),
+
+			ElementId: pgtype.Int4{Int32: graph.nodes[bpmnElementId].id, Valid: true},
+			ProcessId: pgtype.Int4{Int32: process.Id, Valid: true},
+
+			CreatedAt: ctx.Time(),
+			CreatedBy: cmd.WorkerId,
+			DueAt:     dueAt,
+			Type:      engine.TaskTriggerTimerEvent,
+
+			Instance: TriggerTimerEventTask{},
 		}
 	}
 
@@ -390,10 +432,20 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		return engine.Process{}, err
 	}
 
-	// insert timer events
+	// insert timer events and tasks
 	if err := ctx.TimerEvents().Insert(timerEvents); err != nil {
 		return engine.Process{}, err
 	}
+
+	for _, timerEventTask := range timerEventTasks {
+		if err := ctx.Tasks().Insert(timerEventTask); err != nil {
+			return engine.Process{}, err
+		}
+	}
+
+	// cache process
+	process.graph = &graph
+	ctx.ProcessCache().Add(process)
 
 	return process.Process(), nil
 }
