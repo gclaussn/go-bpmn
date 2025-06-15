@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gclaussn/go-bpmn/model"
 )
 
 func Assert(t *testing.T, e Engine, processInstance ProcessInstance) *ProcessInstanceAssert {
@@ -19,7 +21,7 @@ func Assert(t *testing.T, e Engine, processInstance ProcessInstance) *ProcessIns
 	}
 
 	elements := make(map[string]Element, len(results))
-	for i := 0; i < len(results); i++ {
+	for i := range results {
 		element := results[i].(Element)
 		elements[element.BpmnElementId] = element
 	}
@@ -35,27 +37,64 @@ func Assert(t *testing.T, e Engine, processInstance ProcessInstance) *ProcessIns
 	}
 }
 
+// AsserTimerStart asserts a process instance started via a timer start event.
+//
+// startTime is used to increase the engine's time, so that the related trigger timer event task becomes due.
+// Since a process can have multiple timer start events, startTime must equal the task's due date.
+// As a result, the related task as well as the created process instance are found.
 func AsserTimerStart(t *testing.T, e Engine, processId int32, startTime time.Time) *ProcessInstanceAssert {
+	startTime = startTime.UTC().Truncate(time.Millisecond)
+
 	if err := e.SetTime(SetTimeCmd{
 		Time: startTime,
 	}); err != nil {
 		t.Fatalf("failed to set time: %v", err)
 	}
 
-	completedTasks, _, err := e.ExecuteTasks(ExecuteTasksCmd{
+	elementResults, err := e.Query(ElementCriteria{
+		ProcessId: processId,
+	})
+	if err != nil {
+		t.Fatalf("failed to query elements: %v", err)
+	}
+
+	limit := 0
+	for i := range elementResults {
+		if elementResults[i].(Element).BpmnElementType == model.ElementTimerStartEvent {
+			limit++
+		}
+	}
+
+	completedTasks, failedTasks, err := e.ExecuteTasks(ExecuteTasksCmd{
 		ProcessId: processId,
 		Type:      TaskTriggerTimerEvent,
+
+		Limit: limit,
 	})
 	if err != nil {
 		t.Fatalf("failed to execute task: %v", err)
 	}
 
-	if len(completedTasks) == 0 {
-		t.Fatalf("no task completed")
+	if len(failedTasks) != 0 {
+		t.Fatal("one or multiple trigger timer event tasks failed")
 	}
 
-	if completedTasks[0].HasError() {
-		t.Fatalf("completed task %s has error: %s", completedTasks[0], completedTasks[0].Error)
+	var createdAt time.Time
+	for _, completedTask := range completedTasks {
+		if completedTask.DueAt != startTime {
+			continue
+		}
+
+		if completedTask.HasError() {
+			t.Fatalf("trigger timer event task %s has error: %s", completedTask, completedTask.Error)
+		}
+
+		createdAt = *completedTask.CompletedAt
+		break
+	}
+
+	if createdAt.IsZero() {
+		t.Fatalf("failed to find trigger timer event task for start time %v", startTime)
 	}
 
 	processInstanceResults, err := e.Query(ProcessInstanceCriteria{
@@ -66,9 +105,7 @@ func AsserTimerStart(t *testing.T, e Engine, processId int32, startTime time.Tim
 	}
 
 	var processInstance ProcessInstance
-
-	createdAt := *completedTasks[0].CompletedAt
-	for i := 0; i < len(processInstanceResults); i++ {
+	for i := range processInstanceResults {
 		result := processInstanceResults[i].(ProcessInstance)
 		if result.CreatedAt == createdAt {
 			processInstance = result
@@ -79,15 +116,8 @@ func AsserTimerStart(t *testing.T, e Engine, processId int32, startTime time.Tim
 		t.Fatalf("failed to find process instance: %v", err)
 	}
 
-	elementResults, err := e.Query(ElementCriteria{
-		ProcessId: processInstance.ProcessId,
-	})
-	if err != nil {
-		t.Fatalf("failed to query elements: %v", err)
-	}
-
 	elements := make(map[string]Element, len(elementResults))
-	for i := 0; i < len(elementResults); i++ {
+	for i := range elementResults {
 		element := elementResults[i].(Element)
 		elements[element.BpmnElementId] = element
 	}

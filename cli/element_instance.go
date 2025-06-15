@@ -145,11 +145,9 @@ func newElementInstanceQueryCmd(cli *Cli) *cobra.Command {
 			states := make([]engine.InstanceState, len(statesV))
 			for i := 0; i < len(states); i++ {
 				var value instanceStateValue
-
 				if err := value.Set(statesV[i]); err != nil {
 					return err
 				}
-
 				states[i] = engine.InstanceState(value)
 			}
 

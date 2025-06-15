@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/spf13/cobra"
@@ -32,6 +33,9 @@ func newJobCompleteCmd(cli *Cli) *cobra.Command {
 		elementVariablesV map[string]string
 		processVariablesV map[string]string
 		retryTimer        iso8601DurationValue
+		timeV             timeValue
+		timeCycleV        string
+		timeDurationV     iso8601DurationValue
 
 		cmd engine.CompleteJobCmd
 	)
@@ -68,6 +72,16 @@ func newJobCompleteCmd(cli *Cli) *cobra.Command {
 				processVariables[variableName] = &data
 			}
 
+			timer := engine.Timer{
+				Time:         time.Time(timeV),
+				TimeCycle:    timeCycleV,
+				TimeDuration: engine.ISO8601Duration(timeDurationV),
+			}
+
+			if !timer.Time.IsZero() || timer.TimeCycle != "" || !timer.TimeDuration.IsZero() {
+				completion.Timer = &timer
+			}
+
 			cmd.Partition = engine.Partition(partition)
 
 			cmd.Completion = &completion
@@ -97,6 +111,10 @@ func newJobCompleteCmd(cli *Cli) *cobra.Command {
 
 	c.Flags().StringVar(&completion.ExclusiveGatewayDecision, "exclusive-gateway-decision", "", "Evaluated BPMN element ID to continue with after the exclusive gateway")
 	c.Flags().StringSliceVar(&completion.InclusiveGatewayDecision, "inclusive-gateway-decision", nil, "Evaluated BPMN element ID to continue with after the inclusive gateway")
+	// Timer
+	c.Flags().Var(&timeV, "time", "A point in time, when the timer event is triggered")
+	c.Flags().StringVar(&timeCycleV, "time-cycle", "", "CRON expression that specifies a cyclic trigger")
+	c.Flags().Var(&timeDurationV, "time-duration", "Duration until the timer event is triggered")
 
 	c.MarkFlagRequired("partition")
 	c.MarkFlagRequired("id")

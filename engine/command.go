@@ -23,7 +23,7 @@ type CompleteJobCmd struct {
 	ProcessVariables map[string]*Data `json:"processVariables,omitempty" validate:"dive,keys,variable_name,endkeys,omitnil,required"`
 	// Number of retries left. If `> 0`, a retry job is created. Otherwise, an incident is created.
 	RetryCount int `json:"retryCount,omitempty" validate:"gte=0"`
-	// ISO 8601 duration that specifies when a retry job becomes due. At this point in time a retry job can be locked by a worker.
+	// Duration until a retry job becomes due. At this point in time a retry job can be locked by a worker.
 	RetryTimer ISO8601Duration `json:"retryTimer" validate:"iso8601_duration"`
 	// ID of the worker that locked and completed the job.
 	WorkerId string `json:"workerId" validate:"required"`
@@ -248,10 +248,10 @@ type JobCompletion struct {
 
 // A timer defines when a timer start or catch event is triggered.
 type Timer struct {
-	// A point in time.
+	// A point in time, when the timer event is triggered.
 	Time time.Time `json:"time"`
 	// CRON expression that specifies a cyclic trigger.
 	TimeCycle string `json:"timeCycle,omitempty" validate:"cron"`
-	// ISO 8601 duration that specifies a time delta.
+	// Duration until the timer event is triggered.
 	TimeDuration ISO8601Duration `json:"timeDuration" validate:"iso8601_duration"`
 }

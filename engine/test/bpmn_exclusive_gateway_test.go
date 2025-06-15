@@ -60,7 +60,7 @@ func (x exclusiveGatewayTest) errorNoBpmnElementId(t *testing.T) {
 	}
 
 	if len(lockedJobs) == 0 {
-		t.Fatalf("no job locked")
+		t.Fatal("no job locked")
 	}
 
 	completedJob, err := x.e.CompleteJob(engine.CompleteJobCmd{
