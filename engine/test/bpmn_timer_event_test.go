@@ -24,7 +24,7 @@ type timerEventTest struct {
 func (x timerEventTest) catch(t *testing.T) {
 	piAssert := mustCreateProcessInstance(t, x.e, x.catchTest)
 
-	triggerAt := time.Now().Add(time.Hour * 1)
+	triggerAt := time.Now().Add(time.Hour)
 
 	piAssert.IsWaitingAt("timerCatchEvent")
 	piAssert.CompleteJob(engine.CompleteJobCmd{
@@ -44,5 +44,29 @@ func (x timerEventTest) catch(t *testing.T) {
 	piAssert.IsWaitingAt("timerCatchEvent")
 	piAssert.ExecuteTask()
 
+	piAssert.IsEnded()
+}
+
+func (x timerEventTest) start(t *testing.T) {
+	bpmnXml := mustReadBpmnFile(t, "event/timer-start.bpmn")
+
+	startTime := time.Now().Add(time.Hour)
+
+	process, err := x.e.CreateProcess(engine.CreateProcessCmd{
+		BpmnProcessId: "timerStartTest",
+		BpmnXml:       bpmnXml,
+		Timers: map[string]*engine.Timer{
+			"timerStartEvent": {
+				Time: startTime,
+			},
+		},
+		Version:  "1",
+		WorkerId: testWorkerId,
+	})
+	if err != nil {
+		t.Fatalf("failed to create process: %v", err)
+	}
+
+	piAssert := engine.AsserTimerStart(t, x.e, process.Id, startTime)
 	piAssert.IsEnded()
 }

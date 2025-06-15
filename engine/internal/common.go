@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"errors"
 	"time"
 
 	"github.com/adhocore/gronx"
@@ -18,7 +17,7 @@ func evaluateTimer(timer engine.Timer, start time.Time) (time.Time, error) {
 	} else if !timer.TimeDuration.IsZero() {
 		return timer.TimeDuration.Calculate(start), nil
 	} else {
-		return time.Time{}, errors.New("one of time, time cycle or time duration must be specified")
+		return start, nil
 	}
 }
 

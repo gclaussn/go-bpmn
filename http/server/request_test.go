@@ -240,6 +240,92 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 	})
 }
 
+func TestDecodeJSONRequestBodyTimer(t *testing.T) {
+	assert := assert.New(t)
+
+	var body DecodeTimerTest
+
+	t.Run("null", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest("", "/", strings.NewReader(`{"vtimer": null}`))
+
+		err := decodeJSONRequestBody(w, r, &body)
+		assertProblem(t, err, ProblemTypeValidation, http.StatusBadRequest)
+
+		problem := err.(Problem)
+		assert.Lenf(problem.Errors, 1, "expected one error")
+
+		e := problem.Errors[0]
+		assert.Equal("#/vtimer", e.Pointer)
+		assert.Equal("timer", e.Type)
+		assert.NotEmpty(e.Detail)
+		assert.Empty(e.Value)
+	})
+
+	t.Run("empty", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest("", "/", strings.NewReader(`{"vtimer": {}}`))
+
+		err := decodeJSONRequestBody(w, r, &body)
+		assertProblem(t, err, ProblemTypeValidation, http.StatusBadRequest)
+
+		problem := err.(Problem)
+		assert.Lenf(problem.Errors, 1, "expected one error")
+
+		e := problem.Errors[0]
+		assert.Equal("#/vtimer", e.Pointer)
+		assert.Equal("timer", e.Type)
+		assert.NotEmpty(e.Detail)
+		assert.Empty(e.Value)
+	})
+
+	t.Run("valid time", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest("", "/", strings.NewReader(`{"vtimer": {"time": "2025-06-14T06:29:10Z"}}`))
+
+		err := decodeJSONRequestBody(w, r, &body)
+		assert.Nil(err)
+
+		assert.False(body.VTimer.Time.IsZero())
+	})
+
+	t.Run("valid time cycle", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest("", "/", strings.NewReader(`{"vtimer": {"timeCycle": "* * * * *"}}`))
+
+		err := decodeJSONRequestBody(w, r, &body)
+		assert.Nil(err)
+
+		assert.Equal("* * * * *", body.VTimer.TimeCycle)
+	})
+
+	t.Run("valid time", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest("", "/", strings.NewReader(`{"vtimer": {"timeDuration": "PT1H"}}`))
+
+		err := decodeJSONRequestBody(w, r, &body)
+		assert.Nil(err)
+
+		assert.Equal("PT1H", body.VTimer.TimeDuration.String())
+	})
+
+	t.Run("invalid time cycle", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest("", "/", strings.NewReader(`{"vtimer": {"timeCycle": "*"}}`))
+
+		err := decodeJSONRequestBody(w, r, &body)
+
+		problem := err.(Problem)
+		assert.Lenf(problem.Errors, 1, "expected one error")
+
+		e := problem.Errors[0]
+		assert.Equal("#/vtimer/timeCycle", e.Pointer)
+		assert.Equal("cron", e.Type)
+		assert.NotEmpty(e.Detail)
+		assert.Equal("*", e.Value)
+	})
+}
+
 func TestParseId(t *testing.T) {
 	assert := assert.New(t)
 
@@ -364,4 +450,8 @@ type DecodeTest struct {
 	VTags            map[string]string       `json:"vtags" validate:"dive,keys,tag_name,endkeys,required"`
 	VUnique          []int                   `json:"vunique" validate:"unique"`
 	VVariables       map[string]*engine.Data `json:"vvariables" validate:"dive,keys,variable_name,endkeys,omitnil,required"`
+}
+
+type DecodeTimerTest struct {
+	VTimer *engine.Timer `json:"vtimer" validate:"timer"`
 }

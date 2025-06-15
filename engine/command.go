@@ -43,7 +43,7 @@ type CreateProcessCmd struct {
 	// Optional tags, consisting of name and value pairs.
 	Tags map[string]string `json:"tags,omitempty" validate:"max=100,dive,keys,tag_name,endkeys,required"`
 	// Timer definitions for each timer start event.
-	Timers map[string]Timer `json:"timers,omitempty"`
+	Timers map[string]*Timer `json:"timers,omitempty"`
 	// Arbitrary process version.
 	Version string `json:"version" validate:"required"`
 	// ID of the worker that created the process.
@@ -75,6 +75,8 @@ type ExecuteTasksCmd struct {
 
 	// Element instance condition - must be used in combination with a partition.
 	ElementInstanceId int32 `json:"elementInstanceId,omitempty"`
+	// Process condition.
+	ProcessId int32 `json:"processId,omitempty"`
 	// Process instance condition - must be used in combination with a partition.
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"`
 	// Task type condition.
@@ -249,7 +251,7 @@ type Timer struct {
 	// A point in time.
 	Time time.Time `json:"time"`
 	// CRON expression that specifies a cyclic trigger.
-	TimeCycle string `json:"timeCycle,omitempty"`
+	TimeCycle string `json:"timeCycle,omitempty" validate:"cron"`
 	// ISO 8601 duration that specifies a time delta.
 	TimeDuration ISO8601Duration `json:"timeDuration" validate:"iso8601_duration"`
 }

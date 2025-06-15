@@ -235,9 +235,9 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 	// validate timers
 	for _, bpmnElement := range bpmnElements {
-		timer, ok := cmd.Timers[bpmnElement.Id]
+		timer := cmd.Timers[bpmnElement.Id]
 
-		if ok {
+		if timer != nil {
 			if bpmnElement.Type != model.ElementTimerStartEvent { // invalid timer
 				return engine.Process{}, engine.Error{
 					Type:   engine.ErrorValidation,
@@ -252,25 +252,6 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 					Title:  "failed to validate timer",
 					Detail: fmt.Sprintf("timer for BPMN element %s is missing", bpmnElement.Id),
 				}
-			}
-		}
-
-		v := 0
-		if !timer.Time.IsZero() {
-			v++
-		}
-		if timer.TimeCycle != "" {
-			v++
-		}
-		if !timer.TimeDuration.IsZero() {
-			v++
-		}
-
-		if v != 1 {
-			return engine.Process{}, engine.Error{
-				Type:   engine.ErrorValidation,
-				Title:  "failed to validate timer",
-				Detail: fmt.Sprintf("timer for BPMN element %s is invalid: one of time, time cycle or time duration must be specified", bpmnElement.Id),
 			}
 		}
 	}
@@ -356,8 +337,9 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	timerEvents := make([]*TimerEventEntity, len(cmd.Timers))
 	timerEventTasks := make([]*TaskEntity, len(timerEvents))
 
+	i := 0
 	for bpmnElementId, timer := range cmd.Timers {
-		timerEvents[len(timerEvents)] = &TimerEventEntity{
+		timerEvents[i] = &TimerEventEntity{
 			ElementId: graph.nodes[bpmnElementId].id,
 
 			ProcessId: process.Id,
@@ -371,7 +353,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			Version:       process.Version,
 		}
 
-		dueAt, err := evaluateTimer(timer, ctx.Time())
+		dueAt, err := evaluateTimer(*timer, ctx.Time())
 		if err != nil {
 			return engine.Process{}, engine.Error{
 				Type:   engine.ErrorValidation,
@@ -380,7 +362,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			}
 		}
 
-		timerEventTasks[len(timerEventTasks)] = &TaskEntity{
+		timerEventTasks[i] = &TaskEntity{
 			Partition: ctx.Date(),
 
 			ElementId: pgtype.Int4{Int32: graph.nodes[bpmnElementId].id, Valid: true},
@@ -393,6 +375,8 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 			Instance: TriggerTimerEventTask{},
 		}
+
+		i++
 	}
 
 	// update parallelism

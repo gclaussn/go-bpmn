@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/adhocore/gronx"
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/go-playground/validator/v10"
 )
@@ -28,6 +29,13 @@ func newValidate() *validator.Validate {
 		return strings.SplitN(f.Tag.Get("json"), ",", 2)[0] // e.g. `json:"retryTimer,omitempty"` -> retryTimer
 	})
 
+	validate.RegisterValidation("cron", func(fl validator.FieldLevel) bool {
+		v := fl.Field().String()
+		if v == "" {
+			return true
+		}
+		return gronx.IsValid(fl.Field().String())
+	})
 	validate.RegisterValidation("iso8601_duration", func(fl validator.FieldLevel) bool {
 		_, err := engine.NewISO8601Duration(fl.Field().String())
 		return err == nil
@@ -35,6 +43,13 @@ func newValidate() *validator.Validate {
 	validate.RegisterValidation("tag_name", func(fl validator.FieldLevel) bool {
 		return RegexpTagName.MatchString(fl.Field().String())
 	})
+	validate.RegisterValidation("timer", func(fl validator.FieldLevel) bool {
+		timer, ok := fl.Field().Interface().(engine.Timer)
+		if !ok {
+			return false
+		}
+		return !timer.Time.IsZero() || timer.TimeCycle != "" || !timer.TimeDuration.IsZero()
+	}, true)
 	validate.RegisterValidation("variable_name", func(fl validator.FieldLevel) bool {
 		return RegexpVariableName.MatchString(fl.Field().String())
 	})
@@ -149,12 +164,17 @@ func decodeJSONRequestBody(w http.ResponseWriter, r *http.Request, v any) error 
 				detail = "must be unique"
 				value = fmt.Sprintf("%v", fieldError.Value())
 			// custom validation
+			case "cron":
+				detail = "is invalid"
+				value = fmt.Sprintf("%s", fieldError.Value())
 			case "iso8601_duration":
 				detail = "is invalid"
 				value = fmt.Sprintf("%s", fieldError.Value())
 			case "tag_name":
 				detail = fmt.Sprintf("must match regex %s", RegexpTagName)
 				value = fmt.Sprintf("%s", fieldError.Value())
+			case "timer":
+				detail = "must specify a time, time cycle or time duration"
 			case "variable_name":
 				detail = fmt.Sprintf("must match regex %s", RegexpVariableName)
 				value = fmt.Sprintf("%s", fieldError.Value())

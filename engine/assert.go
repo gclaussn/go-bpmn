@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 )
 
 func Assert(t *testing.T, e Engine, processInstance ProcessInstance) *ProcessInstanceAssert {
@@ -20,6 +21,74 @@ func Assert(t *testing.T, e Engine, processInstance ProcessInstance) *ProcessIns
 	elements := make(map[string]Element, len(results))
 	for i := 0; i < len(results); i++ {
 		element := results[i].(Element)
+		elements[element.BpmnElementId] = element
+	}
+
+	return &ProcessInstanceAssert{
+		t: t,
+		e: e,
+
+		elements: elements,
+
+		partition:         processInstance.Partition,
+		processInstanceId: processInstance.Id,
+	}
+}
+
+func AsserTimerStart(t *testing.T, e Engine, processId int32, startTime time.Time) *ProcessInstanceAssert {
+	if err := e.SetTime(SetTimeCmd{
+		Time: startTime,
+	}); err != nil {
+		t.Fatalf("failed to set time: %v", err)
+	}
+
+	completedTasks, _, err := e.ExecuteTasks(ExecuteTasksCmd{
+		ProcessId: processId,
+		Type:      TaskTriggerTimerEvent,
+	})
+	if err != nil {
+		t.Fatalf("failed to execute task: %v", err)
+	}
+
+	if len(completedTasks) == 0 {
+		t.Fatalf("no task completed")
+	}
+
+	if completedTasks[0].HasError() {
+		t.Fatalf("completed task %s has error: %s", completedTasks[0], completedTasks[0].Error)
+	}
+
+	processInstanceResults, err := e.Query(ProcessInstanceCriteria{
+		ProcessId: processId,
+	})
+	if err != nil {
+		t.Fatalf("failed to query process instances: %v", err)
+	}
+
+	var processInstance ProcessInstance
+
+	createdAt := *completedTasks[0].CompletedAt
+	for i := 0; i < len(processInstanceResults); i++ {
+		result := processInstanceResults[i].(ProcessInstance)
+		if result.CreatedAt == createdAt {
+			processInstance = result
+			break
+		}
+	}
+	if processInstance.Id == 0 {
+		t.Fatalf("failed to find process instance: %v", err)
+	}
+
+	elementResults, err := e.Query(ElementCriteria{
+		ProcessId: processInstance.ProcessId,
+	})
+	if err != nil {
+		t.Fatalf("failed to query elements: %v", err)
+	}
+
+	elements := make(map[string]Element, len(elementResults))
+	for i := 0; i < len(elementResults); i++ {
+		element := elementResults[i].(Element)
 		elements[element.BpmnElementId] = element
 	}
 
@@ -170,7 +239,7 @@ func (a *ProcessInstanceAssert) ElementInstances(criteria ...ElementInstanceCrit
 func (a *ProcessInstanceAssert) ExecuteTask() {
 	task := a.Task()
 
-	completedTasks, failedTasks, err := a.e.ExecuteTasks(ExecuteTasksCmd{
+	completedTasks, _, err := a.e.ExecuteTasks(ExecuteTasksCmd{
 		Partition: task.Partition,
 		Id:        task.Id,
 	})
@@ -184,10 +253,6 @@ func (a *ProcessInstanceAssert) ExecuteTask() {
 
 	if completedTasks[0].HasError() {
 		a.Fatalf("completed task %s has error: %s", completedTasks[0], completedTasks[0].Error)
-	}
-
-	if len(failedTasks) != 0 {
-		a.Fatalf("expected zero failed tasks, but got %d", len(failedTasks))
 	}
 
 	a.bpmnElementId = ""

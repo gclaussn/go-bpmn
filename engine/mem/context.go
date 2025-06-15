@@ -23,6 +23,7 @@ func newMemContext(options Options) *memContext {
 	ctx.processInstances.jobs = ctx.jobs
 	ctx.tasks.partitions = make(map[string][]internal.TaskEntity)
 	ctx.tasks.engineId = options.Common.EngineId
+	ctx.timerEvents.entities = make(map[int32]internal.TimerEventEntity)
 	ctx.variables.partitions = make(map[string][]internal.VariableEntity)
 
 	return &ctx

@@ -252,6 +252,18 @@ func TestLockTasks(t *testing.T) {
 
 	runTaskLockTests(t, e, []taskLockTest{
 		{
+			"by process ID",
+			engine.ExecuteTasksCmd{ProcessId: 2, Limit: len(partitions)},
+			func(assert *assert.Assertions, lockedTasks []engine.Task) {
+				assert.Len(lockedTasks, 2)
+				assert.Equal(int32(2), lockedTasks[0].ProcessId)
+				assert.Equal(int32(2), lockedTasks[1].ProcessId)
+			},
+		},
+	})
+
+	runTaskLockTests(t, e, []taskLockTest{
+		{
 			"by process instance ID",
 			engine.ExecuteTasksCmd{ProcessInstanceId: 10, Limit: len(partitions)},
 			func(assert *assert.Assertions, lockedTasks []engine.Task) {

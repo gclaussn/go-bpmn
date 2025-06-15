@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS timer_event (
-	element_id PRIMARY KEY,
+	element_id INTEGER PRIMARY KEY,
 
 	process_id INTEGER NOT NULL,
 
