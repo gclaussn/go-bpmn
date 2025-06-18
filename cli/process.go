@@ -80,7 +80,7 @@ func newProcessCreateCmd(cli *Cli) *cobra.Command {
 				return err
 			}
 
-			c.Print(process.Id)
+			c.Println(process.Id)
 			return nil
 		},
 	}
@@ -91,8 +91,8 @@ func newProcessCreateCmd(cli *Cli) *cobra.Command {
 	c.Flags().IntVar(&cmd.Parallelism, "parallelism", 0, "Maximum number of parallel process instances being executed")
 	c.Flags().StringToStringVar(&cmd.Tags, "tag", nil, "Tag, consisting of name and value")
 	c.Flags().StringToStringVar(&timeV, "time", nil, "A point in time, when the timer start event is triggered")
-	c.Flags().StringToStringVar(&timeCycleV, "time", nil, "CRON expression that specifies a cyclic timer start")
-	c.Flags().StringToStringVar(&timeDurationV, "time", nil, "Duration until the timer start event is triggered")
+	c.Flags().StringToStringVar(&timeCycleV, "time-cycle", nil, "CRON expression that specifies a cyclic timer start")
+	c.Flags().StringToStringVar(&timeDurationV, "time-duration", nil, "Duration until the timer start event is triggered")
 	c.Flags().StringVar(&cmd.Version, "version", "", "Arbitrary process version")
 
 	c.MarkFlagRequired("bpmn-process-id")

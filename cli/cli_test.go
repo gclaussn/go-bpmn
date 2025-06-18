@@ -3,18 +3,13 @@ package cli
 import (
 	"testing"
 
-	"github.com/gclaussn/go-bpmn/engine/mem"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestHelp(t *testing.T) {
 	assert := assert.New(t)
 
-	e, err := mem.New()
-	if err != nil {
-		t.Fatalf("failed to create mem engine: %v", err)
-	}
-
+	e := mustCreateEngine(t)
 	defer e.Shutdown()
 
 	rootCmd := newRootCmd(&Cli{engine: e})

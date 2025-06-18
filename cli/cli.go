@@ -75,6 +75,10 @@ func newRootCmd(cli *Cli) *cobra.Command {
 				return nil
 			}
 
+			if cli.engine != nil {
+				return nil // skip client creation when testing
+			}
+
 			c.Flags().VisitAll(func(f *pflag.Flag) {
 				if f.Changed {
 					return
