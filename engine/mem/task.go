@@ -151,6 +151,9 @@ func (r *taskRepository) Lock(cmd engine.ExecuteTasksCmd, lockedAt time.Time) ([
 			if cmd.ElementInstanceId != 0 && cmd.ElementInstanceId != e.ElementInstanceId.Int32 {
 				continue
 			}
+			if cmd.ProcessId != 0 && cmd.ProcessId != e.ProcessId.Int32 {
+				continue
+			}
 			if cmd.ProcessInstanceId != 0 && cmd.ProcessInstanceId != e.ProcessInstanceId.Int32 {
 				continue
 			}

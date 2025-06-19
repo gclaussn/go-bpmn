@@ -207,4 +207,5 @@ const (
 	ErrorNotFound
 	ErrorProcessModel
 	ErrorQuery
+	ErrorValidation
 )

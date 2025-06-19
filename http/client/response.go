@@ -33,6 +33,11 @@ func decodeJSONResponseBody(res *http.Response, v any) error {
 			errorType = engine.ErrorProcessModel
 		case server.ProblemTypeQuery:
 			errorType = engine.ErrorQuery
+		case server.ProblemTypeValidation:
+			if len(problem.Errors) > 0 {
+				return problem
+			}
+			errorType = engine.ErrorValidation
 		default:
 			return problem
 		}

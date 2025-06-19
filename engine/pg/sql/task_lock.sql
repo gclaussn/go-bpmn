@@ -21,6 +21,9 @@ FROM (
 {{if ne .ElementInstanceId 0}}
 		AND element_instance_id = {{.ElementInstanceId}}
 {{end}}
+{{if ne .ProcessId 0}}
+		AND process_id = {{.ProcessId}}
+{{end}}
 {{if ne .ProcessInstanceId 0}}
 		AND process_instance_id = {{.ProcessInstanceId}}
 {{end}}

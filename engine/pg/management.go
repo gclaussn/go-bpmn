@@ -25,6 +25,7 @@ var Tables = []string{
 	"process_instance_queue",
 	"process_instance_queue_element",
 	"task",
+	"timer_event",
 	"variable",
 }
 

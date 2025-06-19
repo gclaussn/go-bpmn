@@ -42,6 +42,8 @@ type CreateProcessCmd struct {
 	Parallelism int `json:"parallelism,omitempty" validate:"gte=0"`
 	// Optional tags, consisting of name and value pairs.
 	Tags map[string]string `json:"tags,omitempty" validate:"max=100,dive,keys,tag_name,endkeys,required"`
+	// Timer definitions for each timer start event.
+	Timers map[string]*Timer `json:"timers,omitempty"`
 	// Arbitrary process version.
 	Version string `json:"version" validate:"required"`
 	// ID of the worker that created the process.
@@ -73,6 +75,8 @@ type ExecuteTasksCmd struct {
 
 	// Element instance condition - must be used in combination with a partition.
 	ElementInstanceId int32 `json:"elementInstanceId,omitempty"`
+	// Process condition.
+	ProcessId int32 `json:"processId,omitempty"`
 	// Process instance condition - must be used in combination with a partition.
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"`
 	// Task type condition.
@@ -242,10 +246,12 @@ type JobCompletion struct {
 	Timer *Timer `json:"timer,omitempty"`
 }
 
-// A timer defines when a timer catch event is triggered.
+// A timer defines when a timer start or catch event is triggered.
 type Timer struct {
-	// A future point in time.
+	// A point in time, when the timer event is triggered.
 	Time time.Time `json:"time"`
-	// ISO 8601 duration that specifies the time delta.
+	// CRON expression that specifies a cyclic trigger.
+	TimeCycle string `json:"timeCycle,omitempty" validate:"cron"`
+	// Duration until the timer event is triggered.
 	TimeDuration ISO8601Duration `json:"timeDuration" validate:"iso8601_duration"`
 }

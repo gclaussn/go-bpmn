@@ -3,7 +3,6 @@ package internal
 import (
 	"fmt"
 	"slices"
-	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/model"
@@ -422,14 +421,10 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 			return nil
 		}
 
-		timer := jobCompletion.Timer
-
-		var dueAt time.Time
-		if !timer.Time.IsZero() {
-			// must be UTC and truncated to millis (see engine/pg/pg.go:pgEngineWithContext#require)
-			dueAt = timer.Time.UTC().Truncate(time.Millisecond)
-		} else {
-			dueAt = timer.TimeDuration.Calculate(ctx.Time())
+		dueAt, err := evaluateTimer(*jobCompletion.Timer, ctx.Time())
+		if err != nil {
+			job.Error = pgtype.Text{String: fmt.Sprintf("failed to evaluate timer: %v", err), Valid: true}
+			return nil
 		}
 
 		triggerTimerEvent := TaskEntity{

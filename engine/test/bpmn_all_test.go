@@ -72,6 +72,7 @@ func TestBpmn(t *testing.T) {
 			timerEventTest := newTimerEventTest(t, e)
 
 			t.Run(engineTypes[i]+"catch", timerEventTest.catch)
+			t.Run(engineTypes[i]+"start", timerEventTest.start)
 		}
 	})
 }

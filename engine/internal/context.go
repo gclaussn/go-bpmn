@@ -21,5 +21,6 @@ type Context interface {
 	ProcessInstances() ProcessInstanceRepository
 	ProcessInstanceQueues() ProcessInstanceQueueRepository
 	Tasks() TaskRepository
+	TimerEvents() TimerEventRepository
 	Variables() VariableRepository
 }

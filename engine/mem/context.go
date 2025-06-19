@@ -23,6 +23,7 @@ func newMemContext(options Options) *memContext {
 	ctx.processInstances.jobs = ctx.jobs
 	ctx.tasks.partitions = make(map[string][]internal.TaskEntity)
 	ctx.tasks.engineId = options.Common.EngineId
+	ctx.timerEvents.entities = make(map[int32]internal.TimerEventEntity)
 	ctx.variables.partitions = make(map[string][]internal.VariableEntity)
 
 	return &ctx
@@ -42,6 +43,7 @@ type memContext struct {
 	processInstances      processInstanceRepository
 	processInstanceQueues processInstanceQueueRepository
 	tasks                 taskRepository
+	timerEvents           timerEventRepository
 	variables             variableRepository
 }
 
@@ -91,6 +93,10 @@ func (c *memContext) ProcessInstanceQueues() internal.ProcessInstanceQueueReposi
 
 func (c *memContext) Tasks() internal.TaskRepository {
 	return &c.tasks
+}
+
+func (c *memContext) TimerEvents() internal.TimerEventRepository {
+	return &c.timerEvents
 }
 
 func (c *memContext) Variables() internal.VariableRepository {

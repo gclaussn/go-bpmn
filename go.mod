@@ -3,6 +3,7 @@ module github.com/gclaussn/go-bpmn
 go 1.24.3
 
 require (
+	github.com/adhocore/gronx v1.19.6
 	github.com/go-playground/validator/v10 v10.26.0
 	github.com/jackc/pgx/v5 v5.7.4
 	github.com/spf13/cobra v1.9.1
