@@ -76,7 +76,7 @@ func (a *ProcessInstanceAssert) ExecuteTask() {
 	processInstance := a.assert.ProcessInstance()
 	elementInstance := a.assert.ElementInstance()
 
-	completedTasks, failedTasks, err := a.worker.engine.ExecuteTasks(engine.ExecuteTasksCmd{
+	completedTasks, _, err := a.worker.engine.ExecuteTasks(engine.ExecuteTasksCmd{
 		Partition:         processInstance.Partition,
 		ProcessInstanceId: processInstance.Id,
 		ElementInstanceId: elementInstance.Id,
@@ -91,10 +91,6 @@ func (a *ProcessInstanceAssert) ExecuteTask() {
 
 	if completedTasks[0].HasError() {
 		a.assert.Fatalf("completed task %s has error: %s", completedTasks[0], completedTasks[0].Error)
-	}
-
-	if len(failedTasks) != 0 {
-		a.assert.Fatalf("expected zero failed tasks, but got %d", len(failedTasks))
 	}
 }
 

@@ -95,7 +95,7 @@ func TestQuery(t *testing.T) {
 	)
 
 	var entities []any
-	for i := 0; i < len(partitions); i++ {
+	for i := range partitions {
 		var tagsJson string
 		if len(tags[i]) != 0 {
 			b, _ := json.Marshal(tags[i])

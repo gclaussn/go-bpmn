@@ -43,7 +43,7 @@ func newElementQueryCmd(cli *Cli) *cobra.Command {
 				"BPMN ELEMENT TYPE",
 			})
 
-			for i := 0; i < len(results); i++ {
+			for i := range results {
 				element := results[i].(engine.Element)
 
 				table.addRow([]string{

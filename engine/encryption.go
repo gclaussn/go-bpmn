@@ -18,7 +18,7 @@ func NewEncryption(keys string) (Encryption, error) {
 	split := strings.Split(keys, ",")
 
 	decodedKeys := make([][]byte, len(split))
-	for i := 0; i < len(split); i++ {
+	for i := range split {
 		for j := i + 1; j < len(split); j++ {
 			if split[i] == split[j] {
 				return Encryption{}, fmt.Errorf("duplicate encryption key #%d and #%d", i, j)

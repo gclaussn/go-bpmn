@@ -83,7 +83,7 @@ func newIncidentQueryCmd(cli *Cli) *cobra.Command {
 				"RESOLVED BY",
 			})
 
-			for i := 0; i < len(results); i++ {
+			for i := range results {
 				incident := results[i].(engine.Incident)
 
 				table.addRow([]string{

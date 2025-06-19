@@ -40,7 +40,7 @@ func (t *table) format() string {
 	rows := t.rows
 
 	columns := make([]int, len(rows[0]))
-	for i := 0; i < len(rows); i++ {
+	for i := range rows {
 		for j := 0; j < len(columns); j++ {
 			l := utf8.RuneCountInString(rows[i][j])
 			if columns[j] < l {
@@ -50,8 +50,8 @@ func (t *table) format() string {
 	}
 
 	var sb strings.Builder
-	for i := 0; i < len(rows); i++ {
-		for j := 0; j < len(columns); j++ {
+	for i := range rows {
+		for j := range columns {
 			if j != 0 {
 				sb.WriteString("   ")
 			}

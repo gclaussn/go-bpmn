@@ -115,7 +115,7 @@ func (o Options) Validate() error {
 		return errors.New("job retry count must be greater than or equal to 1")
 	}
 	if o.TaskExecutorInterval.Milliseconds() < 1000 {
-		return errors.New("task executor interval  must be greater than or equal to 1000 ms")
+		return errors.New("task executor interval must be greater than or equal to 1000 ms")
 	}
 	if o.TaskExecutorLimit < 1 {
 		return errors.New("task executor limit must be greater than or equal to 1")

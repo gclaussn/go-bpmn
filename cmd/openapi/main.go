@@ -355,7 +355,7 @@ func (g *generator) generateYaml() string {
 	parameters := make(map[string]bool)
 	for _, methods := range g.paths {
 		for _, operation := range methods {
-			for i := 0; i < len(operation.Parameters); i++ {
+			for i := range operation.Parameters {
 				parameters[operation.Parameters[i]] = true
 			}
 		}

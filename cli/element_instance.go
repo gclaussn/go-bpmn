@@ -51,7 +51,7 @@ func newElementInstanceGetVariablesCmd(cli *Cli) *cobra.Command {
 			sort.Strings(keys)
 
 			var sb strings.Builder
-			for i := 0; i < len(keys); i++ {
+			for i := range keys {
 				data := variables[keys[i]]
 
 				if i != 0 {
@@ -143,13 +143,11 @@ func newElementInstanceQueryCmd(cli *Cli) *cobra.Command {
 		Short: "Query element instances",
 		RunE: func(c *cobra.Command, _ []string) error {
 			states := make([]engine.InstanceState, len(statesV))
-			for i := 0; i < len(states); i++ {
+			for i := range states {
 				var value instanceStateValue
-
 				if err := value.Set(statesV[i]); err != nil {
 					return err
 				}
-
 				states[i] = engine.InstanceState(value)
 			}
 
@@ -172,7 +170,7 @@ func newElementInstanceQueryCmd(cli *Cli) *cobra.Command {
 				"STATE",
 			})
 
-			for i := 0; i < len(results); i++ {
+			for i := range results {
 				elementInstance := results[i].(engine.ElementInstance)
 
 				table.addRow([]string{

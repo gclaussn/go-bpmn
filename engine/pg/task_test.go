@@ -59,7 +59,7 @@ func TestLockTasks(t *testing.T) {
 
 	tasks := make([]*internal.TaskEntity, len(partitions))
 	entities := make([]any, len(tasks))
-	for i := 0; i < len(tasks); i++ {
+	for i := range tasks {
 		tasks[i] = &internal.TaskEntity{
 			Partition: partitions[i],
 
@@ -190,7 +190,7 @@ func TestUnlockTasks(t *testing.T) {
 
 	tasks := make([]*internal.TaskEntity, len(partitions))
 	entities := make([]any, len(tasks))
-	for i := 0; i < len(tasks); i++ {
+	for i := range tasks {
 		tasks[i] = &internal.TaskEntity{
 			Partition: partitions[i],
 		}
@@ -245,7 +245,7 @@ func TestUnlockTasks(t *testing.T) {
 	})
 
 	// complete tasks
-	for i := 0; i < len(tasks); i++ {
+	for i := range tasks {
 		tasks[i].CompletedAt = pgtype.Timestamp{Time: now, Valid: true}
 	}
 
@@ -301,7 +301,7 @@ func runTaskLockTests(t *testing.T, e engine.Engine, tests []taskLockTest) {
 			}
 
 			lockedTasks := make([]engine.Task, len(entities))
-			for i := 0; i < len(lockedTasks); i++ {
+			for i := range lockedTasks {
 				lockedTasks[i] = entities[i].Task()
 			}
 

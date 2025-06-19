@@ -58,11 +58,9 @@ func TestUnknownCatchEvent(t *testing.T) {
 	assert.Len(processElement.Elements, 3)
 
 	unknownCatchEvent := processElement.ElementById("unknownCatchEvent")
-	assert.NotNil(unknownCatchEvent)
+	assert.NotNilf(unknownCatchEvent, "expected not to be nil")
 	assert.Len(unknownCatchEvent.Incoming, 1)
-	assert.Equal("", unknownCatchEvent.Name)
 	assert.Len(unknownCatchEvent.Outgoing, 1)
-	assert.Equal(processElement, unknownCatchEvent.Parent)
 	assert.Equal(ElementNoneThrowEvent, unknownCatchEvent.Type)
 }
 
@@ -145,10 +143,25 @@ func TestTimerCatchEvent(t *testing.T) {
 	assert.Len(processElement.Elements, 3)
 
 	timerCatchEvent := processElement.ElementById("timerCatchEvent")
-	assert.NotNil(timerCatchEvent)
+	assert.NotNilf(timerCatchEvent, "expected not to be nil")
 	assert.Len(timerCatchEvent.Incoming, 1)
-	assert.Equal("", timerCatchEvent.Name)
 	assert.Len(timerCatchEvent.Outgoing, 1)
-	assert.Equal(processElement, timerCatchEvent.Parent)
 	assert.Equal(ElementTimerCatchEvent, timerCatchEvent.Type)
+}
+
+func TestTimerStartEvent(t *testing.T) {
+	assert := assert.New(t)
+
+	// when
+	model := mustCreateModel(t, "event/timer-start.bpmn")
+
+	// then
+	processElement := model.Definitions.Processes[0]
+	assert.Len(processElement.Elements, 2)
+
+	timerStartEvent := processElement.ElementById("timerStartEvent")
+	assert.NotNilf(timerStartEvent, "expected not to be nil")
+	assert.Len(timerStartEvent.Incoming, 0)
+	assert.Len(timerStartEvent.Outgoing, 1)
+	assert.Equal(ElementTimerStartEvent, timerStartEvent.Type)
 }

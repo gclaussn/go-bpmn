@@ -28,7 +28,7 @@ func (e *Element) AllElements() []*Element {
 }
 
 func (e *Element) ElementById(id string) *Element {
-	for i := 0; i < len(e.Elements); i++ {
+	for i := range e.Elements {
 		if e.Elements[i].Id == id {
 			return e.Elements[i]
 		}
@@ -38,7 +38,7 @@ func (e *Element) ElementById(id string) *Element {
 
 func (e *Element) ElementsByType(elementType ElementType) []*Element {
 	var elements []*Element
-	for i := 0; i < len(e.Elements); i++ {
+	for i := range e.Elements {
 		if e.Elements[i].Type == elementType {
 			elements = append(elements, e.Elements[i])
 		}
@@ -47,7 +47,7 @@ func (e *Element) ElementsByType(elementType ElementType) []*Element {
 }
 
 func (e *Element) OutgoingById(targetId string) *Element {
-	for i := 0; i < len(e.Outgoing); i++ {
+	for i := range e.Outgoing {
 		target := e.Outgoing[i].Target
 		if target != nil && target.Id == targetId {
 			return target
@@ -57,7 +57,7 @@ func (e *Element) OutgoingById(targetId string) *Element {
 }
 
 func (e *Element) getSequenceFlow(id string) *SequenceFlow {
-	for i := 0; i < len(e.SequenceFlows); i++ {
+	for i := range e.SequenceFlows {
 		if e.SequenceFlows[i].Id == id {
 			return e.SequenceFlows[i]
 		}

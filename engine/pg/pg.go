@@ -52,7 +52,7 @@ func New(databaseUrl string, customizers ...func(*Options)) (engine.Engine, erro
 
 	processCache := internal.NewProcessCache()
 
-	for i := 0; i < pgCtxPoolSize; i++ {
+	for range pgCtxPoolSize {
 		pgCtxPool <- &pgContext{options: options, processCache: processCache}
 	}
 

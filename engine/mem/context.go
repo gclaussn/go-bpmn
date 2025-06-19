@@ -98,16 +98,17 @@ func (c *memContext) Variables() internal.VariableRepository {
 }
 
 func (c *memContext) clear() {
-	clear(c.elements.entities)
+	c.processCache.Clear()
+
+	c.elements.entities = nil
 	clear(c.elementInstances.partitions)
 	clear(c.incidents.partitions)
 	clear(c.jobs.partitions)
-	clear(c.processes.entities)
+	c.processes.entities = nil
 	clear(c.processInstances.partitions)
 	clear(c.processInstanceQueues.queues)
 	clear(c.processInstanceQueues.queueElementPartitions)
 	clear(c.tasks.partitions)
+	c.timerEvents.entities = nil
 	clear(c.variables.partitions)
-
-	c.processCache.Clear()
 }

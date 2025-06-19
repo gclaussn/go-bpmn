@@ -49,7 +49,7 @@ func newVariableQueryCmd(cli *Cli) *cobra.Command {
 				"UPDATED AT",
 			})
 
-			for i := 0; i < len(results); i++ {
+			for i := range results {
 				variable := results[i].(engine.Variable)
 
 				table.addRow([]string{

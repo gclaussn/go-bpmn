@@ -133,7 +133,7 @@ func newJobLockCmd(cli *Cli) *cobra.Command {
 				"TYPE",
 			})
 
-			for i := 0; i < len(jobs); i++ {
+			for i := range jobs {
 				job := jobs[i]
 
 				table.addRow([]string{
@@ -228,7 +228,7 @@ func newJobQueryCmd(cli *Cli) *cobra.Command {
 				"TYPE",
 			})
 
-			for i := 0; i < len(results); i++ {
+			for i := range results {
 				job := results[i].(engine.Job)
 
 				table.addRow([]string{

@@ -167,7 +167,7 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		assert.Len(problem.Errors, 14)
 
 		findError := func(pointer string) Error {
-			for i := 0; i < len(problem.Errors); i++ {
+			for i := range problem.Errors {
 				if problem.Errors[i].Pointer == pointer {
 					return problem.Errors[i]
 				}

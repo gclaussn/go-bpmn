@@ -99,7 +99,7 @@ func newProcessInstanceGetVariablesCmd(cli *Cli) *cobra.Command {
 			sort.Strings(keys)
 
 			var sb strings.Builder
-			for i := 0; i < len(keys); i++ {
+			for i := range keys {
 				data := variables[keys[i]]
 
 				if i != 0 {
@@ -260,7 +260,7 @@ func newProcessInstanceQueryCmd(cli *Cli) *cobra.Command {
 				"STATE",
 			})
 
-			for i := 0; i < len(results); i++ {
+			for i := range results {
 				processInstance := results[i].(engine.ProcessInstance)
 
 				table.addRow([]string{

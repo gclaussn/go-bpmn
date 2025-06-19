@@ -9,13 +9,13 @@ import (
 )
 
 // validateProcess validates if the process and its elements can be executed.
-func validateProcess(processElements []*model.Element) (problems []string) {
-	if len(processElements) == 0 { // indicates a bug
+func validateProcess(bpmnElements []*model.Element) (problems []string) {
+	if len(bpmnElements) == 0 { // indicates a bug
 		problems = append(problems, "expected process model")
 		return
 	}
 
-	processModel, ok := processElements[0].Model.(*model.Process)
+	processModel, ok := bpmnElements[0].Model.(*model.Process)
 	if !ok { // indicates a bug
 		problems = append(problems, "expected process model")
 		return
@@ -25,20 +25,20 @@ func validateProcess(processElements []*model.Element) (problems []string) {
 		problems = append(problems, "BPMN process is not executable")
 	}
 
-	for _, element := range processElements {
-		if element.Id == "" {
-			problems = append(problems, fmt.Sprintf("BPMN element of type %s has no ID", element.Type))
+	for _, bpmnElement := range bpmnElements {
+		if bpmnElement.Id == "" {
+			problems = append(problems, fmt.Sprintf("BPMN element of type %s has no ID", bpmnElement.Type))
 			continue
 		}
 
-		switch element.Type {
+		switch bpmnElement.Type {
 		case model.ElementInclusiveGateway:
-			if len(element.Incoming) > 1 {
-				problems = append(problems, fmt.Sprintf("BPMN element %s is not supported: joining inclusive gateway", element.Id))
+			if len(bpmnElement.Incoming) > 1 {
+				problems = append(problems, fmt.Sprintf("BPMN element %s is not supported: joining inclusive gateway", bpmnElement.Id))
 			}
 		}
 
-		for _, sequenceFlow := range element.SequenceFlows {
+		for _, sequenceFlow := range bpmnElement.SequenceFlows {
 			if sequenceFlow.Source == nil {
 				problems = append(problems, fmt.Sprintf("BPMN sequence flow %s has no source element", sequenceFlow.Id))
 			}
@@ -51,31 +51,31 @@ func validateProcess(processElements []*model.Element) (problems []string) {
 	return
 }
 
-func newGraph(processElements []*model.Element, elements []*ElementEntity) (graph, error) {
-	if len(processElements) == 0 { // indicates a bug
-		return graph{}, errors.New("expected process elements not to be empty")
+func newGraph(bpmnElements []*model.Element, elements []*ElementEntity) (graph, error) {
+	if len(bpmnElements) == 0 { // indicates a bug
+		return graph{}, errors.New("expected BPMN elements not to be empty")
 	}
-	if len(processElements) != len(elements) { // indicates a bug
-		return graph{}, errors.New("expected number of process elements and entities to be equal")
+	if len(bpmnElements) != len(elements) { // indicates a bug
+		return graph{}, errors.New("expected number of BPMN elements and entities to be equal")
 	}
 
 	ids := make(map[string]int32, len(elements))
-	for i := 0; i < len(elements); i++ {
+	for i := range elements {
 		ids[elements[i].BpmnElementId] = elements[i].Id
 	}
 
-	processElement := processElements[0]
+	processElement := bpmnElements[0]
 	if processElement.Type != model.ElementProcess { // indicates a bug
 		return graph{}, errors.New("expected process")
 	}
 
-	nodes := make(map[string]node, len(processElements))
-	for _, element := range processElements {
-		id, ok := ids[element.Id]
+	nodes := make(map[string]node, len(bpmnElements))
+	for _, bpmnElement := range bpmnElements {
+		id, ok := ids[bpmnElement.Id]
 		if !ok { // indicates a bug
-			return graph{}, fmt.Errorf("BPMN element %s has no entity", element.Id)
+			return graph{}, fmt.Errorf("BPMN element %s has no entity", bpmnElement.Id)
 		}
-		nodes[element.Id] = node{id: id, element: element}
+		nodes[bpmnElement.Id] = node{id: id, bpmnElement: bpmnElement}
 	}
 
 	return graph{
@@ -96,9 +96,9 @@ func (g graph) createExecution(scope *ElementInstanceEntity) (ElementInstanceEnt
 	}
 
 	var noneStartEvents []*model.Element
-	switch scopeNode.element.Type {
+	switch scopeNode.bpmnElement.Type {
 	case model.ElementProcess:
-		noneStartEvents = scopeNode.element.ElementsByType(model.ElementNoneStartEvent)
+		noneStartEvents = scopeNode.bpmnElement.ElementsByType(model.ElementNoneStartEvent)
 	}
 
 	if len(noneStartEvents) == 0 {
@@ -137,7 +137,7 @@ func (g graph) createExecutionAt(scope *ElementInstanceEntity, bpmnElementId str
 		return ElementInstanceEntity{}, fmt.Errorf("BPMN process has no element %s", bpmnElementId)
 	}
 
-	if node.element.Parent != scopeNode.element {
+	if node.bpmnElement.Parent != scopeNode.bpmnElement {
 		return ElementInstanceEntity{}, fmt.Errorf("BPMN scope %s has no element %s", scope.BpmnElementId, bpmnElementId)
 	}
 
@@ -148,8 +148,8 @@ func (g graph) createExecutionAt(scope *ElementInstanceEntity, bpmnElementId str
 		ProcessId:         scope.ProcessId,
 		ProcessInstanceId: scope.ProcessInstanceId,
 
-		BpmnElementId:   node.element.Id,
-		BpmnElementType: node.element.Type,
+		BpmnElementId:   node.bpmnElement.Id,
+		BpmnElementType: node.bpmnElement.Type,
 		State:           engine.InstanceCreated,
 
 		parent: scope,
@@ -185,7 +185,7 @@ func (g graph) ensureSequenceFlow(sourceId string, targetId string) error {
 	if !ok {
 		return fmt.Errorf("BPMN process has no element %s", sourceId)
 	}
-	if node.element.OutgoingById(targetId) == nil {
+	if node.bpmnElement.OutgoingById(targetId) == nil {
 		return fmt.Errorf("BPMN element %s has no outgoing sequence flow to %s", sourceId, targetId)
 	}
 	return nil
@@ -201,19 +201,19 @@ func (g graph) joinParallelGateway(waiting []*ElementInstanceEntity) ([]*Element
 		return nil, fmt.Errorf("BPMN process has no element %s", waiting[0].BpmnElementId)
 	}
 
-	incoming := node.element.Incoming
-	if node.element.Type != model.ElementParallelGateway || len(incoming) < 2 {
-		return nil, fmt.Errorf("BPMN element %s is not a joining parallel gateway", node.element.Id)
+	incoming := node.bpmnElement.Incoming
+	if node.bpmnElement.Type != model.ElementParallelGateway || len(incoming) < 2 {
+		return nil, fmt.Errorf("BPMN element %s is not a joining parallel gateway", node.bpmnElement.Id)
 	}
 
-	for i := 0; i < len(waiting); i++ {
+	for i := range waiting {
 		if waiting[i].ElementId != node.id {
 			return nil, fmt.Errorf("expected all waiting executions to have element ID %d", node.id)
 		}
 	}
 
 	incomingIds := make(map[int32]int, len(incoming))
-	for i := 0; i < len(incoming); i++ {
+	for i := range incoming {
 		sourceId := incoming[i].Source.Id
 		sourceNode := g.nodes[sourceId]
 
@@ -249,6 +249,6 @@ func (g graph) joinParallelGateway(waiting []*ElementInstanceEntity) ([]*Element
 }
 
 type node struct {
-	id      int32 // ID of the related ElementEntity
-	element *model.Element
+	id          int32 // ID of the related ElementEntity
+	bpmnElement *model.Element
 }

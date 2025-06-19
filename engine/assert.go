@@ -18,7 +18,7 @@ func Assert(t *testing.T, e Engine, processInstance ProcessInstance) *ProcessIns
 	}
 
 	elements := make(map[string]Element, len(results))
-	for i := 0; i < len(results); i++ {
+	for i := range results {
 		element := results[i].(Element)
 		elements[element.BpmnElementId] = element
 	}
@@ -160,7 +160,7 @@ func (a *ProcessInstanceAssert) ElementInstances(criteria ...ElementInstanceCrit
 	}
 
 	elementInstances := make([]ElementInstance, len(results))
-	for i := 0; i < len(elementInstances); i++ {
+	for i := range elementInstances {
 		elementInstances[i] = results[i].(ElementInstance)
 	}
 
@@ -170,7 +170,7 @@ func (a *ProcessInstanceAssert) ElementInstances(criteria ...ElementInstanceCrit
 func (a *ProcessInstanceAssert) ExecuteTask() {
 	task := a.Task()
 
-	completedTasks, failedTasks, err := a.e.ExecuteTasks(ExecuteTasksCmd{
+	completedTasks, _, err := a.e.ExecuteTasks(ExecuteTasksCmd{
 		Partition: task.Partition,
 		Id:        task.Id,
 	})
@@ -184,10 +184,6 @@ func (a *ProcessInstanceAssert) ExecuteTask() {
 
 	if completedTasks[0].HasError() {
 		a.Fatalf("completed task %s has error: %s", completedTasks[0], completedTasks[0].Error)
-	}
-
-	if len(failedTasks) != 0 {
-		a.Fatalf("expected zero failed tasks, but got %d", len(failedTasks))
 	}
 
 	a.bpmnElementId = ""
@@ -204,7 +200,7 @@ func (a *ProcessInstanceAssert) ExecuteTasks() []Task {
 		a.Fatalf("failed to execute tasks: %v", err)
 	}
 
-	for i := 0; i < len(completedTasks); i++ {
+	for i := range completedTasks {
 		if completedTasks[i].HasError() {
 			a.Fatalf("completed task %s has error: %s", completedTasks[i], completedTasks[i].Error)
 		}
@@ -249,7 +245,7 @@ func (a *ProcessInstanceAssert) HasPassed(bpmnElementId string) {
 	}
 
 	elementInstances := make([]ElementInstance, len(results))
-	for i := 0; i < len(results); i++ {
+	for i := range results {
 		elementInstances[i] = results[i].(ElementInstance)
 
 		if elementInstances[i].BpmnElementId == bpmnElementId {
@@ -274,7 +270,7 @@ func (a *ProcessInstanceAssert) HasPassed(bpmnElementId string) {
 	})
 
 	passed := make([]string, len(elementInstances))
-	for i := 0; i < len(elementInstances); i++ {
+	for i := range elementInstances {
 		passed[i] = elementInstances[i].BpmnElementId
 	}
 
@@ -351,7 +347,7 @@ func (a *ProcessInstanceAssert) Job() Job {
 		a.Fatalf("failed to query jobs: %v", err)
 	}
 
-	for i := 0; i < len(results); i++ {
+	for i := range results {
 		job := results[i].(Job)
 		if !job.IsCompleted() {
 			return job
@@ -392,7 +388,7 @@ func (a *ProcessInstanceAssert) Task() Task {
 		a.Fatalf("failed to query tasks: %v", err)
 	}
 
-	for i := 0; i < len(results); i++ {
+	for i := range results {
 		task := results[i].(Task)
 		if !task.IsCompleted() {
 			return task

@@ -75,7 +75,7 @@ func TestCompleteJob(t *testing.T) {
 			}
 
 			if len(lockedJobs) == 0 {
-				t.Fatalf("no job locked")
+				t.Fatal("no job locked")
 			}
 
 			_, err = e.CompleteJob(cmd)
@@ -129,7 +129,7 @@ func TestCompleteJob(t *testing.T) {
 			}
 
 			if len(lockedJobs) == 0 {
-				t.Fatalf("no job locked")
+				t.Fatal("no job locked")
 			}
 
 			_, err = e.CompleteJob(engine.CompleteJobCmd{
@@ -162,7 +162,7 @@ func TestCompleteJob(t *testing.T) {
 			}
 
 			if len(lockedJobs) == 0 {
-				t.Fatalf("no job locked")
+				t.Fatal("no job locked")
 			}
 
 			completedJob, err := e.CompleteJob(engine.CompleteJobCmd{
@@ -250,7 +250,7 @@ func TestCompleteJob(t *testing.T) {
 			}
 
 			if len(lockedJobs) == 0 {
-				t.Fatalf("no job locked")
+				t.Fatal("no job locked")
 			}
 
 			cmd := engine.CompleteJobCmd{
@@ -319,7 +319,7 @@ func TestCompleteJob(t *testing.T) {
 			}
 
 			if len(lockedJobs) == 0 {
-				t.Fatalf("no job locked")
+				t.Fatal("no job locked")
 			}
 
 			cmd := engine.CompleteJobCmd{

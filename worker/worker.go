@@ -237,7 +237,7 @@ func (w *Worker) Register(delegate Delegate) (Process, error) {
 	}
 
 	elements := make(map[string]engine.Element, len(results))
-	for i := 0; i < len(results); i++ {
+	for i := range results {
 		element := results[i].(engine.Element)
 		elements[element.BpmnElementId] = element
 	}

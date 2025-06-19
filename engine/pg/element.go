@@ -49,7 +49,7 @@ INSERT INTO element (
 	batchResults := r.tx.SendBatch(r.txCtx, batch)
 	defer batchResults.Close()
 
-	for i := 0; i < len(entities); i++ {
+	for i := range entities {
 		row := batchResults.QueryRow()
 
 		if err := row.Scan(&entities[i].Id); err != nil {

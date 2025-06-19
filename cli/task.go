@@ -53,7 +53,7 @@ func newTaskExecuteCmd(cli *Cli) *cobra.Command {
 				"TYPE",
 			})
 
-			for i := 0; i < len(completedTask); i++ {
+			for i := range completedTask {
 				task := completedTask[i]
 
 				completedTable.addRow([]string{
@@ -79,7 +79,7 @@ func newTaskExecuteCmd(cli *Cli) *cobra.Command {
 					"TYPE",
 				})
 
-				for i := 0; i < len(failedTasks); i++ {
+				for i := range failedTasks {
 					task := failedTasks[i]
 
 					failedTable.addRow([]string{
@@ -177,7 +177,7 @@ func newTaskQueryCmd(cli *Cli) *cobra.Command {
 				"TYPE",
 			})
 
-			for i := 0; i < len(results); i++ {
+			for i := range results {
 				task := results[i].(engine.Task)
 
 				table.addRow([]string{

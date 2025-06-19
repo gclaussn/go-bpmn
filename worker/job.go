@@ -241,7 +241,7 @@ func (e *jobExecutor) execute() {
 					break
 				}
 
-				for i := 0; i < len(lockedJobs); i++ {
+				for i := range lockedJobs {
 					_, err := worker.ExecuteJob(lockedJobs[i])
 					if err != nil && onFailure != nil {
 						onFailure(lockedJobs[i], err)

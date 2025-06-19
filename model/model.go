@@ -19,7 +19,7 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 	)
 
 	getAttrValue := func(attributes []xml.Attr, name string) string {
-		for i := 0; i < len(attributes); i++ {
+		for i := range attributes {
 			if attributes[i].Name.Local == name {
 				return attributes[i].Value
 			}
@@ -163,7 +163,7 @@ type Model struct {
 }
 
 func (m *Model) ProcessById(id string) (*Element, error) {
-	for i := 0; i < len(m.Definitions.Processes); i++ {
+	for i := range m.Definitions.Processes {
 		if m.Definitions.Processes[i].Id == id {
 			return m.Definitions.Processes[i], nil
 		}

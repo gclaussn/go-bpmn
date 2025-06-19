@@ -133,7 +133,7 @@ func prepareDatabase(ctx *pgContext) error {
 		{Partition: engine.Partition(date.AddDate(0, 0, 2))},
 	}
 
-	for i := 0; i < len(createPartitionTasks); i++ {
+	for i := range createPartitionTasks {
 		if err := createPartitionTasks[i].Execute(ctx, nil); err != nil {
 			return fmt.Errorf("failed to create partition %s: %v", createPartitionTasks[i].Partition, err)
 		}
@@ -210,7 +210,7 @@ func (t createPartitionTask) Execute(ctx internal.Context, _ *internal.TaskEntit
 		return nil
 	}
 
-	for i := 0; i < len(partitionedTables); i++ {
+	for i := range partitionedTables {
 		createTable := fmt.Sprintf(
 			"CREATE TABLE IF NOT EXISTS %s PARTITION OF %s FOR VALUES IN ('%s')",
 			partitionTable(partitionedTables[i], date),
@@ -330,7 +330,7 @@ SELECT EXISTS(SELECT 1 FROM task WHERE partition = $1 AND completed_at IS NULL)
 		return ctx.Tasks().Insert(&retry)
 	}
 
-	for i := 0; i < len(partitionedTables); i++ {
+	for i := range partitionedTables {
 		alterTable := fmt.Sprintf(
 			"ALTER TABLE %s DETACH PARTITION %s",
 			partitionedTables[i],
@@ -372,7 +372,7 @@ func (t dropPartitionTask) Execute(ctx internal.Context, _ *internal.TaskEntity)
 
 	date := time.Time(t.Partition)
 
-	for i := 0; i < len(partitionedTables); i++ {
+	for i := range partitionedTables {
 		dropTable := fmt.Sprintf(
 			"DROP TABLE IF EXISTS %s",
 			partitionTable(partitionedTables[i], date),

@@ -197,7 +197,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	md5Hash.Write([]byte(cmd.BpmnXml))
 	bpmnXmlMd5 := hex.EncodeToString(md5Hash.Sum(nil))
 
-	model, err := model.New(strings.NewReader(cmd.BpmnXml))
+	bpmnModel, err := model.New(strings.NewReader(cmd.BpmnXml))
 	if err != nil {
 		return engine.Process{}, engine.Error{
 			Type:   engine.ErrorProcessModel,
@@ -207,12 +207,12 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	}
 
 	// find process
-	processElement, err := model.ProcessById(cmd.BpmnProcessId)
+	processElement, err := bpmnModel.ProcessById(cmd.BpmnProcessId)
 	if err != nil {
 		// collect actual BPMN process IDs
-		bpmnProcessIds := make([]string, len(model.Definitions.Processes))
-		for i := 0; i < len(bpmnProcessIds); i++ {
-			bpmnProcessIds[i] = model.Definitions.Processes[i].Id
+		bpmnProcessIds := make([]string, len(bpmnModel.Definitions.Processes))
+		for i := range bpmnProcessIds {
+			bpmnProcessIds[i] = bpmnModel.Definitions.Processes[i].Id
 		}
 
 		return engine.Process{}, engine.Error{
@@ -223,8 +223,8 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	}
 
 	// validate process
-	processElements := processElement.AllElements()
-	problems := validateProcess(processElements)
+	bpmnElements := processElement.AllElements()
+	problems := validateProcess(bpmnElements)
 	if len(problems) != 0 {
 		return engine.Process{}, engine.Error{
 			Type:   engine.ErrorProcessModel,
@@ -283,14 +283,14 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	}
 
 	// insert elements
-	elements := make([]*ElementEntity, len(processElements))
-	for i, e := range processElements {
+	elements := make([]*ElementEntity, len(bpmnElements))
+	for i, bpmnElement := range bpmnElements {
 		element := ElementEntity{
 			ProcessId: process.Id,
 
-			BpmnElementId:   e.Id,
-			BpmnElementName: e.Name,
-			BpmnElementType: e.Type,
+			BpmnElementId:   bpmnElement.Id,
+			BpmnElementName: bpmnElement.Name,
+			BpmnElementType: bpmnElement.Type,
 		}
 
 		elements[i] = &element
@@ -300,8 +300,8 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		return engine.Process{}, err
 	}
 
-	// cache process
-	graph, err := newGraph(processElements, elements)
+	// create execution graph
+	graph, err := newGraph(bpmnElements, elements)
 	if err != nil {
 		return engine.Process{}, engine.Error{
 			Type:   engine.ErrorProcessModel,

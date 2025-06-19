@@ -95,7 +95,7 @@ func (v Problem) Error() string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("HTTP %d: %s: %s: %s", v.Status, v.Type, v.Title, v.Detail))
 
-	for i := 0; i < len(v.Errors); i++ {
+	for i := range v.Errors {
 		sb.WriteRune('\n')
 		sb.WriteString(v.Errors[i].String())
 	}

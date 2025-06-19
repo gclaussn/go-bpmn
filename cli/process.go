@@ -56,7 +56,7 @@ func newProcessCreateCmd(cli *Cli) *cobra.Command {
 				return err
 			}
 
-			c.Print(process.Id)
+			c.Println(process.Id)
 			return nil
 		},
 	}
@@ -124,7 +124,7 @@ func newProcessQueryCmd(cli *Cli) *cobra.Command {
 				"CREATED BY",
 			})
 
-			for i := 0; i < len(results); i++ {
+			for i := range results {
 				process := results[i].(engine.Process)
 
 				table.addRow([]string{

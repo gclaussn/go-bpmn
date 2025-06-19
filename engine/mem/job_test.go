@@ -40,7 +40,7 @@ func TestLockJobs(t *testing.T) {
 
 	jobs := make([]*internal.JobEntity, len(partitions))
 	entities := make([]any, len(jobs))
-	for i := 0; i < len(jobs); i++ {
+	for i := range jobs {
 		jobs[i] = &internal.JobEntity{
 			Partition: partitions[i],
 
@@ -190,7 +190,7 @@ func TestUnlockJobs(t *testing.T) {
 
 	jobs := make([]*internal.JobEntity, len(partitions))
 	entities := make([]any, len(jobs))
-	for i := 0; i < len(jobs); i++ {
+	for i := range jobs {
 		jobs[i] = &internal.JobEntity{
 			Partition: partitions[i],
 		}
@@ -245,7 +245,7 @@ func TestUnlockJobs(t *testing.T) {
 	})
 
 	// complete jobs
-	for i := 0; i < len(jobs); i++ {
+	for i := range jobs {
 		jobs[i].CompletedAt = pgtype.Timestamp{Time: now, Valid: true}
 	}
 
