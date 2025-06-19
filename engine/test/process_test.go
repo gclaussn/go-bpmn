@@ -2,6 +2,7 @@ package test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/stretchr/testify/assert"
@@ -278,7 +279,7 @@ func TestCreateProcessWithTimer(t *testing.T) {
 					BpmnProcessId: "timerStartTest",
 					BpmnXml:       bpmnXml1,
 					Timers: map[string]*engine.Timer{
-						"timerStartEvent": {},
+						"timerStartEvent": {TimeCycle: "0 * * * *"},
 					},
 					Version:  "4",
 					WorkerId: testWorkerId,
@@ -315,8 +316,8 @@ func TestCreateProcessWithTimer(t *testing.T) {
 					BpmnProcessId: "timerStartTest",
 					BpmnXml:       bpmnXml2,
 					Timers: map[string]*engine.Timer{
-						"timerStartEvent1": {},
-						"timerStartEvent2": {},
+						"timerStartEvent1": {TimeCycle: "0 * * * *"},
+						"timerStartEvent2": {TimeCycle: "0 * * * *"},
 					},
 					Version:  "5",
 					WorkerId: testWorkerId,
@@ -325,6 +326,11 @@ func TestCreateProcessWithTimer(t *testing.T) {
 				// when
 				process2, err := e.CreateProcess(cmd2)
 				require.NoError(err, "failed to create process")
+
+				err = e.SetTime(engine.SetTimeCmd{
+					Time: time.Now().Add(time.Hour),
+				})
+				require.NoError(err, "failed to set time")
 
 				// then
 				results, err = e.Query(engine.TaskCriteria{ProcessId: process2.Id, Type: engine.TaskTriggerTimerEvent})
@@ -345,6 +351,10 @@ func TestCreateProcessWithTimer(t *testing.T) {
 
 				assert.Equal(results[0].(engine.ProcessInstance).ProcessId, process2.Id)
 				assert.Equal(results[1].(engine.ProcessInstance).ProcessId, process2.Id)
+
+				results, err = e.Query(engine.TaskCriteria{ProcessId: process2.Id, Type: engine.TaskTriggerTimerEvent})
+				require.NoError(err, "failed to query tasks")
+				require.Len(results, 4, "expected two new tasks for the next time cycle")
 			})
 		}
 	})
