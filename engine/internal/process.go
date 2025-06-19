@@ -238,7 +238,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		timer := cmd.Timers[bpmnElement.Id]
 
 		if timer != nil {
-			if bpmnElement.Type != model.ElementTimerStartEvent { // invalid timer
+			if bpmnElement.Type != model.ElementTimerStartEvent {
 				return engine.Process{}, engine.Error{
 					Type:   engine.ErrorValidation,
 					Title:  "failed to validate timer",
@@ -246,7 +246,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 				}
 			}
 		} else {
-			if bpmnElement.Type == model.ElementTimerStartEvent { // missing timer
+			if bpmnElement.Type == model.ElementTimerStartEvent {
 				return engine.Process{}, engine.Error{
 					Type:   engine.ErrorValidation,
 					Title:  "failed to validate timer",
@@ -339,8 +339,17 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 	i := 0
 	for bpmnElementId, timer := range cmd.Timers {
+		node, ok := graph.nodes[bpmnElementId]
+		if !ok {
+			return engine.Process{}, engine.Error{
+				Type:   engine.ErrorValidation,
+				Title:  "failed to create timer",
+				Detail: fmt.Sprintf("BPMN process has no element %s", bpmnElementId),
+			}
+		}
+
 		timerEvents[i] = &TimerEventEntity{
-			ElementId: graph.nodes[bpmnElementId].id,
+			ElementId: node.id,
 
 			ProcessId: process.Id,
 
@@ -365,7 +374,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		timerEventTasks[i] = &TaskEntity{
 			Partition: ctx.Date(),
 
-			ElementId: pgtype.Int4{Int32: graph.nodes[bpmnElementId].id, Valid: true},
+			ElementId: pgtype.Int4{Int32: node.id, Valid: true},
 			ProcessId: pgtype.Int4{Int32: process.Id, Valid: true},
 
 			CreatedAt: ctx.Time(),

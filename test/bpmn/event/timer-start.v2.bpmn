@@ -1,0 +1,23 @@
+<definitions id="test">
+  <process id="timerStartTest" isExecutable="true">
+    <startEvent id="timerStartEvent1">
+      <outgoing>f1</outgoing>
+      <timerEventDefinition id="timerStartEvent1Definition" />
+    </startEvent>
+    <startEvent id="timerStartEvent2">
+      <outgoing>f2</outgoing>
+      <timerEventDefinition id="timerStartEvent1Definition2" />
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="timerStartEvent1" targetRef="join" />
+    <sequenceFlow id="f2" sourceRef="timerStartEvent2" targetRef="join" />
+    <exclusiveGateway id="join">
+      <incoming>f1</incoming>
+      <incoming>f2</incoming>
+      <outgoing>f3</outgoing>
+    </exclusiveGateway>
+    <sequenceFlow id="f3" sourceRef="join" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f3</incoming>
+    </endEvent>
+  </process>
+</definitions>
