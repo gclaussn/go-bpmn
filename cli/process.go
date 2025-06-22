@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/spf13/cobra"
@@ -27,7 +28,10 @@ func newProcessCmd(cli *Cli) *cobra.Command {
 
 func newProcessCreateCmd(cli *Cli) *cobra.Command {
 	var (
-		bpmnFileName string
+		bpmnFileName  string
+		timeV         map[string]string
+		timeCycleV    map[string]string
+		timeDurationV map[string]string
 
 		cmd engine.CreateProcessCmd
 	)
@@ -48,7 +52,27 @@ func newProcessCreateCmd(cli *Cli) *cobra.Command {
 				return fmt.Errorf("failed to read BPMN XML: %v", err)
 			}
 
+			timers := make(map[string]*engine.Timer)
+			for bpmnElementId, v := range timeV {
+				var value timeValue
+				if err := value.Set(v); err != nil {
+					return err
+				}
+				timers[bpmnElementId] = &engine.Timer{Time: time.Time(value)}
+			}
+			for bpmnElementId, v := range timeCycleV {
+				timers[bpmnElementId] = &engine.Timer{TimeCycle: v}
+			}
+			for bpmnElementId, v := range timeDurationV {
+				var value iso8601DurationValue
+				if err := value.Set(v); err != nil {
+					return err
+				}
+				timers[bpmnElementId] = &engine.Timer{TimeDuration: engine.ISO8601Duration(value)}
+			}
+
 			cmd.BpmnXml = string(bpmnXml)
+			cmd.Timers = timers
 			cmd.WorkerId = cli.workerId
 
 			process, err := cli.engine.CreateProcess(cmd)
@@ -66,6 +90,9 @@ func newProcessCreateCmd(cli *Cli) *cobra.Command {
 	c.Flags().StringVar(&cmd.BpmnProcessId, "bpmn-process-id", "", "ID of the process element within the BPMN XML")
 	c.Flags().IntVar(&cmd.Parallelism, "parallelism", 0, "Maximum number of parallel process instances being executed")
 	c.Flags().StringToStringVar(&cmd.Tags, "tag", nil, "Tag, consisting of name and value")
+	c.Flags().StringToStringVar(&timeV, "time", nil, "A point in time, when the timer start event is triggered")
+	c.Flags().StringToStringVar(&timeCycleV, "time-cycle", nil, "CRON expression that specifies a cyclic timer start")
+	c.Flags().StringToStringVar(&timeDurationV, "time-duration", nil, "Duration until the timer start event is triggered")
 	c.Flags().StringVar(&cmd.Version, "version", "", "Arbitrary process version")
 
 	c.MarkFlagRequired("bpmn-process-id")
