@@ -154,7 +154,7 @@ func TestProcessCache(t *testing.T) {
 		assert.Nil(err)
 	})
 
-	t.Run("cache returns error when process element not exist", func(t *testing.T) {
+	t.Run("cache returns error when process element not exists", func(t *testing.T) {
 		// given
 		entity := &internal.ProcessEntity{
 			BpmnProcessId: "not-existing",
@@ -182,7 +182,7 @@ func TestProcessCache(t *testing.T) {
 		assert.NotNil(err)
 
 		engineErr = err.(engine.Error)
-		assert.Equal(engine.ErrorProcessModel, engineErr.Type)
+		assert.Equal(engine.ErrorBug, engineErr.Type)
 		assert.NotEmpty(engineErr.Title)
 		assert.NotEmpty(engineErr.Detail)
 
@@ -194,7 +194,7 @@ func TestProcessCache(t *testing.T) {
 		assert.NotNil(err)
 
 		engineErr = err.(engine.Error)
-		assert.Equal(engine.ErrorProcessModel, engineErr.Type)
+		assert.Equal(engine.ErrorBug, engineErr.Type)
 		assert.NotEmpty(engineErr.Title)
 		assert.NotEmpty(engineErr.Detail)
 	})
@@ -227,7 +227,7 @@ func TestProcessCache(t *testing.T) {
 		assert.NotNil(err)
 
 		engineErr = err.(engine.Error)
-		assert.Equal(engine.ErrorProcessModel, engineErr.Type)
+		assert.Equal(engine.ErrorBug, engineErr.Type)
 		assert.NotEmpty(engineErr.Title)
 		assert.NotEmpty(engineErr.Detail)
 
@@ -239,7 +239,7 @@ func TestProcessCache(t *testing.T) {
 		assert.NotNil(err)
 
 		engineErr = err.(engine.Error)
-		assert.Equal(engine.ErrorProcessModel, engineErr.Type)
+		assert.Equal(engine.ErrorBug, engineErr.Type)
 		assert.NotEmpty(engineErr.Title)
 		assert.NotEmpty(engineErr.Detail)
 	})

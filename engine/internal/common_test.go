@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/model"
 )
 
@@ -50,7 +51,7 @@ func mustCreateGraph(t *testing.T, fileName string, bpmnProcessId string) graph 
 	return graph
 }
 
-func mustValidateProcess(t *testing.T, fileName string, bpmnProcessId string) []string {
+func mustValidateProcess(t *testing.T, fileName string, bpmnProcessId string) []engine.ErrorCause {
 	fileName = "../../test/bpmn/" + fileName
 
 	bpmnFile, err := os.Open(fileName)
@@ -70,5 +71,10 @@ func mustValidateProcess(t *testing.T, fileName string, bpmnProcessId string) []
 		t.Fatal(err.Error())
 	}
 
-	return validateProcess(processElement.AllElements())
+	causes, err := validateProcess(processElement.AllElements())
+	if err != nil {
+		t.Fatalf("failed to validate BPMN process: %v", err)
+	}
+
+	return causes
 }

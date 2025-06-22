@@ -193,7 +193,7 @@ func decodeJSONRequestBody(w http.ResponseWriter, r *http.Request, v any) error 
 
 		return Problem{
 			Status: http.StatusBadRequest,
-			Type:   ProblemTypeValidation,
+			Type:   ProblemTypeHttpRequestBody,
 			Title:  "invalid request body",
 			Detail: "failed to validate request body",
 			Errors: errors,

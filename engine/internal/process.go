@@ -117,7 +117,7 @@ func (c *ProcessCache) cache(ctx Context, process *ProcessEntity) error {
 	processElement, err := model.ProcessById(process.BpmnProcessId)
 	if err != nil {
 		return engine.Error{
-			Type:   engine.ErrorProcessModel,
+			Type:   engine.ErrorBug,
 			Title:  "failed to cache process",
 			Detail: fmt.Sprintf("BPMN model has no process %s", process.BpmnProcessId),
 		}
@@ -131,9 +131,9 @@ func (c *ProcessCache) cache(ctx Context, process *ProcessEntity) error {
 	graph, err := newGraph(processElement.AllElements(), elements)
 	if err != nil {
 		return engine.Error{
-			Type:   engine.ErrorProcessModel,
-			Title:  "failed to cache process",
-			Detail: fmt.Sprintf("BPMN model is invalid: %v", err),
+			Type:   engine.ErrorBug,
+			Title:  "failed to create execution graph",
+			Detail: err.Error(),
 		}
 	}
 
@@ -201,8 +201,8 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	if err != nil {
 		return engine.Process{}, engine.Error{
 			Type:   engine.ErrorProcessModel,
-			Title:  "failed to parse BPMN XML",
-			Detail: err.Error(),
+			Title:  "failed to create process",
+			Detail: fmt.Sprintf("BPMN XML is invalid: %v", err),
 		}
 	}
 
@@ -217,19 +217,25 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 		return engine.Process{}, engine.Error{
 			Type:   engine.ErrorProcessModel,
-			Title:  "failed to find BPMN process element",
+			Title:  "failed to create process",
 			Detail: fmt.Sprintf("BPMN model has no process %s, but [%s]", cmd.BpmnProcessId, strings.Join(bpmnProcessIds, ", ")),
 		}
 	}
 
-	// validate process
 	bpmnElements := processElement.AllElements()
-	problems := validateProcess(bpmnElements)
-	if len(problems) != 0 {
+
+	// validate process
+	causes, err := validateProcess(bpmnElements)
+	if err != nil {
+		return engine.Process{}, err
+	}
+
+	if len(causes) != 0 {
 		return engine.Process{}, engine.Error{
 			Type:   engine.ErrorProcessModel,
-			Title:  "failed to validate BPMN process",
-			Detail: strings.Join(problems, "; "),
+			Title:  "failed to create process",
+			Detail: "BPMN process is invalid",
+			Causes: causes,
 		}
 	}
 
@@ -239,20 +245,29 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 		if timer != nil {
 			if bpmnElement.Type != model.ElementTimerStartEvent {
-				return engine.Process{}, engine.Error{
-					Type:   engine.ErrorValidation,
-					Title:  "failed to validate timer",
-					Detail: fmt.Sprintf("timer for BPMN element %s is invalid: not a timer start event", bpmnElement.Id),
-				}
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(bpmnElement),
+					Type:    "timer_event",
+					Detail:  fmt.Sprintf("BPMN element %s is not a timer start event", bpmnElement.Id),
+				})
 			}
 		} else {
 			if bpmnElement.Type == model.ElementTimerStartEvent {
-				return engine.Process{}, engine.Error{
-					Type:   engine.ErrorValidation,
-					Title:  "failed to validate timer",
-					Detail: fmt.Sprintf("timer for BPMN element %s is missing", bpmnElement.Id),
-				}
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(bpmnElement),
+					Type:    "timer_event",
+					Detail:  fmt.Sprintf("no timer defined for BPMN element %s", bpmnElement.Id),
+				})
 			}
+		}
+	}
+
+	if len(causes) != 0 {
+		return engine.Process{}, engine.Error{
+			Type:   engine.ErrorValidation,
+			Title:  "failed to create process",
+			Detail: "invalid or missing event definitions",
+			Causes: causes,
 		}
 	}
 
@@ -327,7 +342,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	graph, err := newGraph(bpmnElements, elements)
 	if err != nil {
 		return engine.Process{}, engine.Error{
-			Type:   engine.ErrorProcessModel,
+			Type:   engine.ErrorBug,
 			Title:  "failed to create execution graph",
 			Detail: err.Error(),
 		}
@@ -341,11 +356,12 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	for bpmnElementId, timer := range cmd.Timers {
 		node, ok := graph.nodes[bpmnElementId]
 		if !ok {
-			return engine.Process{}, engine.Error{
-				Type:   engine.ErrorValidation,
-				Title:  "failed to create timer",
-				Detail: fmt.Sprintf("BPMN process has no element %s", bpmnElementId),
-			}
+			causes = append(causes, engine.ErrorCause{
+				Pointer: elementPointer(graph.processElement),
+				Type:    "timer_event",
+				Detail:  fmt.Sprintf("BPMN process %s has no element %s", processElement.Id, bpmnElementId),
+			})
+			continue
 		}
 
 		timerEvents[i] = &TimerEventEntity{
@@ -364,11 +380,11 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 		dueAt, err := evaluateTimer(*timer, ctx.Time())
 		if err != nil {
-			return engine.Process{}, engine.Error{
-				Type:   engine.ErrorValidation,
-				Title:  "failed to evaluate timer",
-				Detail: err.Error(),
-			}
+			causes = append(causes, engine.ErrorCause{
+				Pointer: elementPointer(node.bpmnElement),
+				Type:    "timer_event",
+				Detail:  fmt.Sprintf("failed to evaluate timer: %v", err),
+			})
 		}
 
 		timerEventTasks[i] = &TaskEntity{
@@ -386,6 +402,15 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		}
 
 		i++
+	}
+
+	if len(causes) != 0 {
+		return engine.Process{}, engine.Error{
+			Type:   engine.ErrorValidation,
+			Title:  "failed to create process",
+			Detail: "invalid or missing event definitions",
+			Causes: causes,
+		}
 	}
 
 	// update parallelism

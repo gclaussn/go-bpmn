@@ -87,8 +87,7 @@ type Problem struct {
 	Type   ProblemType `json:"type" validate:"required"`   // Problem type.
 	Title  string      `json:"title" validate:"required"`  // Human-readable problem summary.
 	Detail string      `json:"detail" validate:"required"` // Human-readable, detailed information about the problem.
-
-	Errors []Error `json:"errors,omitempty"` // Validation errors - only set if problem type is `VALIDATION`.
+	Errors []Error     `json:"errors,omitempty"`           // Validation errors.
 }
 
 func (v Problem) Error() string {
@@ -103,13 +102,14 @@ func (v Problem) Error() string {
 	return sb.String()
 }
 
-// Error represents a validation error, pointing on a JSON property.
+// Error represents a failed validation, pointing on a JSON property or BPMN element.
 type Error struct {
-	// A JSON pointer, locating the invalid property.
+	// A pointer, locating the invalid JSON property or BPMN element.
 	Pointer string `json:"pointer" validate:"required"`
 	// Error type.
 	//
-	// Possible values:
+	// JSON property related values:
+	//   - `cron`: value is not a valid CRON expression
 	//   - `gte`: value must be greater than or equal to
 	//   - `lte`: value must be less than or equal to
 	//   - `max`: array exceeds a maximum of number of items
@@ -117,7 +117,14 @@ type Error struct {
 	//   - `unique`: items of an array must be unique
 	//   - `iso8601_duration`: value is not a valid ISO 8601 duration
 	//   - `tag_name`: key is not a valid tag name
+	//   - `timer`: timer must specify a time, time cycle or time duration
 	//   - `variable_name`: key is not a valid variable name
+	//
+	// BPMN element related values:
+	//   - `process` indicates an error on process level
+	//   - `element` indicates an error on element level
+	//   - `sequence_flow` indicates faulty sequence flow
+	//   - `timer_event`: a missing or invalid timer definition
 	Type string `json:"type" validate:"required"`
 	// Human-readable, detailed information about the error.
 	Detail string `json:"detail" validate:"required"`
@@ -167,11 +174,21 @@ func encodeJSONProblemResponseBody(w http.ResponseWriter, r *http.Request, err e
 				status = http.StatusInternalServerError
 			}
 
+			errors := make([]Error, len(engineErr.Causes))
+			for i, cause := range engineErr.Causes {
+				errors[i] = Error{
+					Pointer: cause.Pointer,
+					Type:    cause.Type,
+					Detail:  cause.Detail,
+				}
+			}
+
 			problem = Problem{
 				Status: status,
 				Type:   problemType,
 				Title:  engineErr.Title,
 				Detail: engineErr.Detail,
+				Errors: errors,
 			}
 		}
 	}

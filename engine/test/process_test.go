@@ -136,7 +136,7 @@ func TestCreateProcess(t *testing.T) {
 			assert.Equal(engine.ErrorProcessModel, engineErr.Type)
 			assert.NotEmpty(engineErr.Title)
 			assert.NotEmpty(engineErr.Detail)
-			assert.Equal("XML is empty", engineErr.Detail)
+			assert.Contains(engineErr.Detail, "XML is empty")
 		})
 
 		t.Run(engineTypes[i]+"returns error when BPMN model has no process", func(t *testing.T) {
@@ -174,7 +174,13 @@ func TestCreateProcess(t *testing.T) {
 			assert.Equal(engine.ErrorProcessModel, engineErr.Type)
 			assert.NotEmpty(engineErr.Title)
 			assert.NotEmpty(engineErr.Detail)
-			assert.Equal("BPMN process is not executable", engineErr.Detail)
+			assert.Equal("BPMN process is invalid", engineErr.Detail)
+
+			assert.Len(engineErr.Causes, 1)
+
+			assert.Equal("/processNotExecutableTest", engineErr.Causes[0].Pointer)
+			assert.NotEmpty(engineErr.Causes[0].Type)
+			assert.Contains(engineErr.Causes[0].Detail, "not executable")
 		})
 	}
 }

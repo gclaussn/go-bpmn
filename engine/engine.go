@@ -194,18 +194,78 @@ type Error struct {
 	Type   ErrorType
 	Title  string
 	Detail string
+	Causes []ErrorCause
 }
 
 func (e Error) Error() string {
-	return fmt.Sprintf("%s: %s", e.Title, e.Detail)
+	var sb strings.Builder
+
+	sb.WriteString(fmt.Sprintf("%s: %s: %s", e.Type, e.Title, e.Detail))
+
+	for _, cause := range e.Causes {
+		sb.WriteRune('\n')
+		sb.WriteString(cause.String())
+	}
+
+	return sb.String()
 }
 
 type ErrorType int
 
 const (
-	ErrorConflict ErrorType = iota + 1
+	ErrorBug ErrorType = iota + 1
+	ErrorConflict
 	ErrorNotFound
 	ErrorProcessModel
 	ErrorQuery
 	ErrorValidation
 )
+
+func MapErrorType(s string) ErrorType {
+	switch s {
+	case "BUG":
+		return ErrorBug
+	case "CONFLICT":
+		return ErrorConflict
+	case "NOT_FOUND":
+		return ErrorNotFound
+	case "PROCESS_MODEL":
+		return ErrorProcessModel
+	case "QUERY":
+		return ErrorQuery
+	case "VALIDATION":
+		return ErrorValidation
+	default:
+		return 0
+	}
+}
+
+func (v ErrorType) String() string {
+	switch v {
+	case ErrorBug:
+		return "BUG"
+	case ErrorConflict:
+		return "CONFLICT"
+	case ErrorNotFound:
+		return "NOT_FOUND"
+	case ErrorProcessModel:
+		return "PROCESS_MODEL"
+	case ErrorQuery:
+		return "QUERY"
+	case ErrorValidation:
+		return "VALIDATION"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// A cause of a process model or validation [Error] like an unsupported BPMN element or an invalid event definition.
+type ErrorCause struct {
+	Pointer string // A pointer, locating the invalid BPMN element or sequence flow.
+	Type    string // Type indicator.
+	Detail  string // Human-readable, detailed information about the cause.
+}
+
+func (e ErrorCause) String() string {
+	return fmt.Sprintf("%s: %s: %s", e.Type, e.Pointer, e.Detail)
+}

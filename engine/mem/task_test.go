@@ -41,7 +41,7 @@ func TestExecuteTask(t *testing.T) {
 		// then
 		assert.Nil(err)
 		assert.True(entity.Error.Valid)
-		assert.Equal("failed to map task of type START_PROCESS_INSTANCE", entity.Error.String)
+		assert.Equal("BUG: failed to map task type: type START_PROCESS_INSTANCE is not supported", entity.Error.String)
 
 		results, err := ctx.Incidents().Query(engine.IncidentCriteria{TaskId: entity.Id}, engine.QueryOptions{})
 		assert.Nil(err)
@@ -88,7 +88,7 @@ func TestExecuteTask(t *testing.T) {
 		// then
 		assert.Nil(err)
 		assert.True(entity.Error.Valid)
-		assert.Equal("dummy title: dummy detail", entity.Error.String)
+		assert.Equal("NOT_FOUND: dummy title: dummy detail", entity.Error.String)
 
 		results, err := ctx.Tasks().Query(engine.TaskCriteria{Id: entity.Id + 1}, engine.QueryOptions{})
 		assert.Nil(err)

@@ -132,7 +132,13 @@ func ExecuteTask(ctx Context, task *TaskEntity) error {
 		}
 	} else {
 		// in case of an undefined task type or incomplete mapping - see engine/pg/task.go:taskRepository#Lock
-		task.Error = pgtype.Text{String: fmt.Sprintf("failed to map task of type %s", task.Type), Valid: true}
+		err := engine.Error{
+			Type:   engine.ErrorBug,
+			Title:  "failed to map task type",
+			Detail: fmt.Sprintf("type %s is not supported", task.Type),
+		}
+
+		task.Error = pgtype.Text{String: err.Error(), Valid: true}
 		retryCount = 0
 	}
 

@@ -13,28 +13,43 @@ func TestValidateProcess(t *testing.T) {
 	assert := assert.New(t)
 
 	t.Run("returns problem when BPMN process is not executable", func(t *testing.T) {
-		problems := mustValidateProcess(t, "invalid/process-not-executable.bpmn", "processNotExecutableTest")
-		assert.Len(problems, 1)
-		assert.Contains(problems[0], "not executable")
+		causes := mustValidateProcess(t, "invalid/process-not-executable.bpmn", "processNotExecutableTest")
+		assert.Len(causes, 1)
+
+		assert.Equal("/processNotExecutableTest", causes[0].Pointer)
+		assert.NotEmpty(causes[0].Type)
+		assert.Contains(causes[0].Detail, "not executable")
 	})
 
 	t.Run("returns problem when BPMN element has no ID", func(t *testing.T) {
-		problems := mustValidateProcess(t, "invalid/element-without-id.bpmn", "elementWithoutIdTest")
-		assert.Len(problems, 1)
-		assert.Equal("BPMN element of type NONE_START_EVENT has no ID", problems[0])
+		causes := mustValidateProcess(t, "invalid/element-without-id.bpmn", "elementWithoutIdTest")
+		assert.Len(causes, 1)
+
+		assert.Equal("/elementWithoutIdTest/", causes[0].Pointer)
+		assert.NotEmpty(causes[0].Type)
+		assert.Equal("BPMN element of type NONE_START_EVENT has no ID", causes[0].Detail)
 	})
 
 	t.Run("returns problem when BPMN process contains joining inclusive gateway", func(t *testing.T) {
-		problems := mustValidateProcess(t, "invalid/inclusive-gateway-join.bpmn", "inclusiveGatewayJoinTest")
-		assert.Len(problems, 1)
-		assert.Equal("BPMN element join is not supported: joining inclusive gateway", problems[0])
+		causes := mustValidateProcess(t, "invalid/inclusive-gateway-join.bpmn", "inclusiveGatewayJoinTest")
+		assert.Len(causes, 1)
+
+		assert.Equal("/inclusiveGatewayJoinTest/join", causes[0].Pointer)
+		assert.NotEmpty(causes[0].Type)
+		assert.Contains(causes[0].Detail, "joining inclusive gateway", causes[0].Detail)
 	})
 
 	t.Run("returns problem when BPMN sequence flow has no source or target", func(t *testing.T) {
-		problems := mustValidateProcess(t, "invalid/element-unknown.bpmn", "elementUnknownTest")
-		assert.Len(problems, 2)
-		assert.Contains(problems[0], "BPMN sequence flow f1 has no target element")
-		assert.Contains(problems[1], "BPMN sequence flow f2 has no source element")
+		causes := mustValidateProcess(t, "invalid/element-unknown.bpmn", "elementUnknownTest")
+		assert.Len(causes, 2)
+
+		assert.Equal("/elementUnknownTest/f1", causes[0].Pointer)
+		assert.NotEmpty(causes[0].Type)
+		assert.Contains(causes[0].Detail, "no target element")
+
+		assert.Equal("/elementUnknownTest/f2", causes[1].Pointer)
+		assert.NotEmpty(causes[1].Type)
+		assert.Contains(causes[1].Detail, "no source element")
 	})
 }
 

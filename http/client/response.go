@@ -34,18 +34,25 @@ func decodeJSONResponseBody(res *http.Response, v any) error {
 		case server.ProblemTypeQuery:
 			errorType = engine.ErrorQuery
 		case server.ProblemTypeValidation:
-			if len(problem.Errors) > 0 {
-				return problem
-			}
 			errorType = engine.ErrorValidation
 		default:
 			return problem
+		}
+
+		causes := make([]engine.ErrorCause, len(problem.Errors))
+		for i, e := range problem.Errors {
+			causes[i] = engine.ErrorCause{
+				Pointer: e.Pointer,
+				Type:    e.Type,
+				Detail:  e.Detail,
+			}
 		}
 
 		return engine.Error{
 			Type:   errorType,
 			Title:  problem.Title,
 			Detail: problem.Detail,
+			Causes: causes,
 		}
 	}
 

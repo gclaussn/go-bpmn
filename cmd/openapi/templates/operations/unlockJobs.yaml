@@ -31,7 +31,7 @@ responses:
           $ref: "#/components/schemas/Problem"
         example:
           status: 400,
-          type: VALIDATION,
+          type: HTTP_REQUEST_BODY,
           title: invalid request body
           detail: failed to validate request body
           errors:

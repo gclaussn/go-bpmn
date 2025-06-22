@@ -161,7 +161,7 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		r := httptest.NewRequest("", "/", strings.NewReader(invalidJson))
 
 		err := decodeJSONRequestBody(w, r, &body)
-		assertProblem(t, err, ProblemTypeValidation, http.StatusBadRequest)
+		assertProblem(t, err, ProblemTypeHttpRequestBody, http.StatusBadRequest)
 
 		problem := err.(Problem)
 		assert.Len(problem.Errors, 14)
@@ -250,7 +250,7 @@ func TestDecodeJSONRequestBodyTimer(t *testing.T) {
 		r := httptest.NewRequest("", "/", strings.NewReader(`{"vtimer": null}`))
 
 		err := decodeJSONRequestBody(w, r, &body)
-		assertProblem(t, err, ProblemTypeValidation, http.StatusBadRequest)
+		assertProblem(t, err, ProblemTypeHttpRequestBody, http.StatusBadRequest)
 
 		problem := err.(Problem)
 		assert.Lenf(problem.Errors, 1, "expected one error")
@@ -267,7 +267,7 @@ func TestDecodeJSONRequestBodyTimer(t *testing.T) {
 		r := httptest.NewRequest("", "/", strings.NewReader(`{"vtimer": {}}`))
 
 		err := decodeJSONRequestBody(w, r, &body)
-		assertProblem(t, err, ProblemTypeValidation, http.StatusBadRequest)
+		assertProblem(t, err, ProblemTypeHttpRequestBody, http.StatusBadRequest)
 
 		problem := err.(Problem)
 		assert.Lenf(problem.Errors, 1, "expected one error")

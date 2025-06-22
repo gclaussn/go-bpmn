@@ -125,7 +125,7 @@ func (t StartProcessInstanceTask) Execute(ctx Context, task *TaskEntity) error {
 	if err == pgx.ErrNoRows {
 		return engine.Error{
 			Type:   engine.ErrorNotFound,
-			Title:  "failed to find process instance",
+			Title:  "failed to start process instance",
 			Detail: fmt.Sprintf("process instance %s/%d could not be found", task.Partition.Format(time.DateOnly), task.ProcessInstanceId.Int32),
 		}
 	}
@@ -180,9 +180,10 @@ func (t StartProcessInstanceTask) Execute(ctx Context, task *TaskEntity) error {
 
 // TriggerTimerEventTask is executed when a timer is due.
 //
-// In case of a timer
+// A timer start event creates a new process instance.
+// If the timer is a cycle, a task for the next time cycle is inserted.
 //
-//   - catch event: continues the execution, if the process instance and element instance are not ended
+// A timer catch event continues the execution, if process instance and element instance are not ended.
 type TriggerTimerEventTask struct {
 }
 
@@ -194,9 +195,10 @@ func (t TriggerTimerEventTask) Execute(ctx Context, task *TaskEntity) error {
 
 	if task.ProcessInstanceId.Valid {
 		processInstance, err := ctx.ProcessInstances().Select(task.Partition, task.ProcessInstanceId.Int32)
-		if err == pgx.ErrNoRows { // indicates a bug
+		if err == pgx.ErrNoRows {
 			return engine.Error{
-				Title:  "failed to find process instance",
+				Type:   engine.ErrorBug,
+				Title:  "failed to trigger timer event",
 				Detail: fmt.Sprintf("process instance %s/%d could not be found", task.Partition.Format(time.DateOnly), task.ProcessInstanceId.Int32),
 			}
 		}
@@ -236,8 +238,9 @@ func (t TriggerTimerEventTask) Execute(ctx Context, task *TaskEntity) error {
 
 	timerEvent, err := ctx.TimerEvents().Select(task.ElementId.Int32)
 	if err == pgx.ErrNoRows {
-		return engine.Error{ // indicates a bug
-			Title:  "failed to find timer event",
+		return engine.Error{
+			Type:   engine.ErrorBug,
+			Title:  "failed to trigger timer event",
 			Detail: fmt.Sprintf("timer event %d could not be found", task.ElementId.Int32),
 		}
 	}
@@ -301,7 +304,8 @@ func (t TriggerTimerEventTask) Execute(ctx Context, task *TaskEntity) error {
 
 	dueAt, err := evaluateTimer(timer, task.DueAt)
 	if err != nil {
-		return engine.Error{ // indicates a bug
+		return engine.Error{
+			Type:   engine.ErrorBug,
 			Title:  "failed to evaluate timer",
 			Detail: err.Error(),
 		}

@@ -13,6 +13,26 @@ requestBody:
 responses:
   "204":
     description: Incident resolved
+  "400":
+    description: Bad request
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        example:
+          status: 400,
+          type: HTTP_REQUEST_BODY,
+          title: invalid request body
+          detail: failed to validate request body
+          errors:
+            - pointer: "#/retryCount"
+              type: gte
+              detail: must be greater than or equal to 1
+              value: "0"
+            - pointer: "#/retryTimer"
+              type: iso8601_duration
+              detail: is invalid
+              value: PT
   "404":
     description: Not found
     content:

@@ -90,7 +90,7 @@ func TestClientServer(t *testing.T) {
 
 		problem := err.(server.Problem)
 		assert.Equal(http.StatusBadRequest, problem.Status)
-		assert.Equal(server.ProblemTypeValidation, problem.Type)
+		assert.Equal(server.ProblemTypeHttpRequestBody, problem.Type)
 		assert.NotEmpty(problem.Title)
 		assert.NotEmpty(problem.Detail)
 		assert.NotEmpty(problem.Errors)

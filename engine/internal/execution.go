@@ -28,7 +28,7 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 			return engine.Error{
 				Type:   engine.ErrorProcessModel,
 				Title:  "failed to continue execution",
-				Detail: fmt.Sprintf("BPMN process has no element %s", execution.BpmnElementId),
+				Detail: fmt.Sprintf("BPMN process %s has no element %s", graph.processElement.Id, execution.BpmnElementId),
 			}
 		}
 
@@ -203,10 +203,10 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 		case model.ElementTimerCatchEvent:
 			jobType = engine.JobSetTimer
 		default:
-			return engine.Error{ // indicates a bug
-				Type:   engine.ErrorProcessModel,
+			return engine.Error{
+				Type:   engine.ErrorBug,
 				Title:  "failed to create job or task",
-				Detail: fmt.Sprintf("unsupported BPMN element type %s", execution.BpmnElementType),
+				Detail: fmt.Sprintf("BPMN element type %s is not supported", execution.BpmnElementType),
 			}
 		}
 

@@ -13,14 +13,17 @@ requestBody:
     application/json:
       schema:
         $ref: "#/components/schemas/CreateProcessCmd"
-      example:
-        bpmnProcessId: parallelServiceTasksTest
-        bpmnXml: "<...>"
-        parallelism: 5
-        tags:
-          x: y
-        version: "1"
-        workerId: go-bpmn
+      examples:
+        parallelism:
+          summary: Parallelism
+          value:
+            bpmnProcessId: parallelServiceTasksTest
+            bpmnXml: "<...>"
+            parallelism: 5
+            tags:
+              x: y
+            version: "1"
+            workerId: go-bpmn
 responses:
   "200":
     description: Process created
@@ -43,20 +46,40 @@ responses:
       application/problem+json:
         schema:
           $ref: "#/components/schemas/Problem"
-        example:
-          status: 400,
-          type: VALIDATION,
-          title: invalid request body
-          detail: failed to validate request body
-          errors:
-            - pointer: "#/parallelism"
-              type: gte
-              detail: must be greater than or equal to 0
-              value: "-1"
-            - pointer: "#/tags/,"
-              type: tag_name
-              detail: must match regex ^[a-zA-Z0-9_-]+$
-              value: ","
+        examples:
+          invalid_request_body:
+            summary: Invalid request body
+            value:
+              status: 400,
+              type: HTTP_REQUEST_BODY,
+              title: invalid request body
+              detail: failed to validate request body
+              errors:
+                - pointer: "#/parallelism"
+                  type: gte
+                  detail: must be greater than or equal to 0
+                  value: "-1"
+                - pointer: "#/tags/,"
+                  type: tag_name
+                  detail: must match regex ^[a-zA-Z0-9_-]+$
+                  value: ","
+          invalid_or_missing_event_definitions:
+            summary: Invalid or missing event defitions
+            value:
+              status: 400
+              type: VALIDATION
+              title: failed to create process
+              detail: invalid or missing event definitions
+              errors:
+                - pointer: example/timerStartEvent
+                  type: timer_event
+                  detail: no timer defined for BPMN element timerStartEvent
+                - pointer: example/endEvent
+                  type: timer_event
+                  detail: BPMN element endEvent is not a timer start event
+                - pointer: example
+                  type: timer_event
+                  detail: BPMN process example has no element timerStart
   "409":
     description: Conflict
     content:
@@ -78,38 +101,40 @@ responses:
         schema:
           $ref: "#/components/schemas/Problem"
         examples:
-          bpmn_xml_invalid:
-            summary: BPMN XML invalid
+          bpmn_xml_is_invalid:
+            summary: BPMN XML is invalid
             value:
               status: 422
               type: PROCESS_MODEL
-              title: failed to parse BPMN XML
-              detail: XML is invalid
+              title: failed to create process
+              detail: "BPMN XML is invalid: XML is invalid"
           bpmn_model_has_no_process:
             summary: BPMN model has no process
             value:
               status: 422
               type: PROCESS_MODEL
-              title: failed to find BPMN process element
-              detail: BPMN model has no process example, but [test]
-          bpmn_process_not_executable:
-            summary: BPMN process not executable
+              title: failed to create process
+              detail: BPMN model has no process example, but [exampleProcess]
+          bpmn_process_is_invalid:
+            summary: BPMN process is invalid
             value:
               status: 422
               type: PROCESS_MODEL
-              title: failed to validate BPMN process
-              detail: BPMN process is not executable
-          bpmn_sequence_flow_has_no_source_or_target:
-            summary: BPMN sequence flow has no source or target
-            value:
-              status: 422
-              type: PROCESS_MODEL
-              title: failed to validate BPMN process
-              detail: BPMN sequence flow f1 has no target element; BPMN sequence flow f2 has no source element
-          bpmn_element_unsupported:
-            summary: BPMN element unsupported
-            value:
-              status: 422
-              type: PROCESS_MODEL
-              title: failed to validate BPMN process
-              detail: "BPMN element join is not supported: joining inclusive gateway"
+              title: failed to create process
+              detail: BPMN process is invalid
+              errors:
+                - pointer: example
+                  type: process
+                  detail: BPMN process example is not executable
+                - pointer: example/
+                  type: element
+                  detail: BPMN element of type SERVICE_TASK has no ID
+                - pointer: example/join
+                  type: element
+                  detail: "BPMN element join is not supported: joining inclusive gateway"
+                - pointer: example/f1
+                  type: sequence_flow
+                  detail: BPMN sequence flow f1 has no target element
+                - pointer: example/f2
+                  type: sequence_flow
+                  detail: BPMN sequence flow f2 has no source element
