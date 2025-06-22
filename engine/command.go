@@ -43,7 +43,7 @@ type CreateProcessCmd struct {
 	// Optional tags, consisting of name and value pairs.
 	Tags map[string]string `json:"tags,omitempty" validate:"max=100,dive,keys,tag_name,endkeys,required"`
 	// Timer definitions for each timer start event.
-	Timers map[string]*Timer `json:"timers,omitempty"`
+	Timers map[string]*Timer `json:"timers,omitempty" validate:"dive,timer"`
 	// Arbitrary process version.
 	Version string `json:"version" validate:"required"`
 	// ID of the worker that created the process.
