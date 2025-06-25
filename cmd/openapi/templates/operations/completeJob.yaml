@@ -89,6 +89,17 @@ responses:
               type: iso8601_duration
               detail: is invalid
               value: PT
+            - pointer: "#/completion/timer"
+              type: timer
+              detail: must specify a time, time cycle or time duration
+            - pointer: "#/completion/timer/timeCycle"
+              type: cron
+              detail: is invalid
+              value: "*"
+            - pointer: "#/completion/timer/timeDuration"
+              type: iso8601_duration
+              detail: is invalid
+              value: PT
   "404":
     description: Not found
     content:
@@ -113,21 +124,21 @@ responses:
           job_completed:
             summary: Job completed
             value:
-              status: 409,
+              status: 409
               type: CONFLICT
               title: failed to complete job
               detail: job 2025-04-01/123 is completed
           job_not_locked:
             summary: Job not locked
             value:
-              status: 409,
+              status: 409
               type: CONFLICT
               title: failed to complete job
               detail: job 2025-04-01/123 is not locked
           job_not_locked_by_worker:
             summary: Job not locked by worker
             value:
-              status: 409,
+              status: 409
               type: CONFLICT
               title: failed to complete job
               detail: job 2025-04-01/123 is not locked by worker go-bpmn, but test-worker

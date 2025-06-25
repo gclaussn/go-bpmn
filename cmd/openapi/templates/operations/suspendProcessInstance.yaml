@@ -37,7 +37,7 @@ responses:
           process_instance_not_started:
             summary: Process instance not started
             value:
-              status: 409,
+              status: 409
               type: CONFLICT
               title: failed to suspend process instance
               detail: process instance 2025-05-01/576 is not in state STARTED, but SUSPENDED

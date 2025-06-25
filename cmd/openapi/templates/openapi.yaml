@@ -4,6 +4,12 @@ info:
   version: v0.1.0
   description: >
     API to interact with a process engine via HTTP.
+  license:
+    name: MIT
+    url: https://github.com/gclaussn/go-bpmn/blob/master/LICENSE
+  contact:
+    name: GitHub Issues
+    url: https://github.com/gclaussn/go-bpmn/issues
 tags:
   - name: Elements
     description: |
@@ -39,8 +45,10 @@ paths:
   {{- range $method, $operation := $methods}}
     {{$method}}:
       operationId: {{$operation.Id}}
+    {{- if ne $operation.Id "checkReadiness" }}
       security:
         - ApiKeyAuth: []
+    {{- end }}
     {{- if $operation.Parameters}}
       parameters:
       {{- range $parameterName := $operation.Parameters }}
@@ -53,6 +61,7 @@ paths:
 components:
   securitySchemes:
     ApiKeyAuth:
+      description: API key based authentication and authoriation.
       type: apiKey
       in: header
       name: Authorization
@@ -140,12 +149,14 @@ components:
 {{end}}
   examples:
     QueryLimitProblem:
+      summary: Invalid query limit
       value:
         status: 400
         type: HTTP_REQUEST_URI
         title: invalid query parameter limit
         detail: failed to parse value -1
     QueryOffsetProblem:
+      summary: Invalid query offset
       value:
         status: 400
         type: HTTP_REQUEST_URI

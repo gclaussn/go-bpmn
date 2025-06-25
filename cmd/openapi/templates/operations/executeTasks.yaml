@@ -45,6 +45,7 @@ responses:
               lockedBy: default-engine
               retryCount: 0
               type: JOIN_PARALLEL_GATEWAY
+          failedTasks: []
   "400":
     description: Bad request
     content:

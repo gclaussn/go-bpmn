@@ -30,8 +30,8 @@ responses:
         schema:
           $ref: "#/components/schemas/Problem"
         example:
-          status: 400,
-          type: HTTP_REQUEST_BODY,
+          status: 400
+          type: HTTP_REQUEST_BODY
           title: invalid request body
           detail: failed to validate request body
           errors:

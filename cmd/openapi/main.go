@@ -19,6 +19,7 @@ import (
 	"go/token"
 	"log"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"text/template"
@@ -536,7 +537,9 @@ func setPropertyConstraint(property *Property, validate []string) {
 				property.MinItems = int(minItems)
 			}
 		case "required":
-			property.required = true
+			if !slices.Contains(validate, "dive") {
+				property.required = true
+			}
 		case "unique":
 			property.UniqueItems = true
 		}
