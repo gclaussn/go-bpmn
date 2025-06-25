@@ -26,7 +26,7 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 		node, ok := graph.nodes[execution.BpmnElementId]
 		if !ok {
 			return engine.Error{
-				Type:   engine.ErrorProcessModel,
+				Type:   engine.ErrorBug,
 				Title:  "failed to continue execution",
 				Detail: fmt.Sprintf("BPMN process %s has no element %s", graph.processElement.Id, execution.BpmnElementId),
 			}
@@ -34,8 +34,8 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 
 		i++
 
-		if execution.State == engine.InstanceEnded {
-			continue // skip executions, that have been ended by the caller
+		if execution.State == engine.InstanceCompleted {
+			continue // skip executions, that have been completed by the caller
 		}
 		if execution.ExecutionCount != 0 {
 			continue // skip scopes
@@ -44,7 +44,7 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 		// find parent within executions
 		if execution.parent == nil {
 			parentId := execution.ParentId.Int32
-			for j := 0; j < len(executions); j++ {
+			for j := range executions {
 				if executions[j].Id == parentId {
 					execution.parent = executions[j]
 					break
@@ -71,7 +71,7 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 			continue
 		} else if execution.State == engine.InstanceStarted {
 			// continue branch
-			execution.State = engine.InstanceEnded
+			execution.State = engine.InstanceCompleted
 		} else if scope.State == engine.InstanceSuspended {
 			// end branch
 			execution.State = engine.InstanceSuspended
@@ -85,24 +85,24 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 				model.ElementSendTask,
 				model.ElementServiceTask,
 				model.ElementTimerCatchEvent:
-				execution.State = engine.InstanceCreated
+				execution.State = 0
 			case
 				model.ElementExclusiveGateway,
 				model.ElementInclusiveGateway:
 				if len(node.bpmnElement.Outgoing) > 1 {
-					execution.State = engine.InstanceCreated
+					execution.State = 0
 				} else {
-					execution.State = engine.InstanceEnded
+					execution.State = engine.InstanceCompleted
 				}
 			case model.ElementParallelGateway:
 				if len(node.bpmnElement.Incoming) > 1 {
-					execution.State = engine.InstanceCreated
+					execution.State = 0
 				} else {
-					execution.State = engine.InstanceEnded
+					execution.State = engine.InstanceCompleted
 				}
 			default:
 				// continue branch, if element has no behavior (pass through element)
-				execution.State = engine.InstanceEnded
+				execution.State = engine.InstanceCompleted
 			}
 		}
 
@@ -111,11 +111,11 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 		switch execution.State {
 		case engine.InstanceStarted:
 			execution.StartedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
-		case engine.InstanceEnded, engine.InstanceTerminated:
+		case engine.InstanceCompleted, engine.InstanceTerminated:
 			execution.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
 		}
 
-		if execution.State == engine.InstanceEnded {
+		if execution.State == engine.InstanceCompleted {
 			outgoing := node.bpmnElement.Outgoing
 			for j := 0; j < len(outgoing); j++ {
 				target := outgoing[j].Target
@@ -152,14 +152,14 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 				continue
 			}
 
-			// end process scope
+			// complete process scope
 			scope.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
-			scope.State = engine.InstanceEnded
+			scope.State = engine.InstanceCompleted
 			scope.StateChangedBy = ec.engineOrWorkerId
 
-			// end process instance
+			// complete process instance
 			ec.processInstance.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
-			ec.processInstance.State = engine.InstanceEnded
+			ec.processInstance.State = engine.InstanceCompleted
 			ec.processInstance.StateChangedBy = ec.engineOrWorkerId
 		}
 	}
@@ -173,7 +173,7 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 
 	// create jobs and tasks
 	for i, execution := range executions {
-		if execution.State != engine.InstanceCreated {
+		if execution.State != 0 {
 			continue
 		}
 
@@ -259,7 +259,7 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 			execution.CreatedAt = ctx.Time()
 			execution.CreatedBy = ec.engineOrWorkerId
 
-			if execution.State == engine.InstanceEnded { // pass through element
+			if execution.State == engine.InstanceCompleted { // pass through element
 				execution.StartedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
 			}
 
@@ -353,7 +353,7 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 		}
 
 		execution.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
-		execution.State = engine.InstanceEnded
+		execution.State = engine.InstanceCompleted
 		execution.StateChangedBy = ec.engineOrWorkerId
 
 		scope.ExecutionCount = scope.ExecutionCount - 1
@@ -390,7 +390,7 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 		}
 
 		execution.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
-		execution.State = engine.InstanceEnded
+		execution.State = engine.InstanceCompleted
 		execution.StateChangedBy = ec.engineOrWorkerId
 
 		scope.ExecutionCount = scope.ExecutionCount - 1
@@ -506,7 +506,7 @@ func (ec executionContext) handleParallelGateway(ctx Context, task *TaskEntity) 
 		if i != 0 {
 			// end all, but first joined execution
 			joinedExecution.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
-			joinedExecution.State = engine.InstanceEnded
+			joinedExecution.State = engine.InstanceCompleted
 			joinedExecution.StateChangedBy = ec.engineOrWorkerId
 		}
 	}

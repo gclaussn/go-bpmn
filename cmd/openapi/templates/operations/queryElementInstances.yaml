@@ -48,7 +48,7 @@ responses:
               createdBy: go-bpmn
               endedAt: "2025-05-01T17:44:19.997Z"
               startedAt: "2025-05-01T17:44:19.997Z"
-              state: ENDED
+              state: COMPLETED
               stateChangedBy: go-bpmn
             - partition: "2025-05-01"
               id: 2297

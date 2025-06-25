@@ -74,5 +74,5 @@ func TestServiceTaskErrorProcess(t *testing.T) {
 	e.SetTime(engine.SetTimeCmd{Time: now.Add(2 * time.Hour).Add(time.Second)})
 	piAssert.ExecuteJob()
 
-	piAssert.IsEnded()
+	piAssert.IsCompleted()
 }

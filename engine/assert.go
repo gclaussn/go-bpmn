@@ -337,7 +337,7 @@ func (a *ProcessInstanceAssert) HasPassed(bpmnElementId string) {
 	results, err := a.e.Query(ElementInstanceCriteria{
 		Partition:         a.partition,
 		ProcessInstanceId: a.processInstanceId,
-		States:            []InstanceState{InstanceEnded},
+		States:            []InstanceState{InstanceCompleted},
 	})
 	if err != nil {
 		a.Fatalf("failed to query element instances: %v", err)
@@ -373,18 +373,18 @@ func (a *ProcessInstanceAssert) HasPassed(bpmnElementId string) {
 		passed[i] = elementInstances[i].BpmnElementId
 	}
 
-	a.Fatalf("expected process instance to have passed %s, but was not\npassed elements: %s", bpmnElementId, strings.Join(passed, ", "))
+	a.Fatalf("expected process instance to have passed %s, but has not\npassed elements: %s", bpmnElementId, strings.Join(passed, ", "))
 }
 
-func (a *ProcessInstanceAssert) IsEnded() {
-	if !a.ProcessInstance().IsEnded() {
-		a.Fatalf("expected process instance to be ended, but is not ended")
+func (a *ProcessInstanceAssert) IsCompleted() {
+	if a.ProcessInstance().State != InstanceCompleted {
+		a.Fatalf("expected process instance to be completed, but is not")
 	}
 }
 
-func (a *ProcessInstanceAssert) IsNotEnded() {
-	if a.ProcessInstance().IsEnded() {
-		a.Fatalf("expected process instance not to be ended, but is ended")
+func (a *ProcessInstanceAssert) IsNotCompleted() {
+	if a.ProcessInstance().State == InstanceCompleted {
+		a.Fatalf("expected process instance not to be completed, but is")
 	}
 }
 

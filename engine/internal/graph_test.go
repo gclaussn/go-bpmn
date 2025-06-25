@@ -96,7 +96,6 @@ func TestCreateExecution(t *testing.T) {
 
 			BpmnElementId:   startEvent.bpmnElement.Id,
 			BpmnElementType: startEvent.bpmnElement.Type,
-			State:           engine.InstanceCreated,
 
 			parent: &scope,
 		}, execution)
@@ -257,6 +256,6 @@ func TestJoinParallelGateway(t *testing.T) {
 		assert.Equal(int32(1), joinedExecutions[0].Id)
 		assert.Equal(engine.InstanceStarted, joinedExecutions[0].State)
 		assert.Equal(int32(3), joinedExecutions[1].Id)
-		assert.Equal(engine.InstanceEnded, joinedExecutions[1].State)
+		assert.Equal(engine.InstanceCompleted, joinedExecutions[1].State)
 	})
 }

@@ -63,5 +63,5 @@ func TestTimerCatchEventProcess(t *testing.T) {
 	piAssert.IsWaitingAt("timerCatchEvent")
 	piAssert.ExecuteTask()
 
-	piAssert.IsEnded()
+	piAssert.IsCompleted()
 }

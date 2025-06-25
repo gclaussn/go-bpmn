@@ -44,7 +44,7 @@ func (x timerEventTest) catch(t *testing.T) {
 	piAssert.IsWaitingAt("timerCatchEvent")
 	piAssert.ExecuteTask()
 
-	piAssert.IsEnded()
+	piAssert.IsCompleted()
 }
 
 func (x timerEventTest) start(t *testing.T) {
@@ -68,5 +68,5 @@ func (x timerEventTest) start(t *testing.T) {
 	}
 
 	piAssert := engine.AsserTimerStart(t, x.e, process.Id, startTime)
-	piAssert.IsEnded()
+	piAssert.IsCompleted()
 }

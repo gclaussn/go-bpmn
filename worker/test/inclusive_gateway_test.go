@@ -53,5 +53,5 @@ func TestInclusiveGatewayProcess(t *testing.T) {
 	piAssert.IsWaitingAt("fork")
 	piAssert.ExecuteJob()
 
-	piAssert.IsEnded()
+	piAssert.IsCompleted()
 }

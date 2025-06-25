@@ -35,12 +35,12 @@ func (x taskTest) businessRule(t *testing.T) {
 
 	piAssert.IsWaitingAt("businessRuleTask")
 	piAssert.CompleteJob()
-	piAssert.IsEnded()
+	piAssert.IsCompleted()
 }
 
 func (x taskTest) manual(t *testing.T) {
 	piAssert := mustCreateProcessInstance(t, x.e, x.manualTest)
-	piAssert.IsEnded()
+	piAssert.IsCompleted()
 }
 
 func (x taskTest) script(t *testing.T) {
@@ -48,7 +48,7 @@ func (x taskTest) script(t *testing.T) {
 
 	piAssert.IsWaitingAt("scriptTask")
 	piAssert.CompleteJob()
-	piAssert.IsEnded()
+	piAssert.IsCompleted()
 }
 
 func (x taskTest) send(t *testing.T) {
@@ -56,7 +56,7 @@ func (x taskTest) send(t *testing.T) {
 
 	piAssert.IsWaitingAt("sendTask")
 	piAssert.CompleteJob()
-	piAssert.IsEnded()
+	piAssert.IsCompleted()
 }
 
 func (x taskTest) service(t *testing.T) {
@@ -64,12 +64,12 @@ func (x taskTest) service(t *testing.T) {
 
 	piAssert.IsWaitingAt("serviceTask")
 	piAssert.CompleteJob()
-	piAssert.IsEnded()
+	piAssert.IsCompleted()
 }
 
 func (x taskTest) task(t *testing.T) {
 	piAssert := mustCreateProcessInstance(t, x.e, x.taskTest)
-	piAssert.IsEnded()
+	piAssert.IsCompleted()
 }
 
 func (x taskTest) errorBpmnErrorCodeNotSupported(t *testing.T) {

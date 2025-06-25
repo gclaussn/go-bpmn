@@ -260,7 +260,8 @@ func (t TriggerTimerEventTask) Execute(ctx Context, task *TaskEntity) error {
 		BpmnProcessId:  process.BpmnProcessId,
 		CreatedAt:      ctx.Time(),
 		CreatedBy:      ctx.Options().EngineId,
-		State:          engine.InstanceCreated,
+		StartedAt:      pgtype.Timestamp{Time: ctx.Time(), Valid: true},
+		State:          engine.InstanceStarted,
 		StateChangedBy: ctx.Options().EngineId,
 		Version:        process.Version,
 	}

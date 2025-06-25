@@ -158,12 +158,12 @@ func (a *ProcessInstanceAssert) GetProcessVariable(name string, value any) {
 	decoder.Decode(data.Value, &value)
 }
 
-func (a *ProcessInstanceAssert) IsEnded() {
-	a.assert.IsEnded()
+func (a *ProcessInstanceAssert) IsCompleted() {
+	a.assert.IsCompleted()
 }
 
-func (a *ProcessInstanceAssert) IsNotEnded() {
-	a.assert.IsNotEnded()
+func (a *ProcessInstanceAssert) IsNotCompleted() {
+	a.assert.IsNotCompleted()
 }
 
 func (a *ProcessInstanceAssert) IsWaitingAt(bpmnElementId string) {

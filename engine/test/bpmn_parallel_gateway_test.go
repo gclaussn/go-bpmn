@@ -37,15 +37,13 @@ func (x parallelGatewayTest) gateway(t *testing.T) {
 	assert.Equal(engine.TaskJoinParallelGateway, tasks[0].Type)
 	assert.Empty(tasks[0].Error)
 
-	piAssert.IsEnded()
+	piAssert.IsCompleted()
 
 	elementInstances := piAssert.ElementInstances()
 	assert.Len(elementInstances, 6)
 
-	endedElementInstances := piAssert.ElementInstances(engine.ElementInstanceCriteria{
-		States: []engine.InstanceState{engine.InstanceEnded},
-	})
-	assert.Len(endedElementInstances, 6)
+	completed := piAssert.ElementInstances(engine.ElementInstanceCriteria{States: []engine.InstanceState{engine.InstanceCompleted}})
+	assert.Len(completed, 6)
 }
 
 func (x parallelGatewayTest) serviceTasks(t *testing.T) {
@@ -61,13 +59,11 @@ func (x parallelGatewayTest) serviceTasks(t *testing.T) {
 	piAssert.IsWaitingAt("join")
 	piAssert.ExecuteTask()
 
-	piAssert.IsEnded()
+	piAssert.IsCompleted()
 
 	elementInstances := piAssert.ElementInstances()
 	assert.Len(elementInstances, 8)
 
-	endedElementInstances := piAssert.ElementInstances(engine.ElementInstanceCriteria{
-		States: []engine.InstanceState{engine.InstanceEnded},
-	})
-	assert.Len(endedElementInstances, 8)
+	completed := piAssert.ElementInstances(engine.ElementInstanceCriteria{States: []engine.InstanceState{engine.InstanceCompleted}})
+	assert.Len(completed, 8)
 }

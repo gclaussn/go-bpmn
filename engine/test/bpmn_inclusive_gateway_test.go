@@ -36,13 +36,13 @@ func (x inclusiveGatewayTest) gatewayAll(t *testing.T) {
 	piAssert.HasPassed("endEventA")
 	piAssert.HasPassed("endEventB")
 	piAssert.HasPassed("endEventC")
-	piAssert.IsEnded()
+	piAssert.IsCompleted()
 
 	elementInstances := piAssert.ElementInstances()
 	assert.Len(elementInstances, 6)
 
-	endedElementInstances := piAssert.ElementInstances(engine.ElementInstanceCriteria{States: []engine.InstanceState{engine.InstanceEnded}})
-	assert.Len(endedElementInstances, 6)
+	completed := piAssert.ElementInstances(engine.ElementInstanceCriteria{States: []engine.InstanceState{engine.InstanceCompleted}})
+	assert.Len(completed, 6)
 }
 
 func (x inclusiveGatewayTest) gatewayOne(t *testing.T) {
@@ -58,13 +58,13 @@ func (x inclusiveGatewayTest) gatewayOne(t *testing.T) {
 	})
 
 	piAssert.HasPassed("endEventC")
-	piAssert.IsEnded()
+	piAssert.IsCompleted()
 
 	elementInstances := piAssert.ElementInstances()
 	assert.Len(elementInstances, 4)
 
-	endedElementInstances := piAssert.ElementInstances(engine.ElementInstanceCriteria{States: []engine.InstanceState{engine.InstanceEnded}})
-	assert.Len(endedElementInstances, 4)
+	completed := piAssert.ElementInstances(engine.ElementInstanceCriteria{States: []engine.InstanceState{engine.InstanceCompleted}})
+	assert.Len(completed, 4)
 }
 
 func (x inclusiveGatewayTest) errorNoBpmnElementId(t *testing.T) {

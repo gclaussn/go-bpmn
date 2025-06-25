@@ -25,10 +25,8 @@ func (x specialTest) startEnd(t *testing.T) {
 	assert := assert.New(t)
 
 	piAssert := mustCreateProcessInstance(t, x.e, x.startEndTest)
-	piAssert.IsEnded()
+	piAssert.IsCompleted()
 
-	endedElementInstances := piAssert.ElementInstances(engine.ElementInstanceCriteria{
-		States: []engine.InstanceState{engine.InstanceEnded},
-	})
-	assert.Len(endedElementInstances, 3)
+	completed := piAssert.ElementInstances(engine.ElementInstanceCriteria{States: []engine.InstanceState{engine.InstanceCompleted}})
+	assert.Len(completed, 3)
 }

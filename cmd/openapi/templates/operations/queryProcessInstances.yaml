@@ -27,7 +27,7 @@ responses:
               createdBy: default-worker
               endedAt: "2025-05-09T17:44:02.421Z"
               startedAt: "2025-05-09T17:43:52.417Z"
-              state: ENDED
+              state: COMPLETED
               stateChangedBy: default-worker
               version: "1"
             - partition: "2025-05-09"

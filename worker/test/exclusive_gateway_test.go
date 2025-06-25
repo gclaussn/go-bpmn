@@ -80,7 +80,7 @@ func TestExclusiveGatewayProcess(t *testing.T) {
 	piAssert.IsWaitingAt("fork")
 	piAssert.ExecuteJob()
 
-	piAssert.IsEnded()
+	piAssert.IsCompleted()
 }
 
 func TestExclusiveGatewayGenericProcess(t *testing.T) {
@@ -104,5 +104,5 @@ func TestExclusiveGatewayGenericProcess(t *testing.T) {
 	piAssert.IsWaitingAt("fork")
 	piAssert.ExecuteJob()
 
-	piAssert.IsEnded()
+	piAssert.IsCompleted()
 }

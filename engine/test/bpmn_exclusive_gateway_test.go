@@ -33,13 +33,13 @@ func (x exclusiveGatewayTest) gateway(t *testing.T) {
 		},
 	})
 
-	piAssert.IsEnded()
+	piAssert.IsCompleted()
 
 	elementInstances := piAssert.ElementInstances()
 	assert.Len(elementInstances, 5)
 
-	endedElementInstances := piAssert.ElementInstances(engine.ElementInstanceCriteria{States: []engine.InstanceState{engine.InstanceEnded}})
-	assert.Len(endedElementInstances, 5)
+	completed := piAssert.ElementInstances(engine.ElementInstanceCriteria{States: []engine.InstanceState{engine.InstanceCompleted}})
+	assert.Len(completed, 5)
 }
 
 func (x exclusiveGatewayTest) errorNoBpmnElementId(t *testing.T) {

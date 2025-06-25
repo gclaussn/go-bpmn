@@ -34,8 +34,8 @@ func TestQuery(t *testing.T) {
 		bpmnElementIds = []string{"a", "b", "c", "a", "d"}
 
 		states = []engine.InstanceState{
-			engine.InstanceEnded,
-			engine.InstanceEnded,
+			engine.InstanceCompleted,
+			engine.InstanceCompleted,
 			engine.InstanceStarted,
 			engine.InstanceQueued,
 			engine.InstanceQueued,

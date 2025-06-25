@@ -330,7 +330,7 @@ func TestVariables(t *testing.T) {
 
 		// given
 		piAssert.CompleteJob()
-		piAssert.IsEnded()
+		piAssert.IsCompleted()
 
 		t.Run(engineTypes[i]+"set process variables returns error when process instance is ended", func(t *testing.T) {
 			// when

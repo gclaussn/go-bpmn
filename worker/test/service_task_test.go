@@ -139,5 +139,5 @@ func TestServiceTaskProcess(t *testing.T) {
 	piAssert.GetElementVariable("serviceTask", "a", &elementVariableA)
 	assert.Equal("string", elementVariableA)
 
-	piAssert.IsEnded()
+	piAssert.IsCompleted()
 }

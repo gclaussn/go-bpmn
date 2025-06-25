@@ -144,7 +144,6 @@ func (g graph) createExecution(scope *ElementInstanceEntity) (ElementInstanceEnt
 
 		BpmnElementId:   noneStartEvents[0].Id,
 		BpmnElementType: noneStartEvents[0].Type,
-		State:           engine.InstanceCreated,
 
 		parent: scope,
 	}
@@ -178,7 +177,6 @@ func (g graph) createExecutionAt(scope *ElementInstanceEntity, bpmnElementId str
 
 		BpmnElementId:   node.bpmnElement.Id,
 		BpmnElementType: node.bpmnElement.Type,
-		State:           engine.InstanceCreated,
 
 		parent: scope,
 	}
@@ -262,7 +260,7 @@ func (g graph) joinParallelGateway(waiting []*ElementInstanceEntity) ([]*Element
 		if i == 0 {
 			execution.State = engine.InstanceStarted
 		} else {
-			execution.State = engine.InstanceEnded
+			execution.State = engine.InstanceCompleted
 		}
 
 		incomingIds[execution.PrevElementId.Int32] = count - 1
