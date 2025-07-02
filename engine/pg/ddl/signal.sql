@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS signal (
+	partition DATE NOT NULL,
+	id INTEGER NOT NULL,
+
+	name VARCHAR NOT NULL,
+	sent_at TIMESTAMP(3) NOT NULL,
+	sent_by VARCHAR NOT NULL,
+	subscriber_count INTEGER NOT NULL
+) PARTITION BY LIST (partition);

@@ -26,20 +26,20 @@ type TimerEventRepository interface {
 }
 
 func suspendTimerEvents(ctx Context, bpmnProcessId string) error {
-	timerEvents, err := ctx.TimerEvents().SelectByBpmnProcessId(bpmnProcessId)
+	events, err := ctx.TimerEvents().SelectByBpmnProcessId(bpmnProcessId)
 	if err != nil {
 		return err
 	}
 
-	var timerEventsToUpdate []*TimerEventEntity
-	for _, timerEvent := range timerEvents {
-		if timerEvent.IsSuspended {
+	var suspendedEvents []*TimerEventEntity
+	for _, event := range events {
+		if event.IsSuspended {
 			continue
 		}
 
-		timerEvent.IsSuspended = true
-		timerEventsToUpdate = append(timerEventsToUpdate, timerEvent)
+		event.IsSuspended = true
+		suspendedEvents = append(suspendedEvents, event)
 	}
 
-	return ctx.TimerEvents().Update(timerEventsToUpdate)
+	return ctx.TimerEvents().Update(suspendedEvents)
 }

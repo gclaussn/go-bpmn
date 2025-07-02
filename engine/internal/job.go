@@ -123,7 +123,7 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 		if data == nil {
 			variable := VariableEntity{ // with fields, needed for deletion
 				Partition:         job.Partition,
-				ProcessInstanceId: job.ProcessInstanceId,
+				ProcessInstanceId: pgtype.Int4{Int32: job.ProcessInstanceId, Valid: true},
 				Name:              variableName,
 			}
 
@@ -138,8 +138,8 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 		variable := VariableEntity{
 			Partition: job.Partition,
 
-			ProcessId:         job.ProcessId,
-			ProcessInstanceId: job.ProcessInstanceId,
+			ProcessId:         pgtype.Int4{Int32: job.ProcessId, Valid: true},
+			ProcessInstanceId: pgtype.Int4{Int32: job.ProcessInstanceId, Valid: true},
 
 			CreatedAt:   ctx.Time(),
 			CreatedBy:   job.LockedBy.String,
@@ -174,8 +174,8 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 
 			ElementId:         pgtype.Int4{Int32: job.ElementId, Valid: true},
 			ElementInstanceId: pgtype.Int4{Int32: job.ElementInstanceId, Valid: true},
-			ProcessId:         job.ProcessId,
-			ProcessInstanceId: job.ProcessInstanceId,
+			ProcessId:         pgtype.Int4{Int32: job.ProcessId, Valid: true},
+			ProcessInstanceId: pgtype.Int4{Int32: job.ProcessInstanceId, Valid: true},
 
 			CreatedAt:   ctx.Time(),
 			CreatedBy:   job.LockedBy.String,

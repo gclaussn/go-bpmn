@@ -62,6 +62,7 @@ INSERT INTO variable (
 	element_instance_id,
 	process_id,
 	process_instance_id,
+	signal_id,
 
 	created_at,
 	created_by,
@@ -79,15 +80,16 @@ INSERT INTO variable (
 	$4,
 	$5,
 	$6,
-
 	$7,
+
 	$8,
 	$9,
 	$10,
 	$11,
 	$12,
 	$13,
-	$14
+	$14,
+	$15
 ) RETURNING id
 `,
 		entity.Partition,
@@ -97,6 +99,7 @@ INSERT INTO variable (
 		entity.ElementInstanceId,
 		entity.ProcessId,
 		entity.ProcessInstanceId,
+		entity.SignalId,
 
 		entity.CreatedAt,
 		entity.CreatedBy,
@@ -308,6 +311,7 @@ func (r variableRepository) Query(criteria engine.VariableCriteria, options engi
 			&entity.ElementInstanceId,
 			&entity.ProcessId,
 			&entity.ProcessInstanceId,
+			&entity.SignalId,
 
 			&entity.CreatedAt,
 			&entity.CreatedBy,

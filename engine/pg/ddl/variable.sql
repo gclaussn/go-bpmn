@@ -4,8 +4,9 @@ CREATE TABLE IF NOT EXISTS variable (
 
 	element_id INTEGER,
 	element_instance_id INTEGER,
-	process_id INTEGER NOT NULL,
-	process_instance_id INTEGER NOT NULL,
+	process_id INTEGER,
+	process_instance_id INTEGER,
+	signal_id INTEGER,
 
 	created_at TIMESTAMP(3) NOT NULL,
 	created_by VARCHAR NOT NULL,

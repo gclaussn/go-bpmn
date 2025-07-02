@@ -21,7 +21,7 @@ func (r *variableRepository) Delete(entity *internal.VariableEntity) error {
 			continue // skip deleted variable
 		}
 
-		if entity.ProcessInstanceId != 0 && e.ProcessInstanceId != entity.ProcessInstanceId {
+		if entity.ProcessInstanceId.Valid && e.ProcessInstanceId.Int32 != entity.ProcessInstanceId.Int32 {
 			continue
 		}
 		if e.ElementInstanceId.Int32 != entity.ElementInstanceId.Int32 {
@@ -84,7 +84,7 @@ func (r *variableRepository) SelectByProcessInstance(cmd engine.GetProcessVariab
 			continue // skip element variable
 		}
 
-		if cmd.ProcessInstanceId != 0 && cmd.ProcessInstanceId != e.ProcessInstanceId {
+		if cmd.ProcessInstanceId != 0 && cmd.ProcessInstanceId != e.ProcessInstanceId.Int32 {
 			continue
 		}
 
@@ -149,7 +149,7 @@ func (r *variableRepository) Query(c engine.VariableCriteria, o engine.QueryOpti
 			if c.ElementInstanceId != 0 && c.ElementInstanceId != e.ElementInstanceId.Int32 {
 				continue
 			}
-			if c.ProcessInstanceId != 0 && c.ProcessInstanceId != e.ProcessInstanceId {
+			if c.ProcessInstanceId != 0 && c.ProcessInstanceId != e.ProcessInstanceId.Int32 {
 				continue
 			}
 

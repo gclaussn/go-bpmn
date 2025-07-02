@@ -15,8 +15,9 @@ type VariableEntity struct {
 
 	ElementId         pgtype.Int4
 	ElementInstanceId pgtype.Int4
-	ProcessId         int32
-	ProcessInstanceId int32
+	ProcessId         pgtype.Int4
+	ProcessInstanceId pgtype.Int4
+	SignalId          pgtype.Int4
 
 	CreatedAt   time.Time
 	CreatedBy   string
@@ -35,8 +36,9 @@ func (e VariableEntity) Variable() engine.Variable {
 
 		ElementId:         e.ElementId.Int32,
 		ElementInstanceId: e.ElementInstanceId.Int32,
-		ProcessId:         e.ProcessId,
-		ProcessInstanceId: e.ProcessInstanceId,
+		ProcessId:         e.ProcessId.Int32,
+		ProcessInstanceId: e.ProcessInstanceId.Int32,
+		SignalId:          e.SignalId.Int32,
 
 		CreatedAt:   e.CreatedAt,
 		CreatedBy:   e.CreatedBy,
@@ -182,8 +184,8 @@ func SetElementVariables(ctx Context, cmd engine.SetElementVariablesCmd) error {
 
 			ElementId:         pgtype.Int4{Int32: elementInstance.ElementId, Valid: true},
 			ElementInstanceId: pgtype.Int4{Int32: elementInstance.Id, Valid: true},
-			ProcessId:         elementInstance.ProcessId,
-			ProcessInstanceId: elementInstance.ProcessInstanceId,
+			ProcessId:         pgtype.Int4{Int32: elementInstance.ProcessId, Valid: true},
+			ProcessInstanceId: pgtype.Int4{Int32: elementInstance.ProcessInstanceId, Valid: true},
 
 			CreatedAt:   ctx.Time(),
 			CreatedBy:   cmd.WorkerId,
@@ -228,7 +230,7 @@ func SetProcessVariables(ctx Context, cmd engine.SetProcessVariablesCmd) error {
 		if data == nil {
 			variable := VariableEntity{ // with fields, needed for deletion
 				Partition:         processInstance.Partition,
-				ProcessInstanceId: processInstance.Id,
+				ProcessInstanceId: pgtype.Int4{Int32: processInstance.Id, Valid: true},
 				Name:              variableName,
 			}
 
@@ -246,8 +248,8 @@ func SetProcessVariables(ctx Context, cmd engine.SetProcessVariablesCmd) error {
 		variable := VariableEntity{
 			Partition: processInstance.Partition,
 
-			ProcessId:         processInstance.ProcessId,
-			ProcessInstanceId: processInstance.Id,
+			ProcessId:         pgtype.Int4{Int32: processInstance.ProcessId, Valid: true},
+			ProcessInstanceId: pgtype.Int4{Int32: processInstance.Id, Valid: true},
 
 			CreatedAt:   ctx.Time(),
 			CreatedBy:   cmd.WorkerId,

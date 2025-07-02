@@ -239,10 +239,28 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		}
 	}
 
-	// validate timers
+	// validate events
 	for _, bpmnElement := range bpmnElements {
-		timer := cmd.Timers[bpmnElement.Id]
+		signalName := cmd.SignalNames[bpmnElement.Id]
+		if signalName != "" {
+			if bpmnElement.Type != model.ElementSignalStartEvent {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(bpmnElement),
+					Type:    "signal_event",
+					Detail:  fmt.Sprintf("BPMN element %s is not a signal start event", bpmnElement.Id),
+				})
+			}
+		} else {
+			if bpmnElement.Type == model.ElementSignalStartEvent {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(bpmnElement),
+					Type:    "signa_event",
+					Detail:  fmt.Sprintf("no signal name defined for BPMN element %s", bpmnElement.Id),
+				})
+			}
+		}
 
+		timer := cmd.Timers[bpmnElement.Id]
 		if timer != nil {
 			if bpmnElement.Type != model.ElementTimerStartEvent {
 				causes = append(causes, engine.ErrorCause{
@@ -348,11 +366,52 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		}
 	}
 
+	var i int
+
+	// prepare signal events and subscriptions
+	signalEvents := make([]*SignalEventEntity, len(cmd.SignalNames))
+	signalSubscriptions := make([]*SignalSubscriptionEntity, len(signalEvents))
+
+	i = 0
+	for bpmnElementId, signalName := range cmd.SignalNames {
+		node, ok := graph.nodes[bpmnElementId]
+		if !ok {
+			causes = append(causes, engine.ErrorCause{
+				Pointer: elementPointer(graph.processElement),
+				Type:    "signal_event",
+				Detail:  fmt.Sprintf("BPMN process %s has no element %s", processElement.Id, bpmnElementId),
+			})
+			continue
+		}
+
+		signalEvents[i] = &SignalEventEntity{
+			ElementId: node.id,
+
+			ProcessId: process.Id,
+
+			BpmnElementId: bpmnElementId,
+			BpmnProcessId: process.BpmnProcessId,
+			Name:          signalName,
+			Version:       process.Version,
+		}
+
+		signalSubscriptions[i] = &SignalSubscriptionEntity{
+			ElementId: node.id,
+			ProcessId: process.Id,
+
+			CreatedAt: ctx.Time(),
+			CreatedBy: cmd.WorkerId,
+			Name:      signalName,
+		}
+
+		i++
+	}
+
 	// prepare timer events and tasks
 	timerEvents := make([]*TimerEventEntity, len(cmd.Timers))
 	timerEventTasks := make([]*TaskEntity, len(timerEvents))
 
-	i := 0
+	i = 0
 	for bpmnElementId, timer := range cmd.Timers {
 		node, ok := graph.nodes[bpmnElementId]
 		if !ok {
@@ -371,7 +430,6 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 			BpmnElementId: bpmnElementId,
 			BpmnProcessId: process.BpmnProcessId,
-			IsSuspended:   false,
 			Time:          pgtype.Timestamp{Time: timer.Time, Valid: !timer.Time.IsZero()},
 			TimeCycle:     pgtype.Text{String: timer.TimeCycle, Valid: timer.TimeCycle != ""},
 			TimeDuration:  pgtype.Text{String: timer.TimeDuration.String(), Valid: !timer.TimeDuration.IsZero()},
@@ -443,6 +501,20 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		if err := ctx.Tasks().Insert(&dequeueProcessInstance); err != nil {
 			return engine.Process{}, err
 		}
+	}
+
+	// suspend signal events
+	if err := suspendSignalEvents(ctx, process.BpmnProcessId); err != nil {
+		return engine.Process{}, err
+	}
+
+	// insert signal events and subscriptions
+	if err := ctx.SignalEvents().Insert(signalEvents); err != nil {
+		return engine.Process{}, err
+	}
+
+	if err := ctx.SignalSubscriptions().Insert(signalSubscriptions); err != nil {
+		return engine.Process{}, err
 	}
 
 	// suspend timer events

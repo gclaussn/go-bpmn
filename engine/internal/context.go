@@ -20,6 +20,9 @@ type Context interface {
 	ProcessCache() *ProcessCache
 	ProcessInstances() ProcessInstanceRepository
 	ProcessInstanceQueues() ProcessInstanceQueueRepository
+	Signals() SignalRepository
+	SignalEvents() SignalEventRepository
+	SignalSubscriptions() SignalSubscriptionRepository
 	Tasks() TaskRepository
 	TimerEvents() TimerEventRepository
 	Variables() VariableRepository

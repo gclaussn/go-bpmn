@@ -40,9 +40,11 @@ type CreateProcessCmd struct {
 	BpmnXml string `json:"bpmnXml" validate:"required"`
 	// Maximum number of parallel process instances being executed. If `0`, the number of parallel process instances is unlimited.
 	Parallelism int `json:"parallelism,omitempty" validate:"gte=0"`
+	// Mapping between BPMN element ID and signal name for each signal start event.
+	SignalNames map[string]string `json:"signalNames,omitempty" validate:"dive,required"`
 	// Optional tags, consisting of name and value pairs.
 	Tags map[string]string `json:"tags,omitempty" validate:"max=100,dive,keys,tag_name,endkeys,required"`
-	// Timer definitions for each timer start event.
+	// Mapping between BPMN element ID and timer definition for each timer start event.
 	Timers map[string]*Timer `json:"timers,omitempty" validate:"dive,timer"`
 	// Arbitrary process version.
 	Version string `json:"version" validate:"required"`
@@ -166,6 +168,16 @@ type ResumeProcessInstanceCmd struct {
 	WorkerId string `json:"workerId" validate:"required"`
 }
 
+// SendSignalCmd is used to notify all subscribers.
+type SendSignalCmd struct {
+	// Signal name.
+	Name string `json:"name" validate:"required"`
+	// Variables to set or delete at process instance scope. For a variable deletion, no value must be provided.
+	Variables map[string]*Data `json:"variables,omitempty" validate:"dive,keys,variable_name,endkeys,omitnil,required"`
+	// ID of the worker that sent the signal.
+	WorkerId string `json:"workerId" validate:"required"`
+}
+
 // SetElementVariablesCmd is used to set or delete variables at element instance scope.
 type SetElementVariablesCmd struct {
 	// Element instance partition.
@@ -241,6 +253,9 @@ type JobCompletion struct {
 	// Evaluated BPMN element IDs to continue with after the inclusive gateway.
 	// Applicable when job type is `EVALUATE_INCLUSIVE_GATEWAY`.
 	InclusiveGatewayDecision []string `json:"inclusiveGatewayDecision,omitempty"`
+	// Name of the signal to subscribe to.
+	// Applicable when job type is `SET_SIGNAL_NAME`.
+	SignalName string `json:"signalName,omitempty"`
 	// A timer definition.
 	// Applicable when job type is `SET_TIMER`.
 	Timer *Timer `json:"timer,omitempty"`

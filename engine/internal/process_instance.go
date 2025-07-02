@@ -126,8 +126,8 @@ func CreateProcessInstance(ctx Context, cmd engine.CreateProcessInstanceCmd) (en
 		variable := VariableEntity{
 			Partition: processInstance.Partition,
 
-			ProcessId:         process.Id,
-			ProcessInstanceId: processInstance.Id,
+			ProcessId:         pgtype.Int4{Int32: process.Id, Valid: true},
+			ProcessInstanceId: pgtype.Int4{Int32: processInstance.Id, Valid: true},
 
 			CreatedAt:   processInstance.CreatedAt,
 			CreatedBy:   cmd.WorkerId,

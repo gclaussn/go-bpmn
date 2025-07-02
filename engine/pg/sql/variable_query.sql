@@ -6,6 +6,7 @@ SELECT
 	element_instance_id,
 	process_id,
 	process_instance_id,
+	signal_id,
 
 	created_at,
 	created_by,

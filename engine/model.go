@@ -87,6 +87,7 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 //   - [JobEvaluateExclusiveGateway]: forking exclusive gateway
 //   - [JobEvaluateInclusiveGateway]: forking inclusive gateway
 //   - [JobExecute]: business rule, script, send and service task
+//   - [JobSetSignalName]: signal catch event
 //   - [JobSetTimer]: timer catch event
 type JobType int
 
@@ -94,6 +95,7 @@ const (
 	JobEvaluateExclusiveGateway JobType = iota + 1
 	JobEvaluateInclusiveGateway
 	JobExecute
+	JobSetSignalName
 	JobSetTimer
 )
 
@@ -479,6 +481,17 @@ type ProcessInstanceCriteria struct {
 	Tags map[string]string `json:"tags,omitempty"` // Tags, a process instance must have, to be included.
 }
 
+// Signal represents a notification of subscribers (signal start or catch events).
+type Signal struct {
+	Partition Partition `json:"partition" validate:"required"` // Signal partition.
+	Id        int32     `json:"id" validate:"required"`        // Signal ID.
+
+	Name            string    `json:"name" validate:"required"`                  // Name of the signal.
+	SentAt          time.Time `json:"sentAt" validate:"required"`                // Sent time.
+	SentBy          string    `json:"sentBy" validate:"required"`                // ID of the worker or engine that sent the signal.
+	SubscriberCount int       `json:"subscriberCount" validate:"required,gte=0"` // Number of notified subscribers.
+}
+
 // Task is a unit of work, which must be locked, executed and completed by an engine.
 type Task struct {
 	Partition Partition `json:"partition" validate:"required"` // Task partition.
@@ -537,10 +550,11 @@ type Variable struct {
 	Partition Partition `json:"partition" validate:"required"` // Variable partition.
 	Id        int32     `json:"id" validate:"required"`        // Variable ID.
 
-	ElementId         int32 `json:"elementId,omitempty"`                   // ID of the related element - set if the variable exists at element instance scope.
-	ElementInstanceId int32 `json:"elementInstanceId,omitempty"`           // ID of the related element instance - set if the variable exists at element instance scope.
-	ProcessId         int32 `json:"processId" validate:"required"`         // ID of the related process.
-	ProcessInstanceId int32 `json:"processInstanceId" validate:"required"` // ID of the enclosing process instance.
+	ElementId         int32 `json:"elementId,omitempty"`         // ID of the related element - set if the variable exists at element instance scope.
+	ElementInstanceId int32 `json:"elementInstanceId,omitempty"` // ID of the related element instance - set if the variable exists at element instance scope.
+	ProcessId         int32 `json:"processId,omitempty"`         // ID of the related process.
+	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // ID of the enclosing process instance.
+	SignalId          int32 `json:"signalId,omitempty"`          // ID of the related signal.
 
 	CreatedAt   time.Time `json:"createdAt" validate:"required"` // Creation time.
 	CreatedBy   string    `json:"createdBy" validate:"required"` // ID of the worker that created the variable.
