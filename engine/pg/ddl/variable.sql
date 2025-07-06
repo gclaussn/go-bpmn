@@ -15,5 +15,5 @@ CREATE TABLE IF NOT EXISTS variable (
 	name VARCHAR NOT NULL,
 	updated_at TIMESTAMP(3) NOT NULL,
 	updated_by VARCHAR NOT NULL,
-	value VARCHAR NOT NULL
+	value VARCHAR
 ) PARTITION BY LIST (partition);

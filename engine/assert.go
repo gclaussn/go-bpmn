@@ -67,7 +67,7 @@ func AsserTimerStart(t *testing.T, e Engine, processId int32, startTime time.Tim
 
 	completedTasks, failedTasks, err := e.ExecuteTasks(ExecuteTasksCmd{
 		ProcessId: processId,
-		Type:      TaskTriggerTimerEvent,
+		Type:      TaskTriggerEvent,
 
 		Limit: limit,
 	})
@@ -76,7 +76,7 @@ func AsserTimerStart(t *testing.T, e Engine, processId int32, startTime time.Tim
 	}
 
 	if len(failedTasks) != 0 {
-		t.Fatal("one or multiple trigger timer event tasks failed")
+		t.Fatal("one or multiple trigger event tasks failed")
 	}
 
 	var createdAt time.Time
@@ -86,7 +86,7 @@ func AsserTimerStart(t *testing.T, e Engine, processId int32, startTime time.Tim
 		}
 
 		if completedTask.HasError() {
-			t.Fatalf("trigger timer event task %s has error: %s", completedTask, completedTask.Error)
+			t.Fatalf("trigger event task %s has error: %s", completedTask, completedTask.Error)
 		}
 
 		createdAt = *completedTask.CompletedAt
@@ -94,7 +94,7 @@ func AsserTimerStart(t *testing.T, e Engine, processId int32, startTime time.Tim
 	}
 
 	if createdAt.IsZero() {
-		t.Fatalf("failed to find trigger timer event task for start time %v", startTime)
+		t.Fatalf("failed to find trigger event task for start time %v", startTime)
 	}
 
 	processInstanceResults, err := e.Query(ProcessInstanceCriteria{

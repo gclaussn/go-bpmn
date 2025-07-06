@@ -148,7 +148,7 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 			Name:        variableName,
 			UpdatedAt:   ctx.Time(),
 			UpdatedBy:   job.LockedBy.String,
-			Value:       data.Value,
+			Value:       pgtype.Text{String: data.Value, Valid: true},
 		}
 
 		variables = append(variables, &variable)
@@ -184,7 +184,7 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 			Name:        variableName,
 			UpdatedAt:   ctx.Time(),
 			UpdatedBy:   job.LockedBy.String,
-			Value:       data.Value,
+			Value:       pgtype.Text{String: data.Value, Valid: true},
 		}
 
 		variables = append(variables, &variable)
@@ -218,12 +218,12 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 	}
 
 	for _, variable := range variables {
-		if variable.Value == "" {
-			if err := ctx.Variables().Delete(variable); err != nil {
+		if variable.Value.Valid {
+			if err := ctx.Variables().Upsert(variable); err != nil {
 				return engine.Job{}, err
 			}
 		} else {
-			if err := ctx.Variables().Upsert(variable); err != nil {
+			if err := ctx.Variables().Delete(variable); err != nil {
 				return engine.Job{}, err
 			}
 		}

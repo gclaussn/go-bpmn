@@ -107,6 +107,7 @@ func (e *TaskExecutor) Stop() {
 
 type TaskRepository interface {
 	Insert(*TaskEntity) error
+	InsertBatch([]*TaskEntity) error
 	Select(partition time.Time, id int32) (*TaskEntity, error)
 	Update(*TaskEntity) error
 

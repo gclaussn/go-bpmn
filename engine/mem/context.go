@@ -91,6 +91,18 @@ func (c *memContext) ProcessInstanceQueues() internal.ProcessInstanceQueueReposi
 	return &c.processInstanceQueues
 }
 
+func (c *memContext) Signals() internal.SignalRepository {
+	return &c.signals
+}
+
+func (c *memContext) SignalEvents() internal.SignalEventRepository {
+	return &c.signalEvents
+}
+
+func (c *memContext) SignalSubscriptions() internal.SignalSubscriptionRepository {
+	return &c.signalSubscription
+}
+
 func (c *memContext) Tasks() internal.TaskRepository {
 	return &c.tasks
 }

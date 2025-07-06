@@ -13,10 +13,10 @@ type VariableEntity struct {
 	Partition time.Time
 	Id        int32
 
-	ElementId         pgtype.Int4
-	ElementInstanceId pgtype.Int4
-	ProcessId         pgtype.Int4
-	ProcessInstanceId pgtype.Int4
+	ElementId         pgtype.Int4 // NULL in case of a signal
+	ElementInstanceId pgtype.Int4 // NULL in case of a signal
+	ProcessId         pgtype.Int4 // NULL in case of a signal
+	ProcessInstanceId pgtype.Int4 // NULL in case of a signal
 	SignalId          pgtype.Int4
 
 	CreatedAt   time.Time
@@ -26,7 +26,7 @@ type VariableEntity struct {
 	Name        string
 	UpdatedAt   time.Time
 	UpdatedBy   string
-	Value       string
+	Value       pgtype.Text // can be NULL in case of a signal, when a process instance variable should be deleted
 }
 
 func (e VariableEntity) Variable() engine.Variable {
@@ -80,7 +80,7 @@ func GetElementVariables(ctx Context, cmd engine.GetElementVariablesCmd) (map[st
 		data := engine.Data{
 			Encoding:    entity.Encoding,
 			IsEncrypted: entity.IsEncrypted,
-			Value:       entity.Value,
+			Value:       entity.Value.String,
 		}
 
 		if err := ctx.Options().Encryption.DecryptData(&data); err != nil {
@@ -113,7 +113,7 @@ func GetProcessVariables(ctx Context, cmd engine.GetProcessVariablesCmd) (map[st
 		data := engine.Data{
 			Encoding:    entity.Encoding,
 			IsEncrypted: entity.IsEncrypted,
-			Value:       entity.Value,
+			Value:       entity.Value.String,
 		}
 
 		if err := ctx.Options().Encryption.DecryptData(&data); err != nil {
@@ -194,7 +194,7 @@ func SetElementVariables(ctx Context, cmd engine.SetElementVariablesCmd) error {
 			Name:        variableName,
 			UpdatedAt:   ctx.Time(),
 			UpdatedBy:   cmd.WorkerId,
-			Value:       data.Value,
+			Value:       pgtype.Text{String: data.Value, Valid: true},
 		}
 
 		if err := ctx.Variables().Upsert(&variable); err != nil {
@@ -258,7 +258,7 @@ func SetProcessVariables(ctx Context, cmd engine.SetProcessVariablesCmd) error {
 			Name:        variableName,
 			UpdatedAt:   ctx.Time(),
 			UpdatedBy:   cmd.WorkerId,
-			Value:       data.Value,
+			Value:       pgtype.Text{String: data.Value, Valid: true},
 		}
 
 		if err := ctx.Variables().Upsert(&variable); err != nil {

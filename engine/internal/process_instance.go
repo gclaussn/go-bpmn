@@ -136,7 +136,7 @@ func CreateProcessInstance(ctx Context, cmd engine.CreateProcessInstanceCmd) (en
 			Name:        variableName,
 			UpdatedAt:   processInstance.CreatedAt,
 			UpdatedBy:   cmd.WorkerId,
-			Value:       data.Value,
+			Value:       pgtype.Text{String: data.Value, Valid: true},
 		}
 
 		variables = append(variables, &variable)

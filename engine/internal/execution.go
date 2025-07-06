@@ -438,9 +438,9 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 			CreatedAt: ctx.Time(),
 			CreatedBy: ec.engineOrWorkerId,
 			DueAt:     dueAt,
-			Type:      engine.TaskTriggerTimerEvent,
+			Type:      engine.TaskTriggerEvent,
 
-			Instance: TriggerTimerEventTask{},
+			Instance: TriggerEventTask{},
 		}
 
 		if err := ctx.Tasks().Insert(&triggerTimerEvent); err != nil {

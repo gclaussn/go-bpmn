@@ -64,6 +64,18 @@ func (c *pgContext) ProcessInstanceQueues() internal.ProcessInstanceQueueReposit
 	return &processInstanceQueueRepository{tx: c.tx, txCtx: c.txCtx}
 }
 
+func (c *pgContext) Signals() internal.SignalRepository {
+	return &signalRepository{tx: c.tx, txCtx: c.txCtx}
+}
+
+func (c *pgContext) SignalEvents() internal.SignalEventRepository {
+	return &signalEventRepository{tx: c.tx, txCtx: c.txCtx}
+}
+
+func (c *pgContext) SignalSubscriptions() internal.SignalSubscriptionRepository {
+	return &signalSubscriptionRepository{tx: c.tx, txCtx: c.txCtx}
+}
+
 func (c *pgContext) Tasks() internal.TaskRepository {
 	return &taskRepository{tx: c.tx, txCtx: c.txCtx, engineId: c.Options().EngineId}
 }

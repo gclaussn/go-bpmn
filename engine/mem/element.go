@@ -9,7 +9,7 @@ type elementRepository struct {
 	entities []internal.ElementEntity
 }
 
-func (r *elementRepository) Insert(entities []*internal.ElementEntity) error {
+func (r *elementRepository) InsertBatch(entities []*internal.ElementEntity) error {
 	for _, entity := range entities {
 		entity.Id = int32(len(r.entities) + 1)
 		r.entities = append(r.entities, *entity)

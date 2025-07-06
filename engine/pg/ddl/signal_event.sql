@@ -6,6 +6,6 @@ CREATE TABLE IF NOT EXISTS signal_event (
 	bpmn_element_id VARCHAR NOT NULL,
 	bpmn_process_id VARCHAR NOT NULL,
 	is_suspended BOOLEAN NOT NULL,
-	name VARCHAR,
+	name VARCHAR NOT NULL,
 	version VARCHAR NOT NULL
 );

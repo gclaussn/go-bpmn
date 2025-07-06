@@ -7,6 +7,7 @@ import (
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/engine/internal"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type variableRepository struct {
@@ -30,7 +31,7 @@ func (r *variableRepository) Delete(entity *internal.VariableEntity) error {
 
 		if e.Name == entity.Name {
 			e.Id = -1
-			e.Value = ""
+			e.Value = pgtype.Text{}
 			entities[i] = e
 			break
 		}

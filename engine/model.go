@@ -157,7 +157,7 @@ func (v *JobType) UnmarshalJSON(data []byte) error {
 //   - [TaskDequeueProcessInstance] dequeues a queued process instance
 //   - [TaskJoinParallelGateway] continues a parallel gateway by joining executions
 //   - [TaskStartProcessInstance] starts a queued process instance
-//   - [TaskTriggerTimerEvent] triggers a timer catch event
+//   - [TaskTriggerEvent] triggers a message, signal or timer event
 //
 // Management related types, that are only relevant for a pg engine:
 //
@@ -170,7 +170,7 @@ const (
 	TaskDequeueProcessInstance TaskType = iota + 1
 	TaskJoinParallelGateway
 	TaskStartProcessInstance
-	TaskTriggerTimerEvent
+	TaskTriggerEvent
 
 	// management
 	TaskCreatePartition
@@ -186,8 +186,8 @@ func MapTaskType(s string) TaskType {
 		return TaskJoinParallelGateway
 	case "START_PROCESS_INSTANCE":
 		return TaskStartProcessInstance
-	case "TRIGGER_TIMER_EVENT":
-		return TaskTriggerTimerEvent
+	case "TRIGGER_EVENT":
+		return TaskTriggerEvent
 	// management
 	case "CREATE_PARTITION":
 		return TaskCreatePartition
@@ -216,8 +216,8 @@ func (v TaskType) String() string {
 		return "JOIN_PARALLEL_GATEWAY"
 	case TaskStartProcessInstance:
 		return "START_PROCESS_INSTANCE"
-	case TaskTriggerTimerEvent:
-		return "TRIGGER_TIMER_EVENT"
+	case TaskTriggerEvent:
+		return "TRIGGER_EVENT"
 	// management
 	case TaskCreatePartition:
 		return "CREATE_PARTITION"
@@ -554,7 +554,7 @@ type Variable struct {
 	ElementInstanceId int32 `json:"elementInstanceId,omitempty"` // ID of the related element instance - set if the variable exists at element instance scope.
 	ProcessId         int32 `json:"processId,omitempty"`         // ID of the related process.
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // ID of the enclosing process instance.
-	SignalId          int32 `json:"signalId,omitempty"`          // ID of the related signal.
+	SignalId          int32 `json:"signalId,omitempty"`          // ID of the related signal - set if the variable was sent with a signal.
 
 	CreatedAt   time.Time `json:"createdAt" validate:"required"` // Creation time.
 	CreatedBy   string    `json:"createdBy" validate:"required"` // ID of the worker that created the variable.

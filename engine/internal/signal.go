@@ -3,7 +3,7 @@ package internal
 import (
 	"time"
 
-	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/gclaussn/go-bpmn/engine"
 )
 
 type SignalEntity struct {
@@ -14,6 +14,18 @@ type SignalEntity struct {
 	SentAt          time.Time
 	SentBy          string
 	SubscriberCount int
+}
+
+func (e SignalEntity) Signal() engine.Signal {
+	return engine.Signal{
+		Partition: engine.Partition(e.Partition),
+		Id:        e.Id,
+
+		Name:            e.Name,
+		SentAt:          e.SentAt,
+		SentBy:          e.SentBy,
+		SubscriberCount: e.SubscriberCount,
+	}
 }
 
 type SignalRepository interface {
@@ -33,20 +45,20 @@ type SignalEventEntity struct {
 }
 
 type SignalEventRepository interface {
-	Insert([]*SignalEventEntity) error
-	Select(elementId int32) (*SignalEventEntity, error)
+	InsertBatch([]*SignalEventEntity) error
 	SelectByBpmnProcessId(bpmnProcessId string) ([]*SignalEventEntity, error)
-	Update([]*SignalEventEntity) error
+	SelectByNameAndNotSuspended(name string) ([]*SignalEventEntity, error)
+	UpdateBatch([]*SignalEventEntity) error
 }
 
 type SignalSubscriptionEntity struct {
 	Id int64
 
 	ElementId         int32
-	ElementInstanceId pgtype.Int4
-	Partition         pgtype.Date // Partition of the related process and element instance
+	ElementInstanceId int32
+	Partition         time.Time // Partition of the related process and element instance
 	ProcessId         int32
-	ProcessInstanceId pgtype.Int4
+	ProcessInstanceId int32
 
 	CreatedAt time.Time
 	CreatedBy string
@@ -54,7 +66,35 @@ type SignalSubscriptionEntity struct {
 }
 
 type SignalSubscriptionRepository interface {
-	Insert([]*SignalSubscriptionEntity) error
+	DeleteByName(name string) ([]*SignalSubscriptionEntity, error)
+	Insert(*SignalSubscriptionEntity) error
+}
+
+func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.Signal, error) {
+	signalSubscriptions, err := ctx.SignalSubscriptions().DeleteByName(cmd.Name)
+	if err != nil {
+		return engine.Signal{}, err
+	}
+
+	signalEvents, err := ctx.SignalEvents().SelectByNameAndNotSuspended(cmd.Name)
+	if err != nil {
+		return engine.Signal{}, err
+	}
+
+	signal := SignalEntity{
+		Partition: ctx.Date(),
+
+		Name:            cmd.Name,
+		SentAt:          ctx.Time(),
+		SentBy:          cmd.WorkerId,
+		SubscriberCount: len(signalSubscriptions) + len(signalEvents),
+	}
+
+	if err := ctx.Signals().Insert(&signal); err != nil {
+		return engine.Signal{}, err
+	}
+
+	return signal.Signal(), nil
 }
 
 func suspendSignalEvents(ctx Context, bpmnProcessId string) error {
@@ -73,5 +113,5 @@ func suspendSignalEvents(ctx Context, bpmnProcessId string) error {
 		suspendedEvents = append(suspendedEvents, event)
 	}
 
-	return ctx.SignalEvents().Update(suspendedEvents)
+	return ctx.SignalEvents().UpdateBatch(suspendedEvents)
 }

@@ -352,7 +352,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		elements[i] = &element
 	}
 
-	if err := ctx.Elements().Insert(elements); err != nil {
+	if err := ctx.Elements().InsertBatch(elements); err != nil {
 		return engine.Process{}, err
 	}
 
@@ -368,9 +368,8 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 	var i int
 
-	// prepare signal events and subscriptions
+	// prepare signal events
 	signalEvents := make([]*SignalEventEntity, len(cmd.SignalNames))
-	signalSubscriptions := make([]*SignalSubscriptionEntity, len(signalEvents))
 
 	i = 0
 	for bpmnElementId, signalName := range cmd.SignalNames {
@@ -393,15 +392,6 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			BpmnProcessId: process.BpmnProcessId,
 			Name:          signalName,
 			Version:       process.Version,
-		}
-
-		signalSubscriptions[i] = &SignalSubscriptionEntity{
-			ElementId: node.id,
-			ProcessId: process.Id,
-
-			CreatedAt: ctx.Time(),
-			CreatedBy: cmd.WorkerId,
-			Name:      signalName,
 		}
 
 		i++
@@ -454,9 +444,9 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			CreatedAt: ctx.Time(),
 			CreatedBy: cmd.WorkerId,
 			DueAt:     dueAt,
-			Type:      engine.TaskTriggerTimerEvent,
+			Type:      engine.TaskTriggerEvent,
 
-			Instance: TriggerTimerEventTask{},
+			Instance: TriggerEventTask{},
 		}
 
 		i++
@@ -508,12 +498,8 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		return engine.Process{}, err
 	}
 
-	// insert signal events and subscriptions
-	if err := ctx.SignalEvents().Insert(signalEvents); err != nil {
-		return engine.Process{}, err
-	}
-
-	if err := ctx.SignalSubscriptions().Insert(signalSubscriptions); err != nil {
+	// insert signal events
+	if err := ctx.SignalEvents().InsertBatch(signalEvents); err != nil {
 		return engine.Process{}, err
 	}
 
@@ -523,14 +509,12 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	}
 
 	// insert timer events and tasks
-	if err := ctx.TimerEvents().Insert(timerEvents); err != nil {
+	if err := ctx.TimerEvents().InsertBatch(timerEvents); err != nil {
 		return engine.Process{}, err
 	}
 
-	for _, timerEventTask := range timerEventTasks {
-		if err := ctx.Tasks().Insert(timerEventTask); err != nil {
-			return engine.Process{}, err
-		}
+	if err := ctx.Tasks().InsertBatch(timerEventTasks); err != nil {
+		return engine.Process{}, err
 	}
 
 	// cache process

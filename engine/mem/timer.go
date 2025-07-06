@@ -9,7 +9,7 @@ type timerEventRepository struct {
 	entities map[int32]internal.TimerEventEntity
 }
 
-func (r *timerEventRepository) Insert(entities []*internal.TimerEventEntity) error {
+func (r *timerEventRepository) InsertBatch(entities []*internal.TimerEventEntity) error {
 	for _, entity := range entities {
 		r.entities[entity.ElementId] = *entity
 	}
@@ -35,7 +35,7 @@ func (r *timerEventRepository) SelectByBpmnProcessId(bpmnProcessId string) ([]*i
 	return results, nil
 }
 
-func (r *timerEventRepository) Update(entities []*internal.TimerEventEntity) error {
+func (r *timerEventRepository) UpdateBatch(entities []*internal.TimerEventEntity) error {
 	for _, e := range entities {
 		r.entities[e.ElementId] = *e
 	}

@@ -13,7 +13,7 @@ type timerEventRepository struct {
 	txCtx context.Context
 }
 
-func (r timerEventRepository) Insert(entities []*internal.TimerEventEntity) error {
+func (r timerEventRepository) InsertBatch(entities []*internal.TimerEventEntity) error {
 	batch := &pgx.Batch{}
 
 	for _, entity := range entities {
@@ -163,7 +163,7 @@ WHERE
 	return entities, nil
 }
 
-func (r timerEventRepository) Update(entities []*internal.TimerEventEntity) error {
+func (r timerEventRepository) UpdateBatch(entities []*internal.TimerEventEntity) error {
 	batch := &pgx.Batch{}
 
 	for _, entity := range entities {

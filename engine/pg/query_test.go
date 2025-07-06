@@ -159,7 +159,7 @@ func TestQuery(t *testing.T) {
 			Partition: partitions[i],
 
 			ElementInstanceId: pgtype.Int4{Int32: variableElementInstanceIds[i], Valid: variableElementInstanceIds[i] != 0},
-			ProcessInstanceId: variableProcessInstanceIds[i],
+			ProcessInstanceId: pgtype.Int4{Int32: variableProcessInstanceIds[i], Valid: true},
 
 			Name: variableNames[i],
 		})

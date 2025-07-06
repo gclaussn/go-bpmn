@@ -2,10 +2,10 @@ CREATE TABLE IF NOT EXISTS signal_subscription (
 	id BIGSERIAL PRIMARY KEY,
 
 	element_id INTEGER NOT NULL,
-	element_instance_id INTEGER,
-	partition DATE,
+	element_instance_id INTEGER NOT NULL,
+	partition DATE NOT NULL,
 	process_id INTEGER NOT NULL,
-	process_instance_id INTEGER,
+	process_instance_id INTEGER NOT NULL,
 
 	created_at TIMESTAMP(3) NOT NULL,
 	created_by VARCHAR NOT NULL,
