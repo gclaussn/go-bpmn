@@ -71,7 +71,7 @@ func mustInsertEntities(t *testing.T, e engine.Engine, entities []any) {
 		case *internal.ElementInstanceEntity:
 			err = ctx.ElementInstances().Insert(entity)
 		case *internal.ElementEntity:
-			err = ctx.Elements().Insert([]*internal.ElementEntity{entity})
+			err = ctx.Elements().InsertBatch([]*internal.ElementEntity{entity})
 		case *internal.IncidentEntity:
 			err = ctx.Incidents().Insert(entity)
 		case *internal.JobEntity:

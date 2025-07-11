@@ -5,24 +5,28 @@ import (
 	"fmt"
 
 	"github.com/gclaussn/go-bpmn/engine/internal"
+	"github.com/gclaussn/go-bpmn/model"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type signalRepository struct {
+type eventRepository struct {
 	tx    pgx.Tx
 	txCtx context.Context
 }
 
-func (r signalRepository) Insert(entity *internal.SignalEntity) error {
+func (r eventRepository) Insert(entity *internal.EventEntity) error {
 	row := r.tx.QueryRow(r.txCtx, `
-INSERT INTO signal (
+INSERT INTO event (
 	partition,
 	id,
 
-	name,
-	sent_at,
-	sent_by,
-	subscriber_count
+	created_at,
+	created_by,
+	signal_name,
+	time,
+	time_cycle,
+	time_duration
 ) VALUES (
 	$1,
 	nextval($2),
@@ -30,43 +34,49 @@ INSERT INTO signal (
 	$3,
 	$4,
 	$5,
-	$6
+	$6,
+	$7,
+	$8
 ) RETURNING id
 `,
 		entity.Partition,
-		partitionSequence("signal", entity.Partition),
+		partitionSequence("event", entity.Partition),
 
-		entity.Name,
-		entity.SentAt,
-		entity.SentBy,
-		entity.SubscriberCount,
+		entity.CreatedAt,
+		entity.CreatedBy,
+		entity.SignalName,
+		entity.Time,
+		entity.TimeCycle,
+		entity.TimeDuration,
 	)
 
 	if err := row.Scan(&entity.Id); err != nil {
-		return fmt.Errorf("failed to insert signal %+v: %v", entity, err)
+		return fmt.Errorf("failed to insert event %+v: %v", entity, err)
 	}
 
 	return nil
 }
 
-type timerEventRepository struct {
+type eventDefinitionRepository struct {
 	tx    pgx.Tx
 	txCtx context.Context
 }
 
-func (r timerEventRepository) InsertBatch(entities []*internal.TimerEventEntity) error {
+func (r eventDefinitionRepository) InsertBatch(entities []*internal.EventDefinitionEntity) error {
 	batch := &pgx.Batch{}
 
 	for _, entity := range entities {
 		batch.Queue(`
-INSERT INTO timer_event (
+INSERT INTO event_definition (
 	element_id,
 
 	process_id,
 
 	bpmn_element_id,
+	bpmn_element_type,
 	bpmn_process_id,
 	is_suspended,
+	signal_name,
 	time,
 	time_cycle,
 	time_duration,
@@ -82,7 +92,9 @@ INSERT INTO timer_event (
 	$6,
 	$7,
 	$8,
-	$9
+	$9,
+	$10,
+	$11
 )
 `,
 			entity.ElementId,
@@ -90,8 +102,10 @@ INSERT INTO timer_event (
 			entity.ProcessId,
 
 			entity.BpmnElementId,
+			entity.BpmnElementType.String(),
 			entity.BpmnProcessId,
 			entity.IsSuspended,
+			entity.SignalName,
 			entity.Time,
 			entity.TimeCycle,
 			entity.TimeDuration,
@@ -104,38 +118,46 @@ INSERT INTO timer_event (
 
 	for i := range entities {
 		if _, err := batchResults.Exec(); err != nil {
-			return fmt.Errorf("failed to insert timer event %+v: %v", entities[i], err)
+			return fmt.Errorf("failed to insert event definition %+v: %v", entities[i], err)
 		}
 	}
 
 	return nil
 }
 
-func (r timerEventRepository) Select(elementId int32) (*internal.TimerEventEntity, error) {
+func (r eventDefinitionRepository) Select(elementId int32) (*internal.EventDefinitionEntity, error) {
 	row := r.tx.QueryRow(r.txCtx, `
 SELECT
 	process_id,
 
 	bpmn_element_id,
+	bpmn_element_type,
 	bpmn_process_id,
 	is_suspended,
+	signal_name,
 	time,
 	time_cycle,
 	time_duration,
 	version
 FROM
-	timer_event
+	event_definition
 WHERE
 	element_id = $1
 `, elementId)
 
-	var entity internal.TimerEventEntity
+	var (
+		entity               internal.EventDefinitionEntity
+		bpmnElementTypeValue string
+	)
+
 	if err := row.Scan(
 		&entity.ProcessId,
 
 		&entity.BpmnElementId,
+		&bpmnElementTypeValue,
 		&entity.BpmnProcessId,
 		&entity.IsSuspended,
+		&entity.SignalName,
 		&entity.Time,
 		&entity.TimeCycle,
 		&entity.TimeDuration,
@@ -144,16 +166,17 @@ WHERE
 		if err == pgx.ErrNoRows {
 			return nil, err
 		} else {
-			return nil, fmt.Errorf("failed to select timer event %d: %v", elementId, err)
+			return nil, fmt.Errorf("failed to select event definition %d: %v", elementId, err)
 		}
 	}
 
 	entity.ElementId = elementId
+	entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
 
 	return &entity, nil
 }
 
-func (r timerEventRepository) SelectByBpmnProcessId(bpmnProcessId string) ([]*internal.TimerEventEntity, error) {
+func (r eventDefinitionRepository) SelectByBpmnProcessId(bpmnProcessId string) ([]*internal.EventDefinitionEntity, error) {
 	rows, err := r.tx.Query(r.txCtx, `
 SELECT
 	element_id,
@@ -161,25 +184,30 @@ SELECT
 	process_id,
 
 	bpmn_element_id,
+	bpmn_element_type,
 	is_suspended,
+	signal_name,
 	time,
 	time_cycle,
 	time_duration,
 	version
 FROM
-	timer_event
+	event_definition
 WHERE
 	bpmn_process_id = $1
 `, bpmnProcessId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to select timer events by BPMN process ID %s: %v", bpmnProcessId, err)
+		return nil, fmt.Errorf("failed to select event definitions by BPMN process ID %s: %v", bpmnProcessId, err)
 	}
 
 	defer rows.Close()
 
-	var entities []*internal.TimerEventEntity
+	var entities []*internal.EventDefinitionEntity
 	for rows.Next() {
-		var entity internal.TimerEventEntity
+		var (
+			entity               internal.EventDefinitionEntity
+			bpmnElementTypeValue string
+		)
 
 		if err := rows.Scan(
 			&entity.ElementId,
@@ -187,16 +215,19 @@ WHERE
 			&entity.ProcessId,
 
 			&entity.BpmnElementId,
+			&bpmnElementTypeValue,
 			&entity.IsSuspended,
+			&entity.SignalName,
 			&entity.Time,
 			&entity.TimeCycle,
 			&entity.TimeDuration,
 			&entity.Version,
 		); err != nil {
-			return nil, fmt.Errorf("failed to scan timer event row: %v", err)
+			return nil, fmt.Errorf("failed to scan event definition row: %v", err)
 		}
 
 		entity.BpmnProcessId = bpmnProcessId
+		entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
 
 		entities = append(entities, &entity)
 	}
@@ -204,7 +235,7 @@ WHERE
 	return entities, nil
 }
 
-func (r signalEventRepository) SelectByNameAndNotSuspended(name string) ([]*internal.SignalEventEntity, error) {
+func (r eventDefinitionRepository) SelectBySignalName(signalName string) ([]*internal.EventDefinitionEntity, error) {
 	rows, err := r.tx.Query(r.txCtx, `
 SELECT
 	element_id,
@@ -212,23 +243,29 @@ SELECT
 	process_id,
 
 	bpmn_element_id,
+	bpmn_element_type,
 	bpmn_process_id,
+	is_suspended,
+	signal_name,
 	version
 FROM
-	signal_event
+	event_definition
 WHERE
-	name = $1 AND
+	signal_name = $1 AND
 	is_suspended IS FALSE
-`, name)
+`, signalName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to not suspended select signal events by name %s: %v", name, err)
+		return nil, fmt.Errorf("failed to select not suspended event definitions by signal name %s: %v", signalName, err)
 	}
 
 	defer rows.Close()
 
-	var entities []*internal.SignalEventEntity
+	var entities []*internal.EventDefinitionEntity
 	for rows.Next() {
-		var entity internal.SignalEventEntity
+		var (
+			entity               internal.EventDefinitionEntity
+			bpmnElementTypeValue string
+		)
 
 		if err := rows.Scan(
 			&entity.ElementId,
@@ -236,15 +273,17 @@ WHERE
 			&entity.ProcessId,
 
 			&entity.BpmnElementId,
+			&bpmnElementTypeValue,
+			&entity.BpmnProcessId,
 			&entity.IsSuspended,
-			&entity.Name,
+			&entity.SignalName,
 			&entity.Version,
 		); err != nil {
-			return nil, fmt.Errorf("failed to scan signal event row: %v", err)
+			return nil, fmt.Errorf("failed to scan event definition row: %v", err)
 		}
 
 		entity.IsSuspended = false
-		entity.Name = name
+		entity.SignalName = pgtype.Text{String: signalName, Valid: true}
 
 		entities = append(entities, &entity)
 	}
@@ -252,13 +291,13 @@ WHERE
 	return entities, nil
 }
 
-func (r timerEventRepository) UpdateBatch(entities []*internal.TimerEventEntity) error {
+func (r eventDefinitionRepository) UpdateBatch(entities []*internal.EventDefinitionEntity) error {
 	batch := &pgx.Batch{}
 
 	for _, entity := range entities {
 		batch.Queue(`
 UPDATE
-	timer_event
+	event_definition
 SET
 	is_suspended = $2
 WHERE
@@ -275,7 +314,7 @@ WHERE
 
 	for i := range entities {
 		if _, err := batchResults.Exec(); err != nil {
-			return fmt.Errorf("failed to update timer event %+v: %v", entities[i], err)
+			return fmt.Errorf("failed to update event definition %+v: %v", entities[i], err)
 		}
 	}
 
