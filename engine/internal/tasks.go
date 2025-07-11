@@ -179,12 +179,10 @@ func (t StartProcessInstanceTask) Execute(ctx Context, task *TaskEntity) error {
 	return ctx.ProcessInstances().Update(processInstance)
 }
 
-// TriggerTimerEventTask is executed when a timer is due.
+// TriggerEventTask triggers start or catch events.
 //
-// A timer start event creates a new process instance.
-// If the timer is a cycle, a task for the next time cycle is inserted.
-//
-// A timer catch event continues the execution, if process instance and element instance are not ended.
+// In case of a start event, a new process instance is created.
+// In case of a catch event, an execution is continued.
 type TriggerEventTask struct {
 }
 
@@ -204,8 +202,6 @@ func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
 	}
 
 	switch node.bpmnElement.Type {
-	case model.ElementSignalCatchEvent:
-		return triggerSignalCatchEvent(ctx, task, process)
 	case model.ElementSignalStartEvent:
 		return triggerSignalStartEvent(ctx, task, process)
 	case model.ElementTimerCatchEvent:

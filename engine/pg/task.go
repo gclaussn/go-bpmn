@@ -37,6 +37,7 @@ INSERT INTO task (
 
 	element_id,
 	element_instance_id,
+	event_id,
 	process_id,
 	process_instance_id,
 
@@ -55,14 +56,15 @@ INSERT INTO task (
 	$4,
 	$5,
 	$6,
-
 	$7,
+
 	$8,
 	$9,
 	$10,
 	$11,
 	$12,
-	$13
+	$13,
+	$14
 ) RETURNING id
 `,
 		entity.Partition,
@@ -70,6 +72,7 @@ INSERT INTO task (
 
 		entity.ElementId,
 		entity.ElementInstanceId,
+		entity.EventId,
 		entity.ProcessId,
 		entity.ProcessInstanceId,
 
@@ -100,6 +103,7 @@ INSERT INTO task (
 
 	element_id,
 	element_instance_id,
+	event_id,
 	process_id,
 	process_instance_id,
 
@@ -118,14 +122,15 @@ INSERT INTO task (
 	$4,
 	$5,
 	$6,
-
 	$7,
+
 	$8,
 	$9,
 	$10,
 	$11,
 	$12,
-	$13
+	$13,
+	$14
 ) RETURNING id
 `,
 			entity.Partition,
@@ -133,6 +138,7 @@ INSERT INTO task (
 
 			entity.ElementId,
 			entity.ElementInstanceId,
+			entity.EventId,
 			entity.ProcessId,
 			entity.ProcessInstanceId,
 
@@ -165,6 +171,7 @@ func (r taskRepository) Select(partition time.Time, id int32) (*internal.TaskEnt
 SELECT
 	element_id,
 	element_instance_id,
+	event_id,
 	process_id,
 	process_instance_id,
 
@@ -193,6 +200,7 @@ WHERE
 	if err := row.Scan(
 		&entity.ElementId,
 		&entity.ElementInstanceId,
+		&entity.EventId,
 		&entity.ProcessId,
 		&entity.ProcessInstanceId,
 
@@ -270,6 +278,7 @@ func (r taskRepository) Query(criteria engine.TaskCriteria, options engine.Query
 
 			&entity.ElementId,
 			&entity.ElementInstanceId,
+			&entity.EventId,
 			&entity.ProcessId,
 			&entity.ProcessInstanceId,
 

@@ -13,16 +13,16 @@ type VariableEntity struct {
 	Partition time.Time
 	Id        int32
 
-	ElementId         pgtype.Int4 // NULL in case of a signal
-	ElementInstanceId pgtype.Int4 // NULL in case of a signal
-	ProcessId         pgtype.Int4 // NULL in case of a signal
-	ProcessInstanceId pgtype.Int4 // NULL in case of a signal
-	SignalId          pgtype.Int4
+	ElementId         pgtype.Int4 // NULL in case of an event
+	ElementInstanceId pgtype.Int4 // NULL in case of an event
+	EventId           pgtype.Int4
+	ProcessId         pgtype.Int4 // NULL in case of an event
+	ProcessInstanceId pgtype.Int4 // NULL in case of an event
 
 	CreatedAt   time.Time
 	CreatedBy   string
-	Encoding    string
-	IsEncrypted bool
+	Encoding    pgtype.Text // can be NULL in case of a signal, when a process instance variable should be deleted
+	IsEncrypted pgtype.Bool // can be NULL in case of a signal, when a process instance variable should be deleted
 	Name        string
 	UpdatedAt   time.Time
 	UpdatedBy   string
@@ -36,14 +36,14 @@ func (e VariableEntity) Variable() engine.Variable {
 
 		ElementId:         e.ElementId.Int32,
 		ElementInstanceId: e.ElementInstanceId.Int32,
+		EventId:           e.EventId.Int32,
 		ProcessId:         e.ProcessId.Int32,
 		ProcessInstanceId: e.ProcessInstanceId.Int32,
-		SignalId:          e.SignalId.Int32,
 
 		CreatedAt:   e.CreatedAt,
 		CreatedBy:   e.CreatedBy,
-		Encoding:    e.Encoding,
-		IsEncrypted: e.IsEncrypted,
+		Encoding:    e.Encoding.String,
+		IsEncrypted: e.IsEncrypted.Bool,
 		Name:        e.Name,
 		UpdatedAt:   e.UpdatedAt,
 		UpdatedBy:   e.UpdatedBy,
@@ -54,6 +54,7 @@ type VariableRepository interface {
 	Delete(*VariableEntity) error
 	Insert(*VariableEntity) error
 	SelectByElementInstance(engine.GetElementVariablesCmd) ([]*VariableEntity, error)
+	SelectByEvent(partition time.Time, eventId int32) ([]*VariableEntity, error)
 	SelectByProcessInstance(engine.GetProcessVariablesCmd) ([]*VariableEntity, error)
 	Upsert(*VariableEntity) error
 
@@ -78,8 +79,8 @@ func GetElementVariables(ctx Context, cmd engine.GetElementVariablesCmd) (map[st
 	variables := make(map[string]engine.Data, len(entities))
 	for _, entity := range entities {
 		data := engine.Data{
-			Encoding:    entity.Encoding,
-			IsEncrypted: entity.IsEncrypted,
+			Encoding:    entity.Encoding.String,
+			IsEncrypted: entity.IsEncrypted.Bool,
 			Value:       entity.Value.String,
 		}
 
@@ -111,8 +112,8 @@ func GetProcessVariables(ctx Context, cmd engine.GetProcessVariablesCmd) (map[st
 	variables := make(map[string]engine.Data, len(entities))
 	for _, entity := range entities {
 		data := engine.Data{
-			Encoding:    entity.Encoding,
-			IsEncrypted: entity.IsEncrypted,
+			Encoding:    entity.Encoding.String,
+			IsEncrypted: entity.IsEncrypted.Bool,
 			Value:       entity.Value.String,
 		}
 
@@ -189,8 +190,8 @@ func SetElementVariables(ctx Context, cmd engine.SetElementVariablesCmd) error {
 
 			CreatedAt:   ctx.Time(),
 			CreatedBy:   cmd.WorkerId,
-			Encoding:    data.Encoding,
-			IsEncrypted: data.IsEncrypted,
+			Encoding:    pgtype.Text{String: data.Encoding, Valid: true},
+			IsEncrypted: pgtype.Bool{Bool: data.IsEncrypted, Valid: true},
 			Name:        variableName,
 			UpdatedAt:   ctx.Time(),
 			UpdatedBy:   cmd.WorkerId,
@@ -253,8 +254,8 @@ func SetProcessVariables(ctx Context, cmd engine.SetProcessVariablesCmd) error {
 
 			CreatedAt:   ctx.Time(),
 			CreatedBy:   cmd.WorkerId,
-			Encoding:    data.Encoding,
-			IsEncrypted: data.IsEncrypted,
+			Encoding:    pgtype.Text{String: data.Encoding, Valid: true},
+			IsEncrypted: pgtype.Bool{Bool: data.IsEncrypted, Valid: true},
 			Name:        variableName,
 			UpdatedAt:   ctx.Time(),
 			UpdatedBy:   cmd.WorkerId,

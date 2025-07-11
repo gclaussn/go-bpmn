@@ -28,7 +28,7 @@ func mustInsertEntities(t *testing.T, e engine.Engine, entities []any) {
 		case *internal.ElementInstanceEntity:
 			ctx.ElementInstances().Insert(entity)
 		case *internal.ElementEntity:
-			ctx.Elements().Insert([]*internal.ElementEntity{entity})
+			ctx.Elements().InsertBatch([]*internal.ElementEntity{entity})
 		case *internal.IncidentEntity:
 			ctx.Incidents().Insert(entity)
 		case *internal.JobEntity:

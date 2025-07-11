@@ -131,8 +131,8 @@ func CreateProcessInstance(ctx Context, cmd engine.CreateProcessInstanceCmd) (en
 
 			CreatedAt:   processInstance.CreatedAt,
 			CreatedBy:   cmd.WorkerId,
-			Encoding:    data.Encoding,
-			IsEncrypted: data.IsEncrypted,
+			Encoding:    pgtype.Text{String: data.Encoding, Valid: true},
+			IsEncrypted: pgtype.Bool{Bool: data.IsEncrypted, Valid: true},
 			Name:        variableName,
 			UpdatedAt:   processInstance.CreatedAt,
 			UpdatedBy:   cmd.WorkerId,

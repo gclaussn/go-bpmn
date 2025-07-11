@@ -407,11 +407,11 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 			executions = append(executions, &next)
 		}
 	case engine.JobExecute:
-		if job.BpmnErrorCode.Valid {
+		if jobCompletion != nil && jobCompletion.ErrorCode != "" {
 			job.Error = pgtype.Text{String: "BPMN error code is not supported", Valid: true}
 			return nil
 		}
-		if job.BpmnEscalationCode.Valid {
+		if jobCompletion != nil && jobCompletion.EscalationCode != "" {
 			job.Error = pgtype.Text{String: "BPMN escalation code is not supported", Valid: true}
 			return nil
 		}

@@ -60,9 +60,9 @@ INSERT INTO variable (
 
 	element_id,
 	element_instance_id,
+	event_id,
 	process_id,
 	process_instance_id,
-	signal_id,
 
 	created_at,
 	created_by,
@@ -97,9 +97,9 @@ INSERT INTO variable (
 
 		entity.ElementId,
 		entity.ElementInstanceId,
+		entity.EventId,
 		entity.ProcessId,
 		entity.ProcessInstanceId,
-		entity.SignalId,
 
 		entity.CreatedAt,
 		entity.CreatedBy,
@@ -309,9 +309,9 @@ func (r variableRepository) Query(criteria engine.VariableCriteria, options engi
 
 			&entity.ElementId,
 			&entity.ElementInstanceId,
+			&entity.EventId,
 			&entity.ProcessId,
 			&entity.ProcessInstanceId,
-			&entity.SignalId,
 
 			&entity.CreatedAt,
 			&entity.CreatedBy,

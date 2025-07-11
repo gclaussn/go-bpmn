@@ -19,7 +19,7 @@ func (r *variableRepository) Delete(entity *internal.VariableEntity) error {
 	entities := r.partitions[key]
 	for i, e := range entities {
 		if e.Id == -1 {
-			continue // skip deleted variable
+			continue // skip deleted entity
 		}
 
 		if entity.ProcessInstanceId.Valid && e.ProcessInstanceId.Int32 != entity.ProcessInstanceId.Int32 {
@@ -67,6 +67,23 @@ func (r *variableRepository) SelectByElementInstance(cmd engine.GetElementVariab
 		}
 
 		results = append(results, &e)
+	}
+
+	return results, nil
+}
+
+func (r *variableRepository) SelectByEvent(partition time.Time, eventId int32) ([]*internal.VariableEntity, error) {
+	var results []*internal.VariableEntity
+
+	key := partition.Format(time.DateOnly)
+	for _, e := range r.partitions[key] {
+		if e.Id == -1 {
+			continue // skip deleted variable
+		}
+
+		if e.EventId.Valid && e.EventId.Int32 == eventId {
+			results = append(results, &e)
+		}
 	}
 
 	return results, nil

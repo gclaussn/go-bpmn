@@ -124,6 +124,7 @@ func ResolveIncident(ctx Context, cmd engine.ResolveIncidentCmd) error {
 
 			ElementId:         task.ElementId,
 			ElementInstanceId: task.ElementInstanceId,
+			EventId:           task.EventId,
 			ProcessId:         task.ProcessId,
 			ProcessInstanceId: task.ProcessInstanceId,
 

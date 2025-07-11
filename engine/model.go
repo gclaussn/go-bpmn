@@ -483,9 +483,6 @@ type ProcessInstanceCriteria struct {
 
 // Signal represents a notification of subscribers (signal start or catch events).
 type Signal struct {
-	Partition Partition `json:"partition" validate:"required"` // Signal partition.
-	Id        int32     `json:"id" validate:"required"`        // Signal ID.
-
 	Name            string    `json:"name" validate:"required"`                  // Name of the signal.
 	SentAt          time.Time `json:"sentAt" validate:"required"`                // Sent time.
 	SentBy          string    `json:"sentBy" validate:"required"`                // ID of the worker or engine that sent the signal.
@@ -499,6 +496,7 @@ type Task struct {
 
 	ElementId         int32 `json:"elementId,omitempty"`         // ID of the related element.
 	ElementInstanceId int32 `json:"elementInstanceId,omitempty"` // ID of the related element instance.
+	EventId           int32 `json:"eventId,omitempty"`           // ID of the related event.
 	ProcessId         int32 `json:"processId,omitempty"`         // ID of the related process.
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // ID of the enclosing process instance.
 
@@ -552,9 +550,9 @@ type Variable struct {
 
 	ElementId         int32 `json:"elementId,omitempty"`         // ID of the related element - set if the variable exists at element instance scope.
 	ElementInstanceId int32 `json:"elementInstanceId,omitempty"` // ID of the related element instance - set if the variable exists at element instance scope.
+	EventId           int32 `json:"eventId,omitempty"`           // ID of the related event - set if the variable was sent with a signal.
 	ProcessId         int32 `json:"processId,omitempty"`         // ID of the related process.
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // ID of the enclosing process instance.
-	SignalId          int32 `json:"signalId,omitempty"`          // ID of the related signal - set if the variable was sent with a signal.
 
 	CreatedAt   time.Time `json:"createdAt" validate:"required"` // Creation time.
 	CreatedBy   string    `json:"createdBy" validate:"required"` // ID of the worker that created the variable.

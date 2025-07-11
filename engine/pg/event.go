@@ -8,6 +8,47 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+type signalRepository struct {
+	tx    pgx.Tx
+	txCtx context.Context
+}
+
+func (r signalRepository) Insert(entity *internal.SignalEntity) error {
+	row := r.tx.QueryRow(r.txCtx, `
+INSERT INTO signal (
+	partition,
+	id,
+
+	name,
+	sent_at,
+	sent_by,
+	subscriber_count
+) VALUES (
+	$1,
+	nextval($2),
+
+	$3,
+	$4,
+	$5,
+	$6
+) RETURNING id
+`,
+		entity.Partition,
+		partitionSequence("signal", entity.Partition),
+
+		entity.Name,
+		entity.SentAt,
+		entity.SentBy,
+		entity.SubscriberCount,
+	)
+
+	if err := row.Scan(&entity.Id); err != nil {
+		return fmt.Errorf("failed to insert signal %+v: %v", entity, err)
+	}
+
+	return nil
+}
+
 type timerEventRepository struct {
 	tx    pgx.Tx
 	txCtx context.Context
@@ -156,6 +197,54 @@ WHERE
 		}
 
 		entity.BpmnProcessId = bpmnProcessId
+
+		entities = append(entities, &entity)
+	}
+
+	return entities, nil
+}
+
+func (r signalEventRepository) SelectByNameAndNotSuspended(name string) ([]*internal.SignalEventEntity, error) {
+	rows, err := r.tx.Query(r.txCtx, `
+SELECT
+	element_id,
+
+	process_id,
+
+	bpmn_element_id,
+	bpmn_process_id,
+	version
+FROM
+	signal_event
+WHERE
+	name = $1 AND
+	is_suspended IS FALSE
+`, name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to not suspended select signal events by name %s: %v", name, err)
+	}
+
+	defer rows.Close()
+
+	var entities []*internal.SignalEventEntity
+	for rows.Next() {
+		var entity internal.SignalEventEntity
+
+		if err := rows.Scan(
+			&entity.ElementId,
+
+			&entity.ProcessId,
+
+			&entity.BpmnElementId,
+			&entity.IsSuspended,
+			&entity.Name,
+			&entity.Version,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan signal event row: %v", err)
+		}
+
+		entity.IsSuspended = false
+		entity.Name = name
 
 		entities = append(entities, &entity)
 	}

@@ -27,6 +27,13 @@ func (r *taskRepository) Insert(entity *internal.TaskEntity) error {
 	return nil
 }
 
+func (r *taskRepository) InsertBatch(entities []*internal.TaskEntity) error {
+	for _, entity := range entities {
+		_ = r.Insert(entity)
+	}
+	return nil
+}
+
 func (r *taskRepository) Select(partition time.Time, id int32) (*internal.TaskEntity, error) {
 	key := partition.Format(time.DateOnly)
 	for _, e := range r.partitions[key] {

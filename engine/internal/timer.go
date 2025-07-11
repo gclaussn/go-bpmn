@@ -9,52 +9,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type TimerEventEntity struct {
-	ElementId int32
-
-	ProcessId int32
-
-	BpmnElementId string
-	BpmnProcessId string
-	IsSuspended   bool
-	Time          pgtype.Timestamp
-	TimeCycle     pgtype.Text
-	TimeDuration  pgtype.Text
-	Version       string
-}
-
-type TimerEventRepository interface {
-	InsertBatch([]*TimerEventEntity) error
-	Select(elementId int32) (*TimerEventEntity, error)
-	SelectByBpmnProcessId(bpmnProcessId string) ([]*TimerEventEntity, error)
-	UpdateBatch([]*TimerEventEntity) error
-}
-
-func suspendTimerEvents(ctx Context, bpmnProcessId string) error {
-	events, err := ctx.TimerEvents().SelectByBpmnProcessId(bpmnProcessId)
-	if err != nil {
-		return err
-	}
-
-	var suspendedEvents []*TimerEventEntity
-	for _, event := range events {
-		if event.IsSuspended {
-			continue
-		}
-
-		event.IsSuspended = true
-		suspendedEvents = append(suspendedEvents, event)
-	}
-
-	return ctx.TimerEvents().UpdateBatch(suspendedEvents)
-}
-
 func triggerTimerCatchEvent(ctx Context, task *TaskEntity, process *ProcessEntity) error {
 	processInstance, err := ctx.ProcessInstances().Select(task.Partition, task.ProcessInstanceId.Int32)
 	if err == pgx.ErrNoRows {
 		return engine.Error{
 			Type:   engine.ErrorBug,
-			Title:  "failed to trigger timer event",
+			Title:  "failed to trigger timer catch event",
 			Detail: fmt.Sprintf("process instance %s/%d could not be found", task.Partition.Format(time.DateOnly), task.ProcessInstanceId.Int32),
 		}
 	}
@@ -75,6 +35,8 @@ func triggerTimerCatchEvent(ctx Context, task *TaskEntity, process *ProcessEntit
 		return nil
 	}
 
+	execution.EventId = task.EventId
+
 	ec := executionContext{
 		engineOrWorkerId: ctx.Options().EngineId,
 		process:          process,
@@ -93,19 +55,19 @@ func triggerTimerCatchEvent(ctx Context, task *TaskEntity, process *ProcessEntit
 }
 
 func triggerTimerStartEvent(ctx Context, task *TaskEntity, process *ProcessEntity) error {
-	timerEvent, err := ctx.TimerEvents().Select(task.ElementId.Int32)
+	eventDefinition, err := ctx.EventDefinitions().Select(task.ElementId.Int32)
 	if err == pgx.ErrNoRows {
 		return engine.Error{
 			Type:   engine.ErrorBug,
-			Title:  "failed to trigger timer event",
-			Detail: fmt.Sprintf("timer event %d could not be found", task.ElementId.Int32),
+			Title:  "failed to trigger timer start event",
+			Detail: fmt.Sprintf("event definition %d could not be found", task.ElementId.Int32),
 		}
 	}
 	if err != nil {
 		return err
 	}
 
-	if timerEvent.IsSuspended {
+	if eventDefinition.IsSuspended {
 		return nil
 	}
 
@@ -133,7 +95,7 @@ func triggerTimerStartEvent(ctx Context, task *TaskEntity, process *ProcessEntit
 
 	scope := process.graph.createProcessScope(&processInstance)
 
-	execution, err := process.graph.createExecutionAt(&scope, timerEvent.BpmnElementId)
+	execution, err := process.graph.createExecutionAt(&scope, eventDefinition.BpmnElementId)
 	if err != nil {
 		return engine.Error{
 			Type:   engine.ErrorProcessModel,
@@ -141,6 +103,8 @@ func triggerTimerStartEvent(ctx Context, task *TaskEntity, process *ProcessEntit
 			Detail: err.Error(),
 		}
 	}
+
+	execution.EventId = task.EventId
 
 	ec := executionContext{
 		engineOrWorkerId: ctx.Options().EngineId,
@@ -153,12 +117,12 @@ func triggerTimerStartEvent(ctx Context, task *TaskEntity, process *ProcessEntit
 		return err
 	}
 
-	if !timerEvent.TimeCycle.Valid {
+	if !eventDefinition.TimeCycle.Valid {
 		return nil // one-time event
 	}
 
 	// insert task for next time cycle
-	timer := engine.Timer{TimeCycle: timerEvent.TimeCycle.String}
+	timer := engine.Timer{TimeCycle: eventDefinition.TimeCycle.String}
 
 	dueAt, err := evaluateTimer(timer, task.DueAt)
 	if err != nil {
@@ -169,14 +133,27 @@ func triggerTimerStartEvent(ctx Context, task *TaskEntity, process *ProcessEntit
 		}
 	}
 
-	triggerTimerEvent := TaskEntity{
+	event := EventEntity{
 		Partition: ctx.Date(),
-
-		ElementId: task.ElementId,
-		ProcessId: task.ProcessId,
 
 		CreatedAt: ctx.Time(),
 		CreatedBy: ctx.Options().EngineId,
+		TimeCycle: eventDefinition.TimeCycle,
+	}
+
+	if err := ctx.Events().Insert(&event); err != nil {
+		return err
+	}
+
+	triggerTimerEvent := TaskEntity{
+		Partition: event.Partition,
+
+		ElementId: task.ElementId,
+		EventId:   pgtype.Int4{Int32: event.Id, Valid: true},
+		ProcessId: task.ProcessId,
+
+		CreatedAt: event.CreatedAt,
+		CreatedBy: event.CreatedBy,
 		DueAt:     dueAt,
 		Type:      engine.TaskTriggerEvent,
 

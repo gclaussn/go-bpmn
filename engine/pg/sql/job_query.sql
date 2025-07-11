@@ -8,8 +8,6 @@ SELECT
 	process_instance_id,
 
 	bpmn_element_id,
-	bpmn_error_code,
-	bpmn_escalation_code,
 	completed_at,
 	correlation_key,
 	created_at,

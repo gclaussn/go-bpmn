@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS element_instance (
 	parent_id INTEGER,
 
 	element_id INTEGER NOT NULL,
+	event_id INTEGER,
 	prev_element_id INTEGER,
 	prev_element_instance_id INTEGER,
 	process_id INTEGER NOT NULL,
