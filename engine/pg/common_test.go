@@ -19,9 +19,6 @@ func mustCreateEngine(t *testing.T, customizers ...func(*Options)) engine.Engine
 		t.Skip()
 	}
 
-	x := os.Environ()
-	println(x)
-
 	databaseUrl := lookUpDatabaseUrl()
 	if databaseUrl == "" {
 		t.Skip("GO_BPMN_TEST_DATABASE_URL not set")

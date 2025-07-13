@@ -20,7 +20,6 @@ var Tables = []string{
 	"element_instance",
 	"event",
 	"event_definition",
-	"event_subscription",
 	"incident",
 	"job",
 	"process",

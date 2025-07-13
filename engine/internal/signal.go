@@ -29,15 +29,15 @@ type SignalSubscriptionRepository interface {
 	Insert(*SignalSubscriptionEntity) error
 }
 
-func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.Signal, error) {
+func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.SignalEvent, error) {
 	signalSubscriptions, err := ctx.SignalSubscriptions().DeleteByName(cmd.Name)
 	if err != nil {
-		return engine.Signal{}, err
+		return engine.SignalEvent{}, err
 	}
 
 	eventDefinitions, err := ctx.EventDefinitions().SelectBySignalName(cmd.Name)
 	if err != nil {
-		return engine.Signal{}, err
+		return engine.SignalEvent{}, err
 	}
 
 	// encrypt variables
@@ -48,40 +48,65 @@ func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.Signal, error) {
 			continue
 		}
 		if err := encryption.EncryptData(data); err != nil {
-			return engine.Signal{}, fmt.Errorf("failed to encrypt variable %s: %v", variableName, err)
+			return engine.SignalEvent{}, fmt.Errorf("failed to encrypt variable %s: %v", variableName, err)
 		}
 	}
 
-	// insert one event per partition
+	// insert events
 	events := make(map[string]*EventEntity)
-	if len(eventDefinitions) != 0 {
+	for _, eventDefinition := range eventDefinitions {
+		if eventDefinition.BpmnElementType != model.ElementSignalStartEvent {
+			continue
+		}
+
 		key := ctx.Date().Format(time.DateOnly)
+		if event, ok := events[key]; ok {
+			event.SignalSubscribers = pgtype.Int4{Int32: event.SignalSubscribers.Int32 + 1, Valid: true}
+			continue
+		}
+
 		events[key] = &EventEntity{
 			Partition: ctx.Date(),
 
-			CreatedAt:  ctx.Time(),
-			CreatedBy:  cmd.WorkerId,
-			SignalName: pgtype.Text{String: cmd.Name, Valid: true},
+			CreatedAt:         ctx.Time(),
+			CreatedBy:         cmd.WorkerId,
+			SignalName:        pgtype.Text{String: cmd.Name, Valid: true},
+			SignalSubscribers: pgtype.Int4{Int32: 1, Valid: true},
 		}
 	}
 	for _, signalSubscription := range signalSubscriptions {
 		key := signalSubscription.Partition.Format(time.DateOnly)
-		if _, ok := events[key]; ok {
+		if event, ok := events[key]; ok {
+			event.SignalSubscribers = pgtype.Int4{Int32: event.SignalSubscribers.Int32 + 1, Valid: true}
 			continue
 		}
 
 		events[key] = &EventEntity{
 			Partition: signalSubscription.Partition,
 
-			CreatedAt:  ctx.Time(),
-			CreatedBy:  cmd.WorkerId,
-			SignalName: pgtype.Text{String: cmd.Name, Valid: true},
+			CreatedAt:         ctx.Time(),
+			CreatedBy:         cmd.WorkerId,
+			SignalName:        pgtype.Text{String: cmd.Name, Valid: true},
+			SignalSubscribers: pgtype.Int4{Int32: 1, Valid: true},
 		}
+	}
+
+	mainEvent := EventEntity{
+		Partition: ctx.Date(),
+
+		CreatedAt:         ctx.Time(),
+		CreatedBy:         cmd.WorkerId,
+		SignalName:        pgtype.Text{String: cmd.Name, Valid: true},
+		SignalSubscribers: pgtype.Int4{Int32: int32(len(events)), Valid: true},
+	}
+
+	if err := ctx.Events().Insert(&mainEvent); err != nil {
+		return engine.SignalEvent{}, err
 	}
 
 	for _, event := range events {
 		if err := ctx.Events().Insert(event); err != nil {
-			return engine.Signal{}, err
+			return engine.SignalEvent{}, err
 		}
 	}
 
@@ -133,7 +158,7 @@ func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.Signal, error) {
 	}
 
 	if err := ctx.Tasks().InsertBatch(triggerEventTasks); err != nil {
-		return engine.Signal{}, err
+		return engine.SignalEvent{}, err
 	}
 
 	// insert variables per event
@@ -170,17 +195,12 @@ func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.Signal, error) {
 			}
 
 			if err := ctx.Variables().Insert(&variable); err != nil {
-				return engine.Signal{}, err
+				return engine.SignalEvent{}, err
 			}
 		}
 	}
 
-	return engine.Signal{
-		Name:            cmd.Name,
-		SentAt:          ctx.Time(),
-		SentBy:          cmd.WorkerId,
-		SubscriberCount: len(triggerEventTasks),
-	}, nil
+	return mainEvent.SignalEvent(), nil
 }
 
 func triggerSignalStartEvent(ctx Context, task *TaskEntity, process *ProcessEntity) error {

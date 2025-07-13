@@ -175,7 +175,7 @@ func (e *memEngine) ResumeProcessInstance(cmd engine.ResumeProcessInstanceCmd) e
 	return internal.ResumeProcessInstance(e.wlock(), cmd)
 }
 
-func (e *memEngine) SendSignal(cmd engine.SendSignalCmd) (engine.Signal, error) {
+func (e *memEngine) SendSignal(cmd engine.SendSignalCmd) (engine.SignalEvent, error) {
 	defer e.unlock()
 	return internal.SendSignal(e.wlock(), cmd)
 }

@@ -31,7 +31,7 @@ func TestJobCreate(t *testing.T) {
 			"timerStartEvent=" + triggerAt.Format(time.RFC3339Nano),
 		})
 
-		results, err := e.Query(engine.TaskCriteria{Type: engine.TaskTriggerTimerEvent})
+		results, err := e.Query(engine.TaskCriteria{Type: engine.TaskTriggerEvent})
 		require.NoError(err, "failed to query tasks")
 		require.NotEmpty(results, "no tasks queried")
 
@@ -55,7 +55,7 @@ func TestJobCreate(t *testing.T) {
 			"timerStartEvent=0 * * * *",
 		})
 
-		results, err := e.Query(engine.TaskCriteria{Type: engine.TaskTriggerTimerEvent})
+		results, err := e.Query(engine.TaskCriteria{Type: engine.TaskTriggerEvent})
 		require.NoError(err, "failed to query tasks")
 		require.NotEmpty(results, "no tasks queried")
 
@@ -83,7 +83,7 @@ func TestJobCreate(t *testing.T) {
 
 		prcoess := results[len(results)-1].(engine.Process)
 
-		results, err = e.Query(engine.TaskCriteria{ProcessId: prcoess.Id, Type: engine.TaskTriggerTimerEvent})
+		results, err = e.Query(engine.TaskCriteria{ProcessId: prcoess.Id, Type: engine.TaskTriggerEvent})
 		require.NoError(err, "failed to query task")
 		require.NotEmpty(results, "no task queried")
 

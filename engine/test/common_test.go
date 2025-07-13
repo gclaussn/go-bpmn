@@ -55,7 +55,7 @@ func mustCreateEngines(t *testing.T) ([]engine.Engine, []string) {
 		databaseUrl = "postgres://postgres:postgres@localhost:5432/test"
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	conn, err := pgx.Connect(ctx, databaseUrl)

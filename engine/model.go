@@ -481,8 +481,11 @@ type ProcessInstanceCriteria struct {
 	Tags map[string]string `json:"tags,omitempty"` // Tags, a process instance must have, to be included.
 }
 
-// Signal represents a notification of subscribers (signal start or catch events).
-type Signal struct {
+// SignalEvent represents a notification of signal subscribers (signal start or catch events).
+type SignalEvent struct {
+	Partition Partition `json:"partition" validate:"required"` // Event partition.
+	Id        int32     `json:"id" validate:"required"`        // Event ID.
+
 	Name            string    `json:"name" validate:"required"`                  // Name of the signal.
 	SentAt          time.Time `json:"sentAt" validate:"required"`                // Sent time.
 	SentBy          string    `json:"sentBy" validate:"required"`                // ID of the worker or engine that sent the signal.

@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS event (
 	created_at TIMESTAMP(3) NOT NULL,
 	created_by VARCHAR NOT NULL,
 	signal_name VARCHAR,
+	signal_subscribers INTEGER,
 	time TIMESTAMP(3),
 	time_cycle VARCHAR,
-	time_duration VARCHAR,
+	time_duration VARCHAR
 ) PARTITION BY LIST (partition);

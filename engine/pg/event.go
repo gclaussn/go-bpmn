@@ -24,6 +24,7 @@ INSERT INTO event (
 	created_at,
 	created_by,
 	signal_name,
+	signal_subscribers,
 	time,
 	time_cycle,
 	time_duration
@@ -36,7 +37,8 @@ INSERT INTO event (
 	$5,
 	$6,
 	$7,
-	$8
+	$8,
+	$9
 ) RETURNING id
 `,
 		entity.Partition,
@@ -45,6 +47,7 @@ INSERT INTO event (
 		entity.CreatedAt,
 		entity.CreatedBy,
 		entity.SignalName,
+		entity.SignalSubscribers,
 		entity.Time,
 		entity.TimeCycle,
 		entity.TimeDuration,

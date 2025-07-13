@@ -308,6 +308,7 @@ func TestCreateProcessWithTimer(t *testing.T) {
 
 					ElementId:         task.ElementId,
 					ElementInstanceId: int32(0),
+					EventId:           task.EventId,
 					ProcessId:         process1.Id,
 					ProcessInstanceId: int32(0),
 
@@ -316,6 +317,8 @@ func TestCreateProcessWithTimer(t *testing.T) {
 					DueAt:     task.DueAt,
 					Type:      engine.TaskTriggerEvent,
 				}, task)
+
+				assert.NotEmpty(task.EventId)
 
 				// given
 				cmd2 := engine.CreateProcessCmd{

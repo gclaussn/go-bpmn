@@ -335,6 +335,7 @@ func (r taskRepository) Lock(cmd engine.ExecuteTasksCmd, lockedAt time.Time) ([]
 
 			&entity.ElementId,
 			&entity.ElementInstanceId,
+			&entity.EventId,
 			&entity.ProcessId,
 			&entity.ProcessInstanceId,
 
