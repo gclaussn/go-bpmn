@@ -448,8 +448,8 @@ func (e *pgEngineWithContext) SendSignal(cmd engine.SendSignalCmd) (engine.Signa
 		return engine.SignalEvent{}, err
 	}
 
-	signal, err := internal.SendSignal(ctx, cmd)
-	return signal, e.release(ctx, err)
+	signalEvent, err := internal.SendSignal(ctx, cmd)
+	return signalEvent, e.release(ctx, err)
 }
 
 func (e *pgEngine) SetElementVariables(cmd engine.SetElementVariablesCmd) error {

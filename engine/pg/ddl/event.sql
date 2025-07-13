@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS event (
 	created_at TIMESTAMP(3) NOT NULL,
 	created_by VARCHAR NOT NULL,
 	signal_name VARCHAR,
-	signal_subscribers INTEGER,
+	signal_subscriber_count INTEGER,
 	time TIMESTAMP(3),
 	time_cycle VARCHAR,
 	time_duration VARCHAR

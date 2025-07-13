@@ -71,6 +71,8 @@ type ExecuteTasksCmd struct {
 	// Task condition - must be used in combination with a partition.
 	Id int32 `json:"id,omitempty"`
 
+	// Element condition.
+	ElementId int32 `json:"elementId,omitempty"`
 	// Element instance condition - must be used in combination with a partition.
 	ElementInstanceId int32 `json:"elementInstanceId,omitempty"`
 	// Process condition.

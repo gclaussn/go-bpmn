@@ -159,13 +159,7 @@ func (r variableRepository) SelectByElementInstance(cmd engine.GetElementVariabl
 func (r variableRepository) SelectByEvent(partition time.Time, eventId int32) ([]*internal.VariableEntity, error) {
 	rows, err := r.tx.Query(r.txCtx, `
 SELECT
-	partition,
 	id,
-
-	element_id,
-	element_instance_id,
-	process_id,
-	process_instance_id,
 
 	created_at,
 	created_by,

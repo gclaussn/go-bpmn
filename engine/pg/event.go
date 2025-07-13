@@ -24,7 +24,7 @@ INSERT INTO event (
 	created_at,
 	created_by,
 	signal_name,
-	signal_subscribers,
+	signal_subscriber_count,
 	time,
 	time_cycle,
 	time_duration
@@ -47,7 +47,7 @@ INSERT INTO event (
 		entity.CreatedAt,
 		entity.CreatedBy,
 		entity.SignalName,
-		entity.SignalSubscribers,
+		entity.SignalSubscriberCount,
 		entity.Time,
 		entity.TimeCycle,
 		entity.TimeDuration,
@@ -285,6 +285,7 @@ WHERE
 			return nil, fmt.Errorf("failed to scan event definition row: %v", err)
 		}
 
+		entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
 		entity.IsSuspended = false
 		entity.SignalName = pgtype.Text{String: signalName, Valid: true}
 

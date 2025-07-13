@@ -432,6 +432,36 @@ func (a *ProcessInstanceAssert) IsWaitingAt(bpmnElementId string) {
 	a.Fatalf("expected process instance to be waiting at %s: no active element instance found", bpmnElementId)
 }
 
+func (a *ProcessInstanceAssert) HasNoProcessVariable(name string) {
+	processVariables, err := a.e.GetProcessVariables(GetProcessVariablesCmd{
+		Partition:         a.partition,
+		ProcessInstanceId: a.processInstanceId,
+		Names:             []string{name},
+	})
+	if err != nil {
+		a.Fatalf("failed to get process variable %s: %v", name, err)
+	}
+
+	if _, ok := processVariables[name]; ok {
+		a.Fatalf("expected process instance to have no variable %s, but has", name)
+	}
+}
+
+func (a *ProcessInstanceAssert) HasProcessVariable(name string) {
+	processVariables, err := a.e.GetProcessVariables(GetProcessVariablesCmd{
+		Partition:         a.partition,
+		ProcessInstanceId: a.processInstanceId,
+		Names:             []string{name},
+	})
+	if err != nil {
+		a.Fatalf("failed to get process variable %s: %v", name, err)
+	}
+
+	if _, ok := processVariables[name]; !ok {
+		a.Fatalf("expected process instance to have variable %s, but has not", name)
+	}
+}
+
 func (a *ProcessInstanceAssert) Job() Job {
 	if a.elementInstanceId == 0 {
 		a.Fatalf("call IsWaitingAt first")

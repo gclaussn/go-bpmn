@@ -133,7 +133,7 @@ func TestServiceTaskProcess(t *testing.T) {
 	piAssert.GetProcessVariable("a", &variableA)
 	assert.Equal("string*", variableA)
 
-	piAssert.ProcessVariableNotExists("e")
+	piAssert.HasNoProcessVariable("e")
 
 	var elementVariableA string
 	piAssert.GetElementVariable("serviceTask", "a", &elementVariableA)

@@ -61,43 +61,43 @@ func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.SignalEvent, erro
 
 		key := ctx.Date().Format(time.DateOnly)
 		if event, ok := events[key]; ok {
-			event.SignalSubscribers = pgtype.Int4{Int32: event.SignalSubscribers.Int32 + 1, Valid: true}
+			event.SignalSubscriberCount = pgtype.Int4{Int32: event.SignalSubscriberCount.Int32 + 1, Valid: true}
 			continue
 		}
 
 		events[key] = &EventEntity{
 			Partition: ctx.Date(),
 
-			CreatedAt:         ctx.Time(),
-			CreatedBy:         cmd.WorkerId,
-			SignalName:        pgtype.Text{String: cmd.Name, Valid: true},
-			SignalSubscribers: pgtype.Int4{Int32: 1, Valid: true},
+			CreatedAt:             ctx.Time(),
+			CreatedBy:             cmd.WorkerId,
+			SignalName:            pgtype.Text{String: cmd.Name, Valid: true},
+			SignalSubscriberCount: pgtype.Int4{Int32: 1, Valid: true},
 		}
 	}
 	for _, signalSubscription := range signalSubscriptions {
 		key := signalSubscription.Partition.Format(time.DateOnly)
 		if event, ok := events[key]; ok {
-			event.SignalSubscribers = pgtype.Int4{Int32: event.SignalSubscribers.Int32 + 1, Valid: true}
+			event.SignalSubscriberCount = pgtype.Int4{Int32: event.SignalSubscriberCount.Int32 + 1, Valid: true}
 			continue
 		}
 
 		events[key] = &EventEntity{
 			Partition: signalSubscription.Partition,
 
-			CreatedAt:         ctx.Time(),
-			CreatedBy:         cmd.WorkerId,
-			SignalName:        pgtype.Text{String: cmd.Name, Valid: true},
-			SignalSubscribers: pgtype.Int4{Int32: 1, Valid: true},
+			CreatedAt:             ctx.Time(),
+			CreatedBy:             cmd.WorkerId,
+			SignalName:            pgtype.Text{String: cmd.Name, Valid: true},
+			SignalSubscriberCount: pgtype.Int4{Int32: 1, Valid: true},
 		}
 	}
 
 	mainEvent := EventEntity{
 		Partition: ctx.Date(),
 
-		CreatedAt:         ctx.Time(),
-		CreatedBy:         cmd.WorkerId,
-		SignalName:        pgtype.Text{String: cmd.Name, Valid: true},
-		SignalSubscribers: pgtype.Int4{Int32: int32(len(events)), Valid: true},
+		CreatedAt:             ctx.Time(),
+		CreatedBy:             cmd.WorkerId,
+		SignalName:            pgtype.Text{String: cmd.Name, Valid: true},
+		SignalSubscriberCount: pgtype.Int4{Int32: int32(len(events)), Valid: true},
 	}
 
 	if err := ctx.Events().Insert(&mainEvent); err != nil {

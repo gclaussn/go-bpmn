@@ -18,6 +18,9 @@ FROM (
 		AND id = {{.Id}}
 {{end}}
 
+{{if ne .ElementId 0}}
+		AND element_id = {{.ElementId}}
+{{end}}
 {{if ne .ElementInstanceId 0}}
 		AND element_instance_id = {{.ElementInstanceId}}
 {{end}}

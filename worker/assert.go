@@ -170,7 +170,7 @@ func (a *ProcessInstanceAssert) IsWaitingAt(bpmnElementId string) {
 	a.assert.IsWaitingAt(bpmnElementId)
 }
 
-func (a *ProcessInstanceAssert) ProcessVariableNotExists(name string) {
+func (a *ProcessInstanceAssert) HasNoProcessVariable(name string) {
 	processInstance := a.assert.ProcessInstance()
 
 	processVariables, err := a.worker.engine.GetProcessVariables(engine.GetProcessVariablesCmd{
@@ -183,6 +183,6 @@ func (a *ProcessInstanceAssert) ProcessVariableNotExists(name string) {
 	}
 
 	if _, ok := processVariables[name]; ok {
-		a.assert.Fatalf("expected process variable %s to not exist, but is", name)
+		a.assert.Fatalf("expected process instance to have no variable %s, but has", name)
 	}
 }

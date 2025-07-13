@@ -12,13 +12,13 @@ type EventEntity struct {
 	Partition time.Time
 	Id        int32
 
-	CreatedAt         time.Time
-	CreatedBy         string
-	SignalName        pgtype.Text
-	SignalSubscribers pgtype.Int4
-	Time              pgtype.Timestamp
-	TimeCycle         pgtype.Text
-	TimeDuration      pgtype.Text
+	CreatedAt             time.Time
+	CreatedBy             string
+	SignalName            pgtype.Text
+	SignalSubscriberCount pgtype.Int4
+	Time                  pgtype.Timestamp
+	TimeCycle             pgtype.Text
+	TimeDuration          pgtype.Text
 }
 
 func (e EventEntity) SignalEvent() engine.SignalEvent {
@@ -26,10 +26,10 @@ func (e EventEntity) SignalEvent() engine.SignalEvent {
 		Partition: engine.Partition(e.Partition),
 		Id:        e.Id,
 
+		CreatedAt:       e.CreatedAt,
+		CreatedBy:       e.CreatedBy,
 		Name:            e.SignalName.String,
-		SentAt:          e.CreatedAt,
-		SentBy:          e.CreatedBy,
-		SubscriberCount: int(e.SignalSubscribers.Int32),
+		SubscriberCount: int(e.SignalSubscriberCount.Int32),
 	}
 }
 

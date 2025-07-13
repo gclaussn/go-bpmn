@@ -315,7 +315,7 @@ type ElementInstanceCriteria struct {
 	ProcessId         int32 `json:"processId,omitempty"`         // Process filter.
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // Process instance filter.
 
-	BpmnElementId string          `json:"bpmnElementId,omitempty"`
+	BpmnElementId string          `json:"bpmnElementId,omitempty"`                  // BPMN element ID filter.
 	States        []InstanceState `json:"states,omitempty" validate:"max=7,unique"` // States to include.
 }
 
@@ -486,10 +486,14 @@ type SignalEvent struct {
 	Partition Partition `json:"partition" validate:"required"` // Event partition.
 	Id        int32     `json:"id" validate:"required"`        // Event ID.
 
+	CreatedAt       time.Time `json:"sentAt" validate:"required"`                // Signal sent time.
+	CreatedBy       string    `json:"sentBy" validate:"required"`                // ID of the worker or engine that sent the signal.
 	Name            string    `json:"name" validate:"required"`                  // Name of the signal.
-	SentAt          time.Time `json:"sentAt" validate:"required"`                // Sent time.
-	SentBy          string    `json:"sentBy" validate:"required"`                // ID of the worker or engine that sent the signal.
-	SubscriberCount int       `json:"subscriberCount" validate:"required,gte=0"` // Number of notified subscribers.
+	SubscriberCount int       `json:"subscriberCount" validate:"required,gte=0"` // Number of notified signal subscribers.
+}
+
+func (v SignalEvent) String() string {
+	return fmt.Sprintf("%s/%d", v.Partition, v.Id)
 }
 
 // Task is a unit of work, which must be locked, executed and completed by an engine.

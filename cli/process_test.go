@@ -9,7 +9,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestJobCreate(t *testing.T) {
+func TestCreateProcessWithSignal(t *testing.T) {
+	e := mustCreateEngine(t)
+	defer e.Shutdown()
+
+	mustExecute(t, e, []string{
+		"process",
+		"create",
+		"--bpmn-file",
+		"../test/bpmn/event/signal-start.bpmn",
+		"--bpmn-process-id",
+		"signalStartTest",
+		"--version",
+		"1",
+		"--signal-name",
+		"signalStartEvent=start-signal",
+	})
+}
+
+func TestCreateProcessWithTimer(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
 	e := mustCreateEngine(t)

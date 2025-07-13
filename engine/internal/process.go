@@ -254,7 +254,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			if bpmnElement.Type == model.ElementSignalStartEvent {
 				causes = append(causes, engine.ErrorCause{
 					Pointer: elementPointer(bpmnElement),
-					Type:    "signa_event",
+					Type:    "signal_event",
 					Detail:  fmt.Sprintf("no signal name defined for BPMN element %s", bpmnElement.Id),
 				})
 			}

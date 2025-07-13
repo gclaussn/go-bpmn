@@ -306,11 +306,11 @@ func (c *client) SendSignal(cmd engine.SendSignalCmd) (engine.SignalEvent, error
 }
 
 func (c *clientWithContext) SendSignal(cmd engine.SendSignalCmd) (engine.SignalEvent, error) {
-	var signal engine.SignalEvent
-	if err := c.doPost(server.PathEventsSignals, cmd, &signal); err != nil {
+	var signalEvent engine.SignalEvent
+	if err := c.doPost(server.PathEventsSignals, cmd, &signalEvent); err != nil {
 		return engine.SignalEvent{}, err
 	}
-	return signal, nil
+	return signalEvent, nil
 }
 
 func (c *client) SetElementVariables(cmd engine.SetElementVariablesCmd) error {
