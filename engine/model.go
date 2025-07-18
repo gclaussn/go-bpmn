@@ -87,6 +87,7 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 //   - [JobEvaluateExclusiveGateway]: forking exclusive gateway
 //   - [JobEvaluateInclusiveGateway]: forking inclusive gateway
 //   - [JobExecute]: business rule, script, send and service task
+//   - [JobSetSignalName]: signal catch event
 //   - [JobSetTimer]: timer catch event
 type JobType int
 
@@ -94,6 +95,7 @@ const (
 	JobEvaluateExclusiveGateway JobType = iota + 1
 	JobEvaluateInclusiveGateway
 	JobExecute
+	JobSetSignalName
 	JobSetTimer
 )
 
@@ -105,6 +107,8 @@ func MapJobType(s string) JobType {
 		return JobEvaluateInclusiveGateway
 	case "EXECUTE":
 		return JobExecute
+	case "SET_SIGNAL_NAME":
+		return JobSetSignalName
 	case "SET_TIMER":
 		return JobSetTimer
 	default:
@@ -128,6 +132,8 @@ func (v JobType) String() string {
 		return "EVALUATE_INCLUSIVE_GATEWAY"
 	case JobExecute:
 		return "EXECUTE"
+	case JobSetSignalName:
+		return "SET_SIGNAL_NAME"
 	case JobSetTimer:
 		return "SET_TIMER"
 	default:

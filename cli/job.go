@@ -111,7 +111,7 @@ func newJobCompleteCmd(cli *Cli) *cobra.Command {
 
 	c.Flags().StringVar(&completion.ExclusiveGatewayDecision, "exclusive-gateway-decision", "", "Evaluated BPMN element ID to continue with after the exclusive gateway")
 	c.Flags().StringSliceVar(&completion.InclusiveGatewayDecision, "inclusive-gateway-decision", nil, "Evaluated BPMN element ID to continue with after the inclusive gateway")
-	// Timer
+	c.Flags().StringVar(&completion.SignalName, "signal-name", "", "Name of the signal to subscribe to")
 	c.Flags().Var(&timeV, "time", "A point in time, when the timer event is triggered")
 	c.Flags().StringVar(&timeCycleV, "time-cycle", "", "CRON expression that specifies a cyclic trigger")
 	c.Flags().Var(&timeDurationV, "time-duration", "Duration until the timer event is triggered")

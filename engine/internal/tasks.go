@@ -202,6 +202,8 @@ func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
 	}
 
 	switch node.bpmnElement.Type {
+	case model.ElementSignalCatchEvent:
+		return triggerSignalCatchEvent(ctx, task, process)
 	case model.ElementSignalStartEvent:
 		return triggerSignalStartEvent(ctx, task, process)
 	case model.ElementTimerCatchEvent:

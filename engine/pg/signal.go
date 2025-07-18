@@ -68,7 +68,7 @@ func (r signalSubscriptionRepository) Insert(entity *internal.SignalSubscription
 	row := r.tx.QueryRow(r.txCtx, `
 INSERT INTO signal_subscription (
 	element_id,
-	element_instance_id
+	element_instance_id,
 	partition,
 	process_id,
 	process_instance_id,

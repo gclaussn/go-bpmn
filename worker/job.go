@@ -93,10 +93,31 @@ func (d Delegator) ExecuteGeneric(bpmnElementId string, delegation func(jc JobCo
 	}
 }
 
+// SetSignalName delegates jobs of type [engine.JobSetSignalName].
+//
+// Applicable for BPMN element types:
+//   - signal catch event
+func (d Delegator) SetSignalName(bpmnElementId string, delegation func(jc JobContext) (string, error)) {
+	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
+		if jc.Job.Type != engine.JobSetSignalName {
+			return nil, fmt.Errorf("expected job type %s, but got %s", engine.JobSetSignalName, jc.Job.Type)
+		}
+
+		signalName, err := delegation(jc)
+		if err != nil {
+			return nil, err
+		}
+
+		return &engine.JobCompletion{
+			SignalName: signalName,
+		}, nil
+	}
+}
+
 // SetTimer delegates jobs of type [engine.JobSetTimer].
 //
 // Applicable for BPMN element types:
-//   - Timer catch event
+//   - timer catch event
 func (d Delegator) SetTimer(bpmnElementId string, delegation func(jc JobContext) (engine.Timer, error)) {
 	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
 		if jc.Job.Type != engine.JobSetTimer {

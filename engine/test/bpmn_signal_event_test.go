@@ -4,16 +4,55 @@ import (
 	"testing"
 
 	"github.com/gclaussn/go-bpmn/engine"
+	"github.com/stretchr/testify/assert"
 )
 
-func newSignalEventTest(e engine.Engine) signalEventTest {
+func newSignalEventTest(t *testing.T, e engine.Engine) signalEventTest {
 	return signalEventTest{
 		e: e,
+
+		catchTest: mustCreateProcess(t, e, "event/signal-catch.bpmn", "signalCatchTest"),
 	}
 }
 
 type signalEventTest struct {
 	e engine.Engine
+
+	catchTest engine.Process
+}
+
+func (x signalEventTest) catch(t *testing.T) {
+	assert := assert.New(t)
+
+	piAssert := mustCreateProcessInstance(t, x.e, x.catchTest)
+
+	piAssert.IsWaitingAt("signalCatchEvent")
+	piAssert.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			SignalName: "catch-signal",
+		},
+	})
+
+	signalEvent, err := x.e.SendSignal(engine.SendSignalCmd{
+		Name:     "catch-signal",
+		WorkerId: testWorkerId,
+	})
+	if err != nil {
+		t.Fatalf("failed to send signal: %v", err)
+	}
+
+	assert.False(signalEvent.Partition.IsZero())
+	assert.NotEmpty(signalEvent.Id)
+
+	assert.NotEmpty(signalEvent.CreatedAt)
+	assert.Equal(testWorkerId, signalEvent.CreatedBy)
+	assert.Equal("catch-signal", signalEvent.Name)
+	assert.Equal(1, signalEvent.SubscriberCount)
+
+	piAssert.IsWaitingAt("signalCatchEvent")
+	piAssert.ExecuteTask()
+
+	piAssert.IsCompleted()
 }
 
 func (x signalEventTest) start(t *testing.T) {

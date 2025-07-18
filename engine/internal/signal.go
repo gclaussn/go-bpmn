@@ -195,6 +195,10 @@ func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.SignalEvent, erro
 	return mainEvent.SignalEvent(), nil
 }
 
+func triggerSignalCatchEvent(ctx Context, task *TaskEntity, process *ProcessEntity) error {
+	return nil
+}
+
 func triggerSignalStartEvent(ctx Context, task *TaskEntity, process *ProcessEntity) error {
 	eventDefinition, err := ctx.EventDefinitions().Select(task.ElementId.Int32)
 	if err == pgx.ErrNoRows {
