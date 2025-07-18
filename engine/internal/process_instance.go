@@ -126,17 +126,17 @@ func CreateProcessInstance(ctx Context, cmd engine.CreateProcessInstanceCmd) (en
 		variable := VariableEntity{
 			Partition: processInstance.Partition,
 
-			ProcessId:         pgtype.Int4{Int32: process.Id, Valid: true},
-			ProcessInstanceId: pgtype.Int4{Int32: processInstance.Id, Valid: true},
+			ProcessId:         process.Id,
+			ProcessInstanceId: processInstance.Id,
 
 			CreatedAt:   processInstance.CreatedAt,
 			CreatedBy:   cmd.WorkerId,
-			Encoding:    pgtype.Text{String: data.Encoding, Valid: true},
-			IsEncrypted: pgtype.Bool{Bool: data.IsEncrypted, Valid: true},
+			Encoding:    data.Encoding,
+			IsEncrypted: data.IsEncrypted,
 			Name:        variableName,
 			UpdatedAt:   processInstance.CreatedAt,
 			UpdatedBy:   cmd.WorkerId,
-			Value:       pgtype.Text{String: data.Value, Valid: true},
+			Value:       data.Value,
 		}
 
 		variables = append(variables, &variable)

@@ -67,3 +67,32 @@ func (r *eventDefinitionRepository) UpdateBatch(entities []*internal.EventDefini
 	}
 	return nil
 }
+
+type eventVariableRepository struct {
+	partitions map[string][]internal.EventVariableEntity
+}
+
+func (r *eventVariableRepository) InsertBatch(entities []*internal.EventVariableEntity) error {
+	for _, entity := range entities {
+		key := entity.Partition.Format(time.DateOnly)
+		entities := r.partitions[key]
+
+		entity.Id = int32(len(entities) + 1)
+
+		r.partitions[key] = append(entities, *entity)
+	}
+	return nil
+}
+
+func (r *eventVariableRepository) SelectByEvent(partition time.Time, eventId int32) ([]*internal.EventVariableEntity, error) {
+	var results []*internal.EventVariableEntity
+
+	key := partition.Format(time.DateOnly)
+	for _, e := range r.partitions[key] {
+		if e.EventId == eventId {
+			results = append(results, &e)
+		}
+	}
+
+	return results, nil
+}

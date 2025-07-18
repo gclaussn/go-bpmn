@@ -120,7 +120,7 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 		if data == nil {
 			variable := VariableEntity{ // with fields, needed for deletion
 				Partition:         job.Partition,
-				ProcessInstanceId: pgtype.Int4{Int32: job.ProcessInstanceId, Valid: true},
+				ProcessInstanceId: job.ProcessInstanceId,
 				Name:              variableName,
 			}
 
@@ -135,17 +135,17 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 		variable := VariableEntity{
 			Partition: job.Partition,
 
-			ProcessId:         pgtype.Int4{Int32: job.ProcessId, Valid: true},
-			ProcessInstanceId: pgtype.Int4{Int32: job.ProcessInstanceId, Valid: true},
+			ProcessId:         job.ProcessId,
+			ProcessInstanceId: job.ProcessInstanceId,
 
 			CreatedAt:   ctx.Time(),
 			CreatedBy:   job.LockedBy.String,
-			Encoding:    pgtype.Text{String: data.Encoding, Valid: true},
-			IsEncrypted: pgtype.Bool{Bool: data.IsEncrypted, Valid: true},
+			Encoding:    data.Encoding,
+			IsEncrypted: data.IsEncrypted,
 			Name:        variableName,
 			UpdatedAt:   ctx.Time(),
 			UpdatedBy:   job.LockedBy.String,
-			Value:       pgtype.Text{String: data.Value, Valid: true},
+			Value:       data.Value,
 		}
 
 		variables = append(variables, &variable)
@@ -171,17 +171,17 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 
 			ElementId:         pgtype.Int4{Int32: job.ElementId, Valid: true},
 			ElementInstanceId: pgtype.Int4{Int32: job.ElementInstanceId, Valid: true},
-			ProcessId:         pgtype.Int4{Int32: job.ProcessId, Valid: true},
-			ProcessInstanceId: pgtype.Int4{Int32: job.ProcessInstanceId, Valid: true},
+			ProcessId:         job.ProcessId,
+			ProcessInstanceId: job.ProcessInstanceId,
 
 			CreatedAt:   ctx.Time(),
 			CreatedBy:   job.LockedBy.String,
-			Encoding:    pgtype.Text{String: data.Encoding, Valid: true},
-			IsEncrypted: pgtype.Bool{Bool: data.IsEncrypted, Valid: true},
+			Encoding:    data.Encoding,
+			IsEncrypted: data.IsEncrypted,
 			Name:        variableName,
 			UpdatedAt:   ctx.Time(),
 			UpdatedBy:   job.LockedBy.String,
-			Value:       pgtype.Text{String: data.Value, Valid: true},
+			Value:       data.Value,
 		}
 
 		variables = append(variables, &variable)
@@ -209,12 +209,12 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 	}
 
 	for _, variable := range variables {
-		if variable.Value.Valid {
-			if err := ctx.Variables().Upsert(variable); err != nil {
+		if variable.Value == "" {
+			if err := ctx.Variables().Delete(variable); err != nil {
 				return engine.Job{}, err
 			}
 		} else {
-			if err := ctx.Variables().Delete(variable); err != nil {
+			if err := ctx.Variables().Upsert(variable); err != nil {
 				return engine.Job{}, err
 			}
 		}

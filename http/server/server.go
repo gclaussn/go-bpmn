@@ -443,7 +443,7 @@ func (s *Server) sendSignal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	encodeJSONResponseBody(w, r, signalEvent, http.StatusCreated)
+	encodeJSONResponseBody(w, r, signalEvent, http.StatusOK)
 }
 
 func (s *Server) setElementVariables(w http.ResponseWriter, r *http.Request) {

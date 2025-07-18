@@ -9,7 +9,6 @@ import (
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/engine/internal"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type variableRepository struct {
@@ -61,7 +60,6 @@ INSERT INTO variable (
 
 	element_id,
 	element_instance_id,
-	event_id,
 	process_id,
 	process_instance_id,
 
@@ -81,16 +79,15 @@ INSERT INTO variable (
 	$4,
 	$5,
 	$6,
-	$7,
 
+	$7,
 	$8,
 	$9,
 	$10,
 	$11,
 	$12,
 	$13,
-	$14,
-	$15
+	$14
 ) RETURNING id
 `,
 		entity.Partition,
@@ -98,7 +95,6 @@ INSERT INTO variable (
 
 		entity.ElementId,
 		entity.ElementInstanceId,
-		entity.EventId,
 		entity.ProcessId,
 		entity.ProcessInstanceId,
 
@@ -149,59 +145,6 @@ func (r variableRepository) SelectByElementInstance(cmd engine.GetElementVariabl
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan variable row: %v", err)
 		}
-
-		entities = append(entities, &entity)
-	}
-
-	return entities, nil
-}
-
-func (r variableRepository) SelectByEvent(partition time.Time, eventId int32) ([]*internal.VariableEntity, error) {
-	rows, err := r.tx.Query(r.txCtx, `
-SELECT
-	id,
-
-	created_at,
-	created_by,
-	encoding,
-	is_encrypted,
-	name,
-	updated_at,
-	updated_by,
-	value
-FROM
-	variable
-WHERE
-	partition = $1 AND
-	event_id = $2
-`, partition, eventId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to select variables by partition %s and event ID %d: %v", partition.Format(time.DateOnly), eventId, err)
-	}
-
-	defer rows.Close()
-
-	var entities []*internal.VariableEntity
-	for rows.Next() {
-		var entity internal.VariableEntity
-
-		if err := rows.Scan(
-			&entity.Id,
-
-			&entity.CreatedAt,
-			&entity.CreatedBy,
-			&entity.Encoding,
-			&entity.IsEncrypted,
-			&entity.Name,
-			&entity.UpdatedAt,
-			&entity.UpdatedBy,
-			&entity.Value,
-		); err != nil {
-			return nil, fmt.Errorf("failed to scan variable row: %v", err)
-		}
-
-		entity.Partition = partition
-		entity.EventId = pgtype.Int4{Int32: eventId, Valid: true}
 
 		entities = append(entities, &entity)
 	}
@@ -363,7 +306,6 @@ func (r variableRepository) Query(criteria engine.VariableCriteria, options engi
 
 			&entity.ElementId,
 			&entity.ElementInstanceId,
-			&entity.EventId,
 			&entity.ProcessId,
 			&entity.ProcessInstanceId,
 

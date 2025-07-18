@@ -21,7 +21,7 @@ requestBody:
         version: "1"
         workerId: go-bpmn
 responses:
-  "200":
+  "201":
     description: Process instance created
     content:
       application/json:

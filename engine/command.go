@@ -264,13 +264,3 @@ type JobCompletion struct {
 	// Applicable when job type is `SET_TIMER`.
 	Timer *Timer `json:"timer,omitempty"`
 }
-
-// A timer defines when a timer start or catch event is triggered.
-type Timer struct {
-	// A point in time, when the timer event is triggered.
-	Time time.Time `json:"time"`
-	// CRON expression that specifies a cyclic trigger.
-	TimeCycle string `json:"timeCycle,omitempty" validate:"cron"`
-	// Duration until the timer event is triggered.
-	TimeDuration ISO8601Duration `json:"timeDuration" validate:"iso8601_duration"`
-}

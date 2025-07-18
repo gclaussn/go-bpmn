@@ -87,7 +87,6 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 //   - [JobEvaluateExclusiveGateway]: forking exclusive gateway
 //   - [JobEvaluateInclusiveGateway]: forking inclusive gateway
 //   - [JobExecute]: business rule, script, send and service task
-//   - [JobSetSignalName]: signal catch event
 //   - [JobSetTimer]: timer catch event
 type JobType int
 
@@ -95,7 +94,6 @@ const (
 	JobEvaluateExclusiveGateway JobType = iota + 1
 	JobEvaluateInclusiveGateway
 	JobExecute
-	JobSetSignalName
 	JobSetTimer
 )
 
@@ -262,6 +260,8 @@ type Element struct {
 	BpmnElementName string            `json:"bpmnElementName,omitempty"`           // Element name within the BPMN XML.
 	BpmnElementType model.ElementType `json:"bpmnElementType" validate:"required"` // BPMN element type.
 	IsMultiInstance bool              `json:"multiInstance,omitempty"`             // Determines if the element is a multi instance.
+
+	EventDefinition *EventDefinition `json:"eventDefinition,omitempty"` // Definition, in case of a BPMN event.
 }
 
 func (v Element) String() string {
@@ -317,6 +317,13 @@ type ElementInstanceCriteria struct {
 
 	BpmnElementId string          `json:"bpmnElementId,omitempty"`                  // BPMN element ID filter.
 	States        []InstanceState `json:"states,omitempty" validate:"max=7,unique"` // States to include.
+}
+
+// EventDefinition is a generic definition of a BPMN event, while a BPMN element has exactly one type.
+type EventDefinition struct {
+	IsSuspended bool   `json:"suspended"`            // Determines if a start event definition is suspended.
+	SignalName  string `json:"signalName,omitempty"` // Name of the signal - set in case of a signal event.
+	Timer       *Timer `json:"timer,omitempty"`      // A timer definition - set in case of a timer event.
 }
 
 // Incident represents a failed job or task, which has no more retries left.
@@ -486,8 +493,8 @@ type SignalEvent struct {
 	Partition Partition `json:"partition" validate:"required"` // Event partition.
 	Id        int32     `json:"id" validate:"required"`        // Event ID.
 
-	CreatedAt       time.Time `json:"sentAt" validate:"required"`                // Signal sent time.
-	CreatedBy       string    `json:"sentBy" validate:"required"`                // ID of the worker or engine that sent the signal.
+	CreatedAt       time.Time `json:"createdAt" validate:"required"`             // Signal sent time.
+	CreatedBy       string    `json:"createdBy" validate:"required"`             // ID of the worker or engine that sent the signal.
 	Name            string    `json:"name" validate:"required"`                  // Name of the signal.
 	SubscriberCount int       `json:"subscriberCount" validate:"required,gte=0"` // Number of notified signal subscribers.
 }
@@ -550,6 +557,16 @@ type TaskCriteria struct {
 	Type TaskType `json:"type,omitempty"` // Task type.
 }
 
+// A timer defines when a timer start or catch event is triggered.
+type Timer struct {
+	// A point in time, when the timer event is triggered.
+	Time time.Time `json:"time"`
+	// CRON expression that specifies a cyclic trigger.
+	TimeCycle string `json:"timeCycle,omitempty" validate:"cron"`
+	// Duration until the timer event is triggered.
+	TimeDuration ISO8601Duration `json:"timeDuration" validate:"iso8601_duration"`
+}
+
 // Variable is data, identified by a name, that exists in the scope of a process instance or element instance.
 type Variable struct {
 	Partition Partition `json:"partition" validate:"required"` // Variable partition.
@@ -557,7 +574,6 @@ type Variable struct {
 
 	ElementId         int32 `json:"elementId,omitempty"`         // ID of the related element - set if the variable exists at element instance scope.
 	ElementInstanceId int32 `json:"elementInstanceId,omitempty"` // ID of the related element instance - set if the variable exists at element instance scope.
-	EventId           int32 `json:"eventId,omitempty"`           // ID of the related event - set if the variable was sent with a signal.
 	ProcessId         int32 `json:"processId,omitempty"`         // ID of the related process.
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // ID of the enclosing process instance.
 

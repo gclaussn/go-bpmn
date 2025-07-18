@@ -3,6 +3,7 @@ package pg
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/gclaussn/go-bpmn/engine/internal"
 	"github.com/gclaussn/go-bpmn/model"
@@ -323,4 +324,107 @@ WHERE
 	}
 
 	return nil
+}
+
+type eventVariableRepository struct {
+	tx    pgx.Tx
+	txCtx context.Context
+}
+
+func (r eventVariableRepository) InsertBatch(entities []*internal.EventVariableEntity) error {
+	batch := &pgx.Batch{}
+
+	for _, entity := range entities {
+		batch.Queue(`
+INSERT INTO event_variable (
+	partition,
+	id,
+
+	event_id,
+
+	encoding,
+	is_encrypted,
+	name,
+	value
+) VALUES (
+	$1,
+	nextval($2),
+
+	$3,
+
+	$4,
+	$5,
+	$6,
+	$7
+) RETURNING id
+`,
+			entity.Partition,
+			partitionSequence("event_variable", entity.Partition),
+
+			entity.EventId,
+
+			entity.Encoding,
+			entity.IsEncrypted,
+			entity.Name,
+			entity.Value,
+		)
+	}
+
+	batchResults := r.tx.SendBatch(r.txCtx, batch)
+	defer batchResults.Close()
+
+	for i := range entities {
+		row := batchResults.QueryRow()
+
+		if err := row.Scan(&entities[i].Id); err != nil {
+			return fmt.Errorf("failed to insert event variable %+v: %v", entities[i], err)
+		}
+	}
+
+	return nil
+}
+
+func (r eventVariableRepository) SelectByEvent(partition time.Time, eventId int32) ([]*internal.EventVariableEntity, error) {
+	rows, err := r.tx.Query(r.txCtx, `
+SELECT
+	id,
+
+	encoding,
+	is_encrypted,
+	name,
+	value
+FROM
+	event_variable
+WHERE
+	partition = $1 AND
+	event_id = $2
+`, partition, eventId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to select event variables by partition %s and event ID %d: %v", partition.Format(time.DateOnly), eventId, err)
+	}
+
+	defer rows.Close()
+
+	var entities []*internal.EventVariableEntity
+	for rows.Next() {
+		var entity internal.EventVariableEntity
+
+		if err := rows.Scan(
+			&entity.Id,
+
+			&entity.Encoding,
+			&entity.IsEncrypted,
+			&entity.Name,
+			&entity.Value,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan event variable row: %v", err)
+		}
+
+		entity.Partition = partition
+		entity.EventId = eventId
+
+		entities = append(entities, &entity)
+	}
+
+	return entities, nil
 }

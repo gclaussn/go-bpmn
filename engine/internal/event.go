@@ -53,6 +53,12 @@ type EventDefinitionEntity struct {
 	Version         string
 }
 
+func (e EventDefinitionEntity) EventDefinition() engine.EventDefinition {
+	return engine.EventDefinition{
+		SignalName: e.SignalName.String,
+	}
+}
+
 type EventDefinitionRepository interface {
 	InsertBatch([]*EventDefinitionEntity) error
 	Select(elementId int32) (*EventDefinitionEntity, error)
@@ -62,6 +68,23 @@ type EventDefinitionRepository interface {
 	SelectBySignalName(signalName string) ([]*EventDefinitionEntity, error)
 
 	UpdateBatch([]*EventDefinitionEntity) error
+}
+
+type EventVariableEntity struct {
+	Partition time.Time
+	Id        int32
+
+	EventId int32
+
+	Encoding    pgtype.Text // NULL, when a process instance variable should be deleted
+	IsEncrypted pgtype.Bool // NULL, when a process instance variable should be deleted
+	Name        string
+	Value       pgtype.Text // NULL, when a process instance variable should be deleted
+}
+
+type EventVariableRepository interface {
+	InsertBatch([]*EventVariableEntity) error
+	SelectByEvent(partition time.Time, eventId int32) ([]*EventVariableEntity, error)
 }
 
 func suspendEventDefinitions(ctx Context, bpmnProcessId string) error {

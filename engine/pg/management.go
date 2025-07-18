@@ -20,6 +20,7 @@ var Tables = []string{
 	"element_instance",
 	"event",
 	"event_definition",
+	"event_variable",
 	"incident",
 	"job",
 	"process",
@@ -34,6 +35,7 @@ var Tables = []string{
 var partitionedTables = []string{
 	"element_instance",
 	"event",
+	"event_variable",
 	"incident",
 	"job",
 	"process_instance",

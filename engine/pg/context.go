@@ -48,6 +48,10 @@ func (c *pgContext) EventDefinitions() internal.EventDefinitionRepository {
 	return &eventDefinitionRepository{tx: c.tx, txCtx: c.txCtx}
 }
 
+func (c *pgContext) EventVariables() internal.EventVariableRepository {
+	return &eventVariableRepository{tx: c.tx, txCtx: c.txCtx}
+}
+
 func (c *pgContext) Incidents() internal.IncidentRepository {
 	return &incidentRepository{tx: c.tx, txCtx: c.txCtx}
 }

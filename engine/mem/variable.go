@@ -7,7 +7,6 @@ import (
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/engine/internal"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type variableRepository struct {
@@ -22,7 +21,7 @@ func (r *variableRepository) Delete(entity *internal.VariableEntity) error {
 			continue // skip deleted entity
 		}
 
-		if entity.ProcessInstanceId.Valid && e.ProcessInstanceId.Int32 != entity.ProcessInstanceId.Int32 {
+		if entity.ProcessInstanceId != 0 && e.ProcessInstanceId != entity.ProcessInstanceId {
 			continue
 		}
 		if e.ElementInstanceId.Int32 != entity.ElementInstanceId.Int32 {
@@ -31,7 +30,7 @@ func (r *variableRepository) Delete(entity *internal.VariableEntity) error {
 
 		if e.Name == entity.Name {
 			e.Id = -1
-			e.Value = pgtype.Text{}
+			e.Value = ""
 			entities[i] = e
 			break
 		}
@@ -72,23 +71,6 @@ func (r *variableRepository) SelectByElementInstance(cmd engine.GetElementVariab
 	return results, nil
 }
 
-func (r *variableRepository) SelectByEvent(partition time.Time, eventId int32) ([]*internal.VariableEntity, error) {
-	var results []*internal.VariableEntity
-
-	key := partition.Format(time.DateOnly)
-	for _, e := range r.partitions[key] {
-		if e.Id == -1 {
-			continue // skip deleted variable
-		}
-
-		if e.EventId.Valid && e.EventId.Int32 == eventId {
-			results = append(results, &e)
-		}
-	}
-
-	return results, nil
-}
-
 func (r *variableRepository) SelectByProcessInstance(cmd engine.GetProcessVariablesCmd) ([]*internal.VariableEntity, error) {
 	var results []*internal.VariableEntity
 
@@ -102,7 +84,7 @@ func (r *variableRepository) SelectByProcessInstance(cmd engine.GetProcessVariab
 			continue // skip element variable
 		}
 
-		if cmd.ProcessInstanceId != 0 && cmd.ProcessInstanceId != e.ProcessInstanceId.Int32 {
+		if cmd.ProcessInstanceId != 0 && cmd.ProcessInstanceId != e.ProcessInstanceId {
 			continue
 		}
 
@@ -167,7 +149,7 @@ func (r *variableRepository) Query(c engine.VariableCriteria, o engine.QueryOpti
 			if c.ElementInstanceId != 0 && c.ElementInstanceId != e.ElementInstanceId.Int32 {
 				continue
 			}
-			if c.ProcessInstanceId != 0 && c.ProcessInstanceId != e.ProcessInstanceId.Int32 {
+			if c.ProcessInstanceId != 0 && c.ProcessInstanceId != e.ProcessInstanceId {
 				continue
 			}
 

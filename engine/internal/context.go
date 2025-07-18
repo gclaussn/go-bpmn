@@ -16,6 +16,7 @@ type Context interface {
 	ElementInstances() ElementInstanceRepository
 	Events() EventRepository
 	EventDefinitions() EventDefinitionRepository
+	EventVariables() EventVariableRepository
 	Incidents() IncidentRepository
 	Jobs() JobRepository
 	Processes() ProcessRepository

@@ -162,42 +162,34 @@ func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.SignalEvent, erro
 	}
 
 	// insert variables per event
+	variables := make([]*EventVariableEntity, 0, len(events)*len(cmd.Variables))
 	for _, event := range events {
 		for variableName, data := range cmd.Variables {
-			var variable VariableEntity
 			if data != nil {
-				variable = VariableEntity{
+				variables = append(variables, &EventVariableEntity{
 					Partition: event.Partition,
 
-					EventId: pgtype.Int4{Int32: event.Id, Valid: true},
+					EventId: event.Id,
 
-					CreatedAt:   event.CreatedAt,
-					CreatedBy:   event.CreatedBy,
 					Encoding:    pgtype.Text{String: data.Encoding, Valid: true},
 					IsEncrypted: pgtype.Bool{Bool: data.IsEncrypted, Valid: true},
 					Name:        variableName,
-					UpdatedAt:   event.CreatedAt,
-					UpdatedBy:   event.CreatedBy,
 					Value:       pgtype.Text{String: data.Value, Valid: true},
-				}
+				})
 			} else {
-				variable = VariableEntity{
+				variables = append(variables, &EventVariableEntity{
 					Partition: event.Partition,
 
-					EventId: pgtype.Int4{Int32: event.Id, Valid: true},
+					EventId: event.Id,
 
-					CreatedAt: event.CreatedAt,
-					CreatedBy: event.CreatedBy,
-					Name:      variableName,
-					UpdatedAt: event.CreatedAt,
-					UpdatedBy: event.CreatedBy,
-				}
-			}
-
-			if err := ctx.Variables().Insert(&variable); err != nil {
-				return engine.SignalEvent{}, err
+					Name: variableName,
+				})
 			}
 		}
+	}
+
+	if err := ctx.EventVariables().InsertBatch(variables); err != nil {
+		return engine.SignalEvent{}, err
 	}
 
 	return mainEvent.SignalEvent(), nil
@@ -266,7 +258,7 @@ func triggerSignalStartEvent(ctx Context, task *TaskEntity, process *ProcessEnti
 		return err
 	}
 
-	variables, err := ctx.Variables().SelectByEvent(task.Partition, task.EventId.Int32)
+	variables, err := ctx.EventVariables().SelectByEvent(task.Partition, task.EventId.Int32)
 	if err != nil {
 		return err
 	}
@@ -279,17 +271,17 @@ func triggerSignalStartEvent(ctx Context, task *TaskEntity, process *ProcessEnti
 		if err := ctx.Variables().Insert(&VariableEntity{
 			Partition: processInstance.Partition,
 
-			ProcessId:         pgtype.Int4{Int32: processInstance.ProcessId, Valid: true},
-			ProcessInstanceId: pgtype.Int4{Int32: processInstance.Id, Valid: true},
+			ProcessId:         processInstance.ProcessId,
+			ProcessInstanceId: processInstance.Id,
 
 			CreatedAt:   processInstance.CreatedAt,
 			CreatedBy:   processInstance.CreatedBy,
-			Encoding:    variable.Encoding,
-			IsEncrypted: variable.IsEncrypted,
+			Encoding:    variable.Encoding.String,
+			IsEncrypted: variable.IsEncrypted.Bool,
 			Name:        variable.Name,
 			UpdatedAt:   processInstance.CreatedAt,
 			UpdatedBy:   processInstance.CreatedBy,
-			Value:       variable.Value,
+			Value:       variable.Value.String,
 		}); err != nil {
 			return err
 		}

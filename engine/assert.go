@@ -37,6 +37,86 @@ func Assert(t *testing.T, e Engine, processInstance ProcessInstance) *ProcessIns
 	}
 }
 
+// AssertSignalStart asserts a process instance started by a signal start event.
+//
+// Since a process can have multiple signal start events, the ID of the BPMN start element must be provided.
+func AssertSignalStart(t *testing.T, e Engine, processId int32, bpmnStartElementId string, variables ...map[string]*Data) *ProcessInstanceAssert {
+	results, err := e.Query(ElementCriteria{ProcessId: processId})
+	if err != nil {
+		t.Fatalf("failed to query elements: %v", err)
+	}
+
+	elements := make(map[string]Element, len(results))
+	for _, result := range results {
+		element := result.(Element)
+		elements[element.BpmnElementId] = element
+	}
+
+	var element Element
+	for bpmnElementId := range elements {
+		if elements[bpmnElementId].BpmnElementId == bpmnStartElementId {
+			element = elements[bpmnElementId]
+			break
+		}
+	}
+
+	if element.EventDefinition == nil {
+		t.Fatalf("failed to find event definition: %v", err)
+	}
+
+	signalVariables := make(map[string]*Data)
+	for _, v := range variables {
+		for variableName, data := range v {
+			signalVariables[variableName] = data
+		}
+	}
+
+	_, err = e.SendSignal(SendSignalCmd{
+		Name:      element.EventDefinition.SignalName,
+		Variables: signalVariables,
+		WorkerId:  "test-worker",
+	})
+	if err != nil {
+		t.Fatalf("failed to send signal: %v", err)
+	}
+
+	completedTasks, failedTasks, err := e.ExecuteTasks(ExecuteTasksCmd{
+		ElementId: element.Id,
+
+		Limit: 1,
+	})
+	if err != nil {
+		t.Fatalf("failed to execute trigger event task: %v", err)
+	}
+
+	if len(failedTasks) != 0 || len(completedTasks) == 0 {
+		t.Fatal("trigger event task failed")
+	}
+
+	results, err = e.Query(ProcessInstanceCriteria{ProcessId: processId})
+	if err != nil {
+		t.Fatalf("failed to query process instances: %v", err)
+	}
+
+	var processInstance ProcessInstance
+	for _, result := range results {
+		if result.(ProcessInstance).CreatedAt == *completedTasks[0].CompletedAt {
+			processInstance = result.(ProcessInstance)
+			break
+		}
+	}
+
+	return &ProcessInstanceAssert{
+		t: t,
+		e: e,
+
+		elements: elements,
+
+		partition:         processInstance.Partition,
+		processInstanceId: processInstance.Id,
+	}
+}
+
 // AsserTimerStart asserts a process instance started by a timer start event.
 //
 // startTime is used to increase the engine's time, so that the related trigger timer event task becomes due.

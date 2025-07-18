@@ -9,6 +9,7 @@ import (
 	"github.com/gclaussn/go-bpmn/engine/internal"
 	"github.com/gclaussn/go-bpmn/model"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type elementRepository struct {
@@ -124,9 +125,17 @@ func (r elementRepository) Query(criteria engine.ElementCriteria, options engine
 
 	var results []any
 	for rows.Next() {
-		var entity internal.ElementEntity
+		var (
+			entity internal.ElementEntity
 
-		var bpmnElementTypeValue string
+			bpmnElementTypeValue string
+
+			isSuspended  pgtype.Bool
+			signalName   pgtype.Text
+			time         pgtype.Timestamp
+			timeCycle    pgtype.Text
+			timeDuration pgtype.Text
+		)
 
 		if err := rows.Scan(
 			&entity.Id,
@@ -137,13 +146,38 @@ func (r elementRepository) Query(criteria engine.ElementCriteria, options engine
 			&entity.BpmnElementName,
 			&bpmnElementTypeValue,
 			&entity.IsMultiInstance,
+
+			&isSuspended,
+			&signalName,
+			&time,
+			&timeCycle,
+			&timeDuration,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan element row: %v", err)
 		}
 
 		entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
 
-		results = append(results, entity.Element())
+		result := entity.Element()
+		if isSuspended.Valid {
+			var timer *engine.Timer
+			switch entity.BpmnElementType {
+			case model.ElementTimerCatchEvent, model.ElementTimerStartEvent:
+				timer = &engine.Timer{
+					Time:         time.Time,
+					TimeCycle:    timeCycle.String,
+					TimeDuration: engine.ISO8601Duration(timeDuration.String),
+				}
+			}
+
+			result.EventDefinition = &engine.EventDefinition{
+				IsSuspended: isSuspended.Bool,
+				SignalName:  signalName.String,
+				Timer:       timer,
+			}
+		}
+
+		results = append(results, result)
 	}
 
 	return results, nil
