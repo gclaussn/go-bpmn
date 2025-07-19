@@ -196,6 +196,47 @@ func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.SignalEvent, erro
 }
 
 func triggerSignalCatchEvent(ctx Context, task *TaskEntity, process *ProcessEntity) error {
+	processInstance, err := ctx.ProcessInstances().Select(task.Partition, task.ProcessInstanceId.Int32)
+	if err == pgx.ErrNoRows {
+		return engine.Error{
+			Type:   engine.ErrorBug,
+			Title:  "failed to trigger signal catch event",
+			Detail: fmt.Sprintf("process instance %s/%d could not be found", task.Partition.Format(time.DateOnly), task.ProcessInstanceId.Int32),
+		}
+	}
+	if err != nil {
+		return err
+	}
+
+	if processInstance.EndedAt.Valid {
+		return nil
+	}
+
+	execution, err := ctx.ElementInstances().Select(task.Partition, task.ElementInstanceId.Int32)
+	if err != nil {
+		return err
+	}
+
+	if execution.EndedAt.Valid {
+		return nil
+	}
+
+	execution.EventId = task.EventId
+
+	ec := executionContext{
+		engineOrWorkerId: ctx.Options().EngineId,
+		process:          process,
+		processInstance:  processInstance,
+	}
+
+	if err := ec.continueExecutions(ctx, []*ElementInstanceEntity{execution}); err != nil {
+		if _, ok := err.(engine.Error); ok {
+			task.Error = pgtype.Text{String: err.Error(), Valid: true}
+		} else {
+			return fmt.Errorf("failed to continue execution %+v: %v", execution, err)
+		}
+	}
+
 	return nil
 }
 

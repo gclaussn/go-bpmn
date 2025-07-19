@@ -52,6 +52,14 @@ func TestSignalCatchEventProcess(t *testing.T) {
 
 	piAssert.IsWaitingAt("signalCatchEvent")
 	piAssert.ExecuteJob()
+
+	if _, err := e.SendSignal(engine.SendSignalCmd{
+		Name:     "catch-signal",
+		WorkerId: worker.DefaultEncoding,
+	}); err != nil {
+		t.Fatalf("failed to send signal: %v", err)
+	}
+
 	piAssert.IsWaitingAt("signalCatchEvent")
 	piAssert.ExecuteTask()
 
