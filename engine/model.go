@@ -313,7 +313,7 @@ type ElementInstanceCriteria struct {
 	ProcessId         int32 `json:"processId,omitempty"`         // Process filter.
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // Process instance filter.
 
-	BpmnElementId string          `json:"bpmnElementId,omitempty"`
+	BpmnElementId string          `json:"bpmnElementId,omitempty"`                  // BPMN element ID filter.
 	States        []InstanceState `json:"states,omitempty" validate:"max=7,unique"` // States to include.
 }
 

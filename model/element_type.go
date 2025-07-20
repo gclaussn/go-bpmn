@@ -2,6 +2,7 @@ package model
 
 import "fmt"
 
+// ElementType describes the different BPMN element types - especially tasks, gateways and events.
 type ElementType int
 
 const (

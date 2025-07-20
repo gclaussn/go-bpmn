@@ -39,7 +39,7 @@ responses:
               startedAt: "2025-05-09T17:43:56.392Z"
               state: STARTED
               stateChangedBy: go-bpmn
-              version: 1
+              version: "1"
   "400":
     description: Bad request
     content:

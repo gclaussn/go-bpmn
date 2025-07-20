@@ -74,7 +74,7 @@ responses:
           process_instance_ended:
             summary: Process instance ended
             value:
-              status: 409,
+              status: 409
               type: CONFLICT
               title: failed to set process variables
               detail: process instance 2025-04-01/935 is ended

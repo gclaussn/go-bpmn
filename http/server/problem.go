@@ -10,19 +10,20 @@ import (
 	"github.com/gclaussn/go-bpmn/engine"
 )
 
+// ProblemType determines if a problem is HTTP and engine related.
 type ProblemType int
 
 const (
 	ProblemTypeHttpMediaType ProblemType = iota + 1
 	ProblemTypeHttpRequestBody
 	ProblemTypeHttpRequestUri
-	ProblemTypeValidation
 
 	// engine error types
 	ProblemTypeConflict
 	ProblemTypeNotFound
 	ProblemTypeProcessModel
 	ProblemTypeQuery
+	ProblemTypeValidation
 )
 
 func MapProblemType(s string) ProblemType {

@@ -23,6 +23,7 @@ type ExecuteTasksRes struct {
 	FailedTasks    []engine.Task `json:"failedTasks" validate:"required"`    // Failed tasks.
 }
 
+// Process instance or element instance variable response.
 type GetVariablesRes struct {
 	Count     int                    `json:"count" validate:"required,gte=0"` // Number of variables.
 	Variables map[string]engine.Data `json:"variables" validate:"required"`   // Variable map, using variable names as keys.
