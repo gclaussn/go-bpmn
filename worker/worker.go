@@ -229,6 +229,10 @@ func (w *Worker) Register(delegate Delegate) (Process, error) {
 		return Process{}, fmt.Errorf("failed to create process: %v", err)
 	}
 
+	if _, ok := w.processes[process.Id]; ok {
+		return Process{}, fmt.Errorf("process %s:%s is already registered", createProcessCmd.BpmnProcessId, createProcessCmd.Version)
+	}
+
 	results, err := w.engine.Query(engine.ElementCriteria{
 		ProcessId: process.Id,
 	})
