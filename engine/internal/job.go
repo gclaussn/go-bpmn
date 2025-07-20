@@ -18,20 +18,18 @@ type JobEntity struct {
 	ProcessId         int32
 	ProcessInstanceId int32
 
-	BpmnElementId      string
-	BpmnErrorCode      pgtype.Text
-	BpmnEscalationCode pgtype.Text
-	CompletedAt        pgtype.Timestamp
-	CorrelationKey     pgtype.Text
-	CreatedAt          time.Time
-	CreatedBy          string
-	DueAt              time.Time
-	Error              pgtype.Text
-	LockedAt           pgtype.Timestamp
-	LockedBy           pgtype.Text
-	RetryCount         int
-	RetryTimer         pgtype.Text
-	Type               engine.JobType
+	BpmnElementId  string
+	CompletedAt    pgtype.Timestamp
+	CorrelationKey pgtype.Text
+	CreatedAt      time.Time
+	CreatedBy      string
+	DueAt          time.Time
+	Error          pgtype.Text
+	LockedAt       pgtype.Timestamp
+	LockedBy       pgtype.Text
+	RetryCount     int
+	RetryTimer     pgtype.Text
+	Type           engine.JobType
 }
 
 func (e JobEntity) Job() engine.Job {
@@ -45,7 +43,6 @@ func (e JobEntity) Job() engine.Job {
 		ProcessInstanceId: e.ProcessInstanceId,
 
 		BpmnElementId:  e.BpmnElementId,
-		BpmnErrorCode:  e.BpmnErrorCode.String,
 		CompletedAt:    timeOrNil(e.CompletedAt),
 		CorrelationKey: e.CorrelationKey.String,
 		CreatedAt:      e.CreatedAt,
@@ -192,12 +189,6 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 
 	if cmd.Error != "" {
 		job.Error = pgtype.Text{String: cmd.Error, Valid: true}
-	} else if job.Type == engine.JobExecute {
-		if cmd.BpmnErrorCode != "" {
-			job.BpmnErrorCode = pgtype.Text{String: cmd.BpmnErrorCode, Valid: true}
-		} else if cmd.BpmnEscalationCode != "" {
-			job.BpmnEscalationCode = pgtype.Text{String: cmd.BpmnEscalationCode, Valid: true}
-		}
 	}
 
 	if !job.Error.Valid {

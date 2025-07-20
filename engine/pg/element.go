@@ -16,7 +16,7 @@ type elementRepository struct {
 	txCtx context.Context
 }
 
-func (r elementRepository) Insert(entities []*internal.ElementEntity) error {
+func (r elementRepository) InsertBatch(entities []*internal.ElementEntity) error {
 	batch := &pgx.Batch{}
 
 	for _, entity := range entities {

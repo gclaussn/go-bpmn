@@ -334,7 +334,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		elements[i] = &element
 	}
 
-	if err := ctx.Elements().Insert(elements); err != nil {
+	if err := ctx.Elements().InsertBatch(elements); err != nil {
 		return engine.Process{}, err
 	}
 

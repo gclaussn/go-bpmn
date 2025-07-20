@@ -42,13 +42,9 @@ WHERE
 	AND state IN ({{.c.States | joinInstanceState}})
 {{end}}
 
-{{if or (gt .o.Offset 0) (gt .o.Limit 0)}}
 ORDER BY
 	partition, id
-{{end}}
 {{if gt .o.Offset 0}}
 OFFSET {{.o.Offset}}
 {{end}}
-{{if gt .o.Limit 0}}
 LIMIT {{.o.Limit}}
-{{end}}

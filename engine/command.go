@@ -9,10 +9,6 @@ type CompleteJobCmd struct {
 	// Job ID.
 	Id int32 `json:"-"`
 
-	// Optional code, used to trigger a BPMN error.
-	BpmnErrorCode string `json:"bpmnErrorCode,omitempty"`
-	// Optional code, used to trigger a BPMN escalation.
-	BpmnEscalationCode string `json:"bpmnEscalationCode,omitempty"`
 	// Optional completion, used to succeed a job.
 	Completion *JobCompletion `json:"completion,omitempty"`
 	// Variables to set or delete at element instance scope.
@@ -235,6 +231,12 @@ type UnlockTasksCmd struct {
 
 // A job completion is used to complete jobs of various types.
 type JobCompletion struct {
+	// Code, used to trigger a BPMN error.
+	// Applicable when job type is `EXECUTE`.
+	ErrorCode string `json:"bpmnErrorCode,omitempty"`
+	// Code, used to trigger a BPMN escalation.
+	// Applicable when job type is `EXECUTE`.
+	EscalationCode string `json:"bpmnEscalationCode,omitempty"`
 	// Evaluated BPMN element ID to continue with after the exclusive gateway.
 	// Applicable when job type is `EVALUATE_EXCLUSIVE_GATEWAY`.
 	ExclusiveGatewayDecision string `json:"exclusiveGatewayDecision,omitempty"`

@@ -19,9 +19,6 @@ func mustCreateEngine(t *testing.T, customizers ...func(*Options)) engine.Engine
 		t.Skip()
 	}
 
-	x := os.Environ()
-	println(x)
-
 	databaseUrl := lookUpDatabaseUrl()
 	if databaseUrl == "" {
 		t.Skip("GO_BPMN_TEST_DATABASE_URL not set")
@@ -71,7 +68,7 @@ func mustInsertEntities(t *testing.T, e engine.Engine, entities []any) {
 		case *internal.ElementInstanceEntity:
 			err = ctx.ElementInstances().Insert(entity)
 		case *internal.ElementEntity:
-			err = ctx.Elements().Insert([]*internal.ElementEntity{entity})
+			err = ctx.Elements().InsertBatch([]*internal.ElementEntity{entity})
 		case *internal.IncidentEntity:
 			err = ctx.Incidents().Insert(entity)
 		case *internal.JobEntity:

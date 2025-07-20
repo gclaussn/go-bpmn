@@ -88,8 +88,6 @@ SELECT
 	process_instance_id,
 
 	bpmn_element_id,
-	bpmn_error_code,
-	bpmn_escalation_code,
 	completed_at,
 	correlation_key,
 	created_at,
@@ -119,8 +117,6 @@ WHERE
 		&entity.ProcessInstanceId,
 
 		&entity.BpmnElementId,
-		&entity.BpmnErrorCode,
-		&entity.BpmnEscalationCode,
 		&entity.CompletedAt,
 		&entity.CorrelationKey,
 		&entity.CreatedAt,
@@ -148,10 +144,8 @@ func (r jobRepository) Update(entity *internal.JobEntity) error {
 UPDATE
 	job
 SET
-	bpmn_error_code = $3,
-	bpmn_escalation_code = $4,
-	completed_at = $5,
-	error = $6
+	completed_at = $3,
+	error = $4
 WHERE
 	partition = $1 AND
 	id = $2
@@ -159,8 +153,6 @@ WHERE
 		entity.Partition,
 		entity.Id,
 
-		entity.BpmnErrorCode,
-		entity.BpmnEscalationCode,
 		entity.CompletedAt,
 		entity.Error,
 	); err != nil {
@@ -203,8 +195,6 @@ func (r jobRepository) Query(criteria engine.JobCriteria, options engine.QueryOp
 			&entity.ProcessInstanceId,
 
 			&entity.BpmnElementId,
-			&entity.BpmnErrorCode,
-			&entity.BpmnEscalationCode,
 			&entity.CompletedAt,
 			&entity.CorrelationKey,
 			&entity.CreatedAt,

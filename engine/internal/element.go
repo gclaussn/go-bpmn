@@ -30,7 +30,7 @@ func (e ElementEntity) Element() engine.Element {
 }
 
 type ElementRepository interface {
-	Insert([]*ElementEntity) error
+	InsertBatch([]*ElementEntity) error
 	SelectByProcessId(processId int32) ([]*ElementEntity, error)
 
 	Query(engine.ElementCriteria, engine.QueryOptions) ([]any, error)

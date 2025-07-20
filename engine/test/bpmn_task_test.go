@@ -77,7 +77,9 @@ func (x taskTest) errorBpmnErrorCodeNotSupported(t *testing.T) {
 
 	piAssert.IsWaitingAt("serviceTask")
 	piAssert.CompleteJobWithError(engine.CompleteJobCmd{
-		BpmnErrorCode: "error-code",
+		Completion: &engine.JobCompletion{
+			ErrorCode: "error-code",
+		},
 	})
 }
 
@@ -86,6 +88,8 @@ func (x taskTest) errorBpmnEscalationCodeNotSupported(t *testing.T) {
 
 	piAssert.IsWaitingAt("serviceTask")
 	piAssert.CompleteJobWithError(engine.CompleteJobCmd{
-		BpmnEscalationCode: "esclation-code",
+		Completion: &engine.JobCompletion{
+			EscalationCode: "esclation-code",
+		},
 	})
 }
