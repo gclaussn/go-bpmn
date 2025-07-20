@@ -54,6 +54,10 @@ type IncidentRepository interface {
 }
 
 func ResolveIncident(ctx Context, cmd engine.ResolveIncidentCmd) error {
+	if cmd.RetryCount <= 0 {
+		cmd.RetryCount = 1
+	}
+
 	incident, err := ctx.Incidents().Select(time.Time(cmd.Partition), cmd.Id)
 	if err == pgx.ErrNoRows {
 		return engine.Error{
@@ -120,6 +124,7 @@ func ResolveIncident(ctx Context, cmd engine.ResolveIncidentCmd) error {
 
 			ElementId:         task.ElementId,
 			ElementInstanceId: task.ElementInstanceId,
+			EventId:           task.EventId,
 			ProcessId:         task.ProcessId,
 			ProcessInstanceId: task.ProcessInstanceId,
 
