@@ -296,7 +296,7 @@ func TestCreateProcessWithTimer(t *testing.T) {
 				require.NoError(err, "failed to create process")
 
 				// then
-				results, err := e.Query(engine.TaskCriteria{ProcessId: process1.Id, Type: engine.TaskTriggerTimerEvent})
+				results, err := e.Query(engine.TaskCriteria{ProcessId: process1.Id, Type: engine.TaskTriggerEvent})
 				require.NoError(err, "failed to query tasks")
 				require.Len(results, 1)
 
@@ -308,14 +308,17 @@ func TestCreateProcessWithTimer(t *testing.T) {
 
 					ElementId:         task.ElementId,
 					ElementInstanceId: int32(0),
+					EventId:           task.EventId,
 					ProcessId:         process1.Id,
 					ProcessInstanceId: int32(0),
 
 					CreatedAt: task.CreatedAt,
 					CreatedBy: testWorkerId,
 					DueAt:     task.DueAt,
-					Type:      engine.TaskTriggerTimerEvent,
+					Type:      engine.TaskTriggerEvent,
 				}, task)
+
+				assert.NotEmpty(task.EventId)
 
 				// given
 				cmd2 := engine.CreateProcessCmd{
@@ -339,12 +342,12 @@ func TestCreateProcessWithTimer(t *testing.T) {
 				require.NoError(err, "failed to set time")
 
 				// then
-				results, err = e.Query(engine.TaskCriteria{ProcessId: process2.Id, Type: engine.TaskTriggerTimerEvent})
+				results, err = e.Query(engine.TaskCriteria{ProcessId: process2.Id, Type: engine.TaskTriggerEvent})
 				require.NoError(err, "failed to query tasks")
 				require.Len(results, 2)
 
 				// when
-				completedTasks, failedTasks, err := e.ExecuteTasks(engine.ExecuteTasksCmd{Type: engine.TaskTriggerTimerEvent, Limit: 3})
+				completedTasks, failedTasks, err := e.ExecuteTasks(engine.ExecuteTasksCmd{Type: engine.TaskTriggerEvent, Limit: 3})
 				require.NoError(err, "failed to execute tasks")
 
 				// then
@@ -358,7 +361,7 @@ func TestCreateProcessWithTimer(t *testing.T) {
 				assert.Equal(results[0].(engine.ProcessInstance).ProcessId, process2.Id)
 				assert.Equal(results[1].(engine.ProcessInstance).ProcessId, process2.Id)
 
-				results, err = e.Query(engine.TaskCriteria{ProcessId: process2.Id, Type: engine.TaskTriggerTimerEvent})
+				results, err = e.Query(engine.TaskCriteria{ProcessId: process2.Id, Type: engine.TaskTriggerEvent})
 				require.NoError(err, "failed to query tasks")
 				require.Len(results, 4, "expected two new tasks for the next time cycle")
 			})

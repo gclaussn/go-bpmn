@@ -299,6 +299,20 @@ func (c *clientWithContext) ResumeProcessInstance(cmd engine.ResumeProcessInstan
 	return c.doPatch(path, cmd, nil)
 }
 
+func (c *client) SendSignal(cmd engine.SendSignalCmd) (engine.SignalEvent, error) {
+	w, cancel := c.withTimeout()
+	defer cancel()
+	return w.SendSignal(cmd)
+}
+
+func (c *clientWithContext) SendSignal(cmd engine.SendSignalCmd) (engine.SignalEvent, error) {
+	var signalEvent engine.SignalEvent
+	if err := c.doPost(server.PathEventsSignals, cmd, &signalEvent); err != nil {
+		return engine.SignalEvent{}, err
+	}
+	return signalEvent, nil
+}
+
 func (c *client) SetElementVariables(cmd engine.SetElementVariablesCmd) error {
 	w, cancel := c.withTimeout()
 	defer cancel()

@@ -18,6 +18,9 @@ FROM (
 		AND id = {{.Id}}
 {{end}}
 
+{{if ne .ElementId 0}}
+		AND element_id = {{.ElementId}}
+{{end}}
 {{if ne .ElementInstanceId 0}}
 		AND element_instance_id = {{.ElementInstanceId}}
 {{end}}
@@ -46,6 +49,7 @@ RETURNING
 
 	task.element_id,
 	task.element_instance_id,
+	task.event_id,
 	task.process_id,
 	task.process_instance_id,
 

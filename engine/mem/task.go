@@ -27,6 +27,13 @@ func (r *taskRepository) Insert(entity *internal.TaskEntity) error {
 	return nil
 }
 
+func (r *taskRepository) InsertBatch(entities []*internal.TaskEntity) error {
+	for _, entity := range entities {
+		_ = r.Insert(entity)
+	}
+	return nil
+}
+
 func (r *taskRepository) Select(partition time.Time, id int32) (*internal.TaskEntity, error) {
 	key := partition.Format(time.DateOnly)
 	for _, e := range r.partitions[key] {
@@ -148,6 +155,9 @@ func (r *taskRepository) Lock(cmd engine.ExecuteTasksCmd, lockedAt time.Time) ([
 				continue
 			}
 
+			if cmd.ElementId != 0 && cmd.ElementId != e.ElementId.Int32 {
+				continue
+			}
 			if cmd.ElementInstanceId != 0 && cmd.ElementInstanceId != e.ElementInstanceId.Int32 {
 				continue
 			}

@@ -1,22 +1,32 @@
 SELECT
-	id,
+	element.id,
 
-	process_id,
+	element.process_id,
 
-	bpmn_element_id,
-	bpmn_element_name,
-	bpmn_element_type,
-	is_multi_instance
+	element.bpmn_element_id,
+	element.bpmn_element_name,
+	element.bpmn_element_type,
+	element.is_multi_instance,
+
+	event_definition.is_suspended,
+	event_definition.signal_name,
+	event_definition.time,
+	event_definition.time_cycle,
+	event_definition.time_duration
 FROM
 	element
+LEFT JOIN
+	event_definition
+ON
+	event_definition.element_id = element.id
 WHERE
 	true
 {{if ne .c.ProcessId 0}}
-	AND process_id = {{.c.ProcessId}}
+	AND element.process_id = {{.c.ProcessId}}
 {{end}}
 
 ORDER BY
-	id
+	element.id
 {{if gt .o.Offset 0}}
 OFFSET {{.o.Offset}}
 {{end}}

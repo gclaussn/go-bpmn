@@ -73,6 +73,8 @@ func New(e engine.Engine, customizers ...func(*Options)) (*Server, error) {
 	mux.HandleFunc("GET "+PathElementInstancesVariables, server.getElementVariables)
 	mux.HandleFunc("PUT "+PathElementInstancesVariables, server.setElementVariables)
 
+	mux.HandleFunc("POST "+PathEventsSignals, server.sendSignal)
+
 	mux.HandleFunc("POST "+PathIncidentsQuery, server.queryIncidents)
 	mux.HandleFunc("PATCH "+PathIncidentsResolve, server.resolveIncident)
 
@@ -426,6 +428,22 @@ func (s *Server) resumeProcessInstance(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) sendSignal(w http.ResponseWriter, r *http.Request) {
+	var cmd engine.SendSignalCmd
+	if err := decodeJSONRequestBody(w, r, &cmd); err != nil {
+		encodeJSONProblemResponseBody(w, r, err)
+		return
+	}
+
+	signalEvent, err := s.engine.WithContext(r.Context()).SendSignal(cmd)
+	if err != nil {
+		encodeJSONProblemResponseBody(w, r, err)
+		return
+	}
+
+	encodeJSONResponseBody(w, r, signalEvent, http.StatusOK)
 }
 
 func (s *Server) setElementVariables(w http.ResponseWriter, r *http.Request) {

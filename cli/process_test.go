@@ -9,7 +9,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestJobCreate(t *testing.T) {
+func TestCreateProcessWithSignal(t *testing.T) {
+	e := mustCreateEngine(t)
+	defer e.Shutdown()
+
+	mustExecute(t, e, []string{
+		"process",
+		"create",
+		"--bpmn-file",
+		"../test/bpmn/event/signal-start.bpmn",
+		"--bpmn-process-id",
+		"signalStartTest",
+		"--version",
+		"1",
+		"--signal-name",
+		"signalStartEvent=start-signal",
+	})
+}
+
+func TestCreateProcessWithTimer(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
 	e := mustCreateEngine(t)
@@ -31,7 +49,7 @@ func TestJobCreate(t *testing.T) {
 			"timerStartEvent=" + triggerAt.Format(time.RFC3339Nano),
 		})
 
-		results, err := e.Query(engine.TaskCriteria{Type: engine.TaskTriggerTimerEvent})
+		results, err := e.Query(engine.TaskCriteria{Type: engine.TaskTriggerEvent})
 		require.NoError(err, "failed to query tasks")
 		require.NotEmpty(results, "no tasks queried")
 
@@ -55,7 +73,7 @@ func TestJobCreate(t *testing.T) {
 			"timerStartEvent=0 * * * *",
 		})
 
-		results, err := e.Query(engine.TaskCriteria{Type: engine.TaskTriggerTimerEvent})
+		results, err := e.Query(engine.TaskCriteria{Type: engine.TaskTriggerEvent})
 		require.NoError(err, "failed to query tasks")
 		require.NotEmpty(results, "no tasks queried")
 
@@ -83,7 +101,7 @@ func TestJobCreate(t *testing.T) {
 
 		prcoess := results[len(results)-1].(engine.Process)
 
-		results, err = e.Query(engine.TaskCriteria{ProcessId: prcoess.Id, Type: engine.TaskTriggerTimerEvent})
+		results, err = e.Query(engine.TaskCriteria{ProcessId: prcoess.Id, Type: engine.TaskTriggerEvent})
 		require.NoError(err, "failed to query task")
 		require.NotEmpty(results, "no task queried")
 

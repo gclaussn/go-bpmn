@@ -13,6 +13,8 @@ const (
 	PathElementInstancesQuery     = "/element-instances/query"
 	PathElementInstancesVariables = "/element-instances/{partition}/{id}/variables"
 
+	PathEventsSignals = "/events/signals"
+
 	PathIncidentsQuery   = "/incidents/query"
 	PathIncidentsResolve = "/incidents/{partition}/{id}/resolve"
 

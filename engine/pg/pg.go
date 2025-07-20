@@ -436,6 +436,22 @@ func (e *pgEngineWithContext) ResumeProcessInstance(cmd engine.ResumeProcessInst
 	return e.release(ctx, err)
 }
 
+func (e *pgEngine) SendSignal(cmd engine.SendSignalCmd) (engine.SignalEvent, error) {
+	w, cancel := e.withTimeout()
+	defer cancel()
+	return w.SendSignal(cmd)
+}
+
+func (e *pgEngineWithContext) SendSignal(cmd engine.SendSignalCmd) (engine.SignalEvent, error) {
+	ctx, err := e.require()
+	if err != nil {
+		return engine.SignalEvent{}, err
+	}
+
+	signalEvent, err := internal.SendSignal(ctx, cmd)
+	return signalEvent, e.release(ctx, err)
+}
+
 func (e *pgEngine) SetElementVariables(cmd engine.SetElementVariablesCmd) error {
 	w, cancel := e.withTimeout()
 	defer cancel()

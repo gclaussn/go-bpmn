@@ -40,6 +40,18 @@ func (c *pgContext) ElementInstances() internal.ElementInstanceRepository {
 	return &elementInstanceRepository{tx: c.tx, txCtx: c.txCtx}
 }
 
+func (c *pgContext) Events() internal.EventRepository {
+	return &eventRepository{tx: c.tx, txCtx: c.txCtx}
+}
+
+func (c *pgContext) EventDefinitions() internal.EventDefinitionRepository {
+	return &eventDefinitionRepository{tx: c.tx, txCtx: c.txCtx}
+}
+
+func (c *pgContext) EventVariables() internal.EventVariableRepository {
+	return &eventVariableRepository{tx: c.tx, txCtx: c.txCtx}
+}
+
 func (c *pgContext) Incidents() internal.IncidentRepository {
 	return &incidentRepository{tx: c.tx, txCtx: c.txCtx}
 }
@@ -64,12 +76,12 @@ func (c *pgContext) ProcessInstanceQueues() internal.ProcessInstanceQueueReposit
 	return &processInstanceQueueRepository{tx: c.tx, txCtx: c.txCtx}
 }
 
-func (c *pgContext) Tasks() internal.TaskRepository {
-	return &taskRepository{tx: c.tx, txCtx: c.txCtx, engineId: c.Options().EngineId}
+func (c *pgContext) SignalSubscriptions() internal.SignalSubscriptionRepository {
+	return &signalSubscriptionRepository{tx: c.tx, txCtx: c.txCtx}
 }
 
-func (c *pgContext) TimerEvents() internal.TimerEventRepository {
-	return &timerEventRepository{tx: c.tx, txCtx: c.txCtx}
+func (c *pgContext) Tasks() internal.TaskRepository {
+	return &taskRepository{tx: c.tx, txCtx: c.txCtx, engineId: c.Options().EngineId}
 }
 
 func (c *pgContext) Variables() internal.VariableRepository {

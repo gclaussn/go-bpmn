@@ -36,9 +36,11 @@ type CreateProcessCmd struct {
 	BpmnXml string `json:"bpmnXml" validate:"required"`
 	// Maximum number of parallel process instances being executed. If `0`, the number of parallel process instances is unlimited.
 	Parallelism int `json:"parallelism,omitempty" validate:"gte=0"`
+	// Mapping between BPMN element ID and signal name.
+	SignalNames map[string]string `json:"signalNames,omitempty" validate:"dive,required"`
 	// Optional tags, consisting of name and value pairs.
 	Tags map[string]string `json:"tags,omitempty" validate:"max=100,dive,keys,tag_name,endkeys,required"`
-	// Timer definitions for each timer start event.
+	// Mapping between BPMN element ID and timer definition.
 	Timers map[string]*Timer `json:"timers,omitempty" validate:"dive,timer"`
 	// Arbitrary process version.
 	Version string `json:"version" validate:"required"`
@@ -69,6 +71,8 @@ type ExecuteTasksCmd struct {
 	// Task condition - must be used in combination with a partition.
 	Id int32 `json:"id,omitempty"`
 
+	// Element condition.
+	ElementId int32 `json:"elementId,omitempty"`
 	// Element instance condition - must be used in combination with a partition.
 	ElementInstanceId int32 `json:"elementInstanceId,omitempty"`
 	// Process condition.
@@ -162,6 +166,16 @@ type ResumeProcessInstanceCmd struct {
 	WorkerId string `json:"workerId" validate:"required"`
 }
 
+// SendSignalCmd is used to notify all subscribers.
+type SendSignalCmd struct {
+	// Signal name.
+	Name string `json:"name" validate:"required"`
+	// Variables to set or delete at process instance scope. For a variable deletion, no value must be provided.
+	Variables map[string]*Data `json:"variables,omitempty" validate:"dive,keys,variable_name,endkeys,omitnil,required"`
+	// ID of the worker that sent the signal.
+	WorkerId string `json:"workerId" validate:"required"`
+}
+
 // SetElementVariablesCmd is used to set or delete variables at element instance scope.
 type SetElementVariablesCmd struct {
 	// Element instance partition.
@@ -243,17 +257,10 @@ type JobCompletion struct {
 	// Evaluated BPMN element IDs to continue with after the inclusive gateway.
 	// Applicable when job type is `EVALUATE_INCLUSIVE_GATEWAY`.
 	InclusiveGatewayDecision []string `json:"inclusiveGatewayDecision,omitempty"`
+	// Name of the signal to subscribe to.
+	// Applicable when job type is `SET_SIGNAL_NAME`.
+	SignalName string `json:"signalName,omitempty"`
 	// A timer definition.
 	// Applicable when job type is `SET_TIMER`.
 	Timer *Timer `json:"timer,omitempty"`
-}
-
-// A timer defines when a timer start or catch event is triggered.
-type Timer struct {
-	// A point in time, when the timer event is triggered.
-	Time time.Time `json:"time"`
-	// CRON expression that specifies a cyclic trigger.
-	TimeCycle string `json:"timeCycle,omitempty" validate:"cron"`
-	// Duration until the timer event is triggered.
-	TimeDuration ISO8601Duration `json:"timeDuration" validate:"iso8601_duration"`
 }

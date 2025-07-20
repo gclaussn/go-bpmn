@@ -14,13 +14,16 @@ type Context interface {
 
 	Elements() ElementRepository
 	ElementInstances() ElementInstanceRepository
+	Events() EventRepository
+	EventDefinitions() EventDefinitionRepository
+	EventVariables() EventVariableRepository
 	Incidents() IncidentRepository
 	Jobs() JobRepository
 	Processes() ProcessRepository
 	ProcessCache() *ProcessCache
 	ProcessInstances() ProcessInstanceRepository
 	ProcessInstanceQueues() ProcessInstanceQueueRepository
+	SignalSubscriptions() SignalSubscriptionRepository
 	Tasks() TaskRepository
-	TimerEvents() TimerEventRepository
 	Variables() VariableRepository
 }

@@ -51,6 +51,15 @@ func TestBpmn(t *testing.T) {
 		}
 	})
 
+	t.Run("signal event", func(t *testing.T) {
+		for i, e := range engines {
+			signalEventTest := newSignalEventTest(t, e)
+
+			t.Run(engineTypes[i]+"catch", signalEventTest.catch)
+			t.Run(engineTypes[i]+"start", signalEventTest.start)
+		}
+	})
+
 	t.Run("task", func(t *testing.T) {
 		for i, e := range engines {
 			taskTest := newTaskTest(t, e)
@@ -69,7 +78,7 @@ func TestBpmn(t *testing.T) {
 }
 
 func TestBpmnTimerEvent(t *testing.T) {
-	t.Run("timer event", func(t *testing.T) {
+	t.Run("catch", func(t *testing.T) {
 		engines, engineTypes := mustCreateEngines(t)
 		for _, e := range engines {
 			defer e.Shutdown()
@@ -82,7 +91,7 @@ func TestBpmnTimerEvent(t *testing.T) {
 		}
 	})
 
-	t.Run("timer event", func(t *testing.T) {
+	t.Run("start", func(t *testing.T) {
 		engines, engineTypes := mustCreateEngines(t)
 		for _, e := range engines {
 			defer e.Shutdown()

@@ -163,6 +163,26 @@ func TestClientServer(t *testing.T) {
 		assert.NotEmpty(engineErr.Title)
 		assert.NotEmpty(engineErr.Detail)
 	})
+
+	t.Run("send signal", func(t *testing.T) {
+		cmd := engine.SendSignalCmd{
+			Name:     "test-signal",
+			WorkerId: "test",
+		}
+
+		signalEvent, err := client.SendSignal(cmd)
+		if err != nil {
+			t.Fatalf("failed to send signal: %v", err)
+		}
+
+		assert.False(signalEvent.Partition.IsZero())
+		assert.NotEmpty(signalEvent.Id)
+
+		assert.NotEmpty(signalEvent.CreatedAt)
+		assert.Equal(cmd.WorkerId, signalEvent.CreatedBy)
+		assert.Equal(cmd.Name, signalEvent.Name)
+		assert.Equal(0, signalEvent.SubscriberCount)
+	})
 }
 
 func TestClientServerWithApiKeyManager(t *testing.T) {

@@ -105,6 +105,13 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				element = newElement(ElementSendTask, t.Attr)
 			case "serviceTask":
 				element = newElement(ElementServiceTask, t.Attr)
+			case "signalEventDefinition":
+				switch element.Type {
+				case ElementNoneStartEvent:
+					element.Type = ElementSignalStartEvent
+				default:
+					element.Type = ElementSignalCatchEvent
+				}
 			case "startEvent":
 				element = newElement(ElementNoneStartEvent, t.Attr)
 			case "task":

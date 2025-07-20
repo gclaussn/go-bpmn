@@ -3,10 +3,13 @@ package mem
 import (
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/engine/internal"
+	"github.com/gclaussn/go-bpmn/model"
 )
 
 type elementRepository struct {
 	entities []internal.ElementEntity
+
+	eventDefinitions eventDefinitionRepository
 }
 
 func (r *elementRepository) InsertBatch(entities []*internal.ElementEntity) error {
@@ -44,7 +47,10 @@ func (r *elementRepository) Query(c engine.ElementCriteria, o engine.QueryOption
 			continue
 		}
 
-		results = append(results, e.Element())
+		result := e.Element()
+		result.EventDefinition = r.getEventDefinition(e.Id)
+
+		results = append(results, result)
 		limit++
 
 		if o.Limit > 0 && limit == o.Limit {
@@ -53,4 +59,27 @@ func (r *elementRepository) Query(c engine.ElementCriteria, o engine.QueryOption
 	}
 
 	return results, nil
+}
+
+func (r *elementRepository) getEventDefinition(elementId int32) *engine.EventDefinition {
+	entity, ok := r.eventDefinitions.entities[elementId]
+	if !ok {
+		return nil
+	}
+
+	var timer *engine.Timer
+	switch entity.BpmnElementType {
+	case model.ElementTimerCatchEvent, model.ElementTimerStartEvent:
+		timer = &engine.Timer{
+			Time:         entity.Time.Time,
+			TimeCycle:    entity.TimeCycle.String,
+			TimeDuration: engine.ISO8601Duration(entity.TimeDuration.String),
+		}
+	}
+
+	return &engine.EventDefinition{
+		IsSuspended: entity.IsSuspended,
+		SignalName:  entity.SignalName.String,
+		Timer:       timer,
+	}
 }

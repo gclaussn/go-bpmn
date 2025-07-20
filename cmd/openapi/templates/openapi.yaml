@@ -17,6 +17,7 @@ tags:
   - name: Element instances
     description: >
       An element instance is an instance of a BPMN element in the scope of an process instance.
+  - name: Events
   - name: Incidents
     description: >
       An incident represents a failed job or task, which has no more retries left.

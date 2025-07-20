@@ -4,6 +4,7 @@ SELECT
 
 	element_id,
 	element_instance_id,
+	event_id,
 	process_id,
 	process_instance_id,
 

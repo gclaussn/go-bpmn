@@ -84,6 +84,7 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 				model.ElementScriptTask,
 				model.ElementSendTask,
 				model.ElementServiceTask,
+				model.ElementSignalCatchEvent,
 				model.ElementTimerCatchEvent:
 				execution.State = 0
 			case
@@ -200,6 +201,8 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 		case model.ElementParallelGateway:
 			taskType = engine.TaskJoinParallelGateway
 			taskInstance = JoinParallelGatewayTask{}
+		case model.ElementSignalCatchEvent:
+			jobType = engine.JobSetSignalName
 		case model.ElementTimerCatchEvent:
 			jobType = engine.JobSetTimer
 		default:
@@ -415,6 +418,29 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 			job.Error = pgtype.Text{String: "BPMN escalation code is not supported", Valid: true}
 			return nil
 		}
+	case engine.JobSetSignalName:
+		if jobCompletion == nil || jobCompletion.SignalName == "" {
+			job.Error = pgtype.Text{String: "expected a signal name", Valid: true}
+			return nil
+		}
+
+		signalSubscription := SignalSubscriptionEntity{
+			ElementId:         execution.ElementId,
+			ElementInstanceId: execution.Id,
+			Partition:         execution.Partition,
+			ProcessId:         execution.ProcessId,
+			ProcessInstanceId: execution.ProcessInstanceId,
+
+			CreatedAt: ctx.Time(),
+			CreatedBy: ec.engineOrWorkerId,
+			Name:      jobCompletion.SignalName,
+		}
+
+		if err := ctx.SignalSubscriptions().Insert(&signalSubscription); err != nil {
+			return err
+		}
+
+		return nil // do not continue execution
 	case engine.JobSetTimer:
 		if jobCompletion == nil || jobCompletion.Timer == nil {
 			job.Error = pgtype.Text{String: "expected a timer", Valid: true}
@@ -438,9 +464,9 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 			CreatedAt: ctx.Time(),
 			CreatedBy: ec.engineOrWorkerId,
 			DueAt:     dueAt,
-			Type:      engine.TaskTriggerTimerEvent,
+			Type:      engine.TaskTriggerEvent,
 
-			Instance: TriggerTimerEventTask{},
+			Instance: TriggerEventTask{},
 		}
 
 		if err := ctx.Tasks().Insert(&triggerTimerEvent); err != nil {

@@ -37,6 +37,7 @@ INSERT INTO task (
 
 	element_id,
 	element_instance_id,
+	event_id,
 	process_id,
 	process_instance_id,
 
@@ -55,14 +56,15 @@ INSERT INTO task (
 	$4,
 	$5,
 	$6,
-
 	$7,
+
 	$8,
 	$9,
 	$10,
 	$11,
 	$12,
-	$13
+	$13,
+	$14
 ) RETURNING id
 `,
 		entity.Partition,
@@ -70,6 +72,7 @@ INSERT INTO task (
 
 		entity.ElementId,
 		entity.ElementInstanceId,
+		entity.EventId,
 		entity.ProcessId,
 		entity.ProcessInstanceId,
 
@@ -89,11 +92,86 @@ INSERT INTO task (
 	return nil
 }
 
+func (r taskRepository) InsertBatch(entities []*internal.TaskEntity) error {
+	batch := &pgx.Batch{}
+
+	for _, entity := range entities {
+		batch.Queue(`
+INSERT INTO task (
+	partition,
+	id,
+
+	element_id,
+	element_instance_id,
+	event_id,
+	process_id,
+	process_instance_id,
+
+	created_at,
+	created_by,
+	due_at,
+	retry_count,
+	retry_timer,
+	serialized_task,
+	type
+) VALUES (
+	$1,
+	nextval($2),
+
+	$3,
+	$4,
+	$5,
+	$6,
+	$7,
+
+	$8,
+	$9,
+	$10,
+	$11,
+	$12,
+	$13,
+	$14
+) RETURNING id
+`,
+			entity.Partition,
+			partitionSequence("task", entity.Partition),
+
+			entity.ElementId,
+			entity.ElementInstanceId,
+			entity.EventId,
+			entity.ProcessId,
+			entity.ProcessInstanceId,
+
+			entity.CreatedAt,
+			entity.CreatedBy,
+			entity.DueAt,
+			entity.RetryCount,
+			entity.RetryTimer,
+			entity.SerializedTask,
+			entity.Type.String(),
+		)
+	}
+
+	batchResults := r.tx.SendBatch(r.txCtx, batch)
+	defer batchResults.Close()
+
+	for i := range entities {
+		row := batchResults.QueryRow()
+
+		if err := row.Scan(&entities[i].Id); err != nil {
+			return fmt.Errorf("failed to insert task %+v: %v", entities[i], err)
+		}
+	}
+
+	return nil
+}
+
 func (r taskRepository) Select(partition time.Time, id int32) (*internal.TaskEntity, error) {
 	row := r.tx.QueryRow(r.txCtx, `
 SELECT
 	element_id,
 	element_instance_id,
+	event_id,
 	process_id,
 	process_instance_id,
 
@@ -122,6 +200,7 @@ WHERE
 	if err := row.Scan(
 		&entity.ElementId,
 		&entity.ElementInstanceId,
+		&entity.EventId,
 		&entity.ProcessId,
 		&entity.ProcessInstanceId,
 
@@ -199,6 +278,7 @@ func (r taskRepository) Query(criteria engine.TaskCriteria, options engine.Query
 
 			&entity.ElementId,
 			&entity.ElementInstanceId,
+			&entity.EventId,
 			&entity.ProcessId,
 			&entity.ProcessInstanceId,
 
@@ -255,6 +335,7 @@ func (r taskRepository) Lock(cmd engine.ExecuteTasksCmd, lockedAt time.Time) ([]
 
 			&entity.ElementId,
 			&entity.ElementInstanceId,
+			&entity.EventId,
 			&entity.ProcessId,
 			&entity.ProcessInstanceId,
 
@@ -284,8 +365,8 @@ func (r taskRepository) Lock(cmd engine.ExecuteTasksCmd, lockedAt time.Time) ([]
 			entity.Instance = internal.JoinParallelGatewayTask{}
 		case engine.TaskStartProcessInstance:
 			entity.Instance = internal.StartProcessInstanceTask{}
-		case engine.TaskTriggerTimerEvent:
-			entity.Instance = internal.TriggerTimerEventTask{}
+		case engine.TaskTriggerEvent:
+			entity.Instance = internal.TriggerEventTask{}
 		// management
 		case engine.TaskCreatePartition:
 			task := createPartitionTask{}

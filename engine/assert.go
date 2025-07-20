@@ -37,6 +37,86 @@ func Assert(t *testing.T, e Engine, processInstance ProcessInstance) *ProcessIns
 	}
 }
 
+// AssertSignalStart asserts a process instance started by a signal start event.
+//
+// Since a process can have multiple signal start events, the ID of the BPMN start element must be provided.
+func AssertSignalStart(t *testing.T, e Engine, processId int32, bpmnStartElementId string, variables ...map[string]*Data) *ProcessInstanceAssert {
+	results, err := e.Query(ElementCriteria{ProcessId: processId})
+	if err != nil {
+		t.Fatalf("failed to query elements: %v", err)
+	}
+
+	elements := make(map[string]Element, len(results))
+	for _, result := range results {
+		element := result.(Element)
+		elements[element.BpmnElementId] = element
+	}
+
+	var element Element
+	for bpmnElementId := range elements {
+		if elements[bpmnElementId].BpmnElementId == bpmnStartElementId {
+			element = elements[bpmnElementId]
+			break
+		}
+	}
+
+	if element.EventDefinition == nil {
+		t.Fatalf("failed to find event definition: %v", err)
+	}
+
+	signalVariables := make(map[string]*Data)
+	for _, v := range variables {
+		for variableName, data := range v {
+			signalVariables[variableName] = data
+		}
+	}
+
+	_, err = e.SendSignal(SendSignalCmd{
+		Name:      element.EventDefinition.SignalName,
+		Variables: signalVariables,
+		WorkerId:  "test-worker",
+	})
+	if err != nil {
+		t.Fatalf("failed to send signal: %v", err)
+	}
+
+	completedTasks, failedTasks, err := e.ExecuteTasks(ExecuteTasksCmd{
+		ElementId: element.Id,
+
+		Limit: 1,
+	})
+	if err != nil {
+		t.Fatalf("failed to execute trigger event task: %v", err)
+	}
+
+	if len(failedTasks) != 0 || len(completedTasks) == 0 {
+		t.Fatal("trigger event task failed")
+	}
+
+	results, err = e.Query(ProcessInstanceCriteria{ProcessId: processId})
+	if err != nil {
+		t.Fatalf("failed to query process instances: %v", err)
+	}
+
+	var processInstance ProcessInstance
+	for _, result := range results {
+		if result.(ProcessInstance).CreatedAt == *completedTasks[0].CompletedAt {
+			processInstance = result.(ProcessInstance)
+			break
+		}
+	}
+
+	return &ProcessInstanceAssert{
+		t: t,
+		e: e,
+
+		elements: elements,
+
+		partition:         processInstance.Partition,
+		processInstanceId: processInstance.Id,
+	}
+}
+
 // AsserTimerStart asserts a process instance started by a timer start event.
 //
 // startTime is used to increase the engine's time, so that the related trigger timer event task becomes due.
@@ -67,7 +147,7 @@ func AsserTimerStart(t *testing.T, e Engine, processId int32, startTime time.Tim
 
 	completedTasks, failedTasks, err := e.ExecuteTasks(ExecuteTasksCmd{
 		ProcessId: processId,
-		Type:      TaskTriggerTimerEvent,
+		Type:      TaskTriggerEvent,
 
 		Limit: limit,
 	})
@@ -76,7 +156,7 @@ func AsserTimerStart(t *testing.T, e Engine, processId int32, startTime time.Tim
 	}
 
 	if len(failedTasks) != 0 {
-		t.Fatal("one or multiple trigger timer event tasks failed")
+		t.Fatal("one or multiple trigger event tasks failed")
 	}
 
 	var createdAt time.Time
@@ -86,7 +166,7 @@ func AsserTimerStart(t *testing.T, e Engine, processId int32, startTime time.Tim
 		}
 
 		if completedTask.HasError() {
-			t.Fatalf("trigger timer event task %s has error: %s", completedTask, completedTask.Error)
+			t.Fatalf("trigger event task %s has error: %s", completedTask, completedTask.Error)
 		}
 
 		createdAt = *completedTask.CompletedAt
@@ -94,7 +174,7 @@ func AsserTimerStart(t *testing.T, e Engine, processId int32, startTime time.Tim
 	}
 
 	if createdAt.IsZero() {
-		t.Fatalf("failed to find trigger timer event task for start time %v", startTime)
+		t.Fatalf("failed to find trigger event task for start time %v", startTime)
 	}
 
 	processInstanceResults, err := e.Query(ProcessInstanceCriteria{
@@ -430,6 +510,36 @@ func (a *ProcessInstanceAssert) IsWaitingAt(bpmnElementId string) {
 	}
 
 	a.Fatalf("expected process instance to be waiting at %s: no active element instance found", bpmnElementId)
+}
+
+func (a *ProcessInstanceAssert) HasNoProcessVariable(name string) {
+	processVariables, err := a.e.GetProcessVariables(GetProcessVariablesCmd{
+		Partition:         a.partition,
+		ProcessInstanceId: a.processInstanceId,
+		Names:             []string{name},
+	})
+	if err != nil {
+		a.Fatalf("failed to get process variable %s: %v", name, err)
+	}
+
+	if _, ok := processVariables[name]; ok {
+		a.Fatalf("expected process instance to have no variable %s, but has", name)
+	}
+}
+
+func (a *ProcessInstanceAssert) HasProcessVariable(name string) {
+	processVariables, err := a.e.GetProcessVariables(GetProcessVariablesCmd{
+		Partition:         a.partition,
+		ProcessInstanceId: a.processInstanceId,
+		Names:             []string{name},
+	})
+	if err != nil {
+		a.Fatalf("failed to get process variable %s: %v", name, err)
+	}
+
+	if _, ok := processVariables[name]; !ok {
+		a.Fatalf("expected process instance to have variable %s, but has not", name)
+	}
 }
 
 func (a *ProcessInstanceAssert) Job() Job {

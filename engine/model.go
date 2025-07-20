@@ -87,6 +87,7 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 //   - [JobEvaluateExclusiveGateway]: forking exclusive gateway
 //   - [JobEvaluateInclusiveGateway]: forking inclusive gateway
 //   - [JobExecute]: business rule, script, send and service task
+//   - [JobSetSignalName]: signal catch event
 //   - [JobSetTimer]: timer catch event
 type JobType int
 
@@ -94,6 +95,7 @@ const (
 	JobEvaluateExclusiveGateway JobType = iota + 1
 	JobEvaluateInclusiveGateway
 	JobExecute
+	JobSetSignalName
 	JobSetTimer
 )
 
@@ -105,6 +107,8 @@ func MapJobType(s string) JobType {
 		return JobEvaluateInclusiveGateway
 	case "EXECUTE":
 		return JobExecute
+	case "SET_SIGNAL_NAME":
+		return JobSetSignalName
 	case "SET_TIMER":
 		return JobSetTimer
 	default:
@@ -128,6 +132,8 @@ func (v JobType) String() string {
 		return "EVALUATE_INCLUSIVE_GATEWAY"
 	case JobExecute:
 		return "EXECUTE"
+	case JobSetSignalName:
+		return "SET_SIGNAL_NAME"
 	case JobSetTimer:
 		return "SET_TIMER"
 	default:
@@ -155,7 +161,7 @@ func (v *JobType) UnmarshalJSON(data []byte) error {
 //   - [TaskDequeueProcessInstance] dequeues a queued process instance
 //   - [TaskJoinParallelGateway] continues a parallel gateway by joining executions
 //   - [TaskStartProcessInstance] starts a queued process instance
-//   - [TaskTriggerTimerEvent] triggers a timer catch event
+//   - [TaskTriggerEvent] triggers a message, signal or timer event
 //
 // Management related types, that are only relevant for a pg engine:
 //
@@ -168,7 +174,7 @@ const (
 	TaskDequeueProcessInstance TaskType = iota + 1
 	TaskJoinParallelGateway
 	TaskStartProcessInstance
-	TaskTriggerTimerEvent
+	TaskTriggerEvent
 
 	// management
 	TaskCreatePartition
@@ -184,8 +190,8 @@ func MapTaskType(s string) TaskType {
 		return TaskJoinParallelGateway
 	case "START_PROCESS_INSTANCE":
 		return TaskStartProcessInstance
-	case "TRIGGER_TIMER_EVENT":
-		return TaskTriggerTimerEvent
+	case "TRIGGER_EVENT":
+		return TaskTriggerEvent
 	// management
 	case "CREATE_PARTITION":
 		return TaskCreatePartition
@@ -214,8 +220,8 @@ func (v TaskType) String() string {
 		return "JOIN_PARALLEL_GATEWAY"
 	case TaskStartProcessInstance:
 		return "START_PROCESS_INSTANCE"
-	case TaskTriggerTimerEvent:
-		return "TRIGGER_TIMER_EVENT"
+	case TaskTriggerEvent:
+		return "TRIGGER_EVENT"
 	// management
 	case TaskCreatePartition:
 		return "CREATE_PARTITION"
@@ -260,6 +266,8 @@ type Element struct {
 	BpmnElementName string            `json:"bpmnElementName,omitempty"`           // Element name within the BPMN XML.
 	BpmnElementType model.ElementType `json:"bpmnElementType" validate:"required"` // BPMN element type.
 	IsMultiInstance bool              `json:"multiInstance,omitempty"`             // Determines if the element is a multi instance.
+
+	EventDefinition *EventDefinition `json:"eventDefinition,omitempty"` // Definition, in case of a BPMN event.
 }
 
 func (v Element) String() string {
@@ -315,6 +323,13 @@ type ElementInstanceCriteria struct {
 
 	BpmnElementId string          `json:"bpmnElementId,omitempty"`                  // BPMN element ID filter.
 	States        []InstanceState `json:"states,omitempty" validate:"max=7,unique"` // States to include.
+}
+
+// EventDefinition is a generic definition of a BPMN event, while a BPMN element has exactly one type.
+type EventDefinition struct {
+	IsSuspended bool   `json:"suspended"`            // Determines if a start event definition is suspended.
+	SignalName  string `json:"signalName,omitempty"` // Name of the signal - set in case of a signal event.
+	Timer       *Timer `json:"timer,omitempty"`      // A timer definition - set in case of a timer event.
 }
 
 // Incident represents a failed job or task, which has no more retries left.
@@ -479,6 +494,21 @@ type ProcessInstanceCriteria struct {
 	Tags map[string]string `json:"tags,omitempty"` // Tags, a process instance must have, to be included.
 }
 
+// SignalEvent represents a notification of signal subscribers (signal start or catch events).
+type SignalEvent struct {
+	Partition Partition `json:"partition" validate:"required"` // Event partition.
+	Id        int32     `json:"id" validate:"required"`        // Event ID.
+
+	CreatedAt       time.Time `json:"createdAt" validate:"required"`             // Signal sent time.
+	CreatedBy       string    `json:"createdBy" validate:"required"`             // ID of the worker or engine that sent the signal.
+	Name            string    `json:"name" validate:"required"`                  // Name of the signal.
+	SubscriberCount int       `json:"subscriberCount" validate:"required,gte=0"` // Number of notified signal subscribers.
+}
+
+func (v SignalEvent) String() string {
+	return fmt.Sprintf("%s/%d", v.Partition, v.Id)
+}
+
 // Task is a unit of work, which must be locked, executed and completed by an engine.
 type Task struct {
 	Partition Partition `json:"partition" validate:"required"` // Task partition.
@@ -486,6 +516,7 @@ type Task struct {
 
 	ElementId         int32 `json:"elementId,omitempty"`         // ID of the related element.
 	ElementInstanceId int32 `json:"elementInstanceId,omitempty"` // ID of the related element instance.
+	EventId           int32 `json:"eventId,omitempty"`           // ID of the related event.
 	ProcessId         int32 `json:"processId,omitempty"`         // ID of the related process.
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // ID of the enclosing process instance.
 
@@ -530,6 +561,16 @@ type TaskCriteria struct {
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // Process instance filter.
 
 	Type TaskType `json:"type,omitempty"` // Task type.
+}
+
+// A timer defines when a timer start or catch event is triggered.
+type Timer struct {
+	// A point in time, when the timer event is triggered.
+	Time time.Time `json:"time"`
+	// CRON expression that specifies a cyclic trigger.
+	TimeCycle string `json:"timeCycle,omitempty" validate:"cron"`
+	// Duration until the timer event is triggered.
+	TimeDuration ISO8601Duration `json:"timeDuration" validate:"iso8601_duration"`
 }
 
 // Variable is data, identified by a name, that exists in the scope of a process instance or element instance.

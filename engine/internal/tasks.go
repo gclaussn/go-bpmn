@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
+	"github.com/gclaussn/go-bpmn/model"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -178,157 +179,42 @@ func (t StartProcessInstanceTask) Execute(ctx Context, task *TaskEntity) error {
 	return ctx.ProcessInstances().Update(processInstance)
 }
 
-// TriggerTimerEventTask is executed when a timer is due.
+// TriggerEventTask triggers start or catch events.
 //
-// A timer start event creates a new process instance.
-// If the timer is a cycle, a task for the next time cycle is inserted.
-//
-// A timer catch event continues the execution, if process instance and element instance are not ended.
-type TriggerTimerEventTask struct {
+// In case of a start event, a new process instance is created.
+// In case of a catch event, an execution is continued.
+type TriggerEventTask struct {
 }
 
-func (t TriggerTimerEventTask) Execute(ctx Context, task *TaskEntity) error {
+func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
 	process, err := ctx.ProcessCache().GetOrCacheById(ctx, task.ProcessId.Int32)
 	if err != nil {
 		return err
 	}
 
-	if task.ProcessInstanceId.Valid {
-		processInstance, err := ctx.ProcessInstances().Select(task.Partition, task.ProcessInstanceId.Int32)
-		if err == pgx.ErrNoRows {
-			return engine.Error{
-				Type:   engine.ErrorBug,
-				Title:  "failed to trigger timer event",
-				Detail: fmt.Sprintf("process instance %s/%d could not be found", task.Partition.Format(time.DateOnly), task.ProcessInstanceId.Int32),
-			}
-		}
-		if err != nil {
-			return err
-		}
-
-		if processInstance.EndedAt.Valid {
-			return nil
-		}
-
-		execution, err := ctx.ElementInstances().Select(task.Partition, task.ElementInstanceId.Int32)
-		if err != nil {
-			return err
-		}
-
-		if execution.EndedAt.Valid {
-			return nil
-		}
-
-		ec := executionContext{
-			engineOrWorkerId: ctx.Options().EngineId,
-			process:          process,
-			processInstance:  processInstance,
-		}
-
-		if err := ec.continueExecutions(ctx, []*ElementInstanceEntity{execution}); err != nil {
-			if _, ok := err.(engine.Error); ok {
-				task.Error = pgtype.Text{String: err.Error(), Valid: true}
-			} else {
-				return fmt.Errorf("failed to continue execution %+v: %v", execution, err)
-			}
-		}
-
-		return nil
-	}
-
-	timerEvent, err := ctx.TimerEvents().Select(task.ElementId.Int32)
-	if err == pgx.ErrNoRows {
+	node, ok := process.graph.nodeByElementId(task.ElementId.Int32)
+	if !ok {
 		return engine.Error{
 			Type:   engine.ErrorBug,
-			Title:  "failed to trigger timer event",
-			Detail: fmt.Sprintf("timer event %d could not be found", task.ElementId.Int32),
-		}
-	}
-	if err != nil {
-		return err
-	}
-
-	if timerEvent.IsSuspended {
-		return nil
-	}
-
-	processInstance := ProcessInstanceEntity{
-		Partition: ctx.Date(),
-
-		ProcessId: process.Id,
-
-		BpmnProcessId:  process.BpmnProcessId,
-		CreatedAt:      ctx.Time(),
-		CreatedBy:      ctx.Options().EngineId,
-		StartedAt:      pgtype.Timestamp{Time: ctx.Time(), Valid: true},
-		State:          engine.InstanceStarted,
-		StateChangedBy: ctx.Options().EngineId,
-		Version:        process.Version,
-	}
-
-	if err := ctx.ProcessInstances().Insert(&processInstance); err != nil {
-		return err
-	}
-
-	if err := enqueueProcessInstance(ctx, &processInstance); err != nil {
-		return fmt.Errorf("failed to enqueue process instance: %v", err)
-	}
-
-	scope := process.graph.createProcessScope(&processInstance)
-
-	execution, err := process.graph.createExecutionAt(&scope, timerEvent.BpmnElementId)
-	if err != nil {
-		return engine.Error{
-			Type:   engine.ErrorProcessModel,
-			Title:  "failed to create execution",
-			Detail: err.Error(),
+			Title:  "failed to find execution graph node",
+			Detail: fmt.Sprintf("execution graph has no node for ID %d", task.ElementId.Int32),
 		}
 	}
 
-	ec := executionContext{
-		engineOrWorkerId: ctx.Options().EngineId,
-		process:          process,
-		processInstance:  &processInstance,
-	}
-
-	executions := []*ElementInstanceEntity{&scope, &execution}
-	if err := ec.continueExecutions(ctx, executions); err != nil {
-		return err
-	}
-
-	if !timerEvent.TimeCycle.Valid {
-		return nil // one-time event
-	}
-
-	// insert task for next time cycle
-	timer := engine.Timer{TimeCycle: timerEvent.TimeCycle.String}
-
-	dueAt, err := evaluateTimer(timer, task.DueAt)
-	if err != nil {
+	switch node.bpmnElement.Type {
+	case model.ElementSignalCatchEvent:
+		return triggerSignalCatchEvent(ctx, task, process)
+	case model.ElementSignalStartEvent:
+		return triggerSignalStartEvent(ctx, task, process)
+	case model.ElementTimerCatchEvent:
+		return triggerTimerCatchEvent(ctx, task, process)
+	case model.ElementTimerStartEvent:
+		return triggerTimerStartEvent(ctx, task, process)
+	default:
 		return engine.Error{
 			Type:   engine.ErrorBug,
-			Title:  "failed to evaluate timer",
-			Detail: err.Error(),
+			Title:  "failed to handle element",
+			Detail: fmt.Sprintf("BPMN element type %s is not supported", node.bpmnElement.Type),
 		}
 	}
-
-	triggerTimerEvent := TaskEntity{
-		Partition: ctx.Date(),
-
-		ElementId: task.ElementId,
-		ProcessId: task.ProcessId,
-
-		CreatedAt: ctx.Time(),
-		CreatedBy: ctx.Options().EngineId,
-		DueAt:     dueAt,
-		Type:      engine.TaskTriggerTimerEvent,
-
-		Instance: TriggerTimerEventTask{},
-	}
-
-	if err := ctx.Tasks().Insert(&triggerTimerEvent); err != nil {
-		return err
-	}
-
-	return nil
 }

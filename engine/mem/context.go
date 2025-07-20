@@ -14,17 +14,21 @@ func newMemContext(options Options) *memContext {
 	}
 
 	ctx.elementInstances.partitions = make(map[string][]internal.ElementInstanceEntity)
+	ctx.events.partitions = make(map[string][]internal.EventEntity)
+	ctx.eventDefinitions.entities = make(map[int32]internal.EventDefinitionEntity)
+	ctx.eventVariables.partitions = make(map[string][]internal.EventVariableEntity)
 	ctx.incidents.partitions = make(map[string][]internal.IncidentEntity)
 	ctx.jobs.partitions = make(map[string][]internal.JobEntity)
 	ctx.processInstanceQueues.queues = make(map[string]internal.ProcessInstanceQueueEntity)
 	ctx.processInstanceQueues.queueElementPartitions = make(map[string][]internal.ProcessInstanceQueueElementEntity)
 	ctx.processInstances.partitions = make(map[string][]internal.ProcessInstanceEntity)
-	ctx.processInstances.elementInstances = ctx.elementInstances
-	ctx.processInstances.jobs = ctx.jobs
 	ctx.tasks.partitions = make(map[string][]internal.TaskEntity)
 	ctx.tasks.engineId = options.Common.EngineId
-	ctx.timerEvents.entities = make(map[int32]internal.TimerEventEntity)
 	ctx.variables.partitions = make(map[string][]internal.VariableEntity)
+
+	ctx.elements.eventDefinitions = ctx.eventDefinitions
+	ctx.processInstances.elementInstances = ctx.elementInstances
+	ctx.processInstances.jobs = ctx.jobs
 
 	return &ctx
 }
@@ -36,14 +40,17 @@ type memContext struct {
 
 	elements              elementRepository
 	elementInstances      elementInstanceRepository
+	events                eventRepository
+	eventDefinitions      eventDefinitionRepository
+	eventVariables        eventVariableRepository
 	incidents             incidentRepository
 	jobs                  jobRepository
 	processes             processRepository
 	processCache          *internal.ProcessCache
 	processInstances      processInstanceRepository
 	processInstanceQueues processInstanceQueueRepository
+	signalSubscriptions   signalSubscriptionRepository
 	tasks                 taskRepository
-	timerEvents           timerEventRepository
 	variables             variableRepository
 }
 
@@ -65,6 +72,18 @@ func (c *memContext) Elements() internal.ElementRepository {
 
 func (c *memContext) ElementInstances() internal.ElementInstanceRepository {
 	return &c.elementInstances
+}
+
+func (c *memContext) Events() internal.EventRepository {
+	return &c.events
+}
+
+func (c *memContext) EventDefinitions() internal.EventDefinitionRepository {
+	return &c.eventDefinitions
+}
+
+func (c *memContext) EventVariables() internal.EventVariableRepository {
+	return &c.eventVariables
 }
 
 func (c *memContext) Incidents() internal.IncidentRepository {
@@ -91,12 +110,12 @@ func (c *memContext) ProcessInstanceQueues() internal.ProcessInstanceQueueReposi
 	return &c.processInstanceQueues
 }
 
-func (c *memContext) Tasks() internal.TaskRepository {
-	return &c.tasks
+func (c *memContext) SignalSubscriptions() internal.SignalSubscriptionRepository {
+	return &c.signalSubscriptions
 }
 
-func (c *memContext) TimerEvents() internal.TimerEventRepository {
-	return &c.timerEvents
+func (c *memContext) Tasks() internal.TaskRepository {
+	return &c.tasks
 }
 
 func (c *memContext) Variables() internal.VariableRepository {
@@ -107,6 +126,9 @@ func (c *memContext) clear() {
 	c.processCache.Clear()
 
 	c.elements.entities = nil
+	clear(c.events.partitions)
+	c.eventDefinitions.entities = nil
+	clear(c.eventVariables.partitions)
 	clear(c.elementInstances.partitions)
 	clear(c.incidents.partitions)
 	clear(c.jobs.partitions)
@@ -114,7 +136,7 @@ func (c *memContext) clear() {
 	clear(c.processInstances.partitions)
 	clear(c.processInstanceQueues.queues)
 	clear(c.processInstanceQueues.queueElementPartitions)
+	c.signalSubscriptions.entities = nil
 	clear(c.tasks.partitions)
-	c.timerEvents.entities = nil
 	clear(c.variables.partitions)
 }

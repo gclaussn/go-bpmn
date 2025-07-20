@@ -1,0 +1,56 @@
+tags:
+  - Events
+summary: Send signal
+description: >
+  Sends a signal to notify signal subscribers.
+
+
+  A subscriber can be a signal start or catch event.
+  In case of a signal start event, a new process instance is created.
+  In case of a signal catch event, an existing process instance is continued.
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/SendSignalCmd"
+      example:
+        name: example-signal
+        variables:
+          a:
+            encoding: "json"
+            encrypted: true
+            value: "{...}"
+        workerId: go-bpmn
+responses:
+  "200":
+    description: Signal sent
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/SignalEvent"
+        example:
+          partition: "2025-07-13"
+          id: 9
+          createdAt: "2025-05-01T17:44:19.997Z"
+          createdBy: go-bpmn
+          startedAt: "2025-05-01T17:44:19.997Z"
+          name: example-signal
+          subscriberCount: 3
+  "400":
+    description: Bad request
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          invalid_request_body:
+            summary: Invalid request body
+            value:
+              status: 400
+              type: HTTP_REQUEST_BODY
+              title: invalid request body
+              detail: failed to validate request body
+              errors:
+                - pointer: "#/name"
+                  type: required
+                  detail: is required
