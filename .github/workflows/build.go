@@ -41,7 +41,9 @@ func main() {
 	generateOpenApi(tagName)
 
 	builds := []osArch{
+		{os: "darwin", arch: "arm64"},
 		{os: "linux", arch: "amd64"},
+		{os: "linux", arch: "arm64"},
 		{os: "windows", arch: "amd64"},
 	}
 
