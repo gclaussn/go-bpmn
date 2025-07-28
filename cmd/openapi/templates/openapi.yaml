@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: go-bpmn HTTP API
-  version: v0.1.0
+  version: {{.version}}
   description: >
     API to interact with a process engine via HTTP.
   license:

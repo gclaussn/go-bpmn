@@ -17,8 +17,8 @@ jobs:
         with:
           go-version: "${{ env.GO_VERSION }}"
       - name: Build
-        run: bash ./.github/workflows/build.sh ${{ github.event.release.tag_name }}
+        run: go run ./.github/workflows/build.go -tag-name ${{ github.event.release.tag_name }}
       - name: Upload assets
-        run: bash ./.github/workflows/upload-release-assets.sh ${{ github.event.release.id }}
+        run: go run ./.github/workflows/upload-release-assets.go -release-id ${{ github.event.release.id }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

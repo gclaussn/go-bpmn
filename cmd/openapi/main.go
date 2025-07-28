@@ -13,6 +13,7 @@ import (
 	"bufio"
 	"bytes"
 	"embed"
+	"flag"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -34,11 +35,31 @@ import (
 var resources embed.FS
 
 func main() {
-	if len(os.Args) != 3 {
-		log.Fatalf("arg #1 must be a base path, arg #2 must be an output path")
+	log.SetFlags(0)
+
+	flags := flag.NewFlagSet("openapi", flag.ContinueOnError)
+	flags.SetOutput(log.Writer())
+
+	var sourcePath string
+	flags.StringVar(&sourcePath, "source-path", ".", "base path of the source files")
+	var outputPath string
+	flags.StringVar(&outputPath, "output-path", ".", "path to the output file")
+	var version string
+	flags.StringVar(&version, "version", "unknown-version", "API version")
+
+	if err := flags.Parse(os.Args[1:]); err != nil {
+		if err == flag.ErrHelp {
+			os.Exit(0)
+		} else {
+			os.Exit(1)
+		}
 	}
 
-	generator := newGenerator(os.Args[1])
+	if outputPath == "" {
+		log.Fatal("please provide an output path")
+	}
+
+	generator := newGenerator(sourcePath)
 
 	// model
 	elementType, elementTypeValues := describeEnum(model.ElementType(0))
@@ -63,9 +84,9 @@ func main() {
 
 	generator.generateOperations()
 
-	yaml := generator.generateYaml()
+	yaml := generator.generateYaml(version)
 
-	outputFile, err := os.OpenFile(os.Args[2], os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
+	outputFile, err := os.OpenFile(outputPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
 		log.Fatalf("failed to open output file: %v", err)
 	}
@@ -78,10 +99,10 @@ func main() {
 	}
 }
 
-func newGenerator(basePath string) *generator {
+func newGenerator(sourcePath string) *generator {
 	return &generator{
-		basePath: basePath,
-		fileSet:  token.NewFileSet(),
+		sourcePath: sourcePath,
+		fileSet:    token.NewFileSet(),
 
 		paths:   make(map[string]map[string]*Operation),
 		schemas: make(map[string]*Schema),
@@ -89,8 +110,8 @@ func newGenerator(basePath string) *generator {
 }
 
 type generator struct {
-	basePath string
-	fileSet  *token.FileSet
+	sourcePath string
+	fileSet    *token.FileSet
 
 	paths   map[string]map[string]*Operation
 	schemas map[string]*Schema
@@ -104,7 +125,7 @@ func (g *generator) generateEnum(typeName string, values []string) {
 }
 
 func (g *generator) generateOperations() {
-	f, err := parser.ParseFile(g.fileSet, g.basePath+"/http/server/server.go", nil, parser.ParseComments)
+	f, err := parser.ParseFile(g.fileSet, g.sourcePath+"/http/server/server.go", nil, parser.ParseComments)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -212,7 +233,7 @@ func (g *generator) generateOperations() {
 }
 
 func (g *generator) generateSchemas(name string) {
-	f, err := parser.ParseFile(g.fileSet, g.basePath+"/"+name, nil, parser.ParseComments)
+	f, err := parser.ParseFile(g.fileSet, g.sourcePath+"/"+name, nil, parser.ParseComments)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -305,7 +326,7 @@ func (g *generator) generateSchemas(name string) {
 	}
 }
 
-func (g *generator) generateYaml() string {
+func (g *generator) generateYaml(version string) string {
 	funcs := template.FuncMap{
 		"includeOperation": func(operationId string) string {
 			name := fmt.Sprintf("templates/operations/%s.yaml", operationId)
@@ -416,6 +437,7 @@ func (g *generator) generateYaml() string {
 		"parameters": parameters,
 		"paths":      g.paths,
 		"schemas":    schemas,
+		"version":    version,
 	}); err != nil {
 		log.Fatalf("failed to execute OpenAPI template: %v", err)
 	}
@@ -423,7 +445,7 @@ func (g *generator) generateYaml() string {
 }
 
 func (g *generator) getPathConsts() map[string]string {
-	f, err := parser.ParseFile(g.fileSet, g.basePath+"/http/server/http.go", nil, 0)
+	f, err := parser.ParseFile(g.fileSet, g.sourcePath+"/http/server/http.go", nil, 0)
 	if err != nil {
 		log.Fatal(err)
 	}
