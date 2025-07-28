@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -44,13 +45,57 @@ func main() {
 		{os: "windows", arch: "amd64"},
 	}
 
-	for _, build := range builds {
+	artifacts := make([]ReleaseArtifact, len(builds))
+
+	for i, build := range builds {
 		goBuild(build, "-ldflags", "-X main.version="+tagName, "-o", "./go-bpmn", "./cmd/go-bpmn")
 		goBuild(build, "-ldflags", "-X github.com/gclaussn/go-bpmn/daemon.version="+tagName, "-o", "./go-bpmn-memd", "./cmd/go-bpmn-memd")
 		goBuild(build, "-ldflags", "-X github.com/gclaussn/go-bpmn/daemon.version="+tagName, "-o", "./go-bpmn-pgd", "./cmd/go-bpmn-pgd")
 
 		createTarGz(build)
-		createChecksum(build)
+
+		checksum := createChecksum(build)
+
+		checksumFile, err := os.OpenFile(fmt.Sprintf("./build/go-bpmn-%s-%s.sha256", build.os, build.arch), os.O_WRONLY|os.O_CREATE, 0700)
+		if err != nil {
+			log.Fatalf("failed to open checksum file: %v", err)
+		}
+
+		defer checksumFile.Close()
+
+		_, err = checksumFile.WriteString(checksum)
+		if err != nil {
+			log.Fatalf("failed to write checksum file: %v", err)
+		}
+
+		artifacts[i] = ReleaseArtifact{
+			Os:       build.os,
+			OsArch:   fmt.Sprintf("%s-%s", build.os, build.arch),
+			Checksum: strings.SplitN(checksum, " ", 2)[0], // e.g. "<checksum> go-bpmn-linux-amd64.tar.gz\n" -> "<checksum>"
+		}
+	}
+
+	// needed for docs
+	release := Release{
+		Version:   tagName,
+		Artifacts: artifacts,
+	}
+
+	releaseJson, err := json.MarshalIndent(release, "", "  ")
+	if err != nil {
+		log.Fatalf("failed to marshal release: %v", err)
+	}
+
+	releaseFile, err := os.OpenFile("./build/release.json", os.O_WRONLY|os.O_CREATE, 0700)
+	if err != nil {
+		log.Fatalf("failed to open release file: %v", err)
+	}
+
+	defer releaseFile.Close()
+
+	_, err = releaseFile.Write(releaseJson)
+	if err != nil {
+		log.Fatalf("failed to write release file: %v", err)
 	}
 }
 
@@ -107,7 +152,7 @@ func createTarGz(build osArch) {
 	}
 }
 
-func createChecksum(build osArch) {
+func createChecksum(build osArch) string {
 	cmd := exec.Command("sha256sum", fmt.Sprintf("go-bpmn-%s-%s.tar.gz", build.os, build.arch))
 	cmd.Dir = "./build"
 
@@ -118,15 +163,16 @@ func createChecksum(build osArch) {
 		log.Fatalf("failed to run command: %v", err)
 	}
 
-	checksumFile, err := os.OpenFile(fmt.Sprintf("./build/go-bpmn-%s-%s.sha256", build.os, build.arch), os.O_WRONLY|os.O_CREATE, 0700)
-	if err != nil {
-		log.Fatalf("failed to open checksum file: %v", err)
-	}
+	return string(out)
+}
 
-	defer checksumFile.Close()
+type Release struct {
+	Version   string            `json:"version"`
+	Artifacts []ReleaseArtifact `json:"artifacts"`
+}
 
-	_, err = checksumFile.Write(out)
-	if err != nil {
-		log.Fatalf("failed to write checksum file: %v", err)
-	}
+type ReleaseArtifact struct {
+	Os       string `json:"os"`
+	OsArch   string `json:"osarch"`
+	Checksum string `json:"checksum"`
 }

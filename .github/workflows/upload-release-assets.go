@@ -46,6 +46,8 @@ func main() {
 			contentType = "text/plain"
 		case strings.HasSuffix(name, "yaml"):
 			contentType = "text/yaml"
+		case strings.HasSuffix(name, "json"):
+			contentType = "application/json"
 		default:
 			log.Fatalf("file %s has an unsupported extension", name)
 		}
