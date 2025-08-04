@@ -2,7 +2,7 @@ tags:
   - Events
 summary: Send signal
 description: >
-  Sends a signal to notify signal subscribers.
+  Sends a signal to notify signal subscribers and returns the number of notified subscribers.
 
 
   A subscriber can be a signal start or catch event.
@@ -27,15 +27,9 @@ responses:
     content:
       application/json:
         schema:
-          $ref: "#/components/schemas/SignalEvent"
+          $ref: "#/components/schemas/CountRes"
         example:
-          partition: "2025-07-13"
-          id: 9
-          createdAt: "2025-05-01T17:44:19.997Z"
-          createdBy: go-bpmn
-          startedAt: "2025-05-01T17:44:19.997Z"
-          name: example-signal
-          subscriberCount: 3
+          count: 3
   "400":
     description: Bad request
     content:

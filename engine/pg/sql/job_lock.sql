@@ -30,9 +30,9 @@ FROM (
 {{if ne .ProcessInstanceId 0}}
 		AND process_instance_id = {{.ProcessInstanceId}}
 {{end}}
-  ORDER BY
-	  partition,
-	  due_at
+	ORDER BY
+		partition,
+		due_at
 	LIMIT
 		{{.Limit}}
 	FOR UPDATE SKIP LOCKED

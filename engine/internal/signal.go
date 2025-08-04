@@ -13,9 +13,10 @@ import (
 type SignalSubscriptionEntity struct {
 	Id int64
 
+	Partition time.Time // Partition of the related process and element instance
+
 	ElementId         int32
 	ElementInstanceId int32
-	Partition         time.Time // Partition of the related process and element instance
 	ProcessId         int32
 	ProcessInstanceId int32
 
@@ -29,15 +30,15 @@ type SignalSubscriptionRepository interface {
 	Insert(*SignalSubscriptionEntity) error
 }
 
-func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.SignalEvent, error) {
+func SendSignal(ctx Context, cmd engine.SendSignalCmd) (int, error) {
 	signalSubscriptions, err := ctx.SignalSubscriptions().DeleteByName(cmd.Name)
 	if err != nil {
-		return engine.SignalEvent{}, err
+		return 0, err
 	}
 
 	eventDefinitions, err := ctx.EventDefinitions().SelectBySignalName(cmd.Name)
 	if err != nil {
-		return engine.SignalEvent{}, err
+		return 0, err
 	}
 
 	// encrypt variables
@@ -48,7 +49,7 @@ func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.SignalEvent, erro
 			continue
 		}
 		if err := encryption.EncryptData(data); err != nil {
-			return engine.SignalEvent{}, fmt.Errorf("failed to encrypt variable %s: %v", variableName, err)
+			return 0, fmt.Errorf("failed to encrypt variable %s: %v", variableName, err)
 		}
 	}
 
@@ -91,22 +92,9 @@ func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.SignalEvent, erro
 		}
 	}
 
-	mainEvent := EventEntity{
-		Partition: ctx.Date(),
-
-		CreatedAt:             ctx.Time(),
-		CreatedBy:             cmd.WorkerId,
-		SignalName:            pgtype.Text{String: cmd.Name, Valid: true},
-		SignalSubscriberCount: pgtype.Int4{Int32: int32(len(events)), Valid: true},
-	}
-
-	if err := ctx.Events().Insert(&mainEvent); err != nil {
-		return engine.SignalEvent{}, err
-	}
-
 	for _, event := range events {
 		if err := ctx.Events().Insert(event); err != nil {
-			return engine.SignalEvent{}, err
+			return 0, err
 		}
 	}
 
@@ -158,7 +146,7 @@ func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.SignalEvent, erro
 	}
 
 	if err := ctx.Tasks().InsertBatch(triggerEventTasks); err != nil {
-		return engine.SignalEvent{}, err
+		return 0, err
 	}
 
 	// insert variables per event
@@ -189,10 +177,15 @@ func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.SignalEvent, erro
 	}
 
 	if err := ctx.EventVariables().InsertBatch(variables); err != nil {
-		return engine.SignalEvent{}, err
+		return 0, err
 	}
 
-	return mainEvent.SignalEvent(), nil
+	subscriberCount := 0
+	for _, event := range events {
+		subscriberCount = subscriberCount + int(event.SignalSubscriberCount.Int32)
+	}
+
+	return subscriberCount, nil
 }
 
 func triggerSignalCatchEvent(ctx Context, task *TaskEntity, process *ProcessEntity) error {

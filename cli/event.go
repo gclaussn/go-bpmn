@@ -49,12 +49,12 @@ func newSendSignalCmd(cli *Cli) *cobra.Command {
 			cmd.Variables = variables
 			cmd.WorkerId = cli.workerId
 
-			signalEvent, err := cli.engine.SendSignal(cmd)
+			subscriberCount, err := cli.engine.SendSignal(cmd)
 			if err != nil {
 				return err
 			}
 
-			c.Print(signalEvent)
+			c.Print(subscriberCount)
 			return nil
 		},
 	}

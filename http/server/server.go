@@ -437,13 +437,13 @@ func (s *Server) sendSignal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	signalEvent, err := s.engine.WithContext(r.Context()).SendSignal(cmd)
+	subscriberCount, err := s.engine.WithContext(r.Context()).SendSignal(cmd)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
 
-	encodeJSONResponseBody(w, r, signalEvent, http.StatusOK)
+	encodeJSONResponseBody(w, r, CountRes{Count: subscriberCount}, http.StatusOK)
 }
 
 func (s *Server) setElementVariables(w http.ResponseWriter, r *http.Request) {

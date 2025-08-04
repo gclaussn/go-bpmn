@@ -33,9 +33,9 @@ FROM (
 {{if ne .Type 0}}
 		AND type = '{{.Type}}'
 {{end}}
-  ORDER BY
-	  partition,
-	  due_at
+	ORDER BY
+		partition,
+		due_at
 	LIMIT
 		{{ .Limit }}
 	FOR UPDATE SKIP LOCKED

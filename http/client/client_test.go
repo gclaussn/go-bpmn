@@ -170,18 +170,12 @@ func TestClientServer(t *testing.T) {
 			WorkerId: "test",
 		}
 
-		signalEvent, err := client.SendSignal(cmd)
+		subscriberCount, err := client.SendSignal(cmd)
 		if err != nil {
 			t.Fatalf("failed to send signal: %v", err)
 		}
 
-		assert.False(signalEvent.Partition.IsZero())
-		assert.NotEmpty(signalEvent.Id)
-
-		assert.NotEmpty(signalEvent.CreatedAt)
-		assert.Equal(cmd.WorkerId, signalEvent.CreatedBy)
-		assert.Equal(cmd.Name, signalEvent.Name)
-		assert.Equal(0, signalEvent.SubscriberCount)
+		assert.Equal(0, subscriberCount)
 	})
 }
 

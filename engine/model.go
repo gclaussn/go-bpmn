@@ -87,16 +87,18 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 //   - [JobEvaluateExclusiveGateway]: forking exclusive gateway
 //   - [JobEvaluateInclusiveGateway]: forking inclusive gateway
 //   - [JobExecute]: business rule, script, send and service task
-//   - [JobSetSignalName]: signal catch event
 //   - [JobSetTimer]: timer catch event
+//   - [JobSubscribeMessage]: message catch event
+//   - [JobSubscribeSignal]: signal catch event
 type JobType int
 
 const (
 	JobEvaluateExclusiveGateway JobType = iota + 1
 	JobEvaluateInclusiveGateway
 	JobExecute
-	JobSetSignalName
 	JobSetTimer
+	JobSubscribeMessage
+	JobSubscribeSignal
 )
 
 func MapJobType(s string) JobType {
@@ -107,10 +109,12 @@ func MapJobType(s string) JobType {
 		return JobEvaluateInclusiveGateway
 	case "EXECUTE":
 		return JobExecute
-	case "SET_SIGNAL_NAME":
-		return JobSetSignalName
 	case "SET_TIMER":
 		return JobSetTimer
+	case "SUBSCRIBE_MESSAGE":
+		return JobSubscribeMessage
+	case "SUBSCRIBE_SIGNAL":
+		return JobSubscribeSignal
 	default:
 		return 0
 	}
@@ -132,10 +136,12 @@ func (v JobType) String() string {
 		return "EVALUATE_INCLUSIVE_GATEWAY"
 	case JobExecute:
 		return "EXECUTE"
-	case JobSetSignalName:
-		return "SET_SIGNAL_NAME"
 	case JobSetTimer:
 		return "SET_TIMER"
+	case JobSubscribeMessage:
+		return "SUBSCRIBE_MESSAGE"
+	case JobSubscribeSignal:
+		return "SUBSCRIBE_SIGNAL"
 	default:
 		return ""
 	}
@@ -494,21 +500,6 @@ type ProcessInstanceCriteria struct {
 	Tags map[string]string `json:"tags,omitempty"` // Tags, a process instance must have, to be included.
 }
 
-// SignalEvent represents a notification of signal subscribers (signal start or catch events).
-type SignalEvent struct {
-	Partition Partition `json:"partition" validate:"required"` // Event partition.
-	Id        int32     `json:"id" validate:"required"`        // Event ID.
-
-	CreatedAt       time.Time `json:"createdAt" validate:"required"`             // Signal sent time.
-	CreatedBy       string    `json:"createdBy" validate:"required"`             // ID of the worker or engine that sent the signal.
-	Name            string    `json:"name" validate:"required"`                  // Name of the signal.
-	SubscriberCount int       `json:"subscriberCount" validate:"required,gte=0"` // Number of notified signal subscribers.
-}
-
-func (v SignalEvent) String() string {
-	return fmt.Sprintf("%s/%d", v.Partition, v.Id)
-}
-
 // Task is a unit of work, which must be locked, executed and completed by an engine.
 type Task struct {
 	Partition Partition `json:"partition" validate:"required"` // Task partition.
@@ -563,16 +554,6 @@ type TaskCriteria struct {
 	Type TaskType `json:"type,omitempty"` // Task type.
 }
 
-// A timer defines when a timer start or catch event is triggered.
-type Timer struct {
-	// A point in time, when the timer event is triggered.
-	Time time.Time `json:"time"`
-	// CRON expression that specifies a cyclic trigger.
-	TimeCycle string `json:"timeCycle,omitempty" validate:"cron"`
-	// Duration until the timer event is triggered.
-	TimeDuration ISO8601Duration `json:"timeDuration" validate:"iso8601_duration"`
-}
-
 // Variable is data, identified by a name, that exists in the scope of a process instance or element instance.
 type Variable struct {
 	Partition Partition `json:"partition" validate:"required"` // Variable partition.
@@ -604,4 +585,34 @@ type VariableCriteria struct {
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // Process instance filter.
 
 	Names []string `json:"names,omitempty"` // Names of variables to include.
+}
+
+// event related
+
+type MessageCorrelation struct {
+}
+
+// SignalEvent represents a notification of signal subscribers (signal start or catch events).
+type SignalEvent struct {
+	Partition Partition `json:"partition" validate:"required"` // Event partition.
+	Id        int32     `json:"id" validate:"required"`        // Event ID.
+
+	CreatedAt       time.Time `json:"createdAt" validate:"required"`             // Signal sent time.
+	CreatedBy       string    `json:"createdBy" validate:"required"`             // ID of the worker or engine that sent the signal.
+	Name            string    `json:"name" validate:"required"`                  // Name of the signal.
+	SubscriberCount int       `json:"subscriberCount" validate:"required,gte=0"` // Number of notified signal subscribers.
+}
+
+func (v SignalEvent) String() string {
+	return fmt.Sprintf("%s/%d", v.Partition, v.Id)
+}
+
+// A timer defines when a timer start or catch event is triggered.
+type Timer struct {
+	// A point in time, when the timer event is triggered.
+	Time time.Time `json:"time"`
+	// CRON expression that specifies a cyclic trigger.
+	TimeCycle string `json:"timeCycle,omitempty" validate:"cron"`
+	// Duration until the timer event is triggered.
+	TimeDuration ISO8601Duration `json:"timeDuration" validate:"iso8601_duration"`
 }

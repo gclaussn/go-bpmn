@@ -19,6 +19,9 @@ type Context interface {
 	EventVariables() EventVariableRepository
 	Incidents() IncidentRepository
 	Jobs() JobRepository
+	Messages() MessageRepository
+	MessageSubscriptions() MessageSubscriptionRepository
+	MessageVariables() MessageVariableRepository
 	Processes() ProcessRepository
 	ProcessCache() *ProcessCache
 	ProcessInstances() ProcessInstanceRepository

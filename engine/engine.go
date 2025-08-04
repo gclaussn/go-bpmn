@@ -68,11 +68,19 @@ type Engine interface {
 	// ResumeProcessInstance resumes a suspended process instance.
 	ResumeProcessInstance(ResumeProcessInstanceCmd) error
 
-	// SendSignal sends a signal to notify signal subscribers.
+	// SendMessage sends a message to notify a message subscriber.
+	//
+	// A subscriber can be a message start or catch event.
+	// In case of a message start event, a new process instance is created.
+	// In case of a message catch event, an existing process instance is continued.
+	SendMessage(SendMessageCmd) (MessageCorrelation, error)
+
+	// SendSignal sends a signal to notify signal subscribers and returns the number of notified subscribers.
+	//
 	// A subscriber can be a signal start or catch event.
 	// In case of a signal start event, a new process instance is created.
 	// In case of a signal catch event, an existing process instance is continued.
-	SendSignal(SendSignalCmd) (SignalEvent, error)
+	SendSignal(SendSignalCmd) (int, error)
 
 	// SetElementVariables sets or deletes variables of an active element instance.
 	SetElementVariables(SetElementVariablesCmd) error

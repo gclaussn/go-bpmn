@@ -24,7 +24,7 @@ func (d signalCatchEventDelegate) CreateProcessCmd() (engine.CreateProcessCmd, e
 }
 
 func (d signalCatchEventDelegate) Delegate(delegator worker.Delegator) error {
-	delegator.SetSignalName("signalCatchEvent", d.setSignalName)
+	delegator.SubscribeSignal("signalCatchEvent", d.setSignalName)
 	return nil
 }
 

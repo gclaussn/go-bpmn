@@ -166,6 +166,19 @@ type ResumeProcessInstanceCmd struct {
 	WorkerId string `json:"workerId" validate:"required"`
 }
 
+type SendMessageCmd struct {
+	// Key, used to correlate a message subscription with a message.
+	CorrelationKey string `json:"correlationKey" validate:"required"`
+	// Message name.
+	Name string `json:"name" validate:"required"`
+	// Duration until the message expires.
+	ExpirationTimer ISO8601Duration `json:"expirationTimer" validate:"iso8601_duration"`
+	// Variables to set or delete at process instance scope. For a variable deletion, no value must be provided.
+	Variables map[string]*Data `json:"variables,omitempty" validate:"dive,keys,variable_name,endkeys,omitnil,required"`
+	// ID of the worker that sent the message.
+	WorkerId string `json:"workerId" validate:"required"`
+}
+
 // SendSignalCmd is used to notify all subscribers.
 type SendSignalCmd struct {
 	// Signal name.
@@ -257,8 +270,14 @@ type JobCompletion struct {
 	// Evaluated BPMN element IDs to continue with after the inclusive gateway.
 	// Applicable when job type is `EVALUATE_INCLUSIVE_GATEWAY`.
 	InclusiveGatewayDecision []string `json:"inclusiveGatewayDecision,omitempty"`
+	// Key, used to correlate a message subscription with a message.
+	// Applicable when job type is `SUBSCRIBE_MESSAGE`.
+	MessageCorrelationKey string `json:"messageCorrelationKey,omitempty"`
+	// Name of the message to subscribe to.
+	// Applicable when job type is `SUBSCRIBE_MESSAGE`.
+	MessageName string `json:"messageName,omitempty"`
 	// Name of the signal to subscribe to.
-	// Applicable when job type is `SET_SIGNAL_NAME`.
+	// Applicable when job type is `SUBSCRIBE_SIGNAL`.
 	SignalName string `json:"signalName,omitempty"`
 	// A timer definition.
 	// Applicable when job type is `SET_TIMER`.

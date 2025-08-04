@@ -47,7 +47,7 @@ func (x signalEventTest) catch(t *testing.T) {
 	})
 
 	// when signal sent
-	signalEvent, err := x.e.SendSignal(engine.SendSignalCmd{
+	subscriberCount, err := x.e.SendSignal(engine.SendSignalCmd{
 		Name: "catch-signal",
 		Variables: map[string]*engine.Data{
 			"a": {Encoding: "encoding-a", Value: "value-a"},
@@ -61,16 +61,10 @@ func (x signalEventTest) catch(t *testing.T) {
 	}
 
 	// then
-	assert.False(signalEvent.Partition.IsZero())
-	assert.NotEmpty(signalEvent.Id)
-
-	assert.NotEmpty(signalEvent.CreatedAt)
-	assert.Equal(testWorkerId, signalEvent.CreatedBy)
-	assert.Equal("catch-signal", signalEvent.Name)
-	assert.Equal(1, signalEvent.SubscriberCount)
+	assert.Equal(1, subscriberCount)
 
 	// when signal sent again
-	signalEvent, err = x.e.SendSignal(engine.SendSignalCmd{
+	subscriberCount, err = x.e.SendSignal(engine.SendSignalCmd{
 		Name:     "catch-signal",
 		WorkerId: testWorkerId,
 	})
@@ -79,13 +73,7 @@ func (x signalEventTest) catch(t *testing.T) {
 	}
 
 	// then
-	assert.False(signalEvent.Partition.IsZero())
-	assert.NotEmpty(signalEvent.Id)
-
-	assert.NotEmpty(signalEvent.CreatedAt)
-	assert.Equal(testWorkerId, signalEvent.CreatedBy)
-	assert.Equal("catch-signal", signalEvent.Name)
-	assert.Equal(0, signalEvent.SubscriberCount)
+	assert.Equal(0, subscriberCount)
 
 	piAssert.IsWaitingAt("signalCatchEvent")
 	piAssert.ExecuteTask()

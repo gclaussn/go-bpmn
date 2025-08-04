@@ -22,9 +22,10 @@ WHERE
 RETURNING
 	id,
 
+	partition,
+
 	element_id,
 	element_instance_id,
-	partition,
 	process_id,
 	process_instance_id,
 
@@ -44,9 +45,10 @@ RETURNING
 		if err := rows.Scan(
 			&entity.Id,
 
+			&entity.Partition,
+
 			&entity.ElementId,
 			&entity.ElementInstanceId,
-			&entity.Partition,
 			&entity.ProcessId,
 			&entity.ProcessInstanceId,
 
@@ -67,9 +69,10 @@ RETURNING
 func (r signalSubscriptionRepository) Insert(entity *internal.SignalSubscriptionEntity) error {
 	row := r.tx.QueryRow(r.txCtx, `
 INSERT INTO signal_subscription (
+	partition,
+
 	element_id,
 	element_instance_id,
-	partition,
 	process_id,
 	process_instance_id,
 
@@ -78,6 +81,7 @@ INSERT INTO signal_subscription (
 	name
 ) VALUES (
 	$1,
+
 	$2,
 	$3,
 	$4,
@@ -88,9 +92,10 @@ INSERT INTO signal_subscription (
 	$8
 ) RETURNING id
 `,
+		entity.Partition,
+
 		entity.ElementId,
 		entity.ElementInstanceId,
-		entity.Partition,
 		entity.ProcessId,
 		entity.ProcessInstanceId,
 

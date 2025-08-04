@@ -14,6 +14,8 @@ type EventEntity struct {
 
 	CreatedAt             time.Time
 	CreatedBy             string
+	MessageCorrelationKey pgtype.Text
+	MessageName           pgtype.Text
 	SignalName            pgtype.Text
 	SignalSubscriberCount pgtype.Int4
 	Time                  pgtype.Timestamp
@@ -46,6 +48,7 @@ type EventDefinitionEntity struct {
 	BpmnElementType model.ElementType
 	BpmnProcessId   string
 	IsSuspended     bool
+	MessageName     pgtype.Text
 	SignalName      pgtype.Text
 	Time            pgtype.Timestamp
 	TimeCycle       pgtype.Text

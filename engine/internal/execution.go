@@ -81,6 +81,7 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 			switch execution.BpmnElementType {
 			case
 				model.ElementBusinessRuleTask,
+				model.ElementMessageCatchEvent,
 				model.ElementScriptTask,
 				model.ElementSendTask,
 				model.ElementServiceTask,
@@ -198,11 +199,13 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 			jobType = engine.JobEvaluateExclusiveGateway
 		case model.ElementInclusiveGateway:
 			jobType = engine.JobEvaluateInclusiveGateway
+		case model.ElementMessageCatchEvent:
+			jobType = engine.JobSubscribeMessage
 		case model.ElementParallelGateway:
 			taskType = engine.TaskJoinParallelGateway
 			taskInstance = JoinParallelGatewayTask{}
 		case model.ElementSignalCatchEvent:
-			jobType = engine.JobSetSignalName
+			jobType = engine.JobSubscribeSignal
 		case model.ElementTimerCatchEvent:
 			jobType = engine.JobSetTimer
 		default:
@@ -418,16 +421,42 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 			job.Error = pgtype.Text{String: "BPMN escalation code is not supported", Valid: true}
 			return nil
 		}
-	case engine.JobSetSignalName:
+	case engine.JobSubscribeMessage:
+		if jobCompletion == nil || jobCompletion.MessageName == "" || jobCompletion.MessageCorrelationKey == "" {
+			job.Error = pgtype.Text{String: "expected a message name and correlation key", Valid: true}
+			return nil
+		}
+
+		messageSubscription := MessageSubscriptionEntity{
+			Partition: execution.Partition,
+
+			ElementId:         execution.ElementId,
+			ElementInstanceId: execution.Id,
+			ProcessId:         execution.ProcessId,
+			ProcessInstanceId: execution.ProcessInstanceId,
+
+			CorrelationKey: jobCompletion.MessageCorrelationKey,
+			CreatedAt:      ctx.Time(),
+			CreatedBy:      ec.engineOrWorkerId,
+			Name:           jobCompletion.MessageName,
+		}
+
+		if err := ctx.MessageSubscriptions().Insert(&messageSubscription); err != nil {
+			return err
+		}
+
+		return nil // do not continue execution
+	case engine.JobSubscribeSignal:
 		if jobCompletion == nil || jobCompletion.SignalName == "" {
 			job.Error = pgtype.Text{String: "expected a signal name", Valid: true}
 			return nil
 		}
 
 		signalSubscription := SignalSubscriptionEntity{
+			Partition: execution.Partition,
+
 			ElementId:         execution.ElementId,
 			ElementInstanceId: execution.Id,
-			Partition:         execution.Partition,
 			ProcessId:         execution.ProcessId,
 			ProcessInstanceId: execution.ProcessInstanceId,
 
