@@ -67,6 +67,11 @@ type EventDefinitionRepository interface {
 	Select(elementId int32) (*EventDefinitionEntity, error)
 	SelectByBpmnProcessId(bpmnProcessId string) ([]*EventDefinitionEntity, error)
 
+	// SelectByMessageName selects an event definition for the message name.
+	//
+	// If no such event definition exists, [pgx.ErrNoRows] is returned.
+	SelectByMessageName(messageName string) (*EventDefinitionEntity, error)
+
 	// SelectBySignalName selects all not suspended event definitions for the signal name.
 	SelectBySignalName(signalName string) ([]*EventDefinitionEntity, error)
 

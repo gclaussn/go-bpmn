@@ -590,6 +590,15 @@ type VariableCriteria struct {
 // event related
 
 type MessageCorrelation struct {
+	IsCorrelated bool `json:"correlated" validate:"required"` // Indicates if the message is correlated or not.
+
+	CorrelationKey string `json:"correlationKey" validate:"required"` // Key, used to correlate a message subscription with a message.
+	Name           string `json:"name" validate:"required"`           // Message name.
+
+	ElementId         int32 `json:"elementId,omitempty"`         // ID of the related element - set if correlated.
+	ElementInstanceId int32 `json:"elementInstanceId,omitempty"` // ID of the related element instance - set if correlated with an existing process instance.
+	ProcessId         int32 `json:"processId,omitempty"`         // ID of the related process - set if correlated.
+	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // ID of the related process instance - set if correlated with an existing process instance.
 }
 
 // SignalEvent represents a notification of signal subscribers (signal start or catch events).
