@@ -173,6 +173,9 @@ type SendMessageCmd struct {
 	Name string `json:"name" validate:"required"`
 	// Duration until the message expires.
 	ExpirationTimer ISO8601Duration `json:"expirationTimer" validate:"iso8601_duration"`
+	// Determines if a message is buffered, when an unexpired message with the same name and correlation key exists.
+	// By default, a message is discarded.
+	IsBuffered bool `json:"buffered,omitempty"`
 	// Variables to set or delete at process instance scope. For a variable deletion, no value must be provided.
 	Variables map[string]*Data `json:"variables,omitempty" validate:"dive,keys,variable_name,endkeys,omitnil,required"`
 	// ID of the worker that sent the message.

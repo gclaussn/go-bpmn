@@ -329,6 +329,13 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 		return fmt.Errorf("failed to dequeue process instance: %v", err)
 	}
 
+	messageId := ec.processInstance.MessageId
+	if messageId.Valid {
+		if err := ctx.Messages().Expire(messageId.Int64); err != nil {
+			return fmt.Errorf("failed to expire message %d: %v", messageId.Int64, err)
+		}
+	}
+
 	return nil
 }
 

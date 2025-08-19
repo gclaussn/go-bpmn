@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS process_instance (
 	parent_id INTEGER,
 	root_id INTEGER,
 
+	message_id BIGINT,
 	process_id INTEGER NOT NULL,
 
 	bpmn_process_id VARCHAR NOT NULL,
