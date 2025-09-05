@@ -162,7 +162,7 @@ WHERE
 	return nil
 }
 
-func (r jobRepository) Query(criteria engine.JobCriteria, options engine.QueryOptions) ([]any, error) {
+func (r jobRepository) Query(criteria engine.JobCriteria, options engine.QueryOptions) ([]engine.Job, error) {
 	var sql bytes.Buffer
 	if err := sqlJobQuery.Execute(&sql, map[string]any{
 		"c": criteria,
@@ -178,7 +178,7 @@ func (r jobRepository) Query(criteria engine.JobCriteria, options engine.QueryOp
 
 	defer rows.Close()
 
-	var results []any
+	var results []engine.Job
 	for rows.Next() {
 		var (
 			entity    internal.JobEntity

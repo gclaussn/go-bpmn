@@ -1,8 +1,10 @@
 package mem
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 	"testing"
 	"time"
@@ -589,10 +591,10 @@ func runQueryOptionTests(t *testing.T, e engine.Engine, criteria any, tests []qu
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("%T %s", criteria, test.name), func(t *testing.T) {
-			results, err := e.QueryWithOptions(criteria, test.options)
-			if err != nil {
-				t.Fatalf("failed to query results: %v", err)
-			}
+			q := e.CreateQuery()
+			q.SetOptions(test.options)
+
+			results := mustQuery(t, q, criteria)
 
 			assert.Len(results, test.expectedCount)
 		})
@@ -604,12 +606,81 @@ func runQueryTests(t *testing.T, e engine.Engine, tests []queryTest) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			results, err := e.Query(test.criteria)
-			if err != nil {
-				t.Fatalf("failed to query results: %v", err)
-			}
+			results := mustQuery(t, e.CreateQuery(), test.criteria)
 
 			test.assertFn(assert, results)
 		})
 	}
+}
+
+func mustQuery(t *testing.T, q engine.Query, criteria any) []any {
+	toResults := func(v any) []any {
+		if v == nil {
+			return nil
+		}
+
+		value := reflect.ValueOf(v)
+
+		results := make([]any, value.Len())
+		for i := 0; i < value.Len(); i++ {
+			results[i] = value.Index(i).Interface()
+		}
+
+		return results
+	}
+
+	switch criteria := criteria.(type) {
+	case engine.ElementCriteria:
+		elements, err := q.QueryElements(context.Background(), criteria)
+		if err != nil {
+			t.Fatalf("failed to query elements: %v", err)
+		}
+		return toResults(elements)
+	case engine.ElementInstanceCriteria:
+		elements, err := q.QueryElementInstances(context.Background(), criteria)
+		if err != nil {
+			t.Fatalf("failed to query element instances: %v", err)
+		}
+		return toResults(elements)
+	case engine.IncidentCriteria:
+		elements, err := q.QueryIncidents(context.Background(), criteria)
+		if err != nil {
+			t.Fatalf("failed to query incidents: %v", err)
+		}
+		return toResults(elements)
+	case engine.JobCriteria:
+		elements, err := q.QueryJobs(context.Background(), criteria)
+		if err != nil {
+			t.Fatalf("failed to query jobs: %v", err)
+		}
+		return toResults(elements)
+	case engine.ProcessCriteria:
+		elements, err := q.QueryProcesses(context.Background(), criteria)
+		if err != nil {
+			t.Fatalf("failed to query processes: %v", err)
+		}
+		return toResults(elements)
+	case engine.ProcessInstanceCriteria:
+		elements, err := q.QueryProcessInstances(context.Background(), criteria)
+		if err != nil {
+			t.Fatalf("failed to query process instances: %v", err)
+		}
+		return toResults(elements)
+	case engine.TaskCriteria:
+		elements, err := q.QueryTasks(context.Background(), criteria)
+		if err != nil {
+			t.Fatalf("failed to query tasks: %v", err)
+		}
+		return toResults(elements)
+	case engine.VariableCriteria:
+		elements, err := q.QueryVariables(context.Background(), criteria)
+		if err != nil {
+			t.Fatalf("failed to query variables: %v", err)
+		}
+		return toResults(elements)
+	default:
+		t.Fatalf("unsupported criteria type %T", criteria)
+	}
+
+	return nil
 }

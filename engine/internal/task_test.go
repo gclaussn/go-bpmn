@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -14,7 +15,7 @@ type testTaskExecutorEngine struct {
 	executeTasksCalled int
 }
 
-func (e *testTaskExecutorEngine) ExecuteTasks(cmd engine.ExecuteTasksCmd) ([]engine.Task, []engine.Task, error) {
+func (e *testTaskExecutorEngine) ExecuteTasks(ctx context.Context, cmd engine.ExecuteTasksCmd) ([]engine.Task, []engine.Task, error) {
 	e.executeTasksCalled++
 	return nil, nil, nil
 }

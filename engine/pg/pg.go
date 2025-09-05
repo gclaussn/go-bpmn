@@ -56,15 +56,17 @@ func New(databaseUrl string, customizers ...func(*Options)) (engine.Engine, erro
 		pgCtxPool <- &pgContext{options: options, processCache: processCache}
 	}
 
-	requireCtx, requireCancel := context.WithCancel(context.Background())
+	acquireCtx, acquireCancel := context.WithCancel(context.Background())
 
 	pgEngine := pgEngine{
-		requireCtx:    requireCtx,
-		requireCancel: requireCancel,
+		acquireCtx:    acquireCtx,
+		acquireCancel: acquireCancel,
 
 		pgCtxPool: pgCtxPool,
 		pgPool:    pgPool,
 		txTimeout: options.Timeout,
+
+		defaultQueryLimit: options.Common.DefaultQueryLimit,
 	}
 
 	if err := pgEngine.migrateAndPrepareDatabase(); err != nil {
@@ -117,13 +119,15 @@ func (o Options) Validate() error {
 }
 
 type pgEngine struct {
-	requireCtx    context.Context    // used to prevent the requiring of a context, when the engine is shut down
-	requireCancel context.CancelFunc // invoked when a shutdown is initiated
+	acquireCtx    context.Context    // used to prevent the acquiring of a context, when the engine is shut down
+	acquireCancel context.CancelFunc // invoked when a shutdown is initiated
 	shutdownOnce  sync.Once          // used to prevent more than one shutdown
 
 	pgCtxPool chan *pgContext
 	pgPool    *pgxpool.Pool
-	txTimeout time.Duration // utilized when no external context is provided
+	txTimeout time.Duration
+
+	defaultQueryLimit int
 
 	taskExecutor *internal.TaskExecutor
 
@@ -132,65 +136,61 @@ type pgEngine struct {
 }
 
 func (e *pgEngine) migrateAndPrepareDatabase() error {
-	w, cancel := e.withTimeout()
-	defer cancel()
+	return e.execute(func(pgCtx *pgContext) error {
+		if err := migrateDatabase(pgCtx); err != nil {
+			return fmt.Errorf("failed to migrate database: %v", err)
+		}
 
-	ctx, err := w.require()
+		if err := prepareDatabase(pgCtx); err != nil {
+			return fmt.Errorf("failed to prepare database: %v", err)
+		}
+
+		return nil
+	})
+}
+
+// execute acquires a pgContext, executes the given function and releases the pgContext.
+func (e *pgEngine) execute(fn func(*pgContext) error) error {
+	pgCtx, cancel, err := e.acquire(context.Background())
 	if err != nil {
 		return err
 	}
 
-	if err := migrateDatabase(ctx); err != nil {
-		return w.release(ctx, fmt.Errorf("failed to migrate database: %v", err))
-	}
+	defer cancel()
 
-	if err := prepareDatabase(ctx); err != nil {
-		return w.release(ctx, fmt.Errorf("failed to prepare database: %v", err))
-	}
-
-	return w.release(ctx, err)
+	err = fn(pgCtx)
+	return e.release(pgCtx, err)
 }
 
-// withTimeout wraps the engine using a context-aware implementation.
-// The context is created with a configurable timeout.
-func (e *pgEngine) withTimeout() (*pgEngineWithContext, context.CancelFunc) {
-	ctx, cancel := context.WithTimeout(context.Background(), e.txTimeout)
-	return &pgEngineWithContext{e: e, ctx: ctx}, cancel
-}
+func (e *pgEngine) acquire(ctx context.Context) (*pgContext, context.CancelFunc, error) {
+	ctx, cancel := context.WithTimeout(ctx, e.txTimeout)
 
-// pgEngineWithContext is wrapper that is used with an external context.
-type pgEngineWithContext struct {
-	e   *pgEngine       // wrapped engine
-	ctx context.Context // external context
-}
-
-func (e *pgEngineWithContext) require() (*pgContext, error) {
 	now := time.Now()
 
-	pgEngine := e.e
-
 	select {
-	case <-pgEngine.requireCtx.Done():
-		return nil, pgEngine.requireCtx.Err()
-	case pgCtx := <-pgEngine.pgCtxPool:
-		tx, err := pgEngine.pgPool.Begin(e.ctx)
+	case <-e.acquireCtx.Done():
+		cancel()
+		return nil, nil, e.acquireCtx.Err()
+	case pgCtx := <-e.pgCtxPool:
+		tx, err := e.pgPool.Begin(ctx)
 		if err != nil {
-			pgEngine.pgCtxPool <- pgCtx
-			return nil, err
+			cancel()
+			e.pgCtxPool <- pgCtx
+			return nil, nil, err
 		}
 
 		// must be UTC and truncated to millis, since TIMESTAMP(3) is used
 		// otherwise tests are flaky
-		pgCtx.time = now.UTC().Add(pgEngine.offset).Truncate(time.Millisecond)
+		pgCtx.time = now.UTC().Add(e.offset).Truncate(time.Millisecond)
 
 		pgCtx.tx = tx
-		pgCtx.txCtx = e.ctx
+		pgCtx.txCtx = ctx
 
-		return pgCtx, nil
+		return pgCtx, cancel, nil
 	}
 }
 
-func (e *pgEngineWithContext) release(pgCtx *pgContext, err error) error {
+func (e *pgEngine) release(pgCtx *pgContext, err error) error {
 	if err != nil {
 		_ = pgCtx.tx.Rollback(pgCtx.txCtx)
 	} else {
@@ -200,74 +200,65 @@ func (e *pgEngineWithContext) release(pgCtx *pgContext, err error) error {
 	pgCtx.tx = nil
 	pgCtx.txCtx = nil
 
-	e.e.pgCtxPool <- pgCtx
+	e.pgCtxPool <- pgCtx
 	return err
 }
 
-func (e *pgEngine) CompleteJob(cmd engine.CompleteJobCmd) (engine.Job, error) {
-	w, cancel := e.withTimeout()
-	defer cancel()
-	return w.CompleteJob(cmd)
-}
-
-func (e *pgEngineWithContext) CompleteJob(cmd engine.CompleteJobCmd) (engine.Job, error) {
-	ctx, err := e.require()
+func (e *pgEngine) CompleteJob(ctx context.Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
+	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
 		return engine.Job{}, err
 	}
 
-	job, err := internal.CompleteJob(ctx, cmd)
-	return job, e.release(ctx, err)
-}
-
-func (e *pgEngine) CreateProcess(cmd engine.CreateProcessCmd) (engine.Process, error) {
-	w, cancel := e.withTimeout()
 	defer cancel()
-	return w.CreateProcess(cmd)
+	job, err := internal.CompleteJob(pgCtx, cmd)
+	return job, e.release(pgCtx, err)
 }
 
-func (e *pgEngineWithContext) CreateProcess(cmd engine.CreateProcessCmd) (engine.Process, error) {
-	ctx, err := e.require()
+func (e *pgEngine) CreateProcess(ctx context.Context, cmd engine.CreateProcessCmd) (engine.Process, error) {
+	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
 		return engine.Process{}, err
 	}
 
-	process, err := internal.CreateProcess(ctx, cmd)
-	return process, e.release(ctx, err)
-}
-
-func (e *pgEngine) CreateProcessInstance(cmd engine.CreateProcessInstanceCmd) (engine.ProcessInstance, error) {
-	w, cancel := e.withTimeout()
 	defer cancel()
-	return w.CreateProcessInstance(cmd)
+	process, err := internal.CreateProcess(pgCtx, cmd)
+	return process, e.release(pgCtx, err)
 }
 
-func (e *pgEngineWithContext) CreateProcessInstance(cmd engine.CreateProcessInstanceCmd) (engine.ProcessInstance, error) {
-	ctx, err := e.require()
+func (e *pgEngine) CreateProcessInstance(ctx context.Context, cmd engine.CreateProcessInstanceCmd) (engine.ProcessInstance, error) {
+	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
 		return engine.ProcessInstance{}, err
 	}
 
-	processInstance, err := internal.CreateProcessInstance(ctx, cmd)
-	return processInstance, e.release(ctx, err)
-}
-
-func (e *pgEngine) ExecuteTasks(cmd engine.ExecuteTasksCmd) ([]engine.Task, []engine.Task, error) {
-	w, cancel := e.withTimeout()
 	defer cancel()
-	return w.ExecuteTasks(cmd)
+	processInstance, err := internal.CreateProcessInstance(pgCtx, cmd)
+	return processInstance, e.release(pgCtx, err)
 }
 
-func (e *pgEngineWithContext) ExecuteTasks(cmd engine.ExecuteTasksCmd) ([]engine.Task, []engine.Task, error) {
-	ctx, err := e.require()
+func (e *pgEngine) CreateQuery() engine.Query {
+	return &query{
+		e: e,
+
+		defaultQueryLimit: e.defaultQueryLimit,
+		options:           engine.QueryOptions{Limit: e.defaultQueryLimit},
+	}
+}
+
+func (e *pgEngine) ExecuteTasks(ctx context.Context, cmd engine.ExecuteTasksCmd) ([]engine.Task, []engine.Task, error) {
+	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	lockedTasks, err := ctx.Tasks().Lock(cmd, ctx.Time())
-	if err := e.release(ctx, err); err != nil {
+	lockedTasks, err := pgCtx.Tasks().Lock(cmd, pgCtx.Time())
+	if err := e.release(pgCtx, err); err != nil {
+		cancel()
 		return nil, nil, err
 	}
+
+	cancel()
 
 	var (
 		completedTasks []engine.Task
@@ -276,17 +267,19 @@ func (e *pgEngineWithContext) ExecuteTasks(cmd engine.ExecuteTasksCmd) ([]engine
 		errs []error
 	)
 	for _, lockedTask := range lockedTasks {
-		ctx, err := e.require()
+		pgCtx, cancel, err := e.acquire(ctx)
 		if err != nil {
 			return nil, nil, err
 		}
 
-		err = internal.ExecuteTask(ctx, lockedTask)
+		defer cancel()
+
+		err = internal.ExecuteTask(pgCtx, lockedTask)
 
 		task := lockedTask.Task()
-		if err := e.release(ctx, err); err != nil {
+		if err := e.release(pgCtx, err); err != nil {
 			errs = append(errs, fmt.Errorf("failed to execute task %s: %v", task, err))
-			if onFailure := ctx.options.Common.OnTaskExecutionFailure; onFailure != nil {
+			if onFailure := pgCtx.options.Common.OnTaskExecutionFailure; onFailure != nil {
 				onFailure(task, err)
 			}
 
@@ -303,210 +296,122 @@ func (e *pgEngineWithContext) ExecuteTasks(cmd engine.ExecuteTasksCmd) ([]engine
 	}
 }
 
-func (e *pgEngine) GetBpmnXml(cmd engine.GetBpmnXmlCmd) (string, error) {
-	w, cancel := e.withTimeout()
-	defer cancel()
-	return w.GetBpmnXml(cmd)
-}
-
-func (e *pgEngineWithContext) GetBpmnXml(cmd engine.GetBpmnXmlCmd) (string, error) {
-	ctx, err := e.require()
+func (e *pgEngine) GetBpmnXml(ctx context.Context, cmd engine.GetBpmnXmlCmd) (string, error) {
+	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
 		return "", err
 	}
 
-	bpmnXml, err := internal.GetBpmnXml(ctx, cmd)
-	return bpmnXml, e.release(ctx, err)
-}
-
-func (e *pgEngine) GetElementVariables(cmd engine.GetElementVariablesCmd) (map[string]engine.Data, error) {
-	w, cancel := e.withTimeout()
 	defer cancel()
-	return w.GetElementVariables(cmd)
+	bpmnXml, err := internal.GetBpmnXml(pgCtx, cmd)
+	return bpmnXml, e.release(pgCtx, err)
 }
 
-func (e *pgEngineWithContext) GetElementVariables(cmd engine.GetElementVariablesCmd) (map[string]engine.Data, error) {
-	ctx, err := e.require()
+func (e *pgEngine) GetElementVariables(ctx context.Context, cmd engine.GetElementVariablesCmd) (map[string]engine.Data, error) {
+	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	variables, err := internal.GetElementVariables(ctx, cmd)
-	return variables, e.release(ctx, err)
-}
-
-func (e *pgEngine) GetProcessVariables(cmd engine.GetProcessVariablesCmd) (map[string]engine.Data, error) {
-	w, cancel := e.withTimeout()
 	defer cancel()
-	return w.GetProcessVariables(cmd)
+	variables, err := internal.GetElementVariables(pgCtx, cmd)
+	return variables, e.release(pgCtx, err)
 }
 
-func (e *pgEngineWithContext) GetProcessVariables(cmd engine.GetProcessVariablesCmd) (map[string]engine.Data, error) {
-	ctx, err := e.require()
+func (e *pgEngine) GetProcessVariables(ctx context.Context, cmd engine.GetProcessVariablesCmd) (map[string]engine.Data, error) {
+	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	variables, err := internal.GetProcessVariables(ctx, cmd)
-	return variables, e.release(ctx, err)
-}
-
-func (e *pgEngine) LockJobs(cmd engine.LockJobsCmd) ([]engine.Job, error) {
-	w, cancel := e.withTimeout()
 	defer cancel()
-	return w.LockJobs(cmd)
+	variables, err := internal.GetProcessVariables(pgCtx, cmd)
+	return variables, e.release(pgCtx, err)
 }
 
-func (e *pgEngineWithContext) LockJobs(cmd engine.LockJobsCmd) ([]engine.Job, error) {
-	ctx, err := e.require()
+func (e *pgEngine) LockJobs(ctx context.Context, cmd engine.LockJobsCmd) ([]engine.Job, error) {
+	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	jobs, err := internal.LockJobs(ctx, cmd)
-	return jobs, e.release(ctx, err)
-}
-
-func (e *pgEngine) Query(criteria any) ([]any, error) {
-	return e.QueryWithOptions(criteria, engine.QueryOptions{})
-}
-
-func (e *pgEngineWithContext) Query(criteria any) ([]any, error) {
-	return e.QueryWithOptions(criteria, engine.QueryOptions{})
-}
-
-func (e *pgEngine) QueryWithOptions(criteria any, options engine.QueryOptions) ([]any, error) {
-	w, cancel := e.withTimeout()
 	defer cancel()
-	return w.QueryWithOptions(criteria, options)
+	jobs, err := internal.LockJobs(pgCtx, cmd)
+	return jobs, e.release(pgCtx, err)
 }
 
-func (e *pgEngineWithContext) QueryWithOptions(criteria any, options engine.QueryOptions) ([]any, error) {
-	query := internal.NewQuery(criteria)
-	if query == nil {
-		return nil, engine.Error{
-			Type:   engine.ErrorQuery,
-			Title:  "failed to create query",
-			Detail: fmt.Sprintf("unsupported criteria type %T", criteria),
-		}
-	}
-
-	ctx, err := e.require()
-	if err != nil {
-		return nil, err
-	}
-
-	if options.Limit <= 0 {
-		options.Limit = ctx.Options().DefaultQueryLimit
-	}
-
-	results, err := query(ctx, options)
-	return results, e.release(ctx, err)
-}
-
-func (e *pgEngine) ResolveIncident(cmd engine.ResolveIncidentCmd) error {
-	w, cancel := e.withTimeout()
-	defer cancel()
-	return w.ResolveIncident(cmd)
-}
-
-func (e *pgEngineWithContext) ResolveIncident(cmd engine.ResolveIncidentCmd) error {
-	ctx, err := e.require()
+func (e *pgEngine) ResolveIncident(ctx context.Context, cmd engine.ResolveIncidentCmd) error {
+	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = internal.ResolveIncident(ctx, cmd)
-	return e.release(ctx, err)
-}
-
-func (e *pgEngine) ResumeProcessInstance(cmd engine.ResumeProcessInstanceCmd) error {
-	w, cancel := e.withTimeout()
 	defer cancel()
-	return w.ResumeProcessInstance(cmd)
+	err = internal.ResolveIncident(pgCtx, cmd)
+	return e.release(pgCtx, err)
 }
 
-func (e *pgEngineWithContext) ResumeProcessInstance(cmd engine.ResumeProcessInstanceCmd) error {
-	ctx, err := e.require()
+func (e *pgEngine) ResumeProcessInstance(ctx context.Context, cmd engine.ResumeProcessInstanceCmd) error {
+	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = internal.ResumeProcessInstance(ctx, cmd)
-	return e.release(ctx, err)
-}
-
-func (e *pgEngine) SendSignal(cmd engine.SendSignalCmd) (engine.SignalEvent, error) {
-	w, cancel := e.withTimeout()
 	defer cancel()
-	return w.SendSignal(cmd)
+	err = internal.ResumeProcessInstance(pgCtx, cmd)
+	return e.release(pgCtx, err)
 }
 
-func (e *pgEngineWithContext) SendSignal(cmd engine.SendSignalCmd) (engine.SignalEvent, error) {
-	ctx, err := e.require()
+func (e *pgEngine) SendSignal(ctx context.Context, cmd engine.SendSignalCmd) (engine.SignalEvent, error) {
+	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
 		return engine.SignalEvent{}, err
 	}
 
-	signalEvent, err := internal.SendSignal(ctx, cmd)
-	return signalEvent, e.release(ctx, err)
-}
-
-func (e *pgEngine) SetElementVariables(cmd engine.SetElementVariablesCmd) error {
-	w, cancel := e.withTimeout()
 	defer cancel()
-	return w.SetElementVariables(cmd)
+	signalEvent, err := internal.SendSignal(pgCtx, cmd)
+	return signalEvent, e.release(pgCtx, err)
 }
 
-func (e *pgEngineWithContext) SetElementVariables(cmd engine.SetElementVariablesCmd) error {
-	ctx, err := e.require()
+func (e *pgEngine) SetElementVariables(ctx context.Context, cmd engine.SetElementVariablesCmd) error {
+	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = internal.SetElementVariables(ctx, cmd)
-	return e.release(ctx, err)
-}
-
-func (e *pgEngine) SetProcessVariables(cmd engine.SetProcessVariablesCmd) error {
-	w, cancel := e.withTimeout()
 	defer cancel()
-	return w.SetProcessVariables(cmd)
+	err = internal.SetElementVariables(pgCtx, cmd)
+	return e.release(pgCtx, err)
 }
 
-func (e *pgEngineWithContext) SetProcessVariables(cmd engine.SetProcessVariablesCmd) error {
-	ctx, err := e.require()
+func (e *pgEngine) SetProcessVariables(ctx context.Context, cmd engine.SetProcessVariablesCmd) error {
+	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = internal.SetProcessVariables(ctx, cmd)
-	return e.release(ctx, err)
-}
-
-func (e *pgEngine) SetTime(cmd engine.SetTimeCmd) error {
-	w, cancel := e.withTimeout()
 	defer cancel()
-	return w.SetTime(cmd)
+	err = internal.SetProcessVariables(pgCtx, cmd)
+	return e.release(pgCtx, err)
 }
 
-func (e *pgEngineWithContext) SetTime(cmd engine.SetTimeCmd) error {
-	pgEngine := e.e
+func (e *pgEngine) SetTime(ctx context.Context, cmd engine.SetTimeCmd) error {
+	e.setTimeMutex.Lock()
+	defer e.setTimeMutex.Unlock()
 
-	pgEngine.setTimeMutex.Lock()
-	defer pgEngine.setTimeMutex.Unlock()
-
-	ctx, err := e.require()
+	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
 		return err
 	}
 
-	old := ctx.Time()
+	defer cancel()
+
+	old := pgCtx.Time()
 	new := cmd.Time.UTC().Truncate(time.Millisecond)
 
 	sub := new.Sub(old)
 	if sub.Milliseconds() < 0 {
-		return e.release(ctx, engine.Error{
+		return e.release(pgCtx, engine.Error{
 			Type:  engine.ErrorConflict,
 			Title: "failed to set time",
 			Detail: fmt.Sprintf(
@@ -517,71 +422,48 @@ func (e *pgEngineWithContext) SetTime(cmd engine.SetTimeCmd) error {
 		})
 	}
 
-	ctx.time = new
+	pgCtx.time = new
 
-	err = prepareDatabase(ctx)
-	if err := e.release(ctx, err); err != nil {
+	err = prepareDatabase(pgCtx)
+	if err := e.release(pgCtx, err); err != nil {
 		return err
 	}
 
-	pgEngine.offset = pgEngine.offset + sub
+	e.offset = e.offset + sub
 	return nil
 }
 
-func (e *pgEngine) SuspendProcessInstance(cmd engine.SuspendProcessInstanceCmd) error {
-	w, cancel := e.withTimeout()
-	defer cancel()
-	return w.SuspendProcessInstance(cmd)
-}
-
-func (e *pgEngineWithContext) SuspendProcessInstance(cmd engine.SuspendProcessInstanceCmd) error {
-	ctx, err := e.require()
+func (e *pgEngine) SuspendProcessInstance(ctx context.Context, cmd engine.SuspendProcessInstanceCmd) error {
+	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = internal.SuspendProcessInstance(ctx, cmd)
-	return e.release(ctx, err)
-}
-
-func (e *pgEngine) UnlockJobs(cmd engine.UnlockJobsCmd) (int, error) {
-	w, cancel := e.withTimeout()
 	defer cancel()
-	return w.UnlockJobs(cmd)
+	err = internal.SuspendProcessInstance(pgCtx, cmd)
+	return e.release(pgCtx, err)
 }
 
-func (e *pgEngineWithContext) UnlockJobs(cmd engine.UnlockJobsCmd) (int, error) {
-	ctx, err := e.require()
+func (e *pgEngine) UnlockJobs(ctx context.Context, cmd engine.UnlockJobsCmd) (int, error) {
+	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
 		return -1, err
 	}
 
-	count, err := internal.UnlockJobs(ctx, cmd)
-	return count, e.release(ctx, err)
-}
-
-func (e *pgEngine) UnlockTasks(cmd engine.UnlockTasksCmd) (int, error) {
-	w, cancel := e.withTimeout()
 	defer cancel()
-	return w.UnlockTasks(cmd)
+	count, err := internal.UnlockJobs(pgCtx, cmd)
+	return count, e.release(pgCtx, err)
 }
 
-func (e *pgEngineWithContext) UnlockTasks(cmd engine.UnlockTasksCmd) (int, error) {
-	ctx, err := e.require()
+func (e *pgEngine) UnlockTasks(ctx context.Context, cmd engine.UnlockTasksCmd) (int, error) {
+	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
 		return -1, err
 	}
 
-	count, err := internal.UnlockTasks(ctx, cmd)
-	return count, e.release(ctx, err)
-}
-
-func (e *pgEngine) WithContext(ctx context.Context) engine.Engine {
-	return &pgEngineWithContext{e, ctx}
-}
-
-func (e *pgEngineWithContext) WithContext(ctx context.Context) engine.Engine {
-	return &pgEngineWithContext{e.e, ctx}
+	defer cancel()
+	count, err := internal.UnlockTasks(pgCtx, cmd)
+	return count, e.release(pgCtx, err)
 }
 
 func (e *pgEngine) Shutdown() {
@@ -590,7 +472,7 @@ func (e *pgEngine) Shutdown() {
 			e.taskExecutor.Stop()
 		}
 
-		e.requireCancel()
+		e.acquireCancel()
 		e.pgPool.Close()
 
 		for len(e.pgCtxPool) > 0 {
@@ -602,34 +484,26 @@ func (e *pgEngine) Shutdown() {
 	})
 }
 
-func (e *pgEngineWithContext) Shutdown() {
-	e.e.Shutdown()
-}
-
 // API key manager
 
-func (e *pgEngine) CreateApiKey(secretId string) (ApiKey, string, error) {
-	w, cancel := e.withTimeout()
-	defer cancel()
-
-	ctx, err := w.require()
+func (e *pgEngine) CreateApiKey(ctx context.Context, secretId string) (ApiKey, string, error) {
+	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
 		return ApiKey{}, "", err
 	}
 
-	apiKey, authorization, err := createApiKey(ctx, secretId)
-	return apiKey, authorization, w.release(ctx, err)
+	defer cancel()
+	apiKey, authorization, err := createApiKey(pgCtx, secretId)
+	return apiKey, authorization, e.release(pgCtx, err)
 }
 
-func (e *pgEngine) GetApiKey(authorization string) (ApiKey, error) {
-	w, cancel := e.withTimeout()
-	defer cancel()
-
-	ctx, err := w.require()
+func (e *pgEngine) GetApiKey(ctx context.Context, authorization string) (ApiKey, error) {
+	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
 		return ApiKey{}, err
 	}
 
-	apiKey, err := getApiKey(ctx, authorization)
-	return apiKey, w.release(ctx, err)
+	defer cancel()
+	apiKey, err := getApiKey(pgCtx, authorization)
+	return apiKey, e.release(pgCtx, err)
 }

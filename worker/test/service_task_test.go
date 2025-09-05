@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/gclaussn/go-bpmn/engine"
@@ -100,7 +101,7 @@ func TestServiceTaskProcess(t *testing.T) {
 	variables.PutVariable("d", 0.1)
 	variables.PutVariable("e", engine.Data{Value: "value"}) // example for a complex variable
 
-	processInstance, err := serviceTaskProcess.CreateProcessInstance(variables)
+	processInstance, err := serviceTaskProcess.CreateProcessInstance(context.Background(), variables)
 	if err != nil {
 		t.Fatalf("failed to create process instance: %v", err)
 	}

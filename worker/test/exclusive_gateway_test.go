@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/gclaussn/go-bpmn/engine"
@@ -70,7 +71,7 @@ func TestExclusiveGatewayProcess(t *testing.T) {
 		t.Fatalf("failed to register process: %v", err)
 	}
 
-	processInstance, err := exclusiveGatewayProcess.CreateProcessInstance(worker.Variables{})
+	processInstance, err := exclusiveGatewayProcess.CreateProcessInstance(context.Background(), worker.Variables{})
 	if err != nil {
 		t.Fatalf("failed to create process instance: %v", err)
 	}
@@ -94,7 +95,7 @@ func TestExclusiveGatewayGenericProcess(t *testing.T) {
 		t.Fatalf("failed to register process: %v", err)
 	}
 
-	processInstance, err := exclusiveGatewayProcess.CreateProcessInstance(worker.Variables{})
+	processInstance, err := exclusiveGatewayProcess.CreateProcessInstance(context.Background(), worker.Variables{})
 	if err != nil {
 		t.Fatalf("failed to create process instance: %v", err)
 	}

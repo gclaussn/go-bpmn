@@ -94,9 +94,9 @@ func (r *processInstanceRepository) Update(entity *internal.ProcessInstanceEntit
 	return fmt.Errorf("failed to update process instance %s/%d: %v", key, entity.Id, pgx.ErrNoRows)
 }
 
-func (r *processInstanceRepository) Query(c engine.ProcessInstanceCriteria, o engine.QueryOptions) ([]any, error) {
+func (r *processInstanceRepository) Query(c engine.ProcessInstanceCriteria, o engine.QueryOptions) ([]engine.ProcessInstance, error) {
 	var (
-		results []any
+		results []engine.ProcessInstance
 		offset  int
 		limit   int
 

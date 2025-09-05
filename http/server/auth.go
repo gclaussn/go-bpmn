@@ -24,7 +24,7 @@ func (h *authHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	authorization := r.Header.Get(HeaderAuthorization)
 
-	apiKey, err := h.apiKeyManager.GetApiKey(authorization)
+	apiKey, err := h.apiKeyManager.GetApiKey(r.Context(), authorization)
 	if err != nil {
 		log.Printf("%s %s: authentication failed for %s: %v", r.Method, r.RequestURI, r.RemoteAddr, err)
 		w.WriteHeader(http.StatusUnauthorized)

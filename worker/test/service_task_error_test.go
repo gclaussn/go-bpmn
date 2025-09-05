@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -56,7 +57,7 @@ func TestServiceTaskErrorProcess(t *testing.T) {
 		t.Fatalf("failed to register delegate: %v", err)
 	}
 
-	processInstance, err := serviceTaskErrorProcess.CreateProcessInstance(worker.Variables{})
+	processInstance, err := serviceTaskErrorProcess.CreateProcessInstance(context.Background(), worker.Variables{})
 	if err != nil {
 		t.Fatalf("failed to create process instance: %v", err)
 	}
@@ -68,10 +69,10 @@ func TestServiceTaskErrorProcess(t *testing.T) {
 
 	now := time.Now().UTC()
 
-	e.SetTime(engine.SetTimeCmd{Time: now.Add(1 * time.Hour).Add(time.Second)})
+	e.SetTime(context.Background(), engine.SetTimeCmd{Time: now.Add(1 * time.Hour).Add(time.Second)})
 	piAssert.ExecuteJobWithError()
 
-	e.SetTime(engine.SetTimeCmd{Time: now.Add(2 * time.Hour).Add(time.Second)})
+	e.SetTime(context.Background(), engine.SetTimeCmd{Time: now.Add(2 * time.Hour).Add(time.Second)})
 	piAssert.ExecuteJob()
 
 	piAssert.IsCompleted()

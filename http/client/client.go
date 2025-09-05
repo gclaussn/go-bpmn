@@ -77,104 +77,81 @@ type client struct {
 	options       Options
 }
 
-func (c *client) withTimeout() (*clientWithContext, context.CancelFunc) {
-	ctx, cancel := context.WithTimeout(context.Background(), c.options.Timeout)
-	return &clientWithContext{c: c, ctx: ctx}, cancel
-}
-
-type clientWithContext struct {
-	c   *client
-	ctx context.Context
-}
-
-func (c *client) CompleteJob(cmd engine.CompleteJobCmd) (engine.Job, error) {
-	w, cancel := c.withTimeout()
+func (c *client) CompleteJob(ctx context.Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
-	return w.CompleteJob(cmd)
-}
 
-func (c *clientWithContext) CompleteJob(cmd engine.CompleteJobCmd) (engine.Job, error) {
 	var job engine.Job
 	path := resolve(server.PathJobsComplete, cmd.Partition, cmd.Id)
-	if err := c.doPatch(path, cmd, &job); err != nil {
+	if err := c.doPatch(ctx, path, cmd, &job); err != nil {
 		return engine.Job{}, err
 	}
 	return job, nil
 }
 
-func (c *client) CreateProcess(cmd engine.CreateProcessCmd) (engine.Process, error) {
-	w, cancel := c.withTimeout()
+func (c *client) CreateProcess(ctx context.Context, cmd engine.CreateProcessCmd) (engine.Process, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
-	return w.CreateProcess(cmd)
-}
 
-func (c *clientWithContext) CreateProcess(cmd engine.CreateProcessCmd) (engine.Process, error) {
 	var process engine.Process
-	if err := c.doPost(server.PathProcesses, cmd, &process); err != nil {
+	if err := c.doPost(ctx, server.PathProcesses, cmd, &process); err != nil {
 		return engine.Process{}, err
 	}
 	return process, nil
 }
 
-func (c *client) CreateProcessInstance(cmd engine.CreateProcessInstanceCmd) (engine.ProcessInstance, error) {
-	w, cancel := c.withTimeout()
+func (c *client) CreateProcessInstance(ctx context.Context, cmd engine.CreateProcessInstanceCmd) (engine.ProcessInstance, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
-	return w.CreateProcessInstance(cmd)
-}
 
-func (c *clientWithContext) CreateProcessInstance(cmd engine.CreateProcessInstanceCmd) (engine.ProcessInstance, error) {
 	var processInstance engine.ProcessInstance
-	if err := c.doPost(server.PathProcessInstances, cmd, &processInstance); err != nil {
+	if err := c.doPost(ctx, server.PathProcessInstances, cmd, &processInstance); err != nil {
 		return engine.ProcessInstance{}, err
 	}
 	return processInstance, nil
 }
 
-func (c *client) ExecuteTasks(cmd engine.ExecuteTasksCmd) ([]engine.Task, []engine.Task, error) {
-	w, cancel := c.withTimeout()
-	defer cancel()
-	return w.ExecuteTasks(cmd)
+func (c *client) CreateQuery() engine.Query {
+	return &query{c: c}
 }
 
-func (c *clientWithContext) ExecuteTasks(cmd engine.ExecuteTasksCmd) ([]engine.Task, []engine.Task, error) {
+func (c *client) ExecuteTasks(ctx context.Context, cmd engine.ExecuteTasksCmd) ([]engine.Task, []engine.Task, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
+	defer cancel()
+
 	var resBody server.ExecuteTasksRes
-	if err := c.doPost(server.PathTasksExecute, cmd, &resBody); err != nil {
+	if err := c.doPost(ctx, server.PathTasksExecute, cmd, &resBody); err != nil {
 		return nil, nil, err
 	}
 	return resBody.CompletedTasks, resBody.FailedTasks, nil
 }
 
-func (c *client) GetBpmnXml(cmd engine.GetBpmnXmlCmd) (string, error) {
-	w, cancel := c.withTimeout()
+func (c *client) GetBpmnXml(ctx context.Context, cmd engine.GetBpmnXmlCmd) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
-	return w.GetBpmnXml(cmd)
-}
-
-func (c *clientWithContext) GetBpmnXml(cmd engine.GetBpmnXmlCmd) (string, error) {
-	client := c.c
 
 	path := strings.Replace(server.PathProcessesBpmnXml, "{id}", strconv.Itoa(int(cmd.ProcessId)), 1)
 
-	req, err := http.NewRequestWithContext(c.ctx, http.MethodGet, client.url+path, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.url+path, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create GET request: %v", err)
 	}
 
-	if client.options.OnRequest != nil {
-		if err := client.options.OnRequest(req); err != nil {
+	if c.options.OnRequest != nil {
+		if err := c.options.OnRequest(req); err != nil {
 			return "", err
 		}
 	}
 
-	req.Header.Add(server.HeaderAuthorization, client.authorization)
+	req.Header.Add(server.HeaderAuthorization, c.authorization)
 
-	res, err := client.httpClient.Do(req)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("failed to execute GET %s: %v", client.url+path, err)
+		return "", fmt.Errorf("failed to execute GET %s: %v", c.url+path, err)
 	}
 
-	if client.options.OnResponse != nil {
-		if err := client.options.OnResponse(res); err != nil {
+	if c.options.OnResponse != nil {
+		if err := c.options.OnResponse(res); err != nil {
 			return "", err
 		}
 	}
@@ -194,13 +171,10 @@ func (c *clientWithContext) GetBpmnXml(cmd engine.GetBpmnXmlCmd) (string, error)
 	return string(b), nil
 }
 
-func (c *client) GetElementVariables(cmd engine.GetElementVariablesCmd) (map[string]engine.Data, error) {
-	w, cancel := c.withTimeout()
+func (c *client) GetElementVariables(ctx context.Context, cmd engine.GetElementVariablesCmd) (map[string]engine.Data, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
-	return w.GetElementVariables(cmd)
-}
 
-func (c *clientWithContext) GetElementVariables(cmd engine.GetElementVariablesCmd) (map[string]engine.Data, error) {
 	path := resolve(server.PathElementInstancesVariables, cmd.Partition, cmd.ElementInstanceId)
 
 	if len(cmd.Names) != 0 {
@@ -208,20 +182,17 @@ func (c *clientWithContext) GetElementVariables(cmd engine.GetElementVariablesCm
 	}
 
 	var resBody server.GetVariablesRes
-	if err := c.doGet(path, &resBody); err != nil {
+	if err := c.doGet(ctx, path, &resBody); err != nil {
 		return nil, err
 	}
 
 	return resBody.Variables, nil
 }
 
-func (c *client) GetProcessVariables(cmd engine.GetProcessVariablesCmd) (map[string]engine.Data, error) {
-	w, cancel := c.withTimeout()
+func (c *client) GetProcessVariables(ctx context.Context, cmd engine.GetProcessVariablesCmd) (map[string]engine.Data, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
-	return w.GetProcessVariables(cmd)
-}
 
-func (c *clientWithContext) GetProcessVariables(cmd engine.GetProcessVariablesCmd) (map[string]engine.Data, error) {
 	path := resolve(server.PathProcessInstancesVariables, cmd.Partition, cmd.ProcessInstanceId)
 
 	if len(cmd.Names) != 0 {
@@ -229,200 +200,129 @@ func (c *clientWithContext) GetProcessVariables(cmd engine.GetProcessVariablesCm
 	}
 
 	var resBody server.GetVariablesRes
-	if err := c.doGet(path, &resBody); err != nil {
+	if err := c.doGet(ctx, path, &resBody); err != nil {
 		return nil, err
 	}
 
 	return resBody.Variables, nil
 }
 
-func (c *client) LockJobs(cmd engine.LockJobsCmd) ([]engine.Job, error) {
-	w, cancel := c.withTimeout()
+func (c *client) LockJobs(ctx context.Context, cmd engine.LockJobsCmd) ([]engine.Job, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
-	return w.LockJobs(cmd)
-}
 
-func (c *clientWithContext) LockJobs(cmd engine.LockJobsCmd) ([]engine.Job, error) {
 	var resBody server.LockJobsRes
-	if err := c.doPost(server.PathJobsLock, cmd, &resBody); err != nil {
+	if err := c.doPost(ctx, server.PathJobsLock, cmd, &resBody); err != nil {
 		return nil, err
 	}
 	return resBody.Jobs, nil
 }
 
-func (c *client) Query(criteria any) ([]any, error) {
-	return c.QueryWithOptions(criteria, engine.QueryOptions{})
-}
-
-func (c *clientWithContext) Query(criteria any) ([]any, error) {
-	return c.QueryWithOptions(criteria, engine.QueryOptions{})
-}
-
-func (c *client) QueryWithOptions(criteria any, options engine.QueryOptions) ([]any, error) {
-	w, cancel := c.withTimeout()
+func (c *client) ResolveIncident(ctx context.Context, cmd engine.ResolveIncidentCmd) error {
+	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
-	return w.QueryWithOptions(criteria, options)
-}
 
-func (c *clientWithContext) QueryWithOptions(criteria any, options engine.QueryOptions) ([]any, error) {
-	query := newClientQuery(criteria)
-	if query == nil {
-		return nil, engine.Error{
-			Type:   engine.ErrorQuery,
-			Title:  "failed to create query",
-			Detail: fmt.Sprintf("unsupported criteria type %T", criteria),
-		}
-	}
-
-	return query(c, options)
-}
-
-func (c *client) ResolveIncident(cmd engine.ResolveIncidentCmd) error {
-	w, cancel := c.withTimeout()
-	defer cancel()
-	return w.ResolveIncident(cmd)
-}
-
-func (c *clientWithContext) ResolveIncident(cmd engine.ResolveIncidentCmd) error {
 	path := resolve(server.PathIncidentsResolve, cmd.Partition, cmd.Id)
-	return c.doPatch(path, cmd, nil)
+	return c.doPatch(ctx, path, cmd, nil)
 }
 
-func (c *client) ResumeProcessInstance(cmd engine.ResumeProcessInstanceCmd) error {
-	w, cancel := c.withTimeout()
+func (c *client) ResumeProcessInstance(ctx context.Context, cmd engine.ResumeProcessInstanceCmd) error {
+	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
-	return w.ResumeProcessInstance(cmd)
-}
 
-func (c *clientWithContext) ResumeProcessInstance(cmd engine.ResumeProcessInstanceCmd) error {
 	path := resolve(server.PathProcessInstancesResume, cmd.Partition, cmd.Id)
-	return c.doPatch(path, cmd, nil)
+	return c.doPatch(ctx, path, cmd, nil)
 }
 
-func (c *client) SendSignal(cmd engine.SendSignalCmd) (engine.SignalEvent, error) {
-	w, cancel := c.withTimeout()
+func (c *client) SendSignal(ctx context.Context, cmd engine.SendSignalCmd) (engine.SignalEvent, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
-	return w.SendSignal(cmd)
-}
 
-func (c *clientWithContext) SendSignal(cmd engine.SendSignalCmd) (engine.SignalEvent, error) {
 	var signalEvent engine.SignalEvent
-	if err := c.doPost(server.PathEventsSignals, cmd, &signalEvent); err != nil {
+	if err := c.doPost(ctx, server.PathEventsSignals, cmd, &signalEvent); err != nil {
 		return engine.SignalEvent{}, err
 	}
 	return signalEvent, nil
 }
 
-func (c *client) SetElementVariables(cmd engine.SetElementVariablesCmd) error {
-	w, cancel := c.withTimeout()
+func (c *client) SetElementVariables(ctx context.Context, cmd engine.SetElementVariablesCmd) error {
+	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
-	return w.SetElementVariables(cmd)
-}
 
-func (c *clientWithContext) SetElementVariables(cmd engine.SetElementVariablesCmd) error {
 	path := resolve(server.PathElementInstancesVariables, cmd.Partition, cmd.ElementInstanceId)
-	return c.doPut(path, cmd, nil)
+	return c.doPut(ctx, path, cmd, nil)
 }
 
-func (c *client) SetProcessVariables(cmd engine.SetProcessVariablesCmd) error {
-	w, cancel := c.withTimeout()
+func (c *client) SetProcessVariables(ctx context.Context, cmd engine.SetProcessVariablesCmd) error {
+	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
-	return w.SetProcessVariables(cmd)
-}
 
-func (c *clientWithContext) SetProcessVariables(cmd engine.SetProcessVariablesCmd) error {
 	path := resolve(server.PathProcessInstancesVariables, cmd.Partition, cmd.ProcessInstanceId)
-	return c.doPut(path, cmd, nil)
+	return c.doPut(ctx, path, cmd, nil)
 }
 
-func (c *client) SetTime(cmd engine.SetTimeCmd) error {
-	w, cancel := c.withTimeout()
+func (c *client) SetTime(ctx context.Context, cmd engine.SetTimeCmd) error {
+	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
-	return w.SetTime(cmd)
+
+	return c.doPatch(ctx, server.PathTime, cmd, nil)
 }
 
-func (c *clientWithContext) SetTime(cmd engine.SetTimeCmd) error {
-	return c.doPatch(server.PathTime, cmd, nil)
-}
-
-func (c *client) SuspendProcessInstance(cmd engine.SuspendProcessInstanceCmd) error {
-	w, cancel := c.withTimeout()
+func (c *client) SuspendProcessInstance(ctx context.Context, cmd engine.SuspendProcessInstanceCmd) error {
+	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
-	return w.SuspendProcessInstance(cmd)
-}
 
-func (c *clientWithContext) SuspendProcessInstance(cmd engine.SuspendProcessInstanceCmd) error {
 	path := resolve(server.PathProcessInstancesSuspend, cmd.Partition, cmd.Id)
-	return c.doPatch(path, cmd, nil)
+	return c.doPatch(ctx, path, cmd, nil)
 }
 
-func (c *client) UnlockJobs(cmd engine.UnlockJobsCmd) (int, error) {
-	w, cancel := c.withTimeout()
+func (c *client) UnlockJobs(ctx context.Context, cmd engine.UnlockJobsCmd) (int, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
-	return w.UnlockJobs(cmd)
-}
 
-func (c *clientWithContext) UnlockJobs(cmd engine.UnlockJobsCmd) (int, error) {
 	var resBody server.CountRes
-	if err := c.doPost(server.PathJobsUnlock, cmd, &resBody); err != nil {
+	if err := c.doPost(ctx, server.PathJobsUnlock, cmd, &resBody); err != nil {
 		return -1, err
 	}
 	return resBody.Count, nil
 }
 
-func (c *client) UnlockTasks(cmd engine.UnlockTasksCmd) (int, error) {
-	w, cancel := c.withTimeout()
+func (c *client) UnlockTasks(ctx context.Context, cmd engine.UnlockTasksCmd) (int, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
-	return w.UnlockTasks(cmd)
-}
 
-func (c *clientWithContext) UnlockTasks(cmd engine.UnlockTasksCmd) (int, error) {
 	var resBody server.CountRes
-	if err := c.doPost(server.PathTasksUnlock, cmd, &resBody); err != nil {
+	if err := c.doPost(ctx, server.PathTasksUnlock, cmd, &resBody); err != nil {
 		return -1, err
 	}
 	return resBody.Count, nil
-}
-
-func (c *client) WithContext(ctx context.Context) engine.Engine {
-	return &clientWithContext{c, ctx}
-}
-
-func (c *clientWithContext) WithContext(ctx context.Context) engine.Engine {
-	return &clientWithContext{c.c, ctx}
 }
 
 func (c *client) Shutdown() {
 	c.httpClient.CloseIdleConnections()
 }
 
-func (c *clientWithContext) Shutdown() {
-	c.c.Shutdown()
-}
-
-func (c *clientWithContext) doGet(path string, resBody any) error {
-	client := c.c
-
-	req, err := http.NewRequestWithContext(c.ctx, http.MethodGet, client.url+path, nil)
+func (c *client) doGet(ctx context.Context, path string, resBody any) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.url+path, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create GET request: %v", err)
 	}
 
-	if client.options.OnRequest != nil {
-		if err := client.options.OnRequest(req); err != nil {
+	if c.options.OnRequest != nil {
+		if err := c.options.OnRequest(req); err != nil {
 			return err
 		}
 	}
 
-	req.Header.Add(server.HeaderAuthorization, client.authorization)
+	req.Header.Add(server.HeaderAuthorization, c.authorization)
 
-	res, err := client.httpClient.Do(req)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to execute %v", err)
 	}
 
-	if client.options.OnResponse != nil {
-		if err := client.options.OnResponse(res); err != nil {
+	if c.options.OnResponse != nil {
+		if err := c.options.OnResponse(res); err != nil {
 			return err
 		}
 	}
@@ -430,34 +330,32 @@ func (c *clientWithContext) doGet(path string, resBody any) error {
 	return decodeJSONResponseBody(res, &resBody)
 }
 
-func (c *clientWithContext) doPatch(path string, reqBody any, resBody any) error {
-	client := c.c
-
+func (c *client) doPatch(ctx context.Context, path string, reqBody any, resBody any) error {
 	b, err := json.Marshal(reqBody)
 	if err != nil {
 		return fmt.Errorf("failed to create JSON request body: %v", err)
 	}
 
-	req, err := http.NewRequestWithContext(c.ctx, http.MethodPatch, client.url+path, bytes.NewReader(b))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, c.url+path, bytes.NewReader(b))
 	if err != nil {
 		return fmt.Errorf("failed to create PATCH request: %v", err)
 	}
 
-	if c.c.options.OnRequest != nil {
-		if err := client.options.OnRequest(req); err != nil {
+	if c.options.OnRequest != nil {
+		if err := c.options.OnRequest(req); err != nil {
 			return err
 		}
 	}
 
-	req.Header.Add(server.HeaderAuthorization, client.authorization)
+	req.Header.Add(server.HeaderAuthorization, c.authorization)
 
-	res, err := client.httpClient.Do(req)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to execute %v", err)
 	}
 
-	if client.options.OnResponse != nil {
-		if err := client.options.OnResponse(res); err != nil {
+	if c.options.OnResponse != nil {
+		if err := c.options.OnResponse(res); err != nil {
 			return err
 		}
 	}
@@ -469,34 +367,32 @@ func (c *clientWithContext) doPatch(path string, reqBody any, resBody any) error
 	}
 }
 
-func (c *clientWithContext) doPost(path string, reqBody any, resBody any) error {
-	client := c.c
-
+func (c *client) doPost(ctx context.Context, path string, reqBody any, resBody any) error {
 	b, err := json.Marshal(reqBody)
 	if err != nil {
 		return fmt.Errorf("failed to create JSON request body: %v", err)
 	}
 
-	req, err := http.NewRequestWithContext(c.ctx, http.MethodPost, client.url+path, bytes.NewReader(b))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url+path, bytes.NewReader(b))
 	if err != nil {
 		return fmt.Errorf("failed to create POST request: %v", err)
 	}
 
-	if client.options.OnRequest != nil {
-		if err := client.options.OnRequest(req); err != nil {
+	if c.options.OnRequest != nil {
+		if err := c.options.OnRequest(req); err != nil {
 			return err
 		}
 	}
 
-	req.Header.Add(server.HeaderAuthorization, client.authorization)
+	req.Header.Add(server.HeaderAuthorization, c.authorization)
 
-	res, err := client.httpClient.Do(req)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to execute %v", err)
 	}
 
-	if client.options.OnResponse != nil {
-		if err := client.options.OnResponse(res); err != nil {
+	if c.options.OnResponse != nil {
+		if err := c.options.OnResponse(res); err != nil {
 			return err
 		}
 	}
@@ -504,34 +400,32 @@ func (c *clientWithContext) doPost(path string, reqBody any, resBody any) error 
 	return decodeJSONResponseBody(res, &resBody)
 }
 
-func (c *clientWithContext) doPut(path string, reqBody any, resBody any) error {
-	client := c.c
-
+func (c *client) doPut(ctx context.Context, path string, reqBody any, resBody any) error {
 	b, err := json.Marshal(reqBody)
 	if err != nil {
 		return fmt.Errorf("failed to create JSON request body: %v", err)
 	}
 
-	req, err := http.NewRequestWithContext(c.ctx, http.MethodPut, client.url+path, bytes.NewReader(b))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, c.url+path, bytes.NewReader(b))
 	if err != nil {
 		return fmt.Errorf("failed to create PUT request: %v", err)
 	}
 
-	if client.options.OnRequest != nil {
-		if err := client.options.OnRequest(req); err != nil {
+	if c.options.OnRequest != nil {
+		if err := c.options.OnRequest(req); err != nil {
 			return err
 		}
 	}
 
-	req.Header.Add(server.HeaderAuthorization, client.authorization)
+	req.Header.Add(server.HeaderAuthorization, c.authorization)
 
-	res, err := client.httpClient.Do(req)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to execute %v", err)
 	}
 
-	if client.options.OnResponse != nil {
-		if err := client.options.OnResponse(res); err != nil {
+	if c.options.OnResponse != nil {
+		if err := c.options.OnResponse(res); err != nil {
 			return err
 		}
 	}

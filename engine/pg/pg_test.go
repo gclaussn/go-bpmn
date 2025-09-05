@@ -1,6 +1,7 @@
 package pg
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -16,7 +17,7 @@ func TestSetTime(t *testing.T) {
 
 	t.Run("returns error when time is before engine time", func(t *testing.T) {
 		// when
-		err := e.SetTime(engine.SetTimeCmd{})
+		err := e.SetTime(context.Background(), engine.SetTimeCmd{})
 
 		// then
 		assert.IsTypef(engine.Error{}, err, "expected engine error")
@@ -30,35 +31,37 @@ func TestSetTime(t *testing.T) {
 		newTime := time.Now().AddDate(0, 0, 7).UTC()
 
 		// when
-		err := e.SetTime(engine.SetTimeCmd{Time: newTime})
+		err := e.SetTime(context.Background(), engine.SetTimeCmd{Time: newTime})
 
 		// then
 		assert.Nil(err)
 
-		results, err := e.Query(engine.TaskCriteria{Partition: engine.Partition(newTime.AddDate(0, 0, 1))})
+		q := e.CreateQuery()
+
+		tasks, err := q.QueryTasks(context.Background(), engine.TaskCriteria{Partition: engine.Partition(newTime.AddDate(0, 0, 1))})
 		if err != nil {
 			t.Fatalf("failed to query tasks: %v", err)
 		}
 
-		assert.Len(results, 1)
+		assert.Len(tasks, 1)
 
-		createPartition := results[0].(engine.Task)
+		createPartition := tasks[0]
 		assert.Equal(engine.TaskCreatePartition, createPartition.Type)
 
 		// then
-		results, err = e.Query(engine.TaskCriteria{Partition: engine.Partition(newTime.AddDate(0, 0, 2))})
+		tasks, err = q.QueryTasks(context.Background(), engine.TaskCriteria{Partition: engine.Partition(newTime.AddDate(0, 0, 2))})
 		if err != nil {
 			t.Fatalf("failed to query tasks: %v", err)
 		}
 
-		assert.Len(results, 1)
+		assert.Len(tasks, 1)
 
-		detachPartition := results[0].(engine.Task)
+		detachPartition := tasks[0]
 		assert.Equal(engine.TaskDetachPartition, detachPartition.Type)
 
 		// when called again
 		time.Sleep(time.Second)
-		err = e.SetTime(engine.SetTimeCmd{Time: newTime})
+		err = e.SetTime(context.Background(), engine.SetTimeCmd{Time: newTime})
 
 		// then
 		assert.IsTypef(engine.Error{}, err, "expected engine error")

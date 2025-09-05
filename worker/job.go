@@ -24,15 +24,15 @@ func NewJobErrorWithTimer(err error, retryCount int, retryTimer engine.ISO8601Du
 	}
 }
 
-func newJobExecutor(worker *Worker) *jobExecutor {
+func newJobExecutor(w *Worker) *jobExecutor {
 	tickerCtx, tickerCancel := context.WithCancel(context.Background())
 
 	return &jobExecutor{
-		worker: worker,
+		w: w,
 
 		tickerCtx:    tickerCtx,
 		tickerCancel: tickerCancel,
-		ticker:       time.NewTicker(worker.options.JobExecutorInterval),
+		ticker:       time.NewTicker(w.options.JobExecutorInterval),
 	}
 }
 
@@ -136,22 +136,25 @@ func (d Delegator) SetTimer(bpmnElementId string, delegation func(jc JobContext)
 }
 
 type JobContext struct {
-	Engine engine.Engine
-
 	Job     engine.Job
 	Process engine.Process
 	Element engine.Element
 
-	worker *Worker
+	w   *Worker
+	ctx context.Context
 
 	processVariables Variables
 	elementVariables Variables
 }
 
+func (jc JobContext) Context() context.Context {
+	return jc.ctx
+}
+
 func (jc JobContext) ElementVariables(names ...string) (Variables, error) {
 	variables := Variables{}
 
-	elementVariables, err := jc.Engine.GetElementVariables(engine.GetElementVariablesCmd{
+	elementVariables, err := jc.w.e.GetElementVariables(jc.ctx, engine.GetElementVariablesCmd{
 		Partition:         jc.Job.Partition,
 		ElementInstanceId: jc.Job.ElementInstanceId,
 
@@ -173,10 +176,14 @@ func (jc JobContext) ElementVariables(names ...string) (Variables, error) {
 	return variables, nil
 }
 
+func (jc JobContext) Engine() engine.Engine {
+	return jc.w.e
+}
+
 func (jc JobContext) ProcessVariables(names ...string) (Variables, error) {
 	variables := Variables{}
 
-	processVariables, err := jc.Engine.GetProcessVariables(engine.GetProcessVariablesCmd{
+	processVariables, err := jc.w.e.GetProcessVariables(jc.ctx, engine.GetProcessVariablesCmd{
 		ProcessInstanceId: jc.Job.ProcessInstanceId,
 		Partition:         jc.Job.Partition,
 
@@ -229,7 +236,7 @@ func (e jobError) Unwrap() error {
 }
 
 type jobExecutor struct {
-	worker *Worker
+	w *Worker
 
 	tickerCtx    context.Context
 	tickerCancel context.CancelFunc
@@ -237,33 +244,33 @@ type jobExecutor struct {
 }
 
 func (e *jobExecutor) execute() {
-	go func(worker *Worker) {
-		processIds := make([]int32, len(worker.processes))
+	go func(w *Worker) {
+		processIds := make([]int32, len(w.processes))
 
 		i := 0
-		for processId := range worker.processes {
+		for processId := range w.processes {
 			processIds[i] = processId
 			i++
 		}
 
 		lockJobsCmd := engine.LockJobsCmd{
-			Limit:      worker.options.JobExecutorLimit,
+			Limit:      w.options.JobExecutorLimit,
 			ProcessIds: processIds,
-			WorkerId:   worker.id,
+			WorkerId:   w.id,
 		}
 
-		onFailure := worker.options.OnJobExecutionFailure
+		onFailure := w.options.OnJobExecutionFailure
 
 		for {
 			select {
 			case <-e.ticker.C:
-				lockedJobs, err := worker.engine.LockJobs(lockJobsCmd)
+				lockedJobs, err := w.e.LockJobs(context.Background(), lockJobsCmd)
 				if err != nil {
 					break
 				}
 
 				for i := range lockedJobs {
-					_, err := worker.ExecuteJob(lockedJobs[i])
+					_, err := w.ExecuteJob(context.Background(), lockedJobs[i])
 					if err != nil && onFailure != nil {
 						onFailure(lockedJobs[i], err)
 					}
@@ -272,7 +279,7 @@ func (e *jobExecutor) execute() {
 				return
 			}
 		}
-	}(e.worker)
+	}(e.w)
 }
 
 func (e *jobExecutor) stop() {

@@ -1,6 +1,7 @@
 package mem
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -15,7 +16,7 @@ func TestSetTime(t *testing.T) {
 	defer e.Shutdown()
 
 	t.Run("returns error when time is before engine time", func(t *testing.T) {
-		err := e.SetTime(engine.SetTimeCmd{})
+		err := e.SetTime(context.Background(), engine.SetTimeCmd{})
 		assert.IsTypef(engine.Error{}, err, "expected engine error")
 
 		engineErr := err.(engine.Error)
@@ -27,14 +28,14 @@ func TestSetTime(t *testing.T) {
 		newTime := time.Now().Add(time.Hour).UTC()
 
 		// when
-		err := e.SetTime(engine.SetTimeCmd{Time: newTime})
+		err := e.SetTime(context.Background(), engine.SetTimeCmd{Time: newTime})
 
 		// then
 		assert.Nil(err)
 
 		// when called again
 		time.Sleep(time.Second)
-		err = e.SetTime(engine.SetTimeCmd{Time: newTime})
+		err = e.SetTime(context.Background(), engine.SetTimeCmd{Time: newTime})
 
 		// then
 		assert.IsTypef(engine.Error{}, err, "expected engine error")

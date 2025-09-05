@@ -70,5 +70,5 @@ type ElementInstanceRepository interface {
 
 	Update(*ElementInstanceEntity) error
 
-	Query(engine.ElementInstanceCriteria, engine.QueryOptions) ([]any, error)
+	Query(engine.ElementInstanceCriteria, engine.QueryOptions) ([]engine.ElementInstance, error)
 }

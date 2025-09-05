@@ -1,6 +1,7 @@
 package pg
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -285,7 +286,7 @@ type taskUnlockTest struct {
 }
 
 func runTaskLockTests(t *testing.T, e engine.Engine, tests []taskLockTest) {
-	_, err := e.UnlockTasks(engine.UnlockTasksCmd{
+	_, err := e.UnlockTasks(context.Background(), engine.UnlockTasksCmd{
 		EngineId: engine.DefaultEngineId,
 	})
 	if err != nil {
@@ -299,16 +300,16 @@ func runTaskLockTests(t *testing.T, e engine.Engine, tests []taskLockTest) {
 			cmd := test.cmd
 
 			pgEngine := e.(*pgEngine)
-			w, cancel := pgEngine.withTimeout()
-			defer cancel()
 
-			ctx, err := w.require()
+			pgCtx, cancel, err := pgEngine.acquire(context.Background())
 			if err != nil {
 				t.Fatalf("failed to require context: %v", err)
 			}
 
-			entities, err := ctx.Tasks().Lock(cmd, ctx.Time())
-			if err := w.release(ctx, err); err != nil {
+			defer cancel()
+
+			entities, err := pgCtx.Tasks().Lock(cmd, pgCtx.Time())
+			if err := pgEngine.release(pgCtx, err); err != nil {
 				t.Fatalf("failed to lock tasks: %v", err)
 			}
 
@@ -324,27 +325,19 @@ func runTaskLockTests(t *testing.T, e engine.Engine, tests []taskLockTest) {
 
 func runTaskUnlockTests(t *testing.T, e engine.Engine, tests []taskUnlockTest) {
 	pgEngine := e.(*pgEngine)
-	w, cancel := pgEngine.withTimeout()
 
-	ctx, err := w.require()
-	if err != nil {
-		cancel()
-		t.Fatalf("failed to require context: %v", err)
-	}
-
-	_, err = ctx.Tasks().Lock(engine.ExecuteTasksCmd{Limit: 100}, ctx.Time())
-	if err := w.release(ctx, err); err != nil {
-		cancel()
+	if err := pgEngine.execute(func(pgCtx *pgContext) error {
+		_, err := pgCtx.Tasks().Lock(engine.ExecuteTasksCmd{Limit: 100}, pgCtx.Time())
+		return err
+	}); err != nil {
 		t.Fatalf("failed to lock tasks: %v", err)
 	}
-
-	cancel()
 
 	assert := assert.New(t)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			count, err := e.UnlockTasks(test.cmd)
+			count, err := e.UnlockTasks(context.Background(), test.cmd)
 			if err != nil {
 				t.Fatalf("failed to unlock tasks: %v", err)
 			}

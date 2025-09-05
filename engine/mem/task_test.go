@@ -1,6 +1,7 @@
 package mem
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -34,31 +35,29 @@ func TestExecuteTask(t *testing.T) {
 
 		// when
 		ctx := memEngine.wlock()
-		defer memEngine.unlock()
-
 		err := internal.ExecuteTask(ctx, entity)
+		memEngine.unlock()
 
 		// then
 		assert.Nil(err)
 		assert.True(entity.Error.Valid)
 		assert.Equal("BUG: failed to map task type: type START_PROCESS_INSTANCE is not supported", entity.Error.String)
 
-		results, err := ctx.Incidents().Query(engine.IncidentCriteria{TaskId: entity.Id}, engine.QueryOptions{})
+		results, err := e.CreateQuery().QueryIncidents(context.Background(), engine.IncidentCriteria{TaskId: entity.Id})
 		assert.Nil(err)
 		assert.Len(results, 1)
 
-		incident := results[0].(engine.Incident)
-		assert.Equal(engine.Partition(entity.Partition), incident.Partition)
+		assert.Equal(engine.Partition(entity.Partition), results[0].Partition)
 
-		assert.Equal(entity.ElementId.Int32, incident.ElementId)
-		assert.Equal(entity.ElementInstanceId.Int32, incident.ElementInstanceId)
-		assert.Equal(int32(0), incident.JobId)
-		assert.Equal(entity.ProcessId.Int32, incident.ProcessId)
-		assert.Equal(entity.ProcessInstanceId.Int32, incident.ProcessInstanceId)
-		assert.Equal(entity.Id, incident.TaskId)
+		assert.Equal(entity.ElementId.Int32, results[0].ElementId)
+		assert.Equal(entity.ElementInstanceId.Int32, results[0].ElementInstanceId)
+		assert.Equal(int32(0), results[0].JobId)
+		assert.Equal(entity.ProcessId.Int32, results[0].ProcessId)
+		assert.Equal(entity.ProcessInstanceId.Int32, results[0].ProcessInstanceId)
+		assert.Equal(entity.Id, results[0].TaskId)
 
-		assert.NotEmpty(incident.CreatedAt)
-		assert.Equal(engine.DefaultEngineId, incident.CreatedBy)
+		assert.NotEmpty(results[0].CreatedAt)
+		assert.Equal(engine.DefaultEngineId, results[0].CreatedBy)
 	})
 
 	t.Run("create retry task when completed with an error and retries left", func(t *testing.T) {
@@ -81,34 +80,32 @@ func TestExecuteTask(t *testing.T) {
 
 		// when
 		ctx := memEngine.wlock()
-		defer memEngine.unlock()
-
 		err := internal.ExecuteTask(ctx, entity)
+		memEngine.unlock()
 
 		// then
 		assert.Nil(err)
 		assert.True(entity.Error.Valid)
 		assert.Equal("NOT_FOUND: dummy title: dummy detail", entity.Error.String)
 
-		results, err := ctx.Tasks().Query(engine.TaskCriteria{Id: entity.Id + 1}, engine.QueryOptions{})
+		results, err := e.CreateQuery().QueryTasks(context.Background(), engine.TaskCriteria{Id: entity.Id + 1})
 		assert.Nil(err)
 		assert.Len(results, 1)
 
-		task := results[0].(engine.Task)
-		assert.Equal(engine.Partition(entity.Partition), task.Partition)
+		assert.Equal(engine.Partition(entity.Partition), results[0].Partition)
 
-		assert.Equal(entity.ElementId.Int32, task.ElementId)
-		assert.Equal(entity.ElementInstanceId.Int32, task.ElementInstanceId)
-		assert.Equal(entity.ProcessId.Int32, task.ProcessId)
-		assert.Equal(entity.ProcessInstanceId.Int32, task.ProcessInstanceId)
+		assert.Equal(entity.ElementId.Int32, results[0].ElementId)
+		assert.Equal(entity.ElementInstanceId.Int32, results[0].ElementInstanceId)
+		assert.Equal(entity.ProcessId.Int32, results[0].ProcessId)
+		assert.Equal(entity.ProcessInstanceId.Int32, results[0].ProcessInstanceId)
 
-		assert.NotEmpty(task.CreatedAt)
-		assert.Equal(engine.DefaultEngineId, task.CreatedBy)
-		assert.Equal(ctx.Time().Add(time.Hour), task.DueAt)
-		assert.Equal(1, task.RetryCount)
-		assert.Equal(entity.RetryTimer.String, task.RetryTimer.String())
-		assert.Equal(entity.SerializedTask.String, task.SerializedTask)
-		assert.Equal(entity.Type, task.Type)
+		assert.NotEmpty(results[0].CreatedAt)
+		assert.Equal(engine.DefaultEngineId, results[0].CreatedBy)
+		assert.Equal(ctx.Time().Add(time.Hour), results[0].DueAt)
+		assert.Equal(1, results[0].RetryCount)
+		assert.Equal(entity.RetryTimer.String, results[0].RetryTimer.String())
+		assert.Equal(entity.SerializedTask.String, results[0].SerializedTask)
+		assert.Equal(entity.Type, results[0].Type)
 	})
 }
 
@@ -387,7 +384,7 @@ type taskUnlockTest struct {
 }
 
 func runTaskLockTests(t *testing.T, e engine.Engine, tests []taskLockTest) {
-	_, err := e.UnlockTasks(engine.UnlockTasksCmd{
+	_, err := e.UnlockTasks(context.Background(), engine.UnlockTasksCmd{
 		EngineId: engine.DefaultEngineId,
 	})
 	if err != nil {
@@ -435,7 +432,7 @@ func runTaskUnlockTests(t *testing.T, e engine.Engine, tests []taskUnlockTest) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			count, err := e.UnlockTasks(test.cmd)
+			count, err := e.UnlockTasks(context.Background(), test.cmd)
 			if err != nil {
 				t.Fatalf("failed to unlock tasks: %v", err)
 			}

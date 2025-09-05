@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -43,7 +44,7 @@ type Cli struct {
 
 	rootCmd *cobra.Command
 
-	engine       engine.Engine
+	e            engine.Engine
 	debugEnabled bool
 	workerId     string
 }
@@ -75,7 +76,7 @@ func newRootCmd(cli *Cli) *cobra.Command {
 				return nil
 			}
 
-			if cli.engine != nil {
+			if cli.e != nil {
 				return nil // skip client creation when testing
 			}
 
@@ -125,13 +126,13 @@ func newRootCmd(cli *Cli) *cobra.Command {
 				return fmt.Errorf("failed to create HTTP client: %v", err)
 			}
 
-			cli.engine = e
+			cli.e = e
 			return nil
 		},
 		RunE: cli.help,
 		PersistentPostRun: func(cmd *cobra.Command, args []string) {
-			if cli.engine != nil {
-				cli.engine.Shutdown()
+			if cli.e != nil {
+				cli.e.Shutdown()
 			}
 		},
 		Annotations: map[string]string{noEngineRequired: ""},
@@ -175,7 +176,7 @@ func newSetTimeCmd(cli *Cli) *cobra.Command {
 		RunE: func(c *cobra.Command, _ []string) error {
 			cmd.Time = time.Time(timeV)
 
-			return cli.engine.SetTime(cmd)
+			return cli.e.SetTime(context.Background(), cmd)
 		},
 	}
 

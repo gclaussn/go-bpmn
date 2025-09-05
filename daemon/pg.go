@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"log"
@@ -105,7 +106,7 @@ func RunPg(args []string) int {
 
 	apiKeyManager := e.(pg.ApiKeyManager)
 	if doCreateApiKey {
-		_, authorization, err := apiKeyManager.CreateApiKey(secretId)
+		_, authorization, err := apiKeyManager.CreateApiKey(context.Background(), secretId)
 		if err != nil {
 			log.Printf("failed to create API key: %v", err)
 			return 1

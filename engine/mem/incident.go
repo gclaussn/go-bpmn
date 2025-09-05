@@ -46,9 +46,9 @@ func (r *incidentRepository) Update(entity *internal.IncidentEntity) error {
 	return fmt.Errorf("failed to update incident %s/%d: %v", key, entity.Id, pgx.ErrNoRows)
 }
 
-func (r *incidentRepository) Query(c engine.IncidentCriteria, o engine.QueryOptions) ([]any, error) {
+func (r *incidentRepository) Query(c engine.IncidentCriteria, o engine.QueryOptions) ([]engine.Incident, error) {
 	var (
-		results []any
+		results []engine.Incident
 		offset  int
 		limit   int
 

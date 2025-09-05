@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"runtime/debug"
 	"slices"
@@ -13,24 +14,23 @@ import (
 )
 
 func Assert(t *testing.T, e Engine, processInstance ProcessInstance) *ProcessInstanceAssert {
-	results, err := e.Query(ElementCriteria{
+	elements, err := e.CreateQuery().QueryElements(context.Background(), ElementCriteria{
 		ProcessId: processInstance.ProcessId,
 	})
 	if err != nil {
 		t.Fatalf("failed to query elements: %v", err)
 	}
 
-	elements := make(map[string]Element, len(results))
-	for i := range results {
-		element := results[i].(Element)
-		elements[element.BpmnElementId] = element
+	elementMap := make(map[string]Element, len(elements))
+	for _, element := range elements {
+		elementMap[element.BpmnElementId] = element
 	}
 
 	return &ProcessInstanceAssert{
 		t: t,
 		e: e,
 
-		elements: elements,
+		elements: elementMap,
 
 		partition:         processInstance.Partition,
 		processInstanceId: processInstance.Id,
@@ -41,15 +41,14 @@ func Assert(t *testing.T, e Engine, processInstance ProcessInstance) *ProcessIns
 //
 // Since a process can have multiple signal start events, the ID of the BPMN start element must be provided.
 func AssertSignalStart(t *testing.T, e Engine, processId int32, bpmnStartElementId string, variables ...map[string]*Data) *ProcessInstanceAssert {
-	results, err := e.Query(ElementCriteria{ProcessId: processId})
+	elements, err := e.CreateQuery().QueryElements(context.Background(), ElementCriteria{ProcessId: processId})
 	if err != nil {
 		t.Fatalf("failed to query elements: %v", err)
 	}
 
-	elements := make(map[string]Element, len(results))
-	for _, result := range results {
-		element := result.(Element)
-		elements[element.BpmnElementId] = element
+	elementMap := make(map[string]Element, len(elements))
+	for _, element := range elements {
+		elementMap[element.BpmnElementId] = element
 	}
 
 	var element Element
@@ -71,7 +70,7 @@ func AssertSignalStart(t *testing.T, e Engine, processId int32, bpmnStartElement
 		}
 	}
 
-	_, err = e.SendSignal(SendSignalCmd{
+	_, err = e.SendSignal(context.Background(), SendSignalCmd{
 		Name:      element.EventDefinition.SignalName,
 		Variables: signalVariables,
 		WorkerId:  "test-worker",
@@ -80,7 +79,7 @@ func AssertSignalStart(t *testing.T, e Engine, processId int32, bpmnStartElement
 		t.Fatalf("failed to send signal: %v", err)
 	}
 
-	completedTasks, failedTasks, err := e.ExecuteTasks(ExecuteTasksCmd{
+	completedTasks, failedTasks, err := e.ExecuteTasks(context.Background(), ExecuteTasksCmd{
 		ElementId: element.Id,
 
 		Limit: 1,
@@ -93,27 +92,30 @@ func AssertSignalStart(t *testing.T, e Engine, processId int32, bpmnStartElement
 		t.Fatal("trigger event task failed")
 	}
 
-	results, err = e.Query(ProcessInstanceCriteria{ProcessId: processId})
+	processInstances, err := e.CreateQuery().QueryProcessInstances(context.Background(), ProcessInstanceCriteria{ProcessId: processId})
 	if err != nil {
 		t.Fatalf("failed to query process instances: %v", err)
 	}
 
-	var processInstance ProcessInstance
-	for _, result := range results {
-		if result.(ProcessInstance).CreatedAt == *completedTasks[0].CompletedAt {
-			processInstance = result.(ProcessInstance)
+	var startedProcessInstance ProcessInstance
+	for _, processInstance := range processInstances {
+		if processInstance.CreatedAt == *completedTasks[0].CompletedAt {
+			startedProcessInstance = processInstance
 			break
 		}
+	}
+	if startedProcessInstance.Id == 0 {
+		t.Fatal("failed to find process instance")
 	}
 
 	return &ProcessInstanceAssert{
 		t: t,
 		e: e,
 
-		elements: elements,
+		elements: elementMap,
 
-		partition:         processInstance.Partition,
-		processInstanceId: processInstance.Id,
+		partition:         startedProcessInstance.Partition,
+		processInstanceId: startedProcessInstance.Id,
 	}
 }
 
@@ -125,13 +127,13 @@ func AssertSignalStart(t *testing.T, e Engine, processId int32, bpmnStartElement
 func AsserTimerStart(t *testing.T, e Engine, processId int32, startTime time.Time) *ProcessInstanceAssert {
 	startTime = startTime.UTC().Truncate(time.Millisecond)
 
-	if err := e.SetTime(SetTimeCmd{
+	if err := e.SetTime(context.Background(), SetTimeCmd{
 		Time: startTime,
 	}); err != nil {
 		t.Fatalf("failed to set time: %v", err)
 	}
 
-	elementResults, err := e.Query(ElementCriteria{
+	elements, err := e.CreateQuery().QueryElements(context.Background(), ElementCriteria{
 		ProcessId: processId,
 	})
 	if err != nil {
@@ -139,13 +141,13 @@ func AsserTimerStart(t *testing.T, e Engine, processId int32, startTime time.Tim
 	}
 
 	limit := 0
-	for i := range elementResults {
-		if elementResults[i].(Element).BpmnElementType == model.ElementTimerStartEvent {
+	for _, element := range elements {
+		if element.BpmnElementType == model.ElementTimerStartEvent {
 			limit++
 		}
 	}
 
-	completedTasks, failedTasks, err := e.ExecuteTasks(ExecuteTasksCmd{
+	completedTasks, failedTasks, err := e.ExecuteTasks(context.Background(), ExecuteTasksCmd{
 		ProcessId: processId,
 		Type:      TaskTriggerEvent,
 
@@ -177,39 +179,37 @@ func AsserTimerStart(t *testing.T, e Engine, processId int32, startTime time.Tim
 		t.Fatalf("failed to find trigger event task for start time %v", startTime)
 	}
 
-	processInstanceResults, err := e.Query(ProcessInstanceCriteria{
+	processInstances, err := e.CreateQuery().QueryProcessInstances(context.Background(), ProcessInstanceCriteria{
 		ProcessId: processId,
 	})
 	if err != nil {
 		t.Fatalf("failed to query process instances: %v", err)
 	}
 
-	var processInstance ProcessInstance
-	for i := range processInstanceResults {
-		result := processInstanceResults[i].(ProcessInstance)
-		if result.CreatedAt == createdAt {
-			processInstance = result
+	var startedProcessInstance ProcessInstance
+	for _, processInstance := range processInstances {
+		if processInstance.CreatedAt == createdAt {
+			startedProcessInstance = processInstance
 			break
 		}
 	}
-	if processInstance.Id == 0 {
-		t.Fatalf("failed to find process instance: %v", err)
+	if startedProcessInstance.Id == 0 {
+		t.Fatal("failed to find process instance")
 	}
 
-	elements := make(map[string]Element, len(elementResults))
-	for i := range elementResults {
-		element := elementResults[i].(Element)
-		elements[element.BpmnElementId] = element
+	elementMap := make(map[string]Element, len(elements))
+	for _, element := range elements {
+		elementMap[element.BpmnElementId] = element
 	}
 
 	return &ProcessInstanceAssert{
 		t: t,
 		e: e,
 
-		elements: elements,
+		elements: elementMap,
 
-		partition:         processInstance.Partition,
-		processInstanceId: processInstance.Id,
+		partition:         startedProcessInstance.Partition,
+		processInstanceId: startedProcessInstance.Id,
 	}
 }
 
@@ -228,7 +228,7 @@ type ProcessInstanceAssert struct {
 func (a *ProcessInstanceAssert) CompleteJob(completeJobCmds ...CompleteJobCmd) {
 	job := a.Job()
 
-	lockedJobs, err := a.e.LockJobs(LockJobsCmd{
+	lockedJobs, err := a.e.LockJobs(context.Background(), LockJobsCmd{
 		Partition: job.Partition,
 		Id:        job.Id,
 		WorkerId:  "test-worker",
@@ -252,7 +252,7 @@ func (a *ProcessInstanceAssert) CompleteJob(completeJobCmds ...CompleteJobCmd) {
 	completeJobCmd.Partition = a.partition
 	completeJobCmd.WorkerId = "test-worker"
 
-	completedJob, err := a.e.CompleteJob(completeJobCmd)
+	completedJob, err := a.e.CompleteJob(context.Background(), completeJobCmd)
 	if err != nil {
 		a.Fatalf("failed to complete job %s: %v", lockedJobs[0], err)
 	}
@@ -267,7 +267,7 @@ func (a *ProcessInstanceAssert) CompleteJob(completeJobCmds ...CompleteJobCmd) {
 func (a *ProcessInstanceAssert) CompleteJobWithError(completeJobCmds ...CompleteJobCmd) Job {
 	job := a.Job()
 
-	lockedJobs, err := a.e.LockJobs(LockJobsCmd{
+	lockedJobs, err := a.e.LockJobs(context.Background(), LockJobsCmd{
 		Partition: job.Partition,
 		Id:        job.Id,
 		WorkerId:  "test-worker",
@@ -291,7 +291,7 @@ func (a *ProcessInstanceAssert) CompleteJobWithError(completeJobCmds ...Complete
 	completeJobCmd.Partition = a.partition
 	completeJobCmd.WorkerId = "test-worker"
 
-	completedJob, err := a.e.CompleteJob(completeJobCmd)
+	completedJob, err := a.e.CompleteJob(context.Background(), completeJobCmd)
 	if err != nil {
 		a.Fatalf("failed to complete job %s: %v", lockedJobs[0], err)
 	}
@@ -307,7 +307,7 @@ func (a *ProcessInstanceAssert) ElementInstance() ElementInstance {
 		a.Fatalf("call IsWaitingAt first")
 	}
 
-	results, err := a.e.Query(ElementInstanceCriteria{
+	results, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
 		Partition: a.partition,
 		Id:        a.elementInstanceId,
 	})
@@ -319,7 +319,7 @@ func (a *ProcessInstanceAssert) ElementInstance() ElementInstance {
 		a.Fatalf("expected one element instance, but got %d", len(results))
 	}
 
-	return results[0].(ElementInstance)
+	return results[0]
 }
 
 func (a *ProcessInstanceAssert) ElementInstances(criteria ...ElementInstanceCriteria) []ElementInstance {
@@ -333,23 +333,18 @@ func (a *ProcessInstanceAssert) ElementInstances(criteria ...ElementInstanceCrit
 	c.Partition = a.partition
 	c.ProcessInstanceId = a.processInstanceId
 
-	results, err := a.e.Query(c)
+	results, err := a.e.CreateQuery().QueryElementInstances(context.Background(), c)
 	if err != nil {
 		a.Fatalf("failed to query element instances: %v", err)
 	}
 
-	elementInstances := make([]ElementInstance, len(results))
-	for i := range elementInstances {
-		elementInstances[i] = results[i].(ElementInstance)
-	}
-
-	return elementInstances
+	return results
 }
 
 func (a *ProcessInstanceAssert) ExecuteTask() {
 	task := a.Task()
 
-	completedTasks, _, err := a.e.ExecuteTasks(ExecuteTasksCmd{
+	completedTasks, _, err := a.e.ExecuteTasks(context.Background(), ExecuteTasksCmd{
 		Partition: task.Partition,
 		Id:        task.Id,
 	})
@@ -370,7 +365,7 @@ func (a *ProcessInstanceAssert) ExecuteTask() {
 }
 
 func (a *ProcessInstanceAssert) ExecuteTasks() []Task {
-	completedTasks, failedTasks, err := a.e.ExecuteTasks(ExecuteTasksCmd{
+	completedTasks, failedTasks, err := a.e.ExecuteTasks(context.Background(), ExecuteTasksCmd{
 		Partition:         a.partition,
 		ProcessInstanceId: a.processInstanceId,
 		Limit:             100,
@@ -414,7 +409,7 @@ func (a *ProcessInstanceAssert) Fatalf(format string, args ...any) {
 }
 
 func (a *ProcessInstanceAssert) HasPassed(bpmnElementId string) {
-	results, err := a.e.Query(ElementInstanceCriteria{
+	results, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
 		Partition:         a.partition,
 		ProcessInstanceId: a.processInstanceId,
 		States:            []InstanceState{InstanceCompleted},
@@ -423,16 +418,13 @@ func (a *ProcessInstanceAssert) HasPassed(bpmnElementId string) {
 		a.Fatalf("failed to query element instances: %v", err)
 	}
 
-	elementInstances := make([]ElementInstance, len(results))
-	for i := range results {
-		elementInstances[i] = results[i].(ElementInstance)
-
-		if elementInstances[i].BpmnElementId == bpmnElementId {
+	for _, result := range results {
+		if result.BpmnElementId == bpmnElementId {
 			return
 		}
 	}
 
-	slices.SortFunc(elementInstances, func(a ElementInstance, b ElementInstance) int {
+	slices.SortFunc(results, func(a ElementInstance, b ElementInstance) int {
 		if a.EndedAt == nil {
 			return -1
 		} else if b.EndedAt == nil {
@@ -448,9 +440,9 @@ func (a *ProcessInstanceAssert) HasPassed(bpmnElementId string) {
 		}
 	})
 
-	passed := make([]string, len(elementInstances))
-	for i := range elementInstances {
-		passed[i] = elementInstances[i].BpmnElementId
+	passed := make([]string, len(results))
+	for i, result := range results {
+		passed[i] = result.BpmnElementId
 	}
 
 	a.Fatalf("expected process instance to have passed %s, but has not\npassed elements: %s", bpmnElementId, strings.Join(passed, ", "))
@@ -473,7 +465,7 @@ func (a *ProcessInstanceAssert) IsNotWaitingAt(bpmnElementId string) {
 		a.Fatalf("expected process instance not to be waiting at %s: process has no such BPMN element", bpmnElementId)
 	}
 
-	results, err := a.e.Query(ElementInstanceCriteria{
+	results, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
 		Partition:         a.partition,
 		ProcessInstanceId: a.processInstanceId,
 		BpmnElementId:     bpmnElementId,
@@ -493,7 +485,7 @@ func (a *ProcessInstanceAssert) IsWaitingAt(bpmnElementId string) {
 		a.Fatalf("expected process instance to be waiting at %s: process has no such BPMN element", bpmnElementId)
 	}
 
-	results, err := a.e.Query(ElementInstanceCriteria{
+	results, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
 		Partition:         a.partition,
 		ProcessInstanceId: a.processInstanceId,
 		BpmnElementId:     bpmnElementId,
@@ -505,7 +497,7 @@ func (a *ProcessInstanceAssert) IsWaitingAt(bpmnElementId string) {
 
 	if len(results) != 0 {
 		a.bpmnElementId = bpmnElementId
-		a.elementInstanceId = results[0].(ElementInstance).Id
+		a.elementInstanceId = results[0].Id
 		return
 	}
 
@@ -513,7 +505,7 @@ func (a *ProcessInstanceAssert) IsWaitingAt(bpmnElementId string) {
 }
 
 func (a *ProcessInstanceAssert) HasNoProcessVariable(name string) {
-	processVariables, err := a.e.GetProcessVariables(GetProcessVariablesCmd{
+	processVariables, err := a.e.GetProcessVariables(context.Background(), GetProcessVariablesCmd{
 		Partition:         a.partition,
 		ProcessInstanceId: a.processInstanceId,
 		Names:             []string{name},
@@ -528,7 +520,7 @@ func (a *ProcessInstanceAssert) HasNoProcessVariable(name string) {
 }
 
 func (a *ProcessInstanceAssert) HasProcessVariable(name string) {
-	processVariables, err := a.e.GetProcessVariables(GetProcessVariablesCmd{
+	processVariables, err := a.e.GetProcessVariables(context.Background(), GetProcessVariablesCmd{
 		Partition:         a.partition,
 		ProcessInstanceId: a.processInstanceId,
 		Names:             []string{name},
@@ -547,7 +539,7 @@ func (a *ProcessInstanceAssert) Job() Job {
 		a.Fatalf("call IsWaitingAt first")
 	}
 
-	results, err := a.e.Query(JobCriteria{
+	results, err := a.e.CreateQuery().QueryJobs(context.Background(), JobCriteria{
 		Partition:         a.partition,
 		ProcessInstanceId: a.processInstanceId,
 		ElementInstanceId: a.elementInstanceId,
@@ -556,10 +548,9 @@ func (a *ProcessInstanceAssert) Job() Job {
 		a.Fatalf("failed to query jobs: %v", err)
 	}
 
-	for i := range results {
-		job := results[i].(Job)
-		if !job.IsCompleted() {
-			return job
+	for _, result := range results {
+		if !result.IsCompleted() {
+			return result
 		}
 	}
 
@@ -568,7 +559,7 @@ func (a *ProcessInstanceAssert) Job() Job {
 }
 
 func (a *ProcessInstanceAssert) ProcessInstance() ProcessInstance {
-	results, err := a.e.Query(ProcessInstanceCriteria{
+	results, err := a.e.CreateQuery().QueryProcessInstances(context.Background(), ProcessInstanceCriteria{
 		Partition: a.partition,
 		Id:        a.processInstanceId,
 	})
@@ -580,7 +571,7 @@ func (a *ProcessInstanceAssert) ProcessInstance() ProcessInstance {
 		a.Fatalf("expected one process instance, but got %d", len(results))
 	}
 
-	return results[0].(ProcessInstance)
+	return results[0]
 }
 
 func (a *ProcessInstanceAssert) Task() Task {
@@ -588,7 +579,7 @@ func (a *ProcessInstanceAssert) Task() Task {
 		a.Fatalf("call IsWaitingAt first")
 	}
 
-	results, err := a.e.Query(TaskCriteria{
+	results, err := a.e.CreateQuery().QueryTasks(context.Background(), TaskCriteria{
 		Partition:         a.partition,
 		ProcessInstanceId: a.processInstanceId,
 		ElementInstanceId: a.elementInstanceId,
@@ -597,10 +588,9 @@ func (a *ProcessInstanceAssert) Task() Task {
 		a.Fatalf("failed to query tasks: %v", err)
 	}
 
-	for i := range results {
-		task := results[i].(Task)
-		if !task.IsCompleted() {
-			return task
+	for _, result := range results {
+		if !result.IsCompleted() {
+			return result
 		}
 	}
 

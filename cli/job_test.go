@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"strconv"
 	"testing"
 	"time"
@@ -28,8 +29,6 @@ func TestJobCompleteSetTimer(t *testing.T) {
 		"1",
 	})
 
-	var results []any
-
 	t.Run("time", func(t *testing.T) {
 		mustExecute(t, e, []string{
 			"process-instance",
@@ -40,7 +39,7 @@ func TestJobCompleteSetTimer(t *testing.T) {
 			"1",
 		})
 
-		lockedJobs, err := e.LockJobs(engine.LockJobsCmd{WorkerId: program})
+		lockedJobs, err := e.LockJobs(context.Background(), engine.LockJobsCmd{WorkerId: program})
 		require.NoError(err, "failed to lock job")
 		require.NotEmpty(lockedJobs, "no job locked")
 
@@ -57,11 +56,10 @@ func TestJobCompleteSetTimer(t *testing.T) {
 			triggerAt.Format(time.RFC3339Nano),
 		})
 
-		results, err = e.Query(engine.TaskCriteria{Partition: lockedJobs[0].Partition, ProcessInstanceId: lockedJobs[0].ProcessInstanceId})
+		results, err := e.CreateQuery().QueryTasks(context.Background(), engine.TaskCriteria{Partition: lockedJobs[0].Partition, ProcessInstanceId: lockedJobs[0].ProcessInstanceId})
 		require.NoError(err, "failed to query task")
 
-		task := results[0].(engine.Task)
-		assert.Equal(triggerAt, task.DueAt)
+		assert.Equal(triggerAt, results[0].DueAt)
 	})
 
 	t.Run("time-cycle", func(t *testing.T) {
@@ -74,7 +72,7 @@ func TestJobCompleteSetTimer(t *testing.T) {
 			"1",
 		})
 
-		lockedJobs, err := e.LockJobs(engine.LockJobsCmd{WorkerId: program})
+		lockedJobs, err := e.LockJobs(context.Background(), engine.LockJobsCmd{WorkerId: program})
 		require.NoError(err, "failed to lock job")
 		require.NotEmpty(lockedJobs, "no job locked")
 
@@ -89,18 +87,16 @@ func TestJobCompleteSetTimer(t *testing.T) {
 			"0 * * * *",
 		})
 
-		results, err = e.Query(engine.JobCriteria{Partition: lockedJobs[0].Partition, Id: lockedJobs[0].Id})
+		jobs, err := e.CreateQuery().QueryJobs(context.Background(), engine.JobCriteria{Partition: lockedJobs[0].Partition, Id: lockedJobs[0].Id})
 		require.NoError(err, "failed to query job")
 
-		job := results[0].(engine.Job)
-		require.Falsef(job.HasError(), "completed job has error: %s", job.Error)
+		require.Falsef(jobs[0].HasError(), "completed job has error: %s", jobs[0].Error)
 
-		results, err = e.Query(engine.TaskCriteria{Partition: job.Partition, ProcessInstanceId: job.ProcessInstanceId})
+		tasks, err := e.CreateQuery().QueryTasks(context.Background(), engine.TaskCriteria{Partition: jobs[0].Partition, ProcessInstanceId: jobs[0].ProcessInstanceId})
 		require.NoError(err, "failed to query task")
-		require.NotEmpty(results, "no task queried")
+		require.NotEmpty(tasks, "no task queried")
 
-		task := results[0].(engine.Task)
-		assert.Equal(job.CompletedAt.Add(time.Hour).Truncate(time.Hour), task.DueAt)
+		assert.Equal(jobs[0].CompletedAt.Add(time.Hour).Truncate(time.Hour), tasks[0].DueAt)
 	})
 
 	t.Run("time-duration", func(t *testing.T) {
@@ -113,7 +109,7 @@ func TestJobCompleteSetTimer(t *testing.T) {
 			"1",
 		})
 
-		lockedJobs, err := e.LockJobs(engine.LockJobsCmd{WorkerId: program})
+		lockedJobs, err := e.LockJobs(context.Background(), engine.LockJobsCmd{WorkerId: program})
 		require.NoError(err, "failed to lock job")
 		require.NotEmpty(lockedJobs, "no job locked")
 
@@ -128,17 +124,15 @@ func TestJobCompleteSetTimer(t *testing.T) {
 			"PT1H",
 		})
 
-		results, err = e.Query(engine.JobCriteria{Partition: lockedJobs[0].Partition, Id: lockedJobs[0].Id})
+		jobs, err := e.CreateQuery().QueryJobs(context.Background(), engine.JobCriteria{Partition: lockedJobs[0].Partition, Id: lockedJobs[0].Id})
 		require.NoError(err, "failed to query job")
 
-		job := results[0].(engine.Job)
-		require.Falsef(job.HasError(), "completed job has error: %s", job.Error)
+		require.Falsef(jobs[0].HasError(), "completed job has error: %s", jobs[0].Error)
 
-		results, err = e.Query(engine.TaskCriteria{Partition: job.Partition, ProcessInstanceId: job.ProcessInstanceId})
+		tasks, err := e.CreateQuery().QueryTasks(context.Background(), engine.TaskCriteria{Partition: jobs[0].Partition, ProcessInstanceId: jobs[0].ProcessInstanceId})
 		require.NoError(err, "failed to query task")
-		require.NotEmpty(results, "no task queried")
+		require.NotEmpty(tasks, "no task queried")
 
-		task := results[0].(engine.Task)
-		assert.Equal(job.CompletedAt.Add(time.Hour), task.DueAt)
+		assert.Equal(jobs[0].CompletedAt.Add(time.Hour), tasks[0].DueAt)
 	})
 }

@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/gclaussn/go-bpmn/engine"
@@ -23,7 +24,7 @@ func TestVariables(t *testing.T) {
 
 		t.Run(engineTypes[i]+"set process variables", func(t *testing.T) {
 			// when
-			if err := e.SetProcessVariables(engine.SetProcessVariablesCmd{
+			if err := e.SetProcessVariables(context.Background(), engine.SetProcessVariablesCmd{
 				Partition:         processInstance.Partition,
 				ProcessInstanceId: processInstance.Id,
 
@@ -55,7 +56,7 @@ func TestVariables(t *testing.T) {
 
 		t.Run(engineTypes[i]+"set element variables", func(t *testing.T) {
 			// when
-			if err := e.SetElementVariables(engine.SetElementVariablesCmd{
+			if err := e.SetElementVariables(context.Background(), engine.SetElementVariablesCmd{
 				Partition:         elementInstance.Partition,
 				ElementInstanceId: elementInstance.Id,
 
@@ -83,7 +84,7 @@ func TestVariables(t *testing.T) {
 
 		t.Run(engineTypes[i]+"set element variables returns error when element instance is ended", func(t *testing.T) {
 			// given
-			results, err := e.Query(engine.ElementInstanceCriteria{
+			results, err := e.CreateQuery().QueryElementInstances(context.Background(), engine.ElementInstanceCriteria{
 				Partition:         processInstance.Partition,
 				ProcessInstanceId: processInstance.Id,
 				BpmnElementId:     "startEvent",
@@ -95,9 +96,9 @@ func TestVariables(t *testing.T) {
 			assert.Lenf(results, 1, "expected on element instance")
 
 			// when
-			err = e.SetElementVariables(engine.SetElementVariablesCmd{
+			err = e.SetElementVariables(context.Background(), engine.SetElementVariablesCmd{
 				Partition:         elementInstance.Partition,
-				ElementInstanceId: results[0].(engine.ElementInstance).Id,
+				ElementInstanceId: results[0].Id,
 			})
 
 			// then
@@ -111,7 +112,7 @@ func TestVariables(t *testing.T) {
 
 		t.Run(engineTypes[i]+"set element variables returns error when element instance not exists", func(t *testing.T) {
 			// when
-			err := e.SetElementVariables(engine.SetElementVariablesCmd{
+			err := e.SetElementVariables(context.Background(), engine.SetElementVariablesCmd{
 				Partition: elementInstance.Partition,
 			})
 
@@ -126,7 +127,7 @@ func TestVariables(t *testing.T) {
 
 		t.Run(engineTypes[i]+"get process variables", func(t *testing.T) {
 			// when
-			variables, err := e.GetProcessVariables(engine.GetProcessVariablesCmd{
+			variables, err := e.GetProcessVariables(context.Background(), engine.GetProcessVariablesCmd{
 				Partition:         processInstance.Partition,
 				ProcessInstanceId: processInstance.Id,
 			})
@@ -156,7 +157,7 @@ func TestVariables(t *testing.T) {
 
 		t.Run(engineTypes[i]+"get process variables by names", func(t *testing.T) {
 			// when
-			variables, err := e.GetProcessVariables(engine.GetProcessVariablesCmd{
+			variables, err := e.GetProcessVariables(context.Background(), engine.GetProcessVariablesCmd{
 				Partition:         processInstance.Partition,
 				ProcessInstanceId: processInstance.Id,
 
@@ -175,7 +176,7 @@ func TestVariables(t *testing.T) {
 
 		t.Run(engineTypes[i]+"get process variables returns error when process instance not exists", func(t *testing.T) {
 			// when
-			_, err := e.GetProcessVariables(engine.GetProcessVariablesCmd{
+			_, err := e.GetProcessVariables(context.Background(), engine.GetProcessVariablesCmd{
 				Partition: processInstance.Partition,
 			})
 
@@ -190,7 +191,7 @@ func TestVariables(t *testing.T) {
 
 		t.Run(engineTypes[i]+"get element variables", func(t *testing.T) {
 			// when
-			variables, err := e.GetElementVariables(engine.GetElementVariablesCmd{
+			variables, err := e.GetElementVariables(context.Background(), engine.GetElementVariablesCmd{
 				Partition:         elementInstance.Partition,
 				ElementInstanceId: elementInstance.Id,
 			})
@@ -220,7 +221,7 @@ func TestVariables(t *testing.T) {
 
 		t.Run(engineTypes[i]+"get element variables by names", func(t *testing.T) {
 			// when
-			variables, err := e.GetElementVariables(engine.GetElementVariablesCmd{
+			variables, err := e.GetElementVariables(context.Background(), engine.GetElementVariablesCmd{
 				Partition:         elementInstance.Partition,
 				ElementInstanceId: elementInstance.Id,
 
@@ -239,7 +240,7 @@ func TestVariables(t *testing.T) {
 
 		t.Run(engineTypes[i]+"get element variables returns error when element instance not exists", func(t *testing.T) {
 			// when
-			_, err := e.GetElementVariables(engine.GetElementVariablesCmd{
+			_, err := e.GetElementVariables(context.Background(), engine.GetElementVariablesCmd{
 				Partition: elementInstance.Partition,
 			})
 
@@ -254,7 +255,7 @@ func TestVariables(t *testing.T) {
 
 		t.Run(engineTypes[i]+"update and delete process variables", func(t *testing.T) {
 			// when
-			if err := e.SetProcessVariables(engine.SetProcessVariablesCmd{
+			if err := e.SetProcessVariables(context.Background(), engine.SetProcessVariablesCmd{
 				Partition:         processInstance.Partition,
 				ProcessInstanceId: processInstance.Id,
 
@@ -272,7 +273,7 @@ func TestVariables(t *testing.T) {
 			}
 
 			// then
-			variables, err := e.GetProcessVariables(engine.GetProcessVariablesCmd{
+			variables, err := e.GetProcessVariables(context.Background(), engine.GetProcessVariablesCmd{
 				Partition:         processInstance.Partition,
 				ProcessInstanceId: processInstance.Id,
 			})
@@ -292,7 +293,7 @@ func TestVariables(t *testing.T) {
 
 		t.Run(engineTypes[i]+"update and delete element variables", func(t *testing.T) {
 			// when
-			if err := e.SetElementVariables(engine.SetElementVariablesCmd{
+			if err := e.SetElementVariables(context.Background(), engine.SetElementVariablesCmd{
 				Partition:         elementInstance.Partition,
 				ElementInstanceId: elementInstance.Id,
 
@@ -310,7 +311,7 @@ func TestVariables(t *testing.T) {
 			}
 
 			// then
-			variables, err := e.GetElementVariables(engine.GetElementVariablesCmd{
+			variables, err := e.GetElementVariables(context.Background(), engine.GetElementVariablesCmd{
 				Partition:         elementInstance.Partition,
 				ElementInstanceId: elementInstance.Id,
 			})
@@ -334,7 +335,7 @@ func TestVariables(t *testing.T) {
 
 		t.Run(engineTypes[i]+"set process variables returns error when process instance is ended", func(t *testing.T) {
 			// when
-			err := e.SetProcessVariables(engine.SetProcessVariablesCmd{
+			err := e.SetProcessVariables(context.Background(), engine.SetProcessVariablesCmd{
 				Partition:         processInstance.Partition,
 				ProcessInstanceId: processInstance.Id,
 			})
@@ -350,7 +351,7 @@ func TestVariables(t *testing.T) {
 
 		t.Run(engineTypes[i]+"set process variables returns error when process instance not exists", func(t *testing.T) {
 			// when
-			err := e.SetProcessVariables(engine.SetProcessVariablesCmd{
+			err := e.SetProcessVariables(context.Background(), engine.SetProcessVariablesCmd{
 				Partition: processInstance.Partition,
 			})
 
@@ -365,7 +366,7 @@ func TestVariables(t *testing.T) {
 
 		t.Run(engineTypes[i]+"set element variables returns error when process instance is ended", func(t *testing.T) {
 			// when
-			err := e.SetElementVariables(engine.SetElementVariablesCmd{
+			err := e.SetElementVariables(context.Background(), engine.SetElementVariablesCmd{
 				Partition:         elementInstance.Partition,
 				ElementInstanceId: elementInstance.Id,
 			})

@@ -249,7 +249,7 @@ WHERE
 	return nil
 }
 
-func (r taskRepository) Query(criteria engine.TaskCriteria, options engine.QueryOptions) ([]any, error) {
+func (r taskRepository) Query(criteria engine.TaskCriteria, options engine.QueryOptions) ([]engine.Task, error) {
 	var sql bytes.Buffer
 	if err := sqlTaskQuery.Execute(&sql, map[string]any{
 		"c": criteria,
@@ -265,7 +265,7 @@ func (r taskRepository) Query(criteria engine.TaskCriteria, options engine.Query
 
 	defer rows.Close()
 
-	var results []any
+	var results []engine.Task
 	for rows.Next() {
 		var (
 			entity    internal.TaskEntity

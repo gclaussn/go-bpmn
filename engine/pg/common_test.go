@@ -55,34 +55,35 @@ func mustCreateEngine(t *testing.T, customizers ...func(*Options)) engine.Engine
 }
 
 func mustInsertEntities(t *testing.T, e engine.Engine, entities []any) {
-	w, cancel := e.(*pgEngine).withTimeout()
-	defer cancel()
+	pgEngine := e.(*pgEngine)
 
-	ctx, err := w.require()
+	pgCtx, cancel, err := pgEngine.acquire(context.Background())
 	if err != nil {
 		t.Fatalf("failed to require context: %v", err)
 	}
 
+	defer cancel()
+
 	for _, entity := range entities {
 		switch entity := entity.(type) {
-		case *internal.ElementInstanceEntity:
-			err = ctx.ElementInstances().Insert(entity)
 		case *internal.ElementEntity:
-			err = ctx.Elements().InsertBatch([]*internal.ElementEntity{entity})
+			err = pgCtx.Elements().InsertBatch([]*internal.ElementEntity{entity})
+		case *internal.ElementInstanceEntity:
+			err = pgCtx.ElementInstances().Insert(entity)
 		case *internal.IncidentEntity:
-			err = ctx.Incidents().Insert(entity)
+			err = pgCtx.Incidents().Insert(entity)
 		case *internal.JobEntity:
-			err = ctx.Jobs().Insert(entity)
+			err = pgCtx.Jobs().Insert(entity)
 		case *internal.ProcessEntity:
-			err = ctx.Processes().Insert(entity)
+			err = pgCtx.Processes().Insert(entity)
 		case *internal.ProcessInstanceEntity:
-			err = ctx.ProcessInstances().Insert(entity)
+			err = pgCtx.ProcessInstances().Insert(entity)
 		case *internal.TaskEntity:
-			err = ctx.Tasks().Insert(entity)
+			err = pgCtx.Tasks().Insert(entity)
 		case *internal.VariableEntity:
-			err = ctx.Variables().Insert(entity)
+			err = pgCtx.Variables().Insert(entity)
 		default:
-			w.release(ctx, nil)
+			pgEngine.release(pgCtx, nil)
 			t.Fatalf("unsupported entity type %T", entity)
 		}
 
@@ -91,7 +92,7 @@ func mustInsertEntities(t *testing.T, e engine.Engine, entities []any) {
 		}
 	}
 
-	if err := w.release(ctx, err); err != nil {
+	if err := pgEngine.release(pgCtx, err); err != nil {
 		t.Fatalf("failed to insert entities: %v", err)
 	}
 }
@@ -113,22 +114,23 @@ func mustReadBpmnFile(t *testing.T, fileName string) string {
 }
 
 func mustUpdateEntities(t *testing.T, e engine.Engine, entities []any) {
-	w, cancel := e.(*pgEngine).withTimeout()
-	defer cancel()
+	pgEngine := e.(*pgEngine)
 
-	ctx, err := w.require()
+	pgCtx, cancel, err := pgEngine.acquire(context.Background())
 	if err != nil {
 		t.Fatalf("failed to require context: %v", err)
 	}
 
+	defer cancel()
+
 	for _, entity := range entities {
 		switch entity := entity.(type) {
 		case *internal.JobEntity:
-			err = ctx.Jobs().Update(entity)
+			err = pgCtx.Jobs().Update(entity)
 		case *internal.TaskEntity:
-			err = ctx.Tasks().Update(entity)
+			err = pgCtx.Tasks().Update(entity)
 		default:
-			w.release(ctx, nil)
+			pgEngine.release(pgCtx, nil)
 			t.Fatalf("unsupported entity type %T", entity)
 		}
 
@@ -137,7 +139,7 @@ func mustUpdateEntities(t *testing.T, e engine.Engine, entities []any) {
 		}
 	}
 
-	if err := w.release(ctx, err); err != nil {
+	if err := pgEngine.release(pgCtx, err); err != nil {
 		t.Fatalf("failed to update entities: %v", err)
 	}
 }

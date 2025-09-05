@@ -139,7 +139,7 @@ WHERE
 	return nil
 }
 
-func (r incidentRepository) Query(criteria engine.IncidentCriteria, options engine.QueryOptions) ([]any, error) {
+func (r incidentRepository) Query(criteria engine.IncidentCriteria, options engine.QueryOptions) ([]engine.Incident, error) {
 	var sql bytes.Buffer
 	if err := sqlIncidentQuery.Execute(&sql, map[string]any{
 		"c": criteria,
@@ -155,7 +155,7 @@ func (r incidentRepository) Query(criteria engine.IncidentCriteria, options engi
 
 	defer rows.Close()
 
-	var results []any
+	var results []engine.Incident
 	for rows.Next() {
 		var entity internal.IncidentEntity
 

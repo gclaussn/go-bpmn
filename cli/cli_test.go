@@ -12,7 +12,7 @@ func TestHelp(t *testing.T) {
 	e := mustCreateEngine(t)
 	defer e.Shutdown()
 
-	rootCmd := newRootCmd(&Cli{engine: e})
+	rootCmd := newRootCmd(&Cli{e: e})
 
 	rootCmd.SetArgs([]string{})
 	assert.NoError(rootCmd.Execute())

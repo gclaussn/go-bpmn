@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -39,7 +40,7 @@ func newElementInstanceGetVariablesCmd(cli *Cli) *cobra.Command {
 		RunE: func(c *cobra.Command, args []string) error {
 			cmd.Partition = engine.Partition(partition)
 
-			variables, err := cli.engine.GetElementVariables(cmd)
+			variables, err := cli.e.GetElementVariables(context.Background(), cmd)
 			if err != nil {
 				return err
 			}
@@ -114,7 +115,7 @@ func newElementInstanceSetVariablesCmd(cli *Cli) *cobra.Command {
 			cmd.Variables = variables
 			cmd.WorkerId = cli.workerId
 
-			return cli.engine.SetElementVariables(cmd)
+			return cli.e.SetElementVariables(context.Background(), cmd)
 		},
 	}
 
@@ -154,7 +155,10 @@ func newElementInstanceQueryCmd(cli *Cli) *cobra.Command {
 			criteria.Partition = engine.Partition(partition)
 			criteria.States = states
 
-			results, err := cli.engine.QueryWithOptions(criteria, options)
+			q := cli.e.CreateQuery()
+			q.SetOptions(options)
+
+			results, err := q.QueryElementInstances(context.Background(), criteria)
 			if err != nil {
 				return err
 			}
@@ -170,18 +174,16 @@ func newElementInstanceQueryCmd(cli *Cli) *cobra.Command {
 				"STATE",
 			})
 
-			for i := range results {
-				elementInstance := results[i].(engine.ElementInstance)
-
+			for _, result := range results {
 				table.addRow([]string{
-					elementInstance.Partition.String(),
-					strconv.Itoa(int(elementInstance.Id)),
-					strconv.Itoa(int(elementInstance.ProcessId)),
-					strconv.Itoa(int(elementInstance.ProcessInstanceId)),
-					elementInstance.BpmnElementId,
-					elementInstance.BpmnElementType.String(),
-					formatTimeOrNil(elementInstance.EndedAt),
-					elementInstance.State.String(),
+					result.Partition.String(),
+					strconv.Itoa(int(result.Id)),
+					strconv.Itoa(int(result.ProcessId)),
+					strconv.Itoa(int(result.ProcessInstanceId)),
+					result.BpmnElementId,
+					result.BpmnElementType.String(),
+					formatTimeOrNil(result.EndedAt),
+					result.State.String(),
 				})
 			}
 

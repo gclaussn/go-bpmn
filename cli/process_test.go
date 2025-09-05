@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -49,11 +50,11 @@ func TestCreateProcessWithTimer(t *testing.T) {
 			"timerStartEvent=" + triggerAt.Format(time.RFC3339Nano),
 		})
 
-		results, err := e.Query(engine.TaskCriteria{Type: engine.TaskTriggerEvent})
+		results, err := e.CreateQuery().QueryTasks(context.Background(), engine.TaskCriteria{Type: engine.TaskTriggerEvent})
 		require.NoError(err, "failed to query tasks")
 		require.NotEmpty(results, "no tasks queried")
 
-		task := results[len(results)-1].(engine.Task)
+		task := results[len(results)-1]
 		assert.Equal(triggerAt, task.DueAt)
 	})
 
@@ -73,11 +74,11 @@ func TestCreateProcessWithTimer(t *testing.T) {
 			"timerStartEvent=0 * * * *",
 		})
 
-		results, err := e.Query(engine.TaskCriteria{Type: engine.TaskTriggerEvent})
+		results, err := e.CreateQuery().QueryTasks(context.Background(), engine.TaskCriteria{Type: engine.TaskTriggerEvent})
 		require.NoError(err, "failed to query tasks")
 		require.NotEmpty(results, "no tasks queried")
 
-		task := results[len(results)-1].(engine.Task)
+		task := results[len(results)-1]
 		assert.Equal(now.Add(time.Hour).Truncate(time.Hour), task.DueAt)
 	})
 
@@ -95,17 +96,16 @@ func TestCreateProcessWithTimer(t *testing.T) {
 			"timerStartEvent=PT1H",
 		})
 
-		results, err := e.Query(engine.ProcessCriteria{})
+		processes, err := e.CreateQuery().QueryProcesses(context.Background(), engine.ProcessCriteria{})
 		require.NoError(err, "failed to query processes")
-		require.NotEmpty(results, "no processes queried")
+		require.NotEmpty(processes, "no processes queried")
 
-		prcoess := results[len(results)-1].(engine.Process)
+		prcoess := processes[len(processes)-1]
 
-		results, err = e.Query(engine.TaskCriteria{ProcessId: prcoess.Id, Type: engine.TaskTriggerEvent})
+		tasks, err := e.CreateQuery().QueryTasks(context.Background(), engine.TaskCriteria{ProcessId: prcoess.Id, Type: engine.TaskTriggerEvent})
 		require.NoError(err, "failed to query task")
-		require.NotEmpty(results, "no task queried")
+		require.NotEmpty(tasks, "no task queried")
 
-		task := results[0].(engine.Task)
-		assert.Equal(prcoess.CreatedAt.Add(time.Hour), task.DueAt)
+		assert.Equal(prcoess.CreatedAt.Add(time.Hour), tasks[0].DueAt)
 	})
 }

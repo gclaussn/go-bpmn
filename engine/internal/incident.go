@@ -50,7 +50,7 @@ type IncidentRepository interface {
 	Select(partition time.Time, id int32) (*IncidentEntity, error)
 	Update(*IncidentEntity) error
 
-	Query(engine.IncidentCriteria, engine.QueryOptions) ([]any, error)
+	Query(engine.IncidentCriteria, engine.QueryOptions) ([]engine.Incident, error)
 }
 
 func ResolveIncident(ctx Context, cmd engine.ResolveIncidentCmd) error {

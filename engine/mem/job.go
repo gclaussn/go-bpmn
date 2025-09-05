@@ -48,9 +48,9 @@ func (r *jobRepository) Update(entity *internal.JobEntity) error {
 	return fmt.Errorf("failed to update job %s/%d: %v", key, entity.Id, pgx.ErrNoRows)
 }
 
-func (r *jobRepository) Query(c engine.JobCriteria, o engine.QueryOptions) ([]any, error) {
+func (r *jobRepository) Query(c engine.JobCriteria, o engine.QueryOptions) ([]engine.Job, error) {
 	var (
-		results []any
+		results []engine.Job
 		offset  int
 		limit   int
 

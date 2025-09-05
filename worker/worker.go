@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,9 +31,9 @@ func New(e engine.Engine, customizers ...func(*Options)) (*Worker, error) {
 	}
 
 	worker := Worker{
+		e:              e,
 		defaultDecoder: options.Decoders[options.DefaultEncoding],
 		defaultEncoder: options.Encoders[options.DefaultEncoding],
-		engine:         e,
 		id:             options.WorkerId,
 		options:        options,
 		processes:      make(map[int32]Process),
@@ -98,7 +99,7 @@ type Process struct {
 	Process  engine.Process
 	Elements map[string]engine.Element
 
-	worker    *Worker
+	w         *Worker
 	delegate  Delegate
 	delegator Delegator
 }
@@ -107,28 +108,28 @@ func (p Process) CreateProcessInstanceCmd() engine.CreateProcessInstanceCmd {
 	return engine.CreateProcessInstanceCmd{
 		BpmnProcessId: p.Process.BpmnProcessId,
 		Version:       p.Process.Version,
-		WorkerId:      p.worker.id,
+		WorkerId:      p.w.id,
 	}
 }
 
-func (p Process) CreateProcessInstance(variables Variables) (engine.ProcessInstance, error) {
-	processVariables, err := p.worker.encodeVariables(variables)
+func (p Process) CreateProcessInstance(ctx context.Context, variables Variables) (engine.ProcessInstance, error) {
+	processVariables, err := p.w.encodeVariables(variables)
 	if err != nil {
 		return engine.ProcessInstance{}, nil
 	}
 
-	return p.worker.engine.CreateProcessInstance(engine.CreateProcessInstanceCmd{
+	return p.w.e.CreateProcessInstance(ctx, engine.CreateProcessInstanceCmd{
 		BpmnProcessId: p.Process.BpmnProcessId,
 		Version:       p.Process.Version,
 		Variables:     processVariables,
-		WorkerId:      p.worker.id,
+		WorkerId:      p.w.id,
 	})
 }
 
 type Worker struct {
+	e              engine.Engine
 	defaultDecoder Decoder
 	defaultEncoder Encoder
-	engine         engine.Engine
 	id             string
 	jobExecutor    *jobExecutor
 	options        Options
@@ -151,19 +152,19 @@ func (w *Worker) Encoder(encoding string) Encoder {
 	}
 }
 
-func (w *Worker) ExecuteJob(job engine.Job) (engine.Job, error) {
+func (w *Worker) ExecuteJob(ctx context.Context, job engine.Job) (engine.Job, error) {
 	process, ok := w.processes[job.ProcessId]
 	if !ok {
 		return engine.Job{}, fmt.Errorf("no process registered for ID %d", job.ProcessId)
 	}
 
 	jc := JobContext{
-		Engine:  w.engine,
 		Job:     job,
 		Process: process.Process,
 		Element: process.Elements[job.BpmnElementId],
 
-		worker: w,
+		w:   w,
+		ctx: ctx,
 
 		processVariables: Variables{},
 		elementVariables: Variables{},
@@ -176,12 +177,12 @@ func (w *Worker) ExecuteJob(job engine.Job) (engine.Job, error) {
 
 	completion, delegationErr := delegation(jc)
 
-	elementVariables, err := jc.worker.encodeVariables(jc.elementVariables)
+	elementVariables, err := jc.w.encodeVariables(jc.elementVariables)
 	if err != nil {
 		return engine.Job{}, err
 	}
 
-	processVariables, err := jc.worker.encodeVariables(jc.processVariables)
+	processVariables, err := jc.w.encodeVariables(jc.processVariables)
 	if err != nil {
 		return engine.Job{}, err
 	}
@@ -213,7 +214,7 @@ func (w *Worker) ExecuteJob(job engine.Job) (engine.Job, error) {
 		}
 	}
 
-	return w.engine.CompleteJob(cmd)
+	return w.e.CompleteJob(ctx, cmd)
 }
 
 func (w *Worker) Register(delegate Delegate) (Process, error) {
@@ -224,7 +225,7 @@ func (w *Worker) Register(delegate Delegate) (Process, error) {
 
 	createProcessCmd.WorkerId = w.id
 
-	process, err := w.engine.CreateProcess(createProcessCmd)
+	process, err := w.e.CreateProcess(context.Background(), createProcessCmd)
 	if err != nil {
 		return Process{}, fmt.Errorf("failed to create process: %v", err)
 	}
@@ -233,16 +234,13 @@ func (w *Worker) Register(delegate Delegate) (Process, error) {
 		return Process{}, fmt.Errorf("process %s:%s is already registered", createProcessCmd.BpmnProcessId, createProcessCmd.Version)
 	}
 
-	results, err := w.engine.Query(engine.ElementCriteria{
-		ProcessId: process.Id,
-	})
+	results, err := w.e.CreateQuery().QueryElements(context.Background(), engine.ElementCriteria{ProcessId: process.Id})
 	if err != nil {
 		return Process{}, fmt.Errorf("failed to query elements: %v", err)
 	}
 
 	elements := make(map[string]engine.Element, len(results))
-	for i := range results {
-		element := results[i].(engine.Element)
+	for _, element := range results {
 		elements[element.BpmnElementId] = element
 	}
 
@@ -261,7 +259,7 @@ func (w *Worker) Register(delegate Delegate) (Process, error) {
 		Process:  process,
 		Elements: elements,
 
-		worker:    w,
+		w:         w,
 		delegate:  delegate,
 		delegator: delegator,
 	}

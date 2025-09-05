@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/gclaussn/go-bpmn/engine"
@@ -19,7 +20,7 @@ func TestCreateProcessInstance(t *testing.T) {
 		for i, e := range engines {
 			t.Run(engineTypes[i], func(t *testing.T) {
 				// when
-				_, err := e.CreateProcessInstance(engine.CreateProcessInstanceCmd{})
+				_, err := e.CreateProcessInstance(context.Background(), engine.CreateProcessInstanceCmd{})
 
 				// then
 				assert.IsTypef(engine.Error{}, err, "expected engine error")
@@ -50,7 +51,7 @@ func TestCreateProcessInstance(t *testing.T) {
 				}
 
 				// when
-				processInstance, err := e.CreateProcessInstance(cmd)
+				processInstance, err := e.CreateProcessInstance(context.Background(), cmd)
 				if err != nil {
 					t.Fatalf("failed to create process instance: %v", err)
 				}
@@ -117,7 +118,7 @@ func TestCreateProcessInstance(t *testing.T) {
 				// given
 				bpmnXml := mustReadBpmnFile(t, "task/send.bpmn")
 
-				process, err := e.CreateProcess(engine.CreateProcessCmd{
+				process, err := e.CreateProcess(context.Background(), engine.CreateProcessCmd{
 					BpmnProcessId: "sendTest",
 					BpmnXml:       bpmnXml,
 					Parallelism:   1,
@@ -129,7 +130,7 @@ func TestCreateProcessInstance(t *testing.T) {
 				}
 
 				// when process instance 1 is created
-				processInstance1, err := e.CreateProcessInstance(engine.CreateProcessInstanceCmd{
+				processInstance1, err := e.CreateProcessInstance(context.Background(), engine.CreateProcessInstanceCmd{
 					BpmnProcessId: process.BpmnProcessId,
 					Version:       process.Version,
 					WorkerId:      testWorkerId,
@@ -143,7 +144,7 @@ func TestCreateProcessInstance(t *testing.T) {
 				assert.Equal(engine.InstanceStarted, processInstance1.State)
 
 				// when process instance 2 is created
-				processInstance2, err := e.CreateProcessInstance(engine.CreateProcessInstanceCmd{
+				processInstance2, err := e.CreateProcessInstance(context.Background(), engine.CreateProcessInstanceCmd{
 					BpmnProcessId: process.BpmnProcessId,
 					Version:       process.Version,
 					WorkerId:      testWorkerId,
@@ -157,7 +158,7 @@ func TestCreateProcessInstance(t *testing.T) {
 				assert.Equal(engine.InstanceQueued, processInstance2.State)
 
 				// when process instance 3 is created
-				processInstance3, err := e.CreateProcessInstance(engine.CreateProcessInstanceCmd{
+				processInstance3, err := e.CreateProcessInstance(context.Background(), engine.CreateProcessInstanceCmd{
 					BpmnProcessId: process.BpmnProcessId,
 					Version:       process.Version,
 					WorkerId:      testWorkerId,
@@ -221,7 +222,7 @@ func TestCreateProcessInstance(t *testing.T) {
 				bpmnXml := mustReadBpmnFile(t, "task/script.bpmn")
 
 				createProcess := func(version string, parallelism int) {
-					_, err := e.CreateProcess(engine.CreateProcessCmd{
+					_, err := e.CreateProcess(context.Background(), engine.CreateProcessCmd{
 						BpmnProcessId: "scriptTest",
 						BpmnXml:       bpmnXml,
 						Parallelism:   parallelism,
@@ -236,7 +237,7 @@ func TestCreateProcessInstance(t *testing.T) {
 				var piAsserts []*engine.ProcessInstanceAssert
 
 				createProcessInstance := func(version string) {
-					processInstance, err := e.CreateProcessInstance(engine.CreateProcessInstanceCmd{
+					processInstance, err := e.CreateProcessInstance(context.Background(), engine.CreateProcessInstanceCmd{
 						BpmnProcessId: "scriptTest",
 						Version:       version,
 						WorkerId:      testWorkerId,
@@ -249,7 +250,7 @@ func TestCreateProcessInstance(t *testing.T) {
 				}
 
 				executeTasks := func(taskType engine.TaskType) []engine.Task {
-					completedTasks, _, err := e.ExecuteTasks(engine.ExecuteTasksCmd{
+					completedTasks, _, err := e.ExecuteTasks(context.Background(), engine.ExecuteTasksCmd{
 						Type: taskType,
 					})
 					if err != nil {
@@ -338,7 +339,7 @@ func TestSuspendAndResumeProcessInstance(t *testing.T) {
 
 		t.Run(engineTypes[i]+"suspend", func(t *testing.T) {
 			// when
-			if err := e.SuspendProcessInstance(engine.SuspendProcessInstanceCmd{
+			if err := e.SuspendProcessInstance(context.Background(), engine.SuspendProcessInstanceCmd{
 				Partition: processInstance.Partition,
 				Id:        processInstance.Id,
 				WorkerId:  testWorkerId,
@@ -359,7 +360,7 @@ func TestSuspendAndResumeProcessInstance(t *testing.T) {
 		})
 
 		t.Run(engineTypes[i]+"suspend returns error when process instance is not started", func(t *testing.T) {
-			err := e.SuspendProcessInstance(engine.SuspendProcessInstanceCmd{
+			err := e.SuspendProcessInstance(context.Background(), engine.SuspendProcessInstanceCmd{
 				Partition: processInstance.Partition,
 				Id:        processInstance.Id,
 				WorkerId:  testWorkerId,
@@ -372,7 +373,7 @@ func TestSuspendAndResumeProcessInstance(t *testing.T) {
 		})
 
 		t.Run(engineTypes[i]+"suspend returns error when process instance not exists", func(t *testing.T) {
-			err := e.SuspendProcessInstance(engine.SuspendProcessInstanceCmd{})
+			err := e.SuspendProcessInstance(context.Background(), engine.SuspendProcessInstanceCmd{})
 			assert.IsTypef(engine.Error{}, err, "expected engine error")
 
 			engineErr := err.(engine.Error)
@@ -381,7 +382,7 @@ func TestSuspendAndResumeProcessInstance(t *testing.T) {
 
 		t.Run(engineTypes[i]+"resume", func(t *testing.T) {
 			// when
-			if err := e.ResumeProcessInstance(engine.ResumeProcessInstanceCmd{
+			if err := e.ResumeProcessInstance(context.Background(), engine.ResumeProcessInstanceCmd{
 				Partition: processInstance.Partition,
 				Id:        processInstance.Id,
 				WorkerId:  testWorkerId,
@@ -400,7 +401,7 @@ func TestSuspendAndResumeProcessInstance(t *testing.T) {
 		})
 
 		t.Run(engineTypes[i]+"resume returns error when process instance is not suspended", func(t *testing.T) {
-			err := e.ResumeProcessInstance(engine.ResumeProcessInstanceCmd{
+			err := e.ResumeProcessInstance(context.Background(), engine.ResumeProcessInstanceCmd{
 				Partition: processInstance.Partition,
 				Id:        processInstance.Id,
 				WorkerId:  testWorkerId,
@@ -413,7 +414,7 @@ func TestSuspendAndResumeProcessInstance(t *testing.T) {
 		})
 
 		t.Run(engineTypes[i]+"resume returns error when process instance not exists", func(t *testing.T) {
-			err := e.ResumeProcessInstance(engine.ResumeProcessInstanceCmd{})
+			err := e.ResumeProcessInstance(context.Background(), engine.ResumeProcessInstanceCmd{})
 			assert.IsTypef(engine.Error{}, err, "expected engine error")
 
 			engineErr := err.(engine.Error)

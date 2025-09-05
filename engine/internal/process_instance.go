@@ -66,7 +66,7 @@ type ProcessInstanceRepository interface {
 	SelectByJob(partition time.Time, jobId int32) (*ProcessInstanceEntity, error)
 	Update(*ProcessInstanceEntity) error
 
-	Query(engine.ProcessInstanceCriteria, engine.QueryOptions) ([]any, error)
+	Query(engine.ProcessInstanceCriteria, engine.QueryOptions) ([]engine.ProcessInstance, error)
 }
 
 func CreateProcessInstance(ctx Context, cmd engine.CreateProcessInstanceCmd) (engine.ProcessInstance, error) {

@@ -1,6 +1,7 @@
 package mem
 
 import (
+	"context"
 	"testing"
 
 	"github.com/gclaussn/go-bpmn/engine"
@@ -63,7 +64,7 @@ func TestProcessCache(t *testing.T) {
 
 	t.Run("get or cache", func(t *testing.T) {
 		// given
-		_, err = e.CreateProcess(engine.CreateProcessCmd{
+		_, err = e.CreateProcess(context.Background(), engine.CreateProcessCmd{
 			BpmnProcessId: "startEndTest",
 			BpmnXml:       mustReadBpmnFile(t, "start-end.bpmn"),
 			Version:       "1",

@@ -117,9 +117,9 @@ func (r *variableRepository) Upsert(entity *internal.VariableEntity) error {
 	return r.Insert(entity)
 }
 
-func (r *variableRepository) Query(c engine.VariableCriteria, o engine.QueryOptions) ([]any, error) {
+func (r *variableRepository) Query(c engine.VariableCriteria, o engine.QueryOptions) ([]engine.Variable, error) {
 	var (
-		results []any
+		results []engine.Variable
 		offset  int
 		limit   int
 

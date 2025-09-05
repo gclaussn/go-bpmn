@@ -189,7 +189,7 @@ type ProcessRepository interface {
 	// If no process is found, nil is returned.
 	SelectByBpmnProcessIdAndVersion(bpmnProcessId string, version string) (*ProcessEntity, error)
 
-	Query(engine.ProcessCriteria, engine.QueryOptions) ([]any, error)
+	Query(engine.ProcessCriteria, engine.QueryOptions) ([]engine.Process, error)
 }
 
 func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, error) {

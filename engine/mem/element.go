@@ -30,9 +30,9 @@ func (r *elementRepository) SelectByProcessId(processId int32) ([]*internal.Elem
 	return results, nil
 }
 
-func (r *elementRepository) Query(c engine.ElementCriteria, o engine.QueryOptions) ([]any, error) {
+func (r *elementRepository) Query(c engine.ElementCriteria, o engine.QueryOptions) ([]engine.Element, error) {
 	var (
-		results []any
+		results []engine.Element
 		offset  int
 		limit   int
 	)

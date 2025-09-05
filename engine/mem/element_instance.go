@@ -83,9 +83,9 @@ func (r *elementInstanceRepository) Update(entity *internal.ElementInstanceEntit
 	return fmt.Errorf("failed to update element instance %s/%d: %v", key, entity.Id, pgx.ErrNoRows)
 }
 
-func (r *elementInstanceRepository) Query(c engine.ElementInstanceCriteria, o engine.QueryOptions) ([]any, error) {
+func (r *elementInstanceRepository) Query(c engine.ElementInstanceCriteria, o engine.QueryOptions) ([]engine.ElementInstance, error) {
 	var (
-		results []any
+		results []engine.ElementInstance
 		offset  int
 		limit   int
 

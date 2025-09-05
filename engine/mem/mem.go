@@ -23,7 +23,7 @@ func New(customizers ...func(*Options)) (engine.Engine, error) {
 
 	ctx := newMemContext(options)
 
-	memEngine := memEngine{ctx: ctx}
+	memEngine := memEngine{ctx: ctx, defaultQueryLimit: options.Common.DefaultQueryLimit}
 
 	if options.Common.TaskExecutorEnabled {
 		memEngine.taskExecutor = internal.NewTaskExecutor(
@@ -64,26 +64,37 @@ type memEngine struct {
 	ctx        *memContext
 	isReadLock bool
 
+	defaultQueryLimit int
+
 	offset       time.Duration
 	taskExecutor *internal.TaskExecutor
 }
 
-func (e *memEngine) CompleteJob(cmd engine.CompleteJobCmd) (engine.Job, error) {
+func (e *memEngine) CompleteJob(_ context.Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 	defer e.unlock()
 	return internal.CompleteJob(e.wlock(), cmd)
 }
 
-func (e *memEngine) CreateProcess(cmd engine.CreateProcessCmd) (engine.Process, error) {
+func (e *memEngine) CreateProcess(_ context.Context, cmd engine.CreateProcessCmd) (engine.Process, error) {
 	defer e.unlock()
 	return internal.CreateProcess(e.wlock(), cmd)
 }
 
-func (e *memEngine) CreateProcessInstance(cmd engine.CreateProcessInstanceCmd) (engine.ProcessInstance, error) {
+func (e *memEngine) CreateProcessInstance(_ context.Context, cmd engine.CreateProcessInstanceCmd) (engine.ProcessInstance, error) {
 	defer e.unlock()
 	return internal.CreateProcessInstance(e.wlock(), cmd)
 }
 
-func (e *memEngine) ExecuteTasks(cmd engine.ExecuteTasksCmd) ([]engine.Task, []engine.Task, error) {
+func (e *memEngine) CreateQuery() engine.Query {
+	return &query{
+		e: e,
+
+		defaultQueryLimit: e.defaultQueryLimit,
+		options:           engine.QueryOptions{Limit: e.defaultQueryLimit},
+	}
+}
+
+func (e *memEngine) ExecuteTasks(_ context.Context, cmd engine.ExecuteTasksCmd) ([]engine.Task, []engine.Task, error) {
 	defer e.unlock()
 	ctx := e.wlock()
 
@@ -121,76 +132,52 @@ func (e *memEngine) ExecuteTasks(cmd engine.ExecuteTasksCmd) ([]engine.Task, []e
 	}
 }
 
-func (e *memEngine) GetBpmnXml(cmd engine.GetBpmnXmlCmd) (string, error) {
+func (e *memEngine) GetBpmnXml(_ context.Context, cmd engine.GetBpmnXmlCmd) (string, error) {
 	defer e.unlock()
 	return internal.GetBpmnXml(e.rlock(), cmd)
 }
 
-func (e *memEngine) GetElementVariables(cmd engine.GetElementVariablesCmd) (map[string]engine.Data, error) {
+func (e *memEngine) GetElementVariables(_ context.Context, cmd engine.GetElementVariablesCmd) (map[string]engine.Data, error) {
 	defer e.unlock()
 	return internal.GetElementVariables(e.rlock(), cmd)
 }
 
-func (e *memEngine) GetProcessVariables(cmd engine.GetProcessVariablesCmd) (map[string]engine.Data, error) {
+func (e *memEngine) GetProcessVariables(_ context.Context, cmd engine.GetProcessVariablesCmd) (map[string]engine.Data, error) {
 	defer e.unlock()
 	return internal.GetProcessVariables(e.rlock(), cmd)
 }
 
-func (e *memEngine) LockJobs(cmd engine.LockJobsCmd) ([]engine.Job, error) {
+func (e *memEngine) LockJobs(_ context.Context, cmd engine.LockJobsCmd) ([]engine.Job, error) {
 	defer e.unlock()
 	return internal.LockJobs(e.wlock(), cmd)
 }
 
-func (e *memEngine) Query(criteria any) ([]any, error) {
-	return e.QueryWithOptions(criteria, engine.QueryOptions{})
-}
-
-func (e *memEngine) QueryWithOptions(criteria any, options engine.QueryOptions) ([]any, error) {
-	query := internal.NewQuery(criteria)
-	if query == nil {
-		return nil, engine.Error{
-			Type:   engine.ErrorQuery,
-			Title:  "failed to create query",
-			Detail: fmt.Sprintf("unsupported criteria type %T", criteria),
-		}
-	}
-
-	defer e.unlock()
-	ctx := e.rlock()
-
-	if options.Limit <= 0 {
-		options.Limit = ctx.Options().DefaultQueryLimit
-	}
-
-	return query(ctx, options)
-}
-
-func (e *memEngine) ResolveIncident(cmd engine.ResolveIncidentCmd) error {
+func (e *memEngine) ResolveIncident(_ context.Context, cmd engine.ResolveIncidentCmd) error {
 	defer e.unlock()
 	return internal.ResolveIncident(e.wlock(), cmd)
 }
 
-func (e *memEngine) ResumeProcessInstance(cmd engine.ResumeProcessInstanceCmd) error {
+func (e *memEngine) ResumeProcessInstance(_ context.Context, cmd engine.ResumeProcessInstanceCmd) error {
 	defer e.unlock()
 	return internal.ResumeProcessInstance(e.wlock(), cmd)
 }
 
-func (e *memEngine) SendSignal(cmd engine.SendSignalCmd) (engine.SignalEvent, error) {
+func (e *memEngine) SendSignal(_ context.Context, cmd engine.SendSignalCmd) (engine.SignalEvent, error) {
 	defer e.unlock()
 	return internal.SendSignal(e.wlock(), cmd)
 }
 
-func (e *memEngine) SetElementVariables(cmd engine.SetElementVariablesCmd) error {
+func (e *memEngine) SetElementVariables(_ context.Context, cmd engine.SetElementVariablesCmd) error {
 	defer e.unlock()
 	return internal.SetElementVariables(e.wlock(), cmd)
 }
 
-func (e *memEngine) SetProcessVariables(cmd engine.SetProcessVariablesCmd) error {
+func (e *memEngine) SetProcessVariables(_ context.Context, cmd engine.SetProcessVariablesCmd) error {
 	defer e.unlock()
 	return internal.SetProcessVariables(e.wlock(), cmd)
 }
 
-func (e *memEngine) SetTime(cmd engine.SetTimeCmd) error {
+func (e *memEngine) SetTime(_ context.Context, cmd engine.SetTimeCmd) error {
 	defer e.unlock()
 	ctx := e.wlock()
 
@@ -214,24 +201,19 @@ func (e *memEngine) SetTime(cmd engine.SetTimeCmd) error {
 	return nil
 }
 
-func (e *memEngine) SuspendProcessInstance(cmd engine.SuspendProcessInstanceCmd) error {
+func (e *memEngine) SuspendProcessInstance(_ context.Context, cmd engine.SuspendProcessInstanceCmd) error {
 	defer e.unlock()
 	return internal.SuspendProcessInstance(e.wlock(), cmd)
 }
 
-func (e *memEngine) UnlockJobs(cmd engine.UnlockJobsCmd) (int, error) {
+func (e *memEngine) UnlockJobs(_ context.Context, cmd engine.UnlockJobsCmd) (int, error) {
 	defer e.unlock()
 	return internal.UnlockJobs(e.wlock(), cmd)
 }
 
-func (e *memEngine) UnlockTasks(cmd engine.UnlockTasksCmd) (int, error) {
+func (e *memEngine) UnlockTasks(_ context.Context, cmd engine.UnlockTasksCmd) (int, error) {
 	defer e.unlock()
 	return internal.UnlockTasks(e.wlock(), cmd)
-}
-
-func (e *memEngine) WithContext(_ context.Context) engine.Engine {
-	// context is ignored, since there are no context-aware resources involved
-	return e
 }
 
 func (e *memEngine) Shutdown() {

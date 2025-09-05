@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -52,7 +53,7 @@ func newProcessInstanceCreateCmd(cli *Cli) *cobra.Command {
 			cmd.Variables = variables
 			cmd.WorkerId = cli.workerId
 
-			processInstance, err := cli.engine.CreateProcessInstance(cmd)
+			processInstance, err := cli.e.CreateProcessInstance(context.Background(), cmd)
 			if err != nil {
 				return err
 			}
@@ -87,7 +88,7 @@ func newProcessInstanceGetVariablesCmd(cli *Cli) *cobra.Command {
 		RunE: func(c *cobra.Command, args []string) error {
 			cmd.Partition = engine.Partition(partition)
 
-			variables, err := cli.engine.GetProcessVariables(cmd)
+			variables, err := cli.e.GetProcessVariables(context.Background(), cmd)
 			if err != nil {
 				return err
 			}
@@ -146,7 +147,7 @@ func newProcessInstanceResumeCmd(cli *Cli) *cobra.Command {
 			cmd.Partition = engine.Partition(partition)
 			cmd.WorkerId = cli.workerId
 
-			return cli.engine.ResumeProcessInstance(cmd)
+			return cli.e.ResumeProcessInstance(context.Background(), cmd)
 		},
 	}
 
@@ -189,7 +190,7 @@ func newProcessInstanceSetVariablesCmd(cli *Cli) *cobra.Command {
 			cmd.Variables = variables
 			cmd.WorkerId = cli.workerId
 
-			return cli.engine.SetProcessVariables(cmd)
+			return cli.e.SetProcessVariables(context.Background(), cmd)
 		},
 	}
 
@@ -218,7 +219,7 @@ func newProcessInstanceSuspendCmd(cli *Cli) *cobra.Command {
 			cmd.Partition = engine.Partition(partition)
 			cmd.WorkerId = cli.workerId
 
-			return cli.engine.SuspendProcessInstance(cmd)
+			return cli.e.SuspendProcessInstance(context.Background(), cmd)
 		},
 	}
 
@@ -245,7 +246,10 @@ func newProcessInstanceQueryCmd(cli *Cli) *cobra.Command {
 		RunE: func(c *cobra.Command, _ []string) error {
 			criteria.Partition = engine.Partition(partition)
 
-			results, err := cli.engine.QueryWithOptions(criteria, options)
+			q := cli.e.CreateQuery()
+			q.SetOptions(options)
+
+			results, err := q.QueryProcessInstances(context.Background(), criteria)
 			if err != nil {
 				return err
 			}
@@ -260,17 +264,15 @@ func newProcessInstanceQueryCmd(cli *Cli) *cobra.Command {
 				"STATE",
 			})
 
-			for i := range results {
-				processInstance := results[i].(engine.ProcessInstance)
-
+			for _, result := range results {
 				table.addRow([]string{
-					processInstance.Partition.String(),
-					strconv.Itoa(int(processInstance.Id)),
-					processInstance.BpmnProcessId,
-					formatTime(processInstance.CreatedAt),
-					processInstance.CreatedBy,
-					formatTimeOrNil(processInstance.EndedAt),
-					processInstance.State.String(),
+					result.Partition.String(),
+					strconv.Itoa(int(result.Id)),
+					result.BpmnProcessId,
+					formatTime(result.CreatedAt),
+					result.CreatedBy,
+					formatTimeOrNil(result.EndedAt),
+					result.State.String(),
 				})
 			}
 

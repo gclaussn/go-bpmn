@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -44,7 +45,7 @@ func TestTimerCatchEventProcess(t *testing.T) {
 		t.Fatalf("failed to register process: %v", err)
 	}
 
-	processInstance, err := timerCatchEventProcess.CreateProcessInstance(worker.Variables{})
+	processInstance, err := timerCatchEventProcess.CreateProcessInstance(context.Background(), worker.Variables{})
 	if err != nil {
 		t.Fatalf("failed to create process instance: %v", err)
 	}
@@ -54,7 +55,7 @@ func TestTimerCatchEventProcess(t *testing.T) {
 	piAssert.IsWaitingAt("timerCatchEvent")
 	piAssert.ExecuteJob()
 
-	if err := e.SetTime(engine.SetTimeCmd{
+	if err := e.SetTime(context.Background(), engine.SetTimeCmd{
 		Time: time.Now().Add(time.Hour * 1),
 	}); err != nil {
 		t.Fatalf("failed to set time: %v", err)

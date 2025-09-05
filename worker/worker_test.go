@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -15,16 +16,16 @@ type testWorkerEngine struct {
 	lockJobsCalled   int
 }
 
-func (e *testWorkerEngine) CreateProcess(cmd engine.CreateProcessCmd) (engine.Process, error) {
+func (e *testWorkerEngine) CreateProcess(ctx context.Context, cmd engine.CreateProcessCmd) (engine.Process, error) {
 	return engine.Process{Id: 1}, nil
 }
 
-func (e *testWorkerEngine) CompleteJob(cmd engine.CompleteJobCmd) (engine.Job, error) {
+func (e *testWorkerEngine) CompleteJob(ctx context.Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 	e.executeJobCalled++
 	return engine.Job{}, nil
 }
 
-func (e *testWorkerEngine) LockJobs(cmd engine.LockJobsCmd) ([]engine.Job, error) {
+func (e *testWorkerEngine) LockJobs(ctx context.Context, cmd engine.LockJobsCmd) ([]engine.Job, error) {
 	var lockedJobs []engine.Job
 	switch e.lockJobsCalled {
 	case 0:

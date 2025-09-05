@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"strconv"
 
 	"github.com/gclaussn/go-bpmn/engine"
@@ -30,7 +31,10 @@ func newElementQueryCmd(cli *Cli) *cobra.Command {
 		Use:   "query",
 		Short: "Query elements",
 		RunE: func(c *cobra.Command, _ []string) error {
-			results, err := cli.engine.QueryWithOptions(criteria, options)
+			q := cli.e.CreateQuery()
+			q.SetOptions(options)
+
+			results, err := q.QueryElements(context.Background(), criteria)
 			if err != nil {
 				return err
 			}
@@ -43,15 +47,13 @@ func newElementQueryCmd(cli *Cli) *cobra.Command {
 				"BPMN ELEMENT TYPE",
 			})
 
-			for i := range results {
-				element := results[i].(engine.Element)
-
+			for _, result := range results {
 				table.addRow([]string{
-					strconv.Itoa(int(element.Id)),
-					strconv.Itoa(int(element.ProcessId)),
-					element.BpmnElementId,
-					element.BpmnElementName,
-					element.BpmnElementType.String(),
+					strconv.Itoa(int(result.Id)),
+					strconv.Itoa(int(result.ProcessId)),
+					result.BpmnElementId,
+					result.BpmnElementName,
+					result.BpmnElementType.String(),
 				})
 			}
 

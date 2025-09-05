@@ -280,7 +280,7 @@ WHERE
 	return nil
 }
 
-func (r variableRepository) Query(criteria engine.VariableCriteria, options engine.QueryOptions) ([]any, error) {
+func (r variableRepository) Query(criteria engine.VariableCriteria, options engine.QueryOptions) ([]engine.Variable, error) {
 	var sql bytes.Buffer
 	if err := sqlVariableQuery.Execute(&sql, map[string]any{
 		"c": criteria,
@@ -296,7 +296,7 @@ func (r variableRepository) Query(criteria engine.VariableCriteria, options engi
 
 	defer rows.Close()
 
-	var results []any
+	var results []engine.Variable
 	for rows.Next() {
 		var entity internal.VariableEntity
 

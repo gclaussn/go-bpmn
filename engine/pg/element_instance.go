@@ -355,7 +355,7 @@ WHERE
 	return nil
 }
 
-func (r elementInstanceRepository) Query(criteria engine.ElementInstanceCriteria, options engine.QueryOptions) ([]any, error) {
+func (r elementInstanceRepository) Query(criteria engine.ElementInstanceCriteria, options engine.QueryOptions) ([]engine.ElementInstance, error) {
 	var sql bytes.Buffer
 	if err := sqlElementInstanceQuery.Execute(&sql, map[string]any{
 		"c": criteria,
@@ -371,7 +371,7 @@ func (r elementInstanceRepository) Query(criteria engine.ElementInstanceCriteria
 
 	defer rows.Close()
 
-	var results []any
+	var results []engine.ElementInstance
 	for rows.Next() {
 		var entity internal.ElementInstanceEntity
 

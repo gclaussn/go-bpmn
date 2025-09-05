@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/gclaussn/go-bpmn/engine"
@@ -43,7 +44,7 @@ func TestSignalCatchEventProcess(t *testing.T) {
 		t.Fatalf("failed to register process: %v", err)
 	}
 
-	processInstance, err := signalCatchEventProcess.CreateProcessInstance(worker.Variables{})
+	processInstance, err := signalCatchEventProcess.CreateProcessInstance(context.Background(), worker.Variables{})
 	if err != nil {
 		t.Fatalf("failed to create process instance: %v", err)
 	}
@@ -53,7 +54,7 @@ func TestSignalCatchEventProcess(t *testing.T) {
 	piAssert.IsWaitingAt("signalCatchEvent")
 	piAssert.ExecuteJob()
 
-	if _, err := e.SendSignal(engine.SendSignalCmd{
+	if _, err := e.SendSignal(context.Background(), engine.SendSignalCmd{
 		Name:     "catch-signal",
 		WorkerId: worker.DefaultEncoding,
 	}); err != nil {

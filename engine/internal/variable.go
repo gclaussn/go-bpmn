@@ -55,7 +55,7 @@ type VariableRepository interface {
 	SelectByProcessInstance(engine.GetProcessVariablesCmd) ([]*VariableEntity, error)
 	Upsert(*VariableEntity) error
 
-	Query(engine.VariableCriteria, engine.QueryOptions) ([]any, error)
+	Query(engine.VariableCriteria, engine.QueryOptions) ([]engine.Variable, error)
 }
 
 func GetElementVariables(ctx Context, cmd engine.GetElementVariablesCmd) (map[string]engine.Data, error) {

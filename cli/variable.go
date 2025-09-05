@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"strconv"
 
 	"github.com/gclaussn/go-bpmn/engine"
@@ -34,7 +35,10 @@ func newVariableQueryCmd(cli *Cli) *cobra.Command {
 		RunE: func(c *cobra.Command, _ []string) error {
 			criteria.Partition = engine.Partition(partition)
 
-			results, err := cli.engine.QueryWithOptions(criteria, options)
+			q := cli.e.CreateQuery()
+			q.SetOptions(options)
+
+			results, err := q.QueryVariables(context.Background(), criteria)
 			if err != nil {
 				return err
 			}
@@ -49,17 +53,15 @@ func newVariableQueryCmd(cli *Cli) *cobra.Command {
 				"UPDATED AT",
 			})
 
-			for i := range results {
-				variable := results[i].(engine.Variable)
-
+			for _, result := range results {
 				table.addRow([]string{
-					variable.Partition.String(),
-					variable.Name,
-					strconv.Itoa(int(variable.ProcessInstanceId)),
-					strconv.Itoa(int(variable.ElementInstanceId)),
-					variable.Encoding,
-					formatTime(variable.CreatedAt),
-					formatTime(variable.UpdatedAt),
+					result.Partition.String(),
+					result.Name,
+					strconv.Itoa(int(result.ProcessInstanceId)),
+					strconv.Itoa(int(result.ElementInstanceId)),
+					result.Encoding,
+					formatTime(result.CreatedAt),
+					formatTime(result.UpdatedAt),
 				})
 			}
 

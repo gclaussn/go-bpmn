@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/gclaussn/go-bpmn/engine"
@@ -43,7 +44,7 @@ func TestInclusiveGatewayProcess(t *testing.T) {
 		t.Fatalf("failed to register process: %v", err)
 	}
 
-	processInstance, err := inclusiveGatewayProcess.CreateProcessInstance(worker.Variables{})
+	processInstance, err := inclusiveGatewayProcess.CreateProcessInstance(context.Background(), worker.Variables{})
 	if err != nil {
 		t.Fatalf("failed to create process instance: %v", err)
 	}

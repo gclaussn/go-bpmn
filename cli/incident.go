@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"strconv"
 
 	"github.com/gclaussn/go-bpmn/engine"
@@ -37,7 +38,7 @@ func newIncidentResolveCmd(cli *Cli) *cobra.Command {
 			cmd.RetryTimer = engine.ISO8601Duration(retryTimer)
 			cmd.WorkerId = cli.workerId
 
-			return cli.engine.ResolveIncident(cmd)
+			return cli.e.ResolveIncident(context.Background(), cmd)
 		},
 	}
 
@@ -67,7 +68,10 @@ func newIncidentQueryCmd(cli *Cli) *cobra.Command {
 		RunE: func(c *cobra.Command, _ []string) error {
 			criteria.Partition = engine.Partition(partition)
 
-			results, err := cli.engine.QueryWithOptions(criteria, options)
+			q := cli.e.CreateQuery()
+			q.SetOptions(options)
+
+			results, err := q.QueryIncidents(context.Background(), criteria)
 			if err != nil {
 				return err
 			}
@@ -83,18 +87,16 @@ func newIncidentQueryCmd(cli *Cli) *cobra.Command {
 				"RESOLVED BY",
 			})
 
-			for i := range results {
-				incident := results[i].(engine.Incident)
-
+			for _, result := range results {
 				table.addRow([]string{
-					incident.Partition.String(),
-					strconv.Itoa(int(incident.Id)),
-					strconv.Itoa(int(incident.ProcessId)),
-					strconv.Itoa(int(incident.ProcessInstanceId)),
-					strconv.Itoa(int(incident.JobId)),
-					strconv.Itoa(int(incident.TaskId)),
-					formatTimeOrNil(incident.ResolvedAt),
-					incident.ResolvedBy,
+					result.Partition.String(),
+					strconv.Itoa(int(result.Id)),
+					strconv.Itoa(int(result.ProcessId)),
+					strconv.Itoa(int(result.ProcessInstanceId)),
+					strconv.Itoa(int(result.JobId)),
+					strconv.Itoa(int(result.TaskId)),
+					formatTimeOrNil(result.ResolvedAt),
+					result.ResolvedBy,
 				})
 			}
 

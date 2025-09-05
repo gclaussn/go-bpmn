@@ -107,7 +107,7 @@ WHERE
 	return entities, nil
 }
 
-func (r elementRepository) Query(criteria engine.ElementCriteria, options engine.QueryOptions) ([]any, error) {
+func (r elementRepository) Query(criteria engine.ElementCriteria, options engine.QueryOptions) ([]engine.Element, error) {
 	var sql bytes.Buffer
 	if err := sqlElementQuery.Execute(&sql, map[string]any{
 		"c": criteria,
@@ -123,7 +123,7 @@ func (r elementRepository) Query(criteria engine.ElementCriteria, options engine
 
 	defer rows.Close()
 
-	var results []any
+	var results []engine.Element
 	for rows.Next() {
 		var (
 			entity internal.ElementEntity

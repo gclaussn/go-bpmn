@@ -26,22 +26,12 @@ func TestProcessCache(t *testing.T) {
 	defer e.Shutdown()
 
 	pgEngine := e.(*pgEngine)
-	w, cancel := pgEngine.withTimeout()
 
-	ctx, err := w.require()
-	if err != nil {
-		cancel()
-		t.Fatalf("failed to require context: %v", err)
-	}
-
-	if err := w.release(ctx, nil); err != nil {
-		cancel()
-		t.Fatalf("failed to release context: %v", err)
-	}
-
-	cancel()
-
-	processCache := ctx.processCache
+	var processCache *internal.ProcessCache
+	pgEngine.execute(func(pgCtx *pgContext) error {
+		processCache = pgCtx.processCache
+		return nil
+	})
 
 	t.Run("get", func(t *testing.T) {
 		// when
@@ -60,25 +50,23 @@ func TestProcessCache(t *testing.T) {
 	})
 
 	t.Run("get or cache when empty", func(t *testing.T) {
-		w, cancel := pgEngine.withTimeout()
-		defer cancel()
-
-		ctx, err := w.require()
+		pgCtx, cancel, err := pgEngine.acquire(context.Background())
 		if err != nil {
 			t.Fatalf("failed to require context: %v", err)
 		}
 
-		defer w.release(ctx, nil)
+		defer cancel()
+		defer pgEngine.release(pgCtx, nil)
 
 		// when
-		cachedEntity, err = processCache.GetOrCache(ctx, "startEndTest", "1")
+		cachedEntity, err = processCache.GetOrCache(pgCtx, "startEndTest", "1")
 
 		// then
 		assert.Nil(cachedEntity)
 		assert.NotNil(err)
 
 		// when
-		cachedEntity, err = processCache.GetOrCacheById(ctx, 1)
+		cachedEntity, err = processCache.GetOrCacheById(pgCtx, 1)
 
 		// then
 		assert.Nil(cachedEntity)
@@ -87,7 +75,7 @@ func TestProcessCache(t *testing.T) {
 
 	t.Run("get or cache", func(t *testing.T) {
 		// given
-		_, err = e.CreateProcess(engine.CreateProcessCmd{
+		_, err = e.CreateProcess(context.Background(), engine.CreateProcessCmd{
 			BpmnProcessId: "startEndTest",
 			BpmnXml:       mustReadBpmnFile(t, "start-end.bpmn"),
 			Version:       "1",
@@ -111,34 +99,23 @@ func TestProcessCache(t *testing.T) {
 		assert.NotNil(cachedEntity)
 		assert.True(ok)
 
-		w, cancel := pgEngine.withTimeout()
-		defer cancel()
-
-		ctx, err := w.require()
+		pgCtx, cancel, err := pgEngine.acquire(context.Background())
 		if err != nil {
 			t.Fatalf("failed to require context: %v", err)
 		}
 
-		defer w.release(ctx, nil)
+		defer cancel()
+		defer pgEngine.release(pgCtx, nil)
 
 		// when
-		cachedEntity, err = processCache.GetOrCache(ctx, "startEndTest", "1")
+		cachedEntity, err = processCache.GetOrCache(pgCtx, "startEndTest", "1")
 
 		// then
 		assert.NotNil(cachedEntity)
 		assert.Nil(err)
 
 		// when
-		cachedEntity, err = processCache.GetOrCacheById(ctx, 1)
-
-		// then
-		assert.NotNil(cachedEntity)
-		assert.Nil(err)
-
-		// when
-		processCache.Clear()
-
-		cachedEntity, err = processCache.GetOrCache(ctx, "startEndTest", "1")
+		cachedEntity, err = processCache.GetOrCacheById(pgCtx, 1)
 
 		// then
 		assert.NotNil(cachedEntity)
@@ -147,7 +124,16 @@ func TestProcessCache(t *testing.T) {
 		// when
 		processCache.Clear()
 
-		cachedEntity, err = processCache.GetOrCacheById(ctx, 1)
+		cachedEntity, err = processCache.GetOrCache(pgCtx, "startEndTest", "1")
+
+		// then
+		assert.NotNil(cachedEntity)
+		assert.Nil(err)
+
+		// when
+		processCache.Clear()
+
+		cachedEntity, err = processCache.GetOrCacheById(pgCtx, 1)
 
 		// then
 		assert.NotNil(cachedEntity)
@@ -164,18 +150,16 @@ func TestProcessCache(t *testing.T) {
 
 		mustInsertEntities(t, e, []any{entity})
 
-		w, cancel := pgEngine.withTimeout()
-		defer cancel()
-
-		ctx, err := w.require()
+		pgCtx, cancel, err := pgEngine.acquire(context.Background())
 		if err != nil {
 			t.Fatalf("failed to require context: %v", err)
 		}
 
-		defer w.release(ctx, nil)
+		defer cancel()
+		defer pgEngine.release(pgCtx, nil)
 
 		// when
-		cachedEntity, err = processCache.GetOrCache(ctx, "not-existing", "1")
+		cachedEntity, err = processCache.GetOrCache(pgCtx, "not-existing", "1")
 
 		// then
 		assert.Nil(cachedEntity)
@@ -187,7 +171,7 @@ func TestProcessCache(t *testing.T) {
 		assert.NotEmpty(engineErr.Detail)
 
 		// when
-		cachedEntity, err = processCache.GetOrCacheById(ctx, entity.Id)
+		cachedEntity, err = processCache.GetOrCacheById(pgCtx, entity.Id)
 
 		// then
 		assert.Nil(cachedEntity)
@@ -209,18 +193,16 @@ func TestProcessCache(t *testing.T) {
 
 		mustInsertEntities(t, e, []any{entity})
 
-		w, cancel := pgEngine.withTimeout()
-		defer cancel()
-
-		ctx, err := w.require()
+		pgCtx, cancel, err := pgEngine.acquire(context.Background())
 		if err != nil {
 			t.Fatalf("failed to require context: %v", err)
 		}
 
-		defer w.release(ctx, nil)
+		defer cancel()
+		defer pgEngine.release(pgCtx, nil)
 
 		// when
-		cachedEntity, err = processCache.GetOrCache(ctx, "processNotExecutableTest", "1")
+		cachedEntity, err = processCache.GetOrCache(pgCtx, "processNotExecutableTest", "1")
 
 		// then
 		assert.Nil(cachedEntity)
@@ -232,7 +214,7 @@ func TestProcessCache(t *testing.T) {
 		assert.NotEmpty(engineErr.Detail)
 
 		// when
-		cachedEntity, err = processCache.GetOrCacheById(ctx, entity.Id)
+		cachedEntity, err = processCache.GetOrCacheById(pgCtx, entity.Id)
 
 		// then
 		assert.Nil(cachedEntity)
@@ -254,24 +236,25 @@ func TestProcessRepository(t *testing.T) {
 	pgEngine := e.(*pgEngine)
 
 	t.Run("concurrent insert with conflict", func(t *testing.T) {
-		w, cancel := pgEngine.withTimeout()
-		defer cancel()
-
-		ctx1, err := w.require()
+		pgCtx1, cancel1, err := pgEngine.acquire(context.Background())
 		if err != nil {
 			t.Errorf("failed to borrow context: %v", err)
 		}
 
-		ctx2, err := w.require()
+		defer cancel1()
+
+		pgCtx2, cancel2, err := pgEngine.acquire(context.Background())
 		if err != nil {
 			t.Errorf("failed to borrow context: %v", err)
 		}
+
+		defer cancel2()
 
 		process1 := internal.ProcessEntity{
 			BpmnProcessId: "a",
 			BpmnXml:       "xmla",
 			BpmnXmlMd5:    "xmlmd5a",
-			CreatedAt:     ctx1.Time(),
+			CreatedAt:     pgCtx1.Time(),
 			CreatedBy:     "test",
 			Parallelism:   2,
 			Tags:          pgtype.Text{String: `{"a": "b"}`, Valid: true},
@@ -282,7 +265,7 @@ func TestProcessRepository(t *testing.T) {
 			BpmnProcessId: "a",
 			BpmnXml:       "xmla",
 			BpmnXmlMd5:    "xmlmd5a",
-			CreatedAt:     ctx1.Time(),
+			CreatedAt:     pgCtx2.Time(),
 			CreatedBy:     "test",
 			Parallelism:   3,
 			Tags:          pgtype.Text{String: `{"a": "b*"}`, Valid: true},
@@ -295,10 +278,10 @@ func TestProcessRepository(t *testing.T) {
 		var insertErr1 error
 		var insertErr2 error
 		go func() {
-			insertErr1 = ctx1.Processes().Insert(&process1)
+			insertErr1 = pgCtx1.Processes().Insert(&process1)
 			insert1Cancel()
 
-			insertErr2 = ctx2.Processes().Insert(&process2)
+			insertErr2 = pgCtx2.Processes().Insert(&process2)
 			insert2Cancel()
 		}()
 
@@ -308,26 +291,22 @@ func TestProcessRepository(t *testing.T) {
 			t.Errorf("failed to insert process 1: %v", insertErr1)
 		}
 
-		w.release(ctx1, insertErr1)
+		pgEngine.release(pgCtx1, insertErr1)
 
 		<-insert2Ctx.Done()
 
 		assert.Equal(pgx.ErrNoRows, insertErr2)
 
-		w.release(ctx2, insertErr2)
+		pgEngine.release(pgCtx2, insertErr2)
 
-		ctx, err := w.require()
-		if err != nil {
-			t.Errorf("failed to borrow context: %v", err)
-		}
+		if err := pgEngine.execute(func(pgCtx *pgContext) error {
+			selectedProcess, err := pgCtx.Processes().Select(process1.Id)
 
-		defer w.release(ctx, nil)
+			assert.Equal(&process1, selectedProcess)
 
-		selectedProcess, err := ctx.Processes().Select(process1.Id)
-		if err != nil {
+			return err
+		}); err != nil {
 			t.Errorf("failed to select process: %v", err)
 		}
-
-		assert.Equal(&process1, selectedProcess)
 	})
 }

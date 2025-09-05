@@ -99,7 +99,7 @@ func mustCreateEngines(t *testing.T) ([]engine.Engine, []string) {
 func mustCreateProcess(t *testing.T, e engine.Engine, fileName string, bpmnProcessId string) engine.Process {
 	bpmnXml := mustReadBpmnFile(t, fileName)
 
-	process, err := e.CreateProcess(engine.CreateProcessCmd{
+	process, err := e.CreateProcess(context.Background(), engine.CreateProcessCmd{
 		BpmnProcessId: bpmnProcessId,
 		BpmnXml:       bpmnXml,
 		Version:       "1",
@@ -113,7 +113,7 @@ func mustCreateProcess(t *testing.T, e engine.Engine, fileName string, bpmnProce
 }
 
 func mustCreateProcessInstance(t *testing.T, e engine.Engine, process engine.Process) *engine.ProcessInstanceAssert {
-	processInstance, err := e.CreateProcessInstance(engine.CreateProcessInstanceCmd{
+	processInstance, err := e.CreateProcessInstance(context.Background(), engine.CreateProcessInstanceCmd{
 		BpmnProcessId: process.BpmnProcessId,
 		Version:       process.Version,
 		WorkerId:      process.CreatedBy,

@@ -1,6 +1,7 @@
 package mem
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -16,6 +17,8 @@ func TestResolveIncident(t *testing.T) {
 
 	e := mustCreateEngine(t)
 	defer e.Shutdown()
+
+	q := e.CreateQuery()
 
 	// given
 	date := time.Now().UTC().Truncate(24 * time.Hour)
@@ -65,19 +68,17 @@ func TestResolveIncident(t *testing.T) {
 			WorkerId:   "test-worker",
 		}
 
-		if err := e.ResolveIncident(cmd); err != nil {
+		if err := e.ResolveIncident(context.Background(), cmd); err != nil {
 			t.Fatalf("failed to resolve incident: %v", err)
 		}
 
 		// then
-		results, err := e.Query(engine.IncidentCriteria{Partition: engine.Partition(date), Id: incident.Id})
+		incidents, err := q.QueryIncidents(context.Background(), engine.IncidentCriteria{Partition: engine.Partition(date), Id: incident.Id})
 		if err != nil {
 			t.Fatalf("failed to query incident: %v", err)
 		}
 
-		assert.Lenf(results, 1, "expected one incident")
-
-		resolvedIncident := results[0].(engine.Incident)
+		assert.Lenf(incidents, 1, "expected one incident")
 
 		assert.Equal(engine.Incident{
 			Partition: engine.Partition(date),
@@ -85,18 +86,18 @@ func TestResolveIncident(t *testing.T) {
 
 			JobId: job.Id,
 
-			CreatedAt:  resolvedIncident.CreatedAt,
-			ResolvedAt: resolvedIncident.ResolvedAt,
+			CreatedAt:  incidents[0].CreatedAt,
+			ResolvedAt: incidents[0].ResolvedAt,
 			ResolvedBy: cmd.WorkerId,
-		}, resolvedIncident)
+		}, incidents[0])
 
 		// then
-		results, err = e.Query(engine.JobCriteria{Partition: engine.Partition(date)})
+		jobs, err := q.QueryJobs(context.Background(), engine.JobCriteria{Partition: engine.Partition(date)})
 		if err != nil {
 			t.Fatalf("failed to query jobs: %v", err)
 		}
 
-		retryJob := results[len(results)-1].(engine.Job)
+		retryJob := jobs[len(jobs)-1]
 
 		assert.Equal(engine.Job{
 			Partition: engine.Partition(date),
@@ -118,7 +119,7 @@ func TestResolveIncident(t *testing.T) {
 		}, retryJob)
 
 		// when resolved again
-		err = e.ResolveIncident(cmd)
+		err = e.ResolveIncident(context.Background(), cmd)
 
 		// then
 		assert.IsTypef(engine.Error{}, err, "expected engine error")
@@ -148,17 +149,17 @@ func TestResolveIncident(t *testing.T) {
 			WorkerId:   "test-worker",
 		}
 
-		if err := e.ResolveIncident(cmd); err != nil {
+		if err := e.ResolveIncident(context.Background(), cmd); err != nil {
 			t.Fatalf("failed to resolve incident: %v", err)
 		}
 
 		// then
-		results, err := e.Query(engine.JobCriteria{Partition: engine.Partition(date)})
+		jobs, err := q.QueryJobs(context.Background(), engine.JobCriteria{Partition: engine.Partition(date)})
 		if err != nil {
 			t.Fatalf("failed to query jobs: %v", err)
 		}
 
-		retryJob := results[len(results)-1].(engine.Job)
+		retryJob := jobs[len(jobs)-1]
 
 		assert.Equal(engine.Job{
 			Partition: engine.Partition(date),
@@ -198,19 +199,17 @@ func TestResolveIncident(t *testing.T) {
 			WorkerId:   "test-worker",
 		}
 
-		if err := e.ResolveIncident(cmd); err != nil {
+		if err := e.ResolveIncident(context.Background(), cmd); err != nil {
 			t.Fatalf("failed to resolve incident: %v", err)
 		}
 
 		// then
-		results, err := e.Query(engine.IncidentCriteria{Partition: engine.Partition(date), Id: incident.Id})
+		incidents, err := q.QueryIncidents(context.Background(), engine.IncidentCriteria{Partition: engine.Partition(date), Id: incident.Id})
 		if err != nil {
 			t.Fatalf("failed to query incident: %v", err)
 		}
 
-		assert.Lenf(results, 1, "expected one incident")
-
-		resolvedIncident := results[0].(engine.Incident)
+		assert.Lenf(incidents, 1, "expected one incident")
 
 		assert.Equal(engine.Incident{
 			Partition: engine.Partition(date),
@@ -218,18 +217,18 @@ func TestResolveIncident(t *testing.T) {
 
 			TaskId: task.Id,
 
-			CreatedAt:  resolvedIncident.CreatedAt,
-			ResolvedAt: resolvedIncident.ResolvedAt,
+			CreatedAt:  incidents[0].CreatedAt,
+			ResolvedAt: incidents[0].ResolvedAt,
 			ResolvedBy: cmd.WorkerId,
-		}, resolvedIncident)
+		}, incidents[0])
 
 		// then
-		results, err = e.Query(engine.TaskCriteria{Partition: engine.Partition(date)})
+		tasks, err := q.QueryTasks(context.Background(), engine.TaskCriteria{Partition: engine.Partition(date)})
 		if err != nil {
 			t.Fatalf("failed to query tasks: %v", err)
 		}
 
-		retryTask := results[len(results)-1].(engine.Task)
+		retryTask := tasks[len(tasks)-1]
 
 		assert.Equal(engine.Task{
 			Partition: engine.Partition(date),
@@ -268,17 +267,17 @@ func TestResolveIncident(t *testing.T) {
 			WorkerId:   "test-worker",
 		}
 
-		if err := e.ResolveIncident(cmd); err != nil {
+		if err := e.ResolveIncident(context.Background(), cmd); err != nil {
 			t.Fatalf("failed to resolve incident: %v", err)
 		}
 
 		// then
-		results, err := e.Query(engine.TaskCriteria{Partition: engine.Partition(date)})
+		tasks, err := q.QueryTasks(context.Background(), engine.TaskCriteria{Partition: engine.Partition(date)})
 		if err != nil {
 			t.Fatalf("failed to query tasks: %v", err)
 		}
 
-		retryTask := results[len(results)-1].(engine.Task)
+		retryTask := tasks[len(tasks)-1]
 
 		assert.Equal(engine.Task{
 			Partition: engine.Partition(date),

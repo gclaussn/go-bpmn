@@ -94,7 +94,7 @@ func (e *TaskExecutor) Execute() {
 		for {
 			select {
 			case <-e.ticker.C:
-				_, _, _ = e.engine.ExecuteTasks(engine.ExecuteTasksCmd{Limit: e.taskLimit})
+				_, _, _ = e.engine.ExecuteTasks(context.Background(), engine.ExecuteTasksCmd{Limit: e.taskLimit})
 			case <-e.tickerCtx.Done():
 				return
 			}
@@ -113,7 +113,7 @@ type TaskRepository interface {
 	Select(partition time.Time, id int32) (*TaskEntity, error)
 	Update(*TaskEntity) error
 
-	Query(engine.TaskCriteria, engine.QueryOptions) ([]any, error)
+	Query(engine.TaskCriteria, engine.QueryOptions) ([]engine.Task, error)
 
 	Lock(cmd engine.ExecuteTasksCmd, lockedAt time.Time) ([]*TaskEntity, error)
 	Unlock(engine.UnlockTasksCmd) (int, error)

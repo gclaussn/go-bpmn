@@ -33,5 +33,5 @@ type ElementRepository interface {
 	InsertBatch([]*ElementEntity) error
 	SelectByProcessId(processId int32) ([]*ElementEntity, error)
 
-	Query(engine.ElementCriteria, engine.QueryOptions) ([]any, error)
+	Query(engine.ElementCriteria, engine.QueryOptions) ([]engine.Element, error)
 }

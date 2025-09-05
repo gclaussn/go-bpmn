@@ -12,7 +12,7 @@ type Variable struct {
 }
 
 func (v Variable) Decode(jc JobContext, value any) error {
-	decoder := jc.worker.Decoder(v.Encoding)
+	decoder := jc.w.Decoder(v.Encoding)
 	if decoder == nil {
 		return fmt.Errorf("no decoder for encoding %s registered", v.Encoding)
 	}

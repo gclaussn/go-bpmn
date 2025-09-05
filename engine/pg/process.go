@@ -145,7 +145,7 @@ WHERE
 	return &entity, nil
 }
 
-func (r processRepository) Query(criteria engine.ProcessCriteria, options engine.QueryOptions) ([]any, error) {
+func (r processRepository) Query(criteria engine.ProcessCriteria, options engine.QueryOptions) ([]engine.Process, error) {
 	var sql bytes.Buffer
 	if err := sqlProcessQuery.Execute(&sql, map[string]any{
 		"c": criteria,
@@ -161,7 +161,7 @@ func (r processRepository) Query(criteria engine.ProcessCriteria, options engine
 
 	defer rows.Close()
 
-	var results []any
+	var results []engine.Process
 	for rows.Next() {
 		var entity internal.ProcessEntity
 

@@ -42,9 +42,9 @@ func (r *processRepository) SelectByBpmnProcessIdAndVersion(bpmnProcessId string
 	return nil, pgx.ErrNoRows
 }
 
-func (r *processRepository) Query(c engine.ProcessCriteria, o engine.QueryOptions) ([]any, error) {
+func (r *processRepository) Query(c engine.ProcessCriteria, o engine.QueryOptions) ([]engine.Process, error) {
 	var (
-		results []any
+		results []engine.Process
 		offset  int
 		limit   int
 	)

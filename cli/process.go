@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -75,7 +76,7 @@ func newProcessCreateCmd(cli *Cli) *cobra.Command {
 			cmd.Timers = timers
 			cmd.WorkerId = cli.workerId
 
-			process, err := cli.engine.CreateProcess(cmd)
+			process, err := cli.e.CreateProcess(context.Background(), cmd)
 			if err != nil {
 				return err
 			}
@@ -112,7 +113,7 @@ func newProcessGetBpmnXmlCmd(cli *Cli) *cobra.Command {
 		Use:   "get-bpmn-xml",
 		Short: "Get BPMN XML",
 		RunE: func(c *cobra.Command, _ []string) error {
-			bpmnXml, err := cli.engine.GetBpmnXml(cmd)
+			bpmnXml, err := cli.e.GetBpmnXml(context.Background(), cmd)
 			if err != nil {
 				return err
 			}
@@ -139,7 +140,10 @@ func newProcessQueryCmd(cli *Cli) *cobra.Command {
 		Use:   "query",
 		Short: "Query processes",
 		RunE: func(c *cobra.Command, _ []string) error {
-			results, err := cli.engine.QueryWithOptions(criteria, options)
+			q := cli.e.CreateQuery()
+			q.SetOptions(options)
+
+			results, err := q.QueryProcesses(context.Background(), criteria)
 			if err != nil {
 				return err
 			}
@@ -152,15 +156,13 @@ func newProcessQueryCmd(cli *Cli) *cobra.Command {
 				"CREATED BY",
 			})
 
-			for i := range results {
-				process := results[i].(engine.Process)
-
+			for _, result := range results {
 				table.addRow([]string{
-					strconv.Itoa(int(process.Id)),
-					process.BpmnProcessId,
-					process.Version,
-					formatTime(process.CreatedAt),
-					process.CreatedBy,
+					strconv.Itoa(int(result.Id)),
+					result.BpmnProcessId,
+					result.Version,
+					formatTime(result.CreatedAt),
+					result.CreatedBy,
 				})
 			}
 

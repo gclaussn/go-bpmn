@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"strconv"
 
 	"github.com/gclaussn/go-bpmn/engine"
@@ -37,7 +38,7 @@ func newTaskExecuteCmd(cli *Cli) *cobra.Command {
 			cmd.Partition = engine.Partition(partition)
 			cmd.Type = engine.TaskType(taskType)
 
-			completedTask, failedTasks, err := cli.engine.ExecuteTasks(cmd)
+			completedTask, failedTasks, err := cli.e.ExecuteTasks(context.Background(), cmd)
 			if err != nil {
 				return err
 			}
@@ -126,7 +127,7 @@ func newTaskUnlockCmd(cli *Cli) *cobra.Command {
 		RunE: func(c *cobra.Command, _ []string) error {
 			cmd.Partition = engine.Partition(partition)
 
-			count, err := cli.engine.UnlockTasks(cmd)
+			count, err := cli.e.UnlockTasks(context.Background(), cmd)
 			if err != nil {
 				return err
 			}
@@ -162,7 +163,10 @@ func newTaskQueryCmd(cli *Cli) *cobra.Command {
 			criteria.Partition = engine.Partition(partition)
 			criteria.Type = engine.TaskType(taskType)
 
-			results, err := cli.engine.QueryWithOptions(criteria, options)
+			q := cli.e.CreateQuery()
+			q.SetOptions(options)
+
+			results, err := q.QueryTasks(context.Background(), criteria)
 			if err != nil {
 				return err
 			}
@@ -177,17 +181,15 @@ func newTaskQueryCmd(cli *Cli) *cobra.Command {
 				"TYPE",
 			})
 
-			for i := range results {
-				task := results[i].(engine.Task)
-
+			for _, result := range results {
 				table.addRow([]string{
-					task.Partition.String(),
-					strconv.Itoa(int(task.Id)),
-					strconv.Itoa(int(task.ProcessInstanceId)),
-					formatTime(task.CreatedAt),
-					formatTimeOrNil(task.LockedAt),
-					formatTimeOrNil(task.CompletedAt),
-					task.Type.String(),
+					result.Partition.String(),
+					strconv.Itoa(int(result.Id)),
+					strconv.Itoa(int(result.ProcessInstanceId)),
+					formatTime(result.CreatedAt),
+					formatTimeOrNil(result.LockedAt),
+					formatTimeOrNil(result.CompletedAt),
+					result.Type.String(),
 				})
 			}
 

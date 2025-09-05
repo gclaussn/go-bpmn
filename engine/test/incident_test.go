@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/gclaussn/go-bpmn/engine"
@@ -18,7 +19,7 @@ func TestResolveIncident(t *testing.T) {
 	for i, e := range engines {
 		t.Run(engineTypes[i]+"returns error when incident not exists", func(t *testing.T) {
 			// when
-			err := e.ResolveIncident(engine.ResolveIncidentCmd{})
+			err := e.ResolveIncident(context.Background(), engine.ResolveIncidentCmd{})
 
 			// then
 			assert.IsTypef(engine.Error{}, err, "expected engine error")

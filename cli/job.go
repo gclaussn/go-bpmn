@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -90,7 +91,7 @@ func newJobCompleteCmd(cli *Cli) *cobra.Command {
 			cmd.RetryTimer = engine.ISO8601Duration(retryTimer)
 			cmd.WorkerId = cli.workerId
 
-			job, err := cli.engine.CompleteJob(cmd)
+			job, err := cli.e.CompleteJob(context.Background(), cmd)
 			if err != nil {
 				return err
 			}
@@ -136,7 +137,7 @@ func newJobLockCmd(cli *Cli) *cobra.Command {
 			cmd.Partition = engine.Partition(partition)
 			cmd.WorkerId = cli.workerId
 
-			jobs, err := cli.engine.LockJobs(cmd)
+			jobs, err := cli.e.LockJobs(context.Background(), cmd)
 			if err != nil {
 				return err
 			}
@@ -196,7 +197,7 @@ func newJobUnlockCmd(cli *Cli) *cobra.Command {
 		RunE: func(c *cobra.Command, _ []string) error {
 			cmd.Partition = engine.Partition(partition)
 
-			count, err := cli.engine.UnlockJobs(cmd)
+			count, err := cli.e.UnlockJobs(context.Background(), cmd)
 			if err != nil {
 				return err
 			}
@@ -230,7 +231,10 @@ func newJobQueryCmd(cli *Cli) *cobra.Command {
 		RunE: func(c *cobra.Command, _ []string) error {
 			criteria.Partition = engine.Partition(partition)
 
-			results, err := cli.engine.QueryWithOptions(criteria, options)
+			q := cli.e.CreateQuery()
+			q.SetOptions(options)
+
+			results, err := q.QueryJobs(context.Background(), criteria)
 			if err != nil {
 				return err
 			}
@@ -246,18 +250,16 @@ func newJobQueryCmd(cli *Cli) *cobra.Command {
 				"TYPE",
 			})
 
-			for i := range results {
-				job := results[i].(engine.Job)
-
+			for _, result := range results {
 				table.addRow([]string{
-					job.Partition.String(),
-					strconv.Itoa(int(job.Id)),
-					strconv.Itoa(int(job.ProcessId)),
-					strconv.Itoa(int(job.ProcessInstanceId)),
-					formatTime(job.CreatedAt),
-					formatTimeOrNil(job.LockedAt),
-					formatTimeOrNil(job.CompletedAt),
-					job.Type.String(),
+					result.Partition.String(),
+					strconv.Itoa(int(result.Id)),
+					strconv.Itoa(int(result.ProcessId)),
+					strconv.Itoa(int(result.ProcessInstanceId)),
+					formatTime(result.CreatedAt),
+					formatTimeOrNil(result.LockedAt),
+					formatTimeOrNil(result.CompletedAt),
+					result.Type.String(),
 				})
 			}
 

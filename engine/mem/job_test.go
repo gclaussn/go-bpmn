@@ -1,6 +1,7 @@
 package mem
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -273,7 +274,7 @@ type jobUnlockTest struct {
 }
 
 func runJobLockTests(t *testing.T, e engine.Engine, tests []jobLockTest) {
-	_, err := e.UnlockJobs(engine.UnlockJobsCmd{
+	_, err := e.UnlockJobs(context.Background(), engine.UnlockJobsCmd{
 		WorkerId: "test-worker",
 	})
 	if err != nil {
@@ -287,7 +288,7 @@ func runJobLockTests(t *testing.T, e engine.Engine, tests []jobLockTest) {
 			cmd := test.cmd
 			cmd.WorkerId = "test-worker"
 
-			lockedJobs, err := e.LockJobs(cmd)
+			lockedJobs, err := e.LockJobs(context.Background(), cmd)
 			if err != nil {
 				t.Fatalf("failed to lock jobs: %v", err)
 			}
@@ -298,7 +299,7 @@ func runJobLockTests(t *testing.T, e engine.Engine, tests []jobLockTest) {
 }
 
 func runJobUnlockTests(t *testing.T, e engine.Engine, tests []jobUnlockTest) {
-	_, err := e.LockJobs(engine.LockJobsCmd{
+	_, err := e.LockJobs(context.Background(), engine.LockJobsCmd{
 		Limit:    100,
 		WorkerId: "test-worker",
 	})
@@ -310,7 +311,7 @@ func runJobUnlockTests(t *testing.T, e engine.Engine, tests []jobUnlockTest) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			count, err := e.UnlockJobs(test.cmd)
+			count, err := e.UnlockJobs(context.Background(), test.cmd)
 			if err != nil {
 				t.Fatalf("failed to unlock jobs: %v", err)
 			}

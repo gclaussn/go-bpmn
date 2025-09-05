@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"net/http"
@@ -58,7 +59,7 @@ func TestClientServer(t *testing.T) {
 	}
 
 	// when
-	process, err := client.CreateProcess(createProcessCmd)
+	process, err := client.CreateProcess(context.Background(), createProcessCmd)
 	if err != nil {
 		t.Fatalf("failed to create process: %v", err)
 	}
@@ -83,7 +84,7 @@ func TestClientServer(t *testing.T) {
 
 	t.Run("create process with empty command returns 400", func(t *testing.T) {
 		// when
-		_, err := client.CreateProcess(engine.CreateProcessCmd{})
+		_, err := client.CreateProcess(context.Background(), engine.CreateProcessCmd{})
 
 		// then
 		assert.IsTypef(server.Problem{}, err, "expected problem")
@@ -98,7 +99,7 @@ func TestClientServer(t *testing.T) {
 
 	t.Run("query processes", func(t *testing.T) {
 		// when
-		results, err := client.Query(engine.ProcessCriteria{})
+		results, err := client.CreateQuery().QueryProcesses(context.Background(), engine.ProcessCriteria{})
 		if err != nil {
 			t.Fatalf("failed to query processes %v", err)
 		}
@@ -121,7 +122,7 @@ func TestClientServer(t *testing.T) {
 
 	t.Run("query elements", func(t *testing.T) {
 		// when
-		results, err := client.Query(engine.ElementCriteria{})
+		results, err := client.CreateQuery().QueryElements(context.Background(), engine.ElementCriteria{})
 		if err != nil {
 			t.Fatalf("failed to query elements: %v", err)
 		}
@@ -141,7 +142,7 @@ func TestClientServer(t *testing.T) {
 
 	t.Run("get BPMN XML", func(t *testing.T) {
 		// when
-		bpmnXml, err := client.GetBpmnXml(engine.GetBpmnXmlCmd{ProcessId: process.Id})
+		bpmnXml, err := client.GetBpmnXml(context.Background(), engine.GetBpmnXmlCmd{ProcessId: process.Id})
 		if err != nil {
 			t.Fatalf("failed to get BPMN XML: %v", err)
 		}
@@ -152,7 +153,7 @@ func TestClientServer(t *testing.T) {
 
 	t.Run("get BPMN XML of not existing process returns 404", func(t *testing.T) {
 		// when
-		bpmnXml, err := client.GetBpmnXml(engine.GetBpmnXmlCmd{ProcessId: 1_000_000})
+		bpmnXml, err := client.GetBpmnXml(context.Background(), engine.GetBpmnXmlCmd{ProcessId: 1_000_000})
 
 		// then
 		assert.Empty(bpmnXml)
@@ -170,7 +171,7 @@ func TestClientServer(t *testing.T) {
 			WorkerId: "test",
 		}
 
-		signalEvent, err := client.SendSignal(cmd)
+		signalEvent, err := client.SendSignal(context.Background(), cmd)
 		if err != nil {
 			t.Fatalf("failed to send signal: %v", err)
 		}
@@ -215,7 +216,7 @@ func TestClientServerWithApiKeyManager(t *testing.T) {
 
 		defer client.Shutdown()
 
-		_, err = client.CreateProcess(engine.CreateProcessCmd{})
+		_, err = client.CreateProcess(context.Background(), engine.CreateProcessCmd{})
 		assert.NotNilf(err, "expected error")
 		assert.Contains(err.Error(), "POST /processes: HTTP 401")
 	})
@@ -228,7 +229,7 @@ func TestClientServerWithApiKeyManager(t *testing.T) {
 
 		defer client.Shutdown()
 
-		_, err = client.CreateProcess(engine.CreateProcessCmd{})
+		_, err = client.CreateProcess(context.Background(), engine.CreateProcessCmd{})
 		assert.IsTypef(server.Problem{}, err, "expected problem")
 
 		problem := err.(server.Problem)
@@ -240,7 +241,7 @@ type testClientServerApiKeyManager struct {
 	pg.ApiKeyManager
 }
 
-func (a *testClientServerApiKeyManager) GetApiKey(authorization string) (pg.ApiKey, error) {
+func (a *testClientServerApiKeyManager) GetApiKey(_ context.Context, authorization string) (pg.ApiKey, error) {
 	if authorization == "valid" {
 		return pg.ApiKey{}, nil
 	} else {

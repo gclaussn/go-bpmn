@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -35,7 +36,7 @@ func (x timerEventTest) catch(t *testing.T) {
 		},
 	})
 
-	if err := x.e.SetTime(engine.SetTimeCmd{
+	if err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
 		Time: triggerAt,
 	}); err != nil {
 		t.Fatalf("failed to set time: %v", err)
@@ -52,7 +53,7 @@ func (x timerEventTest) start(t *testing.T) {
 
 	startTime := time.Now().Add(time.Hour)
 
-	process, err := x.e.CreateProcess(engine.CreateProcessCmd{
+	process, err := x.e.CreateProcess(context.Background(), engine.CreateProcessCmd{
 		BpmnProcessId: "timerStartTest",
 		BpmnXml:       bpmnXml,
 		Timers: map[string]*engine.Timer{

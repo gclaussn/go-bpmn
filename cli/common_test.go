@@ -16,7 +16,7 @@ func mustCreateEngine(t *testing.T) engine.Engine {
 }
 
 func mustExecute(t *testing.T, e engine.Engine, args []string) {
-	rootCmd := newRootCmd(&Cli{engine: e})
+	rootCmd := newRootCmd(&Cli{e: e})
 	rootCmd.PersistentPostRun = nil
 
 	rootCmd.SetArgs(args)

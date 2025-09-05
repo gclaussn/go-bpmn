@@ -15,88 +15,86 @@ const (
 // An Engine creates, executes and manages process instances, based on the BPMN 2.0 specification.
 type Engine interface {
 	// CompleteJob completes a locked job.
-	CompleteJob(CompleteJobCmd) (Job, error)
+	CompleteJob(context.Context, CompleteJobCmd) (Job, error)
 
 	// CreateProcess creates a process, using a BPMN definition that is provided as XML.
 	//
 	// If a process with the same BPMN process ID and version exists, the BPMN XML is compared.
 	// When the BPMN XML equals, the existing process is returned.
 	// When the BPMN XML differs, an error of type [ErrorConflict] is returned.
-	CreateProcess(CreateProcessCmd) (Process, error)
+	CreateProcess(context.Context, CreateProcessCmd) (Process, error)
 
 	// CreateProcessInstance creates an instance of an existing BPMN process in a specific version.
-	CreateProcessInstance(CreateProcessInstanceCmd) (ProcessInstance, error)
+	CreateProcessInstance(context.Context, CreateProcessInstanceCmd) (ProcessInstance, error)
+
+	// CreateQuery creates a query with default options.
+	CreateQuery() Query
 
 	// ExecuteTasks locks and executes due tasks, which match the specified conditions.
 	//
 	// Due tasks are normally handled by a task executor, running inside the engine.
 	// When waiting for a due task to be completed during testing, this method must be called!
-	ExecuteTasks(ExecuteTasksCmd) ([]Task, []Task, error)
+	ExecuteTasks(context.Context, ExecuteTasksCmd) ([]Task, []Task, error)
 
 	// GetBpmnXml the BPMN XML of an existing BPMN process.
-	GetBpmnXml(GetBpmnXmlCmd) (string, error)
+	GetBpmnXml(context.Context, GetBpmnXmlCmd) (string, error)
 
 	// GetElementVariables gets variables of an active or ended element instance.
-	GetElementVariables(GetElementVariablesCmd) (map[string]Data, error)
+	GetElementVariables(context.Context, GetElementVariablesCmd) (map[string]Data, error)
 
 	// GetProcessVariables gets variables of an active or ended process instance.
-	GetProcessVariables(GetProcessVariablesCmd) (map[string]Data, error)
+	GetProcessVariables(context.Context, GetProcessVariablesCmd) (map[string]Data, error)
 
 	// LockJobs locks due jobs, which match the specified conditions.
-	LockJobs(LockJobsCmd) ([]Job, error)
-
-	// Query executes a query, which results in zero, one or multiple entities.
-	//
-	// Specific criteria defines, which type of entities are returned.
-	// The following criteria types are supported:
-	//   - [ElementCriteria]
-	//   - [ElementInstanceCriteria]
-	//   - [IncidentCriteria]
-	//   - [JobCriteria]
-	//   - [ProcessCriteria]
-	//   - [ProcessInstanceCriteria]
-	//   - [TaskCriteria]
-	//   - [VariableCriteria]
-	Query(criteria any) ([]any, error)
-
-	// QueryWithOptions executes a query with common options like limit.
-	QueryWithOptions(criteria any, options QueryOptions) ([]any, error)
+	LockJobs(context.Context, LockJobsCmd) ([]Job, error)
 
 	// ResolveIncident resolves a job or task related incident.
-	ResolveIncident(ResolveIncidentCmd) error
+	ResolveIncident(context.Context, ResolveIncidentCmd) error
 
 	// ResumeProcessInstance resumes a suspended process instance.
-	ResumeProcessInstance(ResumeProcessInstanceCmd) error
+	ResumeProcessInstance(context.Context, ResumeProcessInstanceCmd) error
 
 	// SendSignal sends a signal to notify signal subscribers.
 	// A subscriber can be a signal start or catch event.
 	// In case of a signal start event, a new process instance is created.
 	// In case of a signal catch event, an existing process instance is continued.
-	SendSignal(SendSignalCmd) (SignalEvent, error)
+	SendSignal(context.Context, SendSignalCmd) (SignalEvent, error)
 
 	// SetElementVariables sets or deletes variables of an active element instance.
-	SetElementVariables(SetElementVariablesCmd) error
+	SetElementVariables(context.Context, SetElementVariablesCmd) error
 
 	// SetProcessVariables sets or deletes variables of an active process instance.
-	SetProcessVariables(SetProcessVariablesCmd) error
+	SetProcessVariables(context.Context, SetProcessVariablesCmd) error
 
 	// SetTime increases the engine's time for testing purposes.
-	SetTime(SetTimeCmd) error
+	SetTime(context.Context, SetTimeCmd) error
 
 	// SuspendProcessInstance suspends a started process instance.
-	SuspendProcessInstance(SuspendProcessInstanceCmd) error
+	SuspendProcessInstance(context.Context, SuspendProcessInstanceCmd) error
 
 	// UnlockJobs locked, but uncompleted, jobs that are currently locked by a specific worker.
-	UnlockJobs(UnlockJobsCmd) (int, error)
+	UnlockJobs(context.Context, UnlockJobsCmd) (int, error)
 
 	// UnlockTasks locked, but uncompleted, tasks that are currently locked by a specific engine.
-	UnlockTasks(UnlockTasksCmd) (int, error)
-
-	// WithContext returns a context-aware engine.
-	WithContext(ctx context.Context) Engine
+	UnlockTasks(context.Context, UnlockTasksCmd) (int, error)
 
 	// Shutdown shuts the engine down.
 	Shutdown()
+}
+
+// A Query allows to query entities, using query options.
+type Query interface {
+	QueryElements(context.Context, ElementCriteria) ([]Element, error)
+	QueryElementInstances(context.Context, ElementInstanceCriteria) ([]ElementInstance, error)
+	QueryIncidents(context.Context, IncidentCriteria) ([]Incident, error)
+	QueryJobs(context.Context, JobCriteria) ([]Job, error)
+	QueryProcesses(context.Context, ProcessCriteria) ([]Process, error)
+	QueryProcessInstances(context.Context, ProcessInstanceCriteria) ([]ProcessInstance, error)
+	QueryTasks(context.Context, TaskCriteria) ([]Task, error)
+	QueryVariables(context.Context, VariableCriteria) ([]Variable, error)
+
+	// SetOptions sets options that are used when performing a query.
+	SetOptions(QueryOptions)
 }
 
 // Options are common configuration options that are shared between engine implementations.

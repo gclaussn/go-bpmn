@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"testing"
 
 	"github.com/gclaussn/go-bpmn/engine"
@@ -33,7 +34,7 @@ func TestSendSignal(t *testing.T) {
 		"start-signal",
 	})
 
-	results, err := e.Query(engine.TaskCriteria{Type: engine.TaskTriggerEvent})
+	results, err := e.CreateQuery().QueryTasks(context.Background(), engine.TaskCriteria{Type: engine.TaskTriggerEvent})
 	require.NoError(err, "failed to query tasks")
 	require.NotEmpty(results, "no tasks queried")
 }

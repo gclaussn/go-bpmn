@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/gclaussn/go-bpmn/engine"
@@ -20,7 +21,7 @@ func TestCompleteJob(t *testing.T) {
 		process := mustCreateProcess(t, e, "task/service.bpmn", "serviceTest")
 
 		newJob := func() engine.Job {
-			processInstance, err := e.CreateProcessInstance(engine.CreateProcessInstanceCmd{
+			processInstance, err := e.CreateProcessInstance(context.Background(), engine.CreateProcessInstanceCmd{
 				BpmnProcessId:  process.BpmnProcessId,
 				CorrelationKey: "ck",
 				Version:        process.Version,
@@ -30,19 +31,19 @@ func TestCompleteJob(t *testing.T) {
 				t.Fatalf("failed to create process instance: %v", err)
 			}
 
-			results, err := e.Query(engine.JobCriteria{Partition: processInstance.Partition, ProcessInstanceId: processInstance.Id})
+			results, err := e.CreateQuery().QueryJobs(context.Background(), engine.JobCriteria{Partition: processInstance.Partition, ProcessInstanceId: processInstance.Id})
 			if err != nil {
 				t.Fatalf("failed to query job: %v", err)
 			}
 
 			assert.Lenf(results, 1, "expected one job")
 
-			return results[0].(engine.Job)
+			return results[0]
 		}
 
 		t.Run(engineTypes[i]+"returns error when job not exists", func(t *testing.T) {
 			// when
-			_, err := e.CompleteJob(engine.CompleteJobCmd{})
+			_, err := e.CompleteJob(context.Background(), engine.CompleteJobCmd{})
 
 			// then
 			assert.IsTypef(engine.Error{}, err, "expected engine error")
@@ -65,7 +66,7 @@ func TestCompleteJob(t *testing.T) {
 			}
 
 			// when
-			lockedJobs, err := e.LockJobs(engine.LockJobsCmd{
+			lockedJobs, err := e.LockJobs(context.Background(), engine.LockJobsCmd{
 				Partition: job.Partition,
 				Id:        job.Id,
 				WorkerId:  testWorkerId,
@@ -78,12 +79,12 @@ func TestCompleteJob(t *testing.T) {
 				t.Fatal("no job locked")
 			}
 
-			_, err = e.CompleteJob(cmd)
+			_, err = e.CompleteJob(context.Background(), cmd)
 			if err != nil {
 				t.Fatalf("failed to complete job: %v", err)
 			}
 
-			_, err = e.CompleteJob(cmd)
+			_, err = e.CompleteJob(context.Background(), cmd)
 
 			// then
 			assert.IsTypef(engine.Error{}, err, "expected engine error")
@@ -99,7 +100,7 @@ func TestCompleteJob(t *testing.T) {
 			job := newJob()
 
 			// when
-			_, err := e.CompleteJob(engine.CompleteJobCmd{
+			_, err := e.CompleteJob(context.Background(), engine.CompleteJobCmd{
 				Partition: job.Partition,
 				Id:        job.Id,
 				WorkerId:  testWorkerId,
@@ -119,7 +120,7 @@ func TestCompleteJob(t *testing.T) {
 			job := newJob()
 
 			// when
-			lockedJobs, err := e.LockJobs(engine.LockJobsCmd{
+			lockedJobs, err := e.LockJobs(context.Background(), engine.LockJobsCmd{
 				Partition: job.Partition,
 				Id:        job.Id,
 				WorkerId:  "different-worker",
@@ -132,7 +133,7 @@ func TestCompleteJob(t *testing.T) {
 				t.Fatal("no job locked")
 			}
 
-			_, err = e.CompleteJob(engine.CompleteJobCmd{
+			_, err = e.CompleteJob(context.Background(), engine.CompleteJobCmd{
 				Partition: job.Partition,
 				Id:        job.Id,
 				WorkerId:  testWorkerId,
@@ -152,7 +153,7 @@ func TestCompleteJob(t *testing.T) {
 			job := newJob()
 
 			// when
-			lockedJobs, err := e.LockJobs(engine.LockJobsCmd{
+			lockedJobs, err := e.LockJobs(context.Background(), engine.LockJobsCmd{
 				Partition: job.Partition,
 				Id:        job.Id,
 				WorkerId:  testWorkerId,
@@ -165,7 +166,7 @@ func TestCompleteJob(t *testing.T) {
 				t.Fatal("no job locked")
 			}
 
-			completedJob, err := e.CompleteJob(engine.CompleteJobCmd{
+			completedJob, err := e.CompleteJob(context.Background(), engine.CompleteJobCmd{
 				Partition: job.Partition,
 				Id:        job.Id,
 				WorkerId:  testWorkerId,
@@ -202,7 +203,7 @@ func TestCompleteJob(t *testing.T) {
 
 			assert.NotEmpty(completedJob.CompletedAt)
 
-			results, err := e.Query(engine.JobCriteria{Partition: job.Partition, Id: job.Id})
+			results, err := e.CreateQuery().QueryJobs(context.Background(), engine.JobCriteria{Partition: job.Partition, Id: job.Id})
 			if err != nil {
 				t.Fatalf("failed to query job: %v", err)
 			}
@@ -240,7 +241,7 @@ func TestCompleteJob(t *testing.T) {
 			job := newJob()
 
 			// when
-			lockedJobs, err := e.LockJobs(engine.LockJobsCmd{
+			lockedJobs, err := e.LockJobs(context.Background(), engine.LockJobsCmd{
 				Partition: job.Partition,
 				Id:        job.Id,
 				WorkerId:  testWorkerId,
@@ -262,7 +263,7 @@ func TestCompleteJob(t *testing.T) {
 				WorkerId:   testWorkerId,
 			}
 
-			completedJob, err := e.CompleteJob(cmd)
+			completedJob, err := e.CompleteJob(context.Background(), cmd)
 			if err != nil {
 				t.Fatalf("failed to complete job: %v", err)
 			}
@@ -271,7 +272,7 @@ func TestCompleteJob(t *testing.T) {
 			assert.NotEmpty(completedJob.CompletedAt)
 			assert.Equal("test-error", completedJob.Error)
 
-			results, err := e.Query(engine.JobCriteria{Partition: job.Partition, Id: job.Id + 1})
+			results, err := e.CreateQuery().QueryJobs(context.Background(), engine.JobCriteria{Partition: job.Partition, Id: job.Id + 1})
 			if err != nil {
 				t.Fatalf("failed to query job: %v", err)
 			}
@@ -294,7 +295,7 @@ func TestCompleteJob(t *testing.T) {
 				CorrelationKey:     "ck",
 				CreatedAt:          *completedJob.CompletedAt,
 				CreatedBy:          testWorkerId,
-				DueAt:              results[0].(engine.Job).DueAt,
+				DueAt:              results[0].DueAt,
 				Error:              "",
 				LockedAt:           nil,
 				LockedBy:           "",
@@ -309,7 +310,7 @@ func TestCompleteJob(t *testing.T) {
 			job := newJob()
 
 			// when
-			lockedJobs, err := e.LockJobs(engine.LockJobsCmd{
+			lockedJobs, err := e.LockJobs(context.Background(), engine.LockJobsCmd{
 				Partition: job.Partition,
 				Id:        job.Id,
 				WorkerId:  testWorkerId,
@@ -329,7 +330,7 @@ func TestCompleteJob(t *testing.T) {
 				WorkerId:  testWorkerId,
 			}
 
-			completedJob, err := e.CompleteJob(cmd)
+			completedJob, err := e.CompleteJob(context.Background(), cmd)
 			if err != nil {
 				t.Fatalf("failed to complete job: %v", err)
 			}
@@ -338,18 +339,16 @@ func TestCompleteJob(t *testing.T) {
 			assert.NotEmpty(completedJob.CompletedAt)
 			assert.Equal("test-error", completedJob.Error)
 
-			results, err := e.Query(engine.IncidentCriteria{Partition: job.Partition, JobId: job.Id})
+			results, err := e.CreateQuery().QueryIncidents(context.Background(), engine.IncidentCriteria{Partition: job.Partition, JobId: job.Id})
 			if err != nil {
 				t.Fatalf("failed to query incidents: %v", err)
 			}
 
 			assert.Lenf(results, 1, "expected one incident")
 
-			incident := results[0].(engine.Incident)
-
 			assert.Equal(engine.Incident{
 				Partition: job.Partition,
-				Id:        incident.Id,
+				Id:        results[0].Id,
 
 				ElementId:         job.ElementId,
 				ElementInstanceId: job.ElementInstanceId,
@@ -362,9 +361,9 @@ func TestCompleteJob(t *testing.T) {
 				CreatedBy:  testWorkerId,
 				ResolvedAt: nil,
 				ResolvedBy: "",
-			}, incident)
+			}, results[0])
 
-			assert.NotEmpty(incident.CreatedAt)
+			assert.NotEmpty(results[0].CreatedAt)
 		})
 	}
 }

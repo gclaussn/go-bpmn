@@ -219,7 +219,7 @@ WHERE
 	return nil
 }
 
-func (r processInstanceRepository) Query(criteria engine.ProcessInstanceCriteria, options engine.QueryOptions) ([]any, error) {
+func (r processInstanceRepository) Query(criteria engine.ProcessInstanceCriteria, options engine.QueryOptions) ([]engine.ProcessInstance, error) {
 	var sql bytes.Buffer
 	if err := sqlProcessInstanceQuery.Execute(&sql, map[string]any{
 		"c": criteria,
@@ -237,7 +237,7 @@ func (r processInstanceRepository) Query(criteria engine.ProcessInstanceCriteria
 
 	defer rows.Close()
 
-	var results []any
+	var results []engine.ProcessInstance
 	for rows.Next() {
 		var entity internal.ProcessInstanceEntity
 

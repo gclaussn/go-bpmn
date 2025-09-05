@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/gclaussn/go-bpmn/engine"
@@ -50,7 +51,7 @@ func (x exclusiveGatewayTest) errorNoBpmnElementId(t *testing.T) {
 	piAssert.IsWaitingAt("fork")
 	job := piAssert.Job()
 
-	lockedJobs, err := x.e.LockJobs(engine.LockJobsCmd{
+	lockedJobs, err := x.e.LockJobs(context.Background(), engine.LockJobsCmd{
 		Id:        job.Id,
 		Partition: job.Partition,
 		WorkerId:  testWorkerId,
@@ -63,7 +64,7 @@ func (x exclusiveGatewayTest) errorNoBpmnElementId(t *testing.T) {
 		t.Fatal("no job locked")
 	}
 
-	completedJob, err := x.e.CompleteJob(engine.CompleteJobCmd{
+	completedJob, err := x.e.CompleteJob(context.Background(), engine.CompleteJobCmd{
 		Id:        job.Id,
 		Partition: job.Partition,
 		Completion: &engine.JobCompletion{
@@ -85,7 +86,7 @@ func (x exclusiveGatewayTest) errorSequenceFlowNotExits(t *testing.T) {
 	piAssert.IsWaitingAt("fork")
 	job := piAssert.Job()
 
-	lockedJobs, err := x.e.LockJobs(engine.LockJobsCmd{
+	lockedJobs, err := x.e.LockJobs(context.Background(), engine.LockJobsCmd{
 		Id:        job.Id,
 		Partition: job.Partition,
 		WorkerId:  testWorkerId,
@@ -98,7 +99,7 @@ func (x exclusiveGatewayTest) errorSequenceFlowNotExits(t *testing.T) {
 		t.Fatalf("no job locked")
 	}
 
-	completedJob, err := x.e.CompleteJob(engine.CompleteJobCmd{
+	completedJob, err := x.e.CompleteJob(context.Background(), engine.CompleteJobCmd{
 		Id:        job.Id,
 		Partition: job.Partition,
 		Completion: &engine.JobCompletion{

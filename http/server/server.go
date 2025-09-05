@@ -59,7 +59,7 @@ func New(e engine.Engine, customizers ...func(*Options)) (*Server, error) {
 	}
 
 	server := Server{
-		engine:           e,
+		e:                e,
 		httpServer:       &httpServer,
 		httpServerCtx:    httpServerCtx,
 		httpServerCancel: httpServerCanel,
@@ -156,7 +156,7 @@ func (o Options) Validate() error {
 }
 
 type Server struct {
-	engine           engine.Engine
+	e                engine.Engine
 	httpServer       *http.Server
 	httpServerCtx    context.Context    // server-wide base context for incoming requests
 	httpServerCancel context.CancelFunc // invoked after server shutdown to cancel to ongoing requests
@@ -190,7 +190,7 @@ func (s *Server) Shutdown() {
 		time.Sleep(s.options.ShutdownForcePeriod)
 	}
 
-	s.engine.Shutdown()
+	s.e.Shutdown()
 	log.Println("server shut down")
 }
 
@@ -212,7 +212,7 @@ func (s *Server) completeJob(w http.ResponseWriter, r *http.Request) {
 	cmd.Partition = partition
 	cmd.Id = id
 
-	job, err := s.engine.WithContext(r.Context()).CompleteJob(cmd)
+	job, err := s.e.CompleteJob(r.Context(), cmd)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
@@ -228,7 +228,7 @@ func (s *Server) createProcess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	process, err := s.engine.WithContext(r.Context()).CreateProcess(cmd)
+	process, err := s.e.CreateProcess(r.Context(), cmd)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
@@ -244,7 +244,7 @@ func (s *Server) createProcessInstance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	processInstance, err := s.engine.WithContext(r.Context()).CreateProcessInstance(cmd)
+	processInstance, err := s.e.CreateProcessInstance(r.Context(), cmd)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
@@ -260,7 +260,7 @@ func (s *Server) executeTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	completedTasks, failedTasks, err := s.engine.WithContext(r.Context()).ExecuteTasks(cmd)
+	completedTasks, failedTasks, err := s.e.ExecuteTasks(r.Context(), cmd)
 	if err != nil && completedTasks == nil && failedTasks == nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
@@ -285,7 +285,7 @@ func (s *Server) getBpmnXml(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	bpmnXml, err := s.engine.WithContext(r.Context()).GetBpmnXml(engine.GetBpmnXmlCmd{ProcessId: id})
+	bpmnXml, err := s.e.GetBpmnXml(r.Context(), engine.GetBpmnXmlCmd{ProcessId: id})
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
@@ -309,7 +309,7 @@ func (s *Server) getElementVariables(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	variables, err := s.engine.WithContext(r.Context()).GetElementVariables(engine.GetElementVariablesCmd{
+	variables, err := s.e.GetElementVariables(r.Context(), engine.GetElementVariablesCmd{
 		Partition:         partition,
 		ElementInstanceId: id,
 
@@ -342,7 +342,7 @@ func (s *Server) getProcessVariables(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	variables, err := s.engine.WithContext(r.Context()).GetProcessVariables(engine.GetProcessVariablesCmd{
+	variables, err := s.e.GetProcessVariables(r.Context(), engine.GetProcessVariablesCmd{
 		Partition:         partition,
 		ProcessInstanceId: id,
 
@@ -368,7 +368,7 @@ func (s *Server) lockJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jobs, err := s.engine.WithContext(r.Context()).LockJobs(cmd)
+	jobs, err := s.e.LockJobs(r.Context(), cmd)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
@@ -398,7 +398,7 @@ func (s *Server) resolveIncident(w http.ResponseWriter, r *http.Request) {
 	cmd.Partition = partition
 	cmd.Id = id
 
-	if err := s.engine.WithContext(r.Context()).ResolveIncident(cmd); err != nil {
+	if err := s.e.ResolveIncident(r.Context(), cmd); err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
@@ -422,7 +422,7 @@ func (s *Server) resumeProcessInstance(w http.ResponseWriter, r *http.Request) {
 	cmd.Partition = partition
 	cmd.Id = id
 
-	if err := s.engine.WithContext(r.Context()).ResumeProcessInstance(cmd); err != nil {
+	if err := s.e.ResumeProcessInstance(r.Context(), cmd); err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
@@ -437,7 +437,7 @@ func (s *Server) sendSignal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	signalEvent, err := s.engine.WithContext(r.Context()).SendSignal(cmd)
+	signalEvent, err := s.e.SendSignal(r.Context(), cmd)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
@@ -462,7 +462,7 @@ func (s *Server) setElementVariables(w http.ResponseWriter, r *http.Request) {
 	cmd.Partition = partition
 	cmd.ElementInstanceId = id
 
-	if err := s.engine.WithContext(r.Context()).SetElementVariables(cmd); err != nil {
+	if err := s.e.SetElementVariables(r.Context(), cmd); err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
@@ -486,7 +486,7 @@ func (s *Server) setProcessVariables(w http.ResponseWriter, r *http.Request) {
 	cmd.Partition = partition
 	cmd.ProcessInstanceId = id
 
-	if err := s.engine.WithContext(r.Context()).SetProcessVariables(cmd); err != nil {
+	if err := s.e.SetProcessVariables(r.Context(), cmd); err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
@@ -506,7 +506,7 @@ func (s *Server) setTime(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.engine.WithContext(r.Context()).SetTime(cmd); err != nil {
+	if err := s.e.SetTime(r.Context(), cmd); err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
@@ -530,7 +530,7 @@ func (s *Server) suspendProcessInstance(w http.ResponseWriter, r *http.Request) 
 	cmd.Partition = partition
 	cmd.Id = id
 
-	if err := s.engine.WithContext(r.Context()).SuspendProcessInstance(cmd); err != nil {
+	if err := s.e.SuspendProcessInstance(r.Context(), cmd); err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
@@ -545,7 +545,7 @@ func (s *Server) unlockJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	count, err := s.engine.WithContext(r.Context()).UnlockJobs(cmd)
+	count, err := s.e.UnlockJobs(r.Context(), cmd)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
@@ -561,7 +561,7 @@ func (s *Server) unlockTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	count, err := s.engine.WithContext(r.Context()).UnlockTasks(cmd)
+	count, err := s.e.UnlockTasks(r.Context(), cmd)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
@@ -585,20 +585,18 @@ func (s *Server) queryElements(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, err := s.engine.WithContext(r.Context()).QueryWithOptions(criteria, options)
+	q := s.e.CreateQuery()
+	q.SetOptions(options)
+
+	results, err := q.QueryElements(r.Context(), criteria)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
 
-	elements := make([]engine.Element, len(results))
-	for i, result := range results {
-		elements[i] = result.(engine.Element)
-	}
-
 	resBody := ElementRes{
-		Count:   len(elements),
-		Results: elements,
+		Count:   len(results),
+		Results: results,
 	}
 
 	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
@@ -617,20 +615,18 @@ func (s *Server) queryElementInstances(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, err := s.engine.WithContext(r.Context()).QueryWithOptions(criteria, options)
+	q := s.e.CreateQuery()
+	q.SetOptions(options)
+
+	results, err := q.QueryElementInstances(r.Context(), criteria)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
 
-	elementInstances := make([]engine.ElementInstance, len(results))
-	for i, result := range results {
-		elementInstances[i] = result.(engine.ElementInstance)
-	}
-
 	resBody := ElementInstanceRes{
-		Count:   len(elementInstances),
-		Results: elementInstances,
+		Count:   len(results),
+		Results: results,
 	}
 
 	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
@@ -649,20 +645,18 @@ func (s *Server) queryIncidents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, err := s.engine.WithContext(r.Context()).QueryWithOptions(criteria, options)
+	q := s.e.CreateQuery()
+	q.SetOptions(options)
+
+	results, err := q.QueryIncidents(r.Context(), criteria)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
 
-	incidents := make([]engine.Incident, len(results))
-	for i, result := range results {
-		incidents[i] = result.(engine.Incident)
-	}
-
 	resBody := IncidentRes{
-		Count:   len(incidents),
-		Results: incidents,
+		Count:   len(results),
+		Results: results,
 	}
 
 	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
@@ -681,20 +675,18 @@ func (s *Server) queryJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, err := s.engine.WithContext(r.Context()).QueryWithOptions(criteria, options)
+	q := s.e.CreateQuery()
+	q.SetOptions(options)
+
+	results, err := q.QueryJobs(r.Context(), criteria)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
 
-	jobs := make([]engine.Job, len(results))
-	for i, result := range results {
-		jobs[i] = result.(engine.Job)
-	}
-
 	resBody := JobRes{
-		Count:   len(jobs),
-		Results: jobs,
+		Count:   len(results),
+		Results: results,
 	}
 
 	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
@@ -713,20 +705,18 @@ func (s *Server) queryProcesses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, err := s.engine.WithContext(r.Context()).QueryWithOptions(criteria, options)
+	q := s.e.CreateQuery()
+	q.SetOptions(options)
+
+	results, err := q.QueryProcesses(r.Context(), criteria)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
 
-	processes := make([]engine.Process, len(results))
-	for i, result := range results {
-		processes[i] = result.(engine.Process)
-	}
-
 	resBody := ProcessRes{
-		Count:   len(processes),
-		Results: processes,
+		Count:   len(results),
+		Results: results,
 	}
 
 	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
@@ -745,20 +735,18 @@ func (s *Server) queryProcessInstances(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, err := s.engine.WithContext(r.Context()).QueryWithOptions(criteria, options)
+	q := s.e.CreateQuery()
+	q.SetOptions(options)
+
+	results, err := q.QueryProcessInstances(r.Context(), criteria)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
 
-	processInstances := make([]engine.ProcessInstance, len(results))
-	for i, result := range results {
-		processInstances[i] = result.(engine.ProcessInstance)
-	}
-
 	resBody := ProcessInstanceRes{
-		Count:   len(processInstances),
-		Results: processInstances,
+		Count:   len(results),
+		Results: results,
 	}
 
 	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
@@ -777,20 +765,18 @@ func (s *Server) queryTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, err := s.engine.WithContext(r.Context()).QueryWithOptions(criteria, options)
+	q := s.e.CreateQuery()
+	q.SetOptions(options)
+
+	results, err := q.QueryTasks(r.Context(), criteria)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
 
-	tasks := make([]engine.Task, len(results))
-	for i, result := range results {
-		tasks[i] = result.(engine.Task)
-	}
-
 	resBody := TaskRes{
-		Count:   len(tasks),
-		Results: tasks,
+		Count:   len(results),
+		Results: results,
 	}
 
 	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
@@ -809,20 +795,18 @@ func (s *Server) queryVariables(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, err := s.engine.WithContext(r.Context()).QueryWithOptions(criteria, options)
+	q := s.e.CreateQuery()
+	q.SetOptions(options)
+
+	results, err := q.QueryVariables(r.Context(), criteria)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
 
-	variables := make([]engine.Variable, len(results))
-	for i, result := range results {
-		variables[i] = result.(engine.Variable)
-	}
-
 	resBody := VariableRes{
-		Count:   len(variables),
-		Results: variables,
+		Count:   len(results),
+		Results: results,
 	}
 
 	encodeJSONResponseBody(w, r, resBody, http.StatusOK)

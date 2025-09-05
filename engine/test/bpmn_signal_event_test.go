@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/gclaussn/go-bpmn/engine"
@@ -24,7 +25,7 @@ type signalEventTest struct {
 func (x signalEventTest) catch(t *testing.T) {
 	assert := assert.New(t)
 
-	processInstance, err := x.e.CreateProcessInstance(engine.CreateProcessInstanceCmd{
+	processInstance, err := x.e.CreateProcessInstance(context.Background(), engine.CreateProcessInstanceCmd{
 		BpmnProcessId: x.catchTest.BpmnProcessId,
 		Variables: map[string]*engine.Data{
 			"a": {Encoding: "encoding-a", Value: "value-a"},
@@ -47,7 +48,7 @@ func (x signalEventTest) catch(t *testing.T) {
 	})
 
 	// when signal sent
-	signalEvent, err := x.e.SendSignal(engine.SendSignalCmd{
+	signalEvent, err := x.e.SendSignal(context.Background(), engine.SendSignalCmd{
 		Name: "catch-signal",
 		Variables: map[string]*engine.Data{
 			"a": {Encoding: "encoding-a", Value: "value-a"},
@@ -70,7 +71,7 @@ func (x signalEventTest) catch(t *testing.T) {
 	assert.Equal(1, signalEvent.SubscriberCount)
 
 	// when signal sent again
-	signalEvent, err = x.e.SendSignal(engine.SendSignalCmd{
+	signalEvent, err = x.e.SendSignal(context.Background(), engine.SendSignalCmd{
 		Name:     "catch-signal",
 		WorkerId: testWorkerId,
 	})
@@ -99,7 +100,7 @@ func (x signalEventTest) catch(t *testing.T) {
 func (x signalEventTest) start(t *testing.T) {
 	bpmnXml := mustReadBpmnFile(t, "event/signal-start.bpmn")
 
-	process, err := x.e.CreateProcess(engine.CreateProcessCmd{
+	process, err := x.e.CreateProcess(context.Background(), engine.CreateProcessCmd{
 		BpmnProcessId: "signalStartTest",
 		BpmnXml:       bpmnXml,
 		SignalNames: map[string]string{

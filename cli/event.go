@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -49,7 +50,7 @@ func newSendSignalCmd(cli *Cli) *cobra.Command {
 			cmd.Variables = variables
 			cmd.WorkerId = cli.workerId
 
-			signalEvent, err := cli.engine.SendSignal(cmd)
+			signalEvent, err := cli.e.SendSignal(context.Background(), cmd)
 			if err != nil {
 				return err
 			}

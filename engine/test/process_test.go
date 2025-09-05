@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -33,7 +34,7 @@ func TestCreateProcess(t *testing.T) {
 
 	for i, e := range engines {
 		// when
-		process, err := e.CreateProcess(cmd)
+		process, err := e.CreateProcess(context.Background(), cmd)
 
 		t.Run(engineTypes[i]+"create and get BPMN XML", func(t *testing.T) {
 			if err != nil {
@@ -58,7 +59,7 @@ func TestCreateProcess(t *testing.T) {
 			assert.NotEmpty(process.Id)
 			assert.NotEmpty(process.CreatedAt)
 
-			results, err := e.Query(engine.ProcessCriteria{Id: process.Id})
+			results, err := e.CreateQuery().QueryProcesses(context.Background(), engine.ProcessCriteria{Id: process.Id})
 			if err != nil {
 				t.Fatalf("failed to query process: %v", err)
 			}
@@ -77,7 +78,7 @@ func TestCreateProcess(t *testing.T) {
 			}, results[0])
 
 			// when
-			bpmnXml, err := e.GetBpmnXml(engine.GetBpmnXmlCmd{ProcessId: process.Id})
+			bpmnXml, err := e.GetBpmnXml(context.Background(), engine.GetBpmnXmlCmd{ProcessId: process.Id})
 			if err != nil {
 				t.Fatalf("failed to query process: %v", err)
 			}
@@ -88,7 +89,7 @@ func TestCreateProcess(t *testing.T) {
 
 		t.Run(engineTypes[i]+"returns existing process when created again", func(t *testing.T) {
 			// when
-			existingProcess, err := e.CreateProcess(cmd)
+			existingProcess, err := e.CreateProcess(context.Background(), cmd)
 			if err != nil {
 				t.Fatalf("failed to create process: %v", err)
 			}
@@ -109,7 +110,7 @@ func TestCreateProcess(t *testing.T) {
 		t.Run(engineTypes[i]+"returns error when created again with a different BPMN XML", func(t *testing.T) {
 			// when
 			cmd.BpmnXml += " "
-			_, err := e.CreateProcess(cmd)
+			_, err := e.CreateProcess(context.Background(), cmd)
 
 			// then
 			assert.IsTypef(engine.Error{}, err, "expected engine error")
@@ -122,7 +123,7 @@ func TestCreateProcess(t *testing.T) {
 
 		t.Run(engineTypes[i]+"returns error when BPMN XML cannot be parsed", func(t *testing.T) {
 			// when
-			_, err := e.CreateProcess(engine.CreateProcessCmd{
+			_, err := e.CreateProcess(context.Background(), engine.CreateProcessCmd{
 				BpmnProcessId: "",
 				BpmnXml:       "",
 				Version:       "1",
@@ -141,7 +142,7 @@ func TestCreateProcess(t *testing.T) {
 
 		t.Run(engineTypes[i]+"returns error when BPMN model has no process", func(t *testing.T) {
 			// when
-			_, err := e.CreateProcess(engine.CreateProcessCmd{
+			_, err := e.CreateProcess(context.Background(), engine.CreateProcessCmd{
 				BpmnProcessId: "notExisting",
 				BpmnXml:       bpmnXml,
 				Version:       "1",
@@ -160,7 +161,7 @@ func TestCreateProcess(t *testing.T) {
 
 		t.Run(engineTypes[i]+"returns error when BPMN process is invalid", func(t *testing.T) {
 			// when
-			_, err := e.CreateProcess(engine.CreateProcessCmd{
+			_, err := e.CreateProcess(context.Background(), engine.CreateProcessCmd{
 				BpmnProcessId: "processNotExecutableTest",
 				BpmnXml:       mustReadBpmnFile(t, "invalid/process-not-executable.bpmn"),
 				Version:       "1",
@@ -209,7 +210,7 @@ func TestCreateProcessWithTimer(t *testing.T) {
 				}
 
 				// when
-				_, err := e.CreateProcess(cmd)
+				_, err := e.CreateProcess(context.Background(), cmd)
 				require.IsType(engine.Error{}, err)
 
 				// then
@@ -237,7 +238,7 @@ func TestCreateProcessWithTimer(t *testing.T) {
 				}
 
 				// when
-				_, err := e.CreateProcess(cmd)
+				_, err := e.CreateProcess(context.Background(), cmd)
 				require.IsType(engine.Error{}, err)
 
 				// then
@@ -265,7 +266,7 @@ func TestCreateProcessWithTimer(t *testing.T) {
 				}
 
 				// when
-				_, err := e.CreateProcess(cmd)
+				_, err := e.CreateProcess(context.Background(), cmd)
 				require.IsType(engine.Error{}, err)
 
 				// then
@@ -292,33 +293,31 @@ func TestCreateProcessWithTimer(t *testing.T) {
 				}
 
 				// when
-				process1, err := e.CreateProcess(cmd1)
+				process1, err := e.CreateProcess(context.Background(), cmd1)
 				require.NoError(err, "failed to create process")
 
 				// then
-				results, err := e.Query(engine.TaskCriteria{ProcessId: process1.Id, Type: engine.TaskTriggerEvent})
+				tasks, err := e.CreateQuery().QueryTasks(context.Background(), engine.TaskCriteria{ProcessId: process1.Id, Type: engine.TaskTriggerEvent})
 				require.NoError(err, "failed to query tasks")
-				require.Len(results, 1)
-
-				task := results[0].(engine.Task)
+				require.Len(tasks, 1)
 
 				assert.Equal(engine.Task{
-					Partition: task.Partition,
-					Id:        task.Id,
+					Partition: tasks[0].Partition,
+					Id:        tasks[0].Id,
 
-					ElementId:         task.ElementId,
+					ElementId:         tasks[0].ElementId,
 					ElementInstanceId: int32(0),
-					EventId:           task.EventId,
+					EventId:           tasks[0].EventId,
 					ProcessId:         process1.Id,
 					ProcessInstanceId: int32(0),
 
-					CreatedAt: task.CreatedAt,
+					CreatedAt: tasks[0].CreatedAt,
 					CreatedBy: testWorkerId,
-					DueAt:     task.DueAt,
+					DueAt:     tasks[0].DueAt,
 					Type:      engine.TaskTriggerEvent,
-				}, task)
+				}, tasks[0])
 
-				assert.NotEmpty(task.EventId)
+				assert.NotEmpty(tasks[0].EventId)
 
 				// given
 				cmd2 := engine.CreateProcessCmd{
@@ -333,37 +332,37 @@ func TestCreateProcessWithTimer(t *testing.T) {
 				}
 
 				// when
-				process2, err := e.CreateProcess(cmd2)
+				process2, err := e.CreateProcess(context.Background(), cmd2)
 				require.NoError(err, "failed to create process")
 
-				err = e.SetTime(engine.SetTimeCmd{
+				err = e.SetTime(context.Background(), engine.SetTimeCmd{
 					Time: time.Now().Add(time.Hour),
 				})
 				require.NoError(err, "failed to set time")
 
 				// then
-				results, err = e.Query(engine.TaskCriteria{ProcessId: process2.Id, Type: engine.TaskTriggerEvent})
+				tasks, err = e.CreateQuery().QueryTasks(context.Background(), engine.TaskCriteria{ProcessId: process2.Id, Type: engine.TaskTriggerEvent})
 				require.NoError(err, "failed to query tasks")
-				require.Len(results, 2)
+				require.Len(tasks, 2)
 
 				// when
-				completedTasks, failedTasks, err := e.ExecuteTasks(engine.ExecuteTasksCmd{Type: engine.TaskTriggerEvent, Limit: 3})
+				completedTasks, failedTasks, err := e.ExecuteTasks(context.Background(), engine.ExecuteTasksCmd{Type: engine.TaskTriggerEvent, Limit: 3})
 				require.NoError(err, "failed to execute tasks")
 
 				// then
 				assert.Len(completedTasks, 3)
 				assert.Len(failedTasks, 0)
 
-				results, err = e.Query(engine.ProcessInstanceCriteria{})
+				processInstances, err := e.CreateQuery().QueryProcessInstances(context.Background(), engine.ProcessInstanceCriteria{})
 				require.NoError(err, "failed to query process instances")
-				require.Len(results, 2)
+				require.Len(processInstances, 2)
 
-				assert.Equal(results[0].(engine.ProcessInstance).ProcessId, process2.Id)
-				assert.Equal(results[1].(engine.ProcessInstance).ProcessId, process2.Id)
+				assert.Equal(processInstances[0].ProcessId, process2.Id)
+				assert.Equal(processInstances[1].ProcessId, process2.Id)
 
-				results, err = e.Query(engine.TaskCriteria{ProcessId: process2.Id, Type: engine.TaskTriggerEvent})
+				tasks, err = e.CreateQuery().QueryTasks(context.Background(), engine.TaskCriteria{ProcessId: process2.Id, Type: engine.TaskTriggerEvent})
 				require.NoError(err, "failed to query tasks")
-				require.Len(results, 4, "expected two new tasks for the next time cycle")
+				require.Len(tasks, 4, "expected two new tasks for the next time cycle")
 			})
 		}
 	})

@@ -1,6 +1,7 @@
 package pg
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
@@ -13,8 +14,8 @@ import (
 )
 
 type ApiKeyManager interface {
-	CreateApiKey(secretId string) (ApiKey, string, error)
-	GetApiKey(authorization string) (ApiKey, error)
+	CreateApiKey(ctx context.Context, secretId string) (ApiKey, string, error)
+	GetApiKey(ctx context.Context, authorization string) (ApiKey, error)
 }
 
 type ApiKey struct {
