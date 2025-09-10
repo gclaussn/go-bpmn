@@ -562,6 +562,7 @@ type TaskCriteria struct {
 	Partition Partition `json:"partition"`    // Partition filter.
 	Id        int32     `json:"id,omitempty"` // Task filter.
 
+	ElementId         int32 `json:"elementId,omitempty"`         // Element filter.
 	ElementInstanceId int32 `json:"elementInstanceId,omitempty"` // Element instance filter.
 	ProcessId         int32 `json:"processId,omitempty"`         // Process filter.
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // Process instance filter.

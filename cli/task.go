@@ -105,7 +105,7 @@ func newTaskExecuteCmd(cli *Cli) *cobra.Command {
 	c.Flags().Var(&partition, "partition", "Task partition")
 	c.Flags().Int32Var(&cmd.Id, "id", 0, "Task ID")
 
-	c.Flags().Int32Var(&cmd.ElementInstanceId, "element-instance-id", 0, "Element instance ID")
+	c.Flags().Int32Var(&cmd.ProcessId, "process-id", 0, "Process ID")
 	c.Flags().Int32Var(&cmd.ProcessInstanceId, "process-instance-id", 0, "Process instance ID")
 	c.Flags().Var(&taskType, "type", "Task type")
 

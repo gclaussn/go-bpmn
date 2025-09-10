@@ -61,6 +61,7 @@ func TestQuery(t *testing.T) {
 		}
 
 		// task
+		taskElementIds         = []int32{0, 3, 0, 5, 5}
 		taskElementInstanceIds = []int32{0, 2, 0, 3, 4}
 		taskProcessIds         = []int32{0, 1, 0, 2, 2}
 		taskProcessInstanceIds = []int32{0, 10, 0, 20, 20}
@@ -133,6 +134,7 @@ func TestQuery(t *testing.T) {
 		entities = append(entities, &internal.TaskEntity{
 			Partition: partitions[i],
 
+			ElementId:         pgtype.Int4{Int32: taskElementIds[i], Valid: taskElementIds[i] != 0},
 			ElementInstanceId: pgtype.Int4{Int32: taskElementInstanceIds[i], Valid: taskElementInstanceIds[i] != 0},
 			ProcessId:         pgtype.Int4{Int32: taskProcessIds[i], Valid: taskProcessIds[i] != 0},
 			ProcessInstanceId: pgtype.Int4{Int32: taskProcessInstanceIds[i], Valid: taskProcessInstanceIds[i] != 0},
@@ -495,6 +497,15 @@ func TestQuery(t *testing.T) {
 					assert.Len(results, 1)
 					assert.Equal(engine.Partition(date), results[0].(engine.Task).Partition)
 					assert.Equal(int32(1), results[0].(engine.Task).Id)
+				},
+			},
+			{
+				"by element ID",
+				engine.TaskCriteria{ElementId: 5},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 2)
+					assert.Equal(int32(5), results[0].(engine.Task).ElementId)
+					assert.Equal(int32(5), results[1].(engine.Task).ElementId)
 				},
 			},
 			{

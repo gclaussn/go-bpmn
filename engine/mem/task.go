@@ -85,6 +85,9 @@ func (r *taskRepository) Query(c engine.TaskCriteria, o engine.QueryOptions) ([]
 				continue
 			}
 
+			if c.ElementId != 0 && c.ElementId != e.ElementId.Int32 {
+				continue
+			}
 			if c.ElementInstanceId != 0 && c.ElementInstanceId != e.ElementInstanceId.Int32 {
 				continue
 			}
@@ -155,12 +158,6 @@ func (r *taskRepository) Lock(cmd engine.ExecuteTasksCmd, lockedAt time.Time) ([
 				continue
 			}
 
-			if cmd.ElementId != 0 && cmd.ElementId != e.ElementId.Int32 {
-				continue
-			}
-			if cmd.ElementInstanceId != 0 && cmd.ElementInstanceId != e.ElementInstanceId.Int32 {
-				continue
-			}
 			if cmd.ProcessId != 0 && cmd.ProcessId != e.ProcessId.Int32 {
 				continue
 			}

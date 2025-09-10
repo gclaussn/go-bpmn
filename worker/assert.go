@@ -99,10 +99,21 @@ func (a *ProcessInstanceAssert) ExecuteTask() {
 	processInstance := a.a.ProcessInstance()
 	elementInstance := a.a.ElementInstance()
 
-	completedTasks, _, err := a.w.e.ExecuteTasks(context.Background(), engine.ExecuteTasksCmd{
+	tasks, err := a.w.e.CreateQuery().QueryTasks(context.Background(), engine.TaskCriteria{
 		Partition:         processInstance.Partition,
-		ProcessInstanceId: processInstance.Id,
 		ElementInstanceId: elementInstance.Id,
+	})
+	if err != nil {
+		a.a.Fatalf("failed to query tasks: %v", err)
+	}
+
+	if len(tasks) == 0 {
+		a.a.Fatalf("no task found")
+	}
+
+	completedTasks, _, err := a.w.e.ExecuteTasks(context.Background(), engine.ExecuteTasksCmd{
+		Partition: tasks[len(tasks)-1].Partition,
+		Id:        tasks[len(tasks)-1].Id,
 	})
 	if err != nil {
 		a.t.Fatalf("failed to execute task: %v", err)
