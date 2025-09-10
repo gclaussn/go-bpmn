@@ -23,11 +23,22 @@ func (a *ProcessInstanceAssert) ExecuteJob() {
 	processInstance := a.a.ProcessInstance()
 	elementInstance := a.a.ElementInstance()
 
-	lockedJobs, err := a.w.e.LockJobs(context.Background(), engine.LockJobsCmd{
+	jobs, err := a.w.e.CreateQuery().QueryJobs(context.Background(), engine.JobCriteria{
 		Partition:         processInstance.Partition,
-		ProcessInstanceId: processInstance.Id,
 		ElementInstanceId: elementInstance.Id,
-		WorkerId:          a.w.id,
+	})
+	if err != nil {
+		a.a.Fatalf("failed to query jobs: %v", err)
+	}
+
+	if len(jobs) == 0 {
+		a.a.Fatalf("no job found")
+	}
+
+	lockedJobs, err := a.w.e.LockJobs(context.Background(), engine.LockJobsCmd{
+		Partition: jobs[len(jobs)-1].Partition,
+		Id:        jobs[len(jobs)-1].Id,
+		WorkerId:  a.w.id,
 	})
 	if err != nil {
 		a.a.Fatalf("failed to lock job: %v", err)
@@ -50,11 +61,22 @@ func (a *ProcessInstanceAssert) ExecuteJobWithError() {
 	processInstance := a.a.ProcessInstance()
 	elementInstance := a.a.ElementInstance()
 
-	lockedJobs, err := a.w.e.LockJobs(context.Background(), engine.LockJobsCmd{
+	jobs, err := a.w.e.CreateQuery().QueryJobs(context.Background(), engine.JobCriteria{
 		Partition:         processInstance.Partition,
-		ProcessInstanceId: processInstance.Id,
 		ElementInstanceId: elementInstance.Id,
-		WorkerId:          a.w.id,
+	})
+	if err != nil {
+		a.a.Fatalf("failed to query jobs: %v", err)
+	}
+
+	if len(jobs) == 0 {
+		a.a.Fatalf("no job found")
+	}
+
+	lockedJobs, err := a.w.e.LockJobs(context.Background(), engine.LockJobsCmd{
+		Partition: jobs[len(jobs)-1].Partition,
+		Id:        jobs[len(jobs)-1].Id,
+		WorkerId:  a.w.id,
 	})
 	if err != nil {
 		a.a.Fatalf("failed to lock job: %v", err)

@@ -119,17 +119,6 @@ func TestLockJobs(t *testing.T) {
 
 	runJobLockTests(t, e, []jobLockTest{
 		{
-			"by element instance ID",
-			engine.LockJobsCmd{ElementInstanceId: 3, Limit: len(partitions)},
-			func(assert *assert.Assertions, lockedJobs []engine.Job) {
-				assert.Len(lockedJobs, 1)
-				assert.Equal(int32(3), lockedJobs[0].ElementInstanceId)
-			},
-		},
-	})
-
-	runJobLockTests(t, e, []jobLockTest{
-		{
 			"by process IDs",
 			engine.LockJobsCmd{ProcessIds: []int32{1, 3}, Limit: len(partitions)},
 			func(assert *assert.Assertions, lockedJobs []engine.Job) {
@@ -151,26 +140,6 @@ func TestLockJobs(t *testing.T) {
 				assert.Equal(int32(10), lockedJobs[0].ProcessInstanceId)
 				assert.Equal(int32(10), lockedJobs[1].ProcessInstanceId)
 				assert.Equal(int32(10), lockedJobs[2].ProcessInstanceId)
-			},
-		},
-	})
-
-	runJobLockTests(t, e, []jobLockTest{
-		{
-			"by BPMN element ID",
-			engine.LockJobsCmd{BpmnElementIds: []string{"a", "b"}, Limit: len(partitions)},
-			func(assert *assert.Assertions, lockedJobs []engine.Job) {
-				assert.Len(lockedJobs, 3)
-				assert.Equal("a", lockedJobs[0].BpmnElementId)
-				assert.Equal("b", lockedJobs[1].BpmnElementId)
-				assert.Equal("a", lockedJobs[2].BpmnElementId)
-			},
-		},
-		{
-			"by BPMN element ID with future due date",
-			engine.LockJobsCmd{BpmnElementIds: []string{"z"}, Limit: len(partitions)},
-			func(assert *assert.Assertions, lockedJobs []engine.Job) {
-				assert.Len(lockedJobs, 0)
 			},
 		},
 	})

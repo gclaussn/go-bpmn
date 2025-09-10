@@ -18,21 +18,15 @@ FROM (
 		AND id = {{.Id}}
 {{end}}
 
-{{if .BpmnElementIds}}
-		AND bpmn_element_id IN ({{.BpmnElementIds | joinString}})
-{{end}}
-{{if ne .ElementInstanceId 0}}
-		AND element_instance_id = {{.ElementInstanceId}}
-{{end}}
 {{if .ProcessIds}}
 		AND process_id IN ({{.ProcessIds | joinInt32}})
 {{end}}
 {{if ne .ProcessInstanceId 0}}
 		AND process_instance_id = {{.ProcessInstanceId}}
 {{end}}
-  ORDER BY
-	  partition,
-	  due_at
+	ORDER BY
+		partition,
+		due_at
 	LIMIT
 		{{.Limit}}
 	FOR UPDATE SKIP LOCKED

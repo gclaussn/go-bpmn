@@ -174,8 +174,6 @@ func newJobLockCmd(cli *Cli) *cobra.Command {
 	c.Flags().Var(&partition, "partition", "Job partition")
 	c.Flags().Int32Var(&cmd.Id, "id", 0, "Job ID")
 
-	c.Flags().StringSliceVar(&cmd.BpmnElementIds, "bpmn-element-id", nil, "ID of a BPMN element to include")
-	c.Flags().Int32Var(&cmd.ElementInstanceId, "element-instance-id", 0, "Element instance ID")
 	c.Flags().Int32SliceVar(&cmd.ProcessIds, "process-id", nil, "IDs of processes to include")
 	c.Flags().Int32Var(&cmd.ProcessInstanceId, "process-instance-id", 0, "Process instance ID")
 

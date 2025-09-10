@@ -30,6 +30,9 @@ WHERE
 	AND id = {{.c.Id}}
 {{end}}
 
+{{if ne .c.ElementId 0}}
+	AND element_id = {{.c.ElementId}}
+{{end}}
 {{if ne .c.ElementInstanceId 0}}
 	AND element_instance_id = {{.c.ElementInstanceId}}
 {{end}}

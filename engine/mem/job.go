@@ -77,6 +77,9 @@ func (r *jobRepository) Query(c engine.JobCriteria, o engine.QueryOptions) ([]en
 				continue
 			}
 
+			if c.ElementId != 0 && c.ElementId != e.ElementId {
+				continue
+			}
 			if c.ElementInstanceId != 0 && c.ElementInstanceId != e.ElementInstanceId {
 				continue
 			}
@@ -139,12 +142,6 @@ func (r *jobRepository) Lock(cmd engine.LockJobsCmd, lockedAt time.Time) ([]*int
 				continue
 			}
 
-			if len(cmd.BpmnElementIds) != 0 && !slices.Contains(cmd.BpmnElementIds, e.BpmnElementId) {
-				continue
-			}
-			if cmd.ElementInstanceId != 0 && cmd.ElementInstanceId != e.ElementInstanceId {
-				continue
-			}
 			if len(cmd.ProcessIds) != 0 && !slices.Contains(cmd.ProcessIds, e.ProcessId) {
 				continue
 			}

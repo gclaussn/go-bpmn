@@ -36,6 +36,7 @@ func TestQuery(t *testing.T) {
 
 		partitions = []time.Time{date, date, date, datePlus1, datePlus1}
 
+		elementIds         = []int32{3, 3, 4, 5, 5}
 		elementInstanceIds = []int32{1, 2, 2, 3, 4}
 		jobIds             = []int32{1, 2, 3, 0, 0}
 		processIds         = []int32{1, 1, 1, 2, 2}
@@ -120,6 +121,7 @@ func TestQuery(t *testing.T) {
 		entities = append(entities, &internal.JobEntity{
 			Partition: partitions[i],
 
+			ElementId:         elementIds[i],
 			ElementInstanceId: elementInstanceIds[i],
 			ProcessId:         processIds[i],
 			ProcessInstanceId: processInstanceIds[i],
@@ -336,6 +338,15 @@ func TestQuery(t *testing.T) {
 					assert.Len(results, 1)
 					assert.Equal(engine.Partition(date), results[0].(engine.Job).Partition)
 					assert.Equal(int32(1), results[0].(engine.Job).Id)
+				},
+			},
+			{
+				"by element ID",
+				engine.JobCriteria{ElementId: 3},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 2)
+					assert.Equal(int32(3), results[0].(engine.Job).ElementId)
+					assert.Equal(int32(3), results[1].(engine.Job).ElementId)
 				},
 			},
 			{

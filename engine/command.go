@@ -123,10 +123,6 @@ type LockJobsCmd struct {
 	// Job condition - must be used in combination with a partition.
 	Id int32 `json:"id,omitempty"`
 
-	// IDs of a BPMN elements to include.
-	BpmnElementIds []string `json:"bpmnElementIds,omitempty" validate:"max=100,unique"`
-	// Element instance condition - must be used in combination with a partition.
-	ElementInstanceId int32 `json:"elementInstanceId,omitempty"`
 	// IDs of processes to include.
 	ProcessIds []int32 `json:"processIds,omitempty" validate:"max=100,unique"`
 	// Process instance condition - must be used in combination with a partition.
