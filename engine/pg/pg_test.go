@@ -38,26 +38,28 @@ func TestSetTime(t *testing.T) {
 
 		q := e.CreateQuery()
 
-		tasks, err := q.QueryTasks(context.Background(), engine.TaskCriteria{Partition: engine.Partition(newTime.AddDate(0, 0, 1))})
+		tasks, err := q.QueryTasks(context.Background(), engine.TaskCriteria{
+			Partition: engine.Partition(newTime.AddDate(0, 0, 1)),
+
+			Type: engine.TaskCreatePartition,
+		})
 		if err != nil {
 			t.Fatalf("failed to query tasks: %v", err)
 		}
 
 		assert.Len(tasks, 1)
-
-		createPartition := tasks[0]
-		assert.Equal(engine.TaskCreatePartition, createPartition.Type)
 
 		// then
-		tasks, err = q.QueryTasks(context.Background(), engine.TaskCriteria{Partition: engine.Partition(newTime.AddDate(0, 0, 2))})
+		tasks, err = q.QueryTasks(context.Background(), engine.TaskCriteria{
+			Partition: engine.Partition(newTime.AddDate(0, 0, 2)),
+
+			Type: engine.TaskDetachPartition,
+		})
 		if err != nil {
 			t.Fatalf("failed to query tasks: %v", err)
 		}
 
 		assert.Len(tasks, 1)
-
-		detachPartition := tasks[0]
-		assert.Equal(engine.TaskDetachPartition, detachPartition.Type)
 
 		// when called again
 		time.Sleep(time.Second)

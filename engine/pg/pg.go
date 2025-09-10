@@ -362,10 +362,10 @@ func (e *pgEngine) ResumeProcessInstance(ctx context.Context, cmd engine.ResumeP
 	return e.release(pgCtx, err)
 }
 
-func (e *pgEngine) SendSignal(ctx context.Context, cmd engine.SendSignalCmd) (engine.SignalEvent, error) {
+func (e *pgEngine) SendSignal(ctx context.Context, cmd engine.SendSignalCmd) (engine.Signal, error) {
 	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
-		return engine.SignalEvent{}, err
+		return engine.Signal{}, err
 	}
 
 	defer cancel()

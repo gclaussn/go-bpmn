@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
+	"github.com/stretchr/testify/assert"
 )
 
 func newTimerEventTest(t *testing.T, e engine.Engine) timerEventTest {
@@ -51,14 +52,12 @@ func (x timerEventTest) catch(t *testing.T) {
 func (x timerEventTest) start(t *testing.T) {
 	bpmnXml := mustReadBpmnFile(t, "event/timer-start.bpmn")
 
-	startTime := time.Now().Add(time.Hour)
-
 	process, err := x.e.CreateProcess(context.Background(), engine.CreateProcessCmd{
 		BpmnProcessId: "timerStartTest",
 		BpmnXml:       bpmnXml,
 		Timers: map[string]*engine.Timer{
 			"timerStartEvent": {
-				Time: startTime,
+				TimeCycle: "0 * * * *",
 			},
 		},
 		Version:  "1",
@@ -68,6 +67,12 @@ func (x timerEventTest) start(t *testing.T) {
 		t.Fatalf("failed to create process: %v", err)
 	}
 
-	piAssert := engine.AsserTimerStart(t, x.e, process.Id, startTime)
-	piAssert.IsCompleted()
+	piAssert1 := engine.AsserTimerStart(t, x.e, process.Id, "timerStartEvent")
+	piAssert1.IsCompleted()
+
+	piAssert2 := engine.AsserTimerStart(t, x.e, process.Id, "timerStartEvent")
+	piAssert2.IsCompleted()
+
+	assert := assert.New(t)
+	assert.NotEqual(piAssert1.ProcessInstance().String(), piAssert2.ProcessInstance().String())
 }

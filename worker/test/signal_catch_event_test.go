@@ -25,11 +25,11 @@ func (d signalCatchEventDelegate) CreateProcessCmd() (engine.CreateProcessCmd, e
 }
 
 func (d signalCatchEventDelegate) Delegate(delegator worker.Delegator) error {
-	delegator.SetSignalName("signalCatchEvent", d.setSignalName)
+	delegator.SubscribeSignal("signalCatchEvent", d.subscribeSignal)
 	return nil
 }
 
-func (d signalCatchEventDelegate) setSignalName(jc worker.JobContext) (string, error) {
+func (d signalCatchEventDelegate) subscribeSignal(jc worker.JobContext) (string, error) {
 	return "catch-signal", nil
 }
 

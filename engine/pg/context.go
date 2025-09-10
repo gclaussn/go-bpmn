@@ -48,10 +48,6 @@ func (c *pgContext) EventDefinitions() internal.EventDefinitionRepository {
 	return &eventDefinitionRepository{tx: c.tx, txCtx: c.txCtx}
 }
 
-func (c *pgContext) EventVariables() internal.EventVariableRepository {
-	return &eventVariableRepository{tx: c.tx, txCtx: c.txCtx}
-}
-
 func (c *pgContext) Incidents() internal.IncidentRepository {
 	return &incidentRepository{tx: c.tx, txCtx: c.txCtx}
 }
@@ -76,8 +72,16 @@ func (c *pgContext) ProcessInstanceQueues() internal.ProcessInstanceQueueReposit
 	return &processInstanceQueueRepository{tx: c.tx, txCtx: c.txCtx}
 }
 
+func (c *pgContext) Signals() internal.SignalRepository {
+	return &signalRepository{tx: c.tx, txCtx: c.txCtx}
+}
+
 func (c *pgContext) SignalSubscriptions() internal.SignalSubscriptionRepository {
 	return &signalSubscriptionRepository{tx: c.tx, txCtx: c.txCtx}
+}
+
+func (c *pgContext) SignalVariables() internal.SignalVariableRepository {
+	return &signalVariableRepository{tx: c.tx, txCtx: c.txCtx}
 }
 
 func (c *pgContext) Tasks() internal.TaskRepository {

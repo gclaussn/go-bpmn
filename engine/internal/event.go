@@ -10,27 +10,15 @@ import (
 
 type EventEntity struct {
 	Partition time.Time
-	Id        int32
 
-	CreatedAt             time.Time
-	CreatedBy             string
-	SignalName            pgtype.Text
-	SignalSubscriberCount pgtype.Int4
-	Time                  pgtype.Timestamp
-	TimeCycle             pgtype.Text
-	TimeDuration          pgtype.Text
-}
+	ElementInstanceId int32
 
-func (e EventEntity) SignalEvent() engine.SignalEvent {
-	return engine.SignalEvent{
-		Partition: engine.Partition(e.Partition),
-		Id:        e.Id,
-
-		CreatedAt:       e.CreatedAt,
-		CreatedBy:       e.CreatedBy,
-		Name:            e.SignalName.String,
-		SubscriberCount: int(e.SignalSubscriberCount.Int32),
-	}
+	CreatedAt    time.Time
+	CreatedBy    string
+	SignalName   pgtype.Text
+	Time         pgtype.Timestamp
+	TimeCycle    pgtype.Text
+	TimeDuration pgtype.Text
 }
 
 type EventRepository interface {
@@ -68,23 +56,6 @@ type EventDefinitionRepository interface {
 	SelectBySignalName(signalName string) ([]*EventDefinitionEntity, error)
 
 	UpdateBatch([]*EventDefinitionEntity) error
-}
-
-type EventVariableEntity struct {
-	Partition time.Time
-	Id        int32
-
-	EventId int32
-
-	Encoding    pgtype.Text // NULL, when a process instance variable should be deleted
-	IsEncrypted pgtype.Bool // NULL, when a process instance variable should be deleted
-	Name        string
-	Value       pgtype.Text // NULL, when a process instance variable should be deleted
-}
-
-type EventVariableRepository interface {
-	InsertBatch([]*EventVariableEntity) error
-	SelectByEvent(partition time.Time, eventId int32) ([]*EventVariableEntity, error)
 }
 
 func suspendEventDefinitions(ctx Context, bpmnProcessId string) error {

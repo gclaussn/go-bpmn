@@ -26,7 +26,6 @@ INSERT INTO element_instance (
 	parent_id,
 
 	element_id,
-	event_id,
 	prev_element_id,
 	prev_element_instance_id,
 	process_id,
@@ -52,8 +51,8 @@ INSERT INTO element_instance (
 	$6,
 	$7,
 	$8,
-	$9,
 
+	$9,
 	$10,
 	$11,
 	$12,
@@ -62,8 +61,7 @@ INSERT INTO element_instance (
 	$15,
 	$16,
 	$17,
-	$18,
-	$19
+	$18
 ) RETURNING id
 `,
 		entity.Partition,
@@ -72,7 +70,6 @@ INSERT INTO element_instance (
 		entity.ParentId,
 
 		entity.ElementId,
-		entity.EventId,
 		entity.PrevElementId,
 		entity.PrevElementInstanceId,
 		entity.ProcessId,
@@ -103,7 +100,6 @@ SELECT
 	parent_id,
 
 	element_id,
-	event_id,
 	prev_element_id,
 	prev_element_instance_id,
 	process_id,
@@ -134,7 +130,6 @@ WHERE
 		&entity.ParentId,
 
 		&entity.ElementId,
-		&entity.EventId,
 		&entity.PrevElementId,
 		&entity.PrevElementInstanceId,
 		&entity.ProcessId,
@@ -170,7 +165,6 @@ SELECT
 	parent_id,
 
 	element_id,
-	event_id,
 	prev_element_id,
 	prev_element_instance_id,
 	process_id,
@@ -215,7 +209,6 @@ WHERE
 			&entity.ParentId,
 
 			&entity.ElementId,
-			&entity.EventId,
 			&entity.PrevElementId,
 			&entity.PrevElementInstanceId,
 			&entity.ProcessId,
@@ -327,21 +320,17 @@ func (r elementInstanceRepository) Update(entity *internal.ElementInstanceEntity
 UPDATE
 	element_instance
 SET
-	event_id = $3,
-
-	ended_at = $4,
-	execution_count = $5,
-	started_at = $6,
-	state = $7,
-	state_changed_by = $8
+	ended_at = $3,
+	execution_count = $4,
+	started_at = $5,
+	state = $6,
+	state_changed_by = $7
 WHERE
 	partition = $1 AND
 	id = $2
 `,
 		entity.Partition,
 		entity.Id,
-
-		entity.EventId,
 
 		entity.EndedAt,
 		entity.ExecutionCount,
@@ -385,7 +374,6 @@ func (r elementInstanceRepository) Query(criteria engine.ElementInstanceCriteria
 			&entity.ParentId,
 
 			&entity.ElementId,
-			&entity.EventId,
 			&entity.ProcessId,
 			&entity.ProcessInstanceId,
 

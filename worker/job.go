@@ -93,14 +93,14 @@ func (d Delegator) ExecuteGeneric(bpmnElementId string, delegation func(jc JobCo
 	}
 }
 
-// SetSignalName delegates jobs of type [engine.JobSetSignalName].
+// SubscribeSignal delegates jobs of type [engine.JobSubscribeSignal].
 //
 // Applicable for BPMN element types:
 //   - signal catch event
-func (d Delegator) SetSignalName(bpmnElementId string, delegation func(jc JobContext) (string, error)) {
+func (d Delegator) SubscribeSignal(bpmnElementId string, delegation func(jc JobContext) (string, error)) {
 	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
-		if jc.Job.Type != engine.JobSetSignalName {
-			return nil, fmt.Errorf("expected job type %s, but got %s", engine.JobSetSignalName, jc.Job.Type)
+		if jc.Job.Type != engine.JobSubscribeSignal {
+			return nil, fmt.Errorf("expected job type %s, but got %s", engine.JobSubscribeSignal, jc.Job.Type)
 		}
 
 		signalName, err := delegation(jc)

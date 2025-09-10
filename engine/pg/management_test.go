@@ -8,6 +8,7 @@ import (
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/engine/internal"
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -74,7 +75,7 @@ func TestMigrateAndPrepareDatabase(t *testing.T) {
 			t.Fatalf("failed to query tasks: %v", err)
 		}
 
-		assert.Len(results, 1)
+		assert.Len(results, 2)
 
 		detachPartition := results[0]
 		assert.Equal(time.Date(2023, 12, 26, 0, 0, 0, 0, time.UTC), time.Time(detachPartition.Partition))
@@ -87,6 +88,11 @@ func TestMigrateAndPrepareDatabase(t *testing.T) {
 		}
 
 		assert.Equal(time.Date(2023, 12, 24, 0, 0, 0, 0, time.UTC), time.Time(detachPartitionTask.Partition))
+
+		purgeSignals := results[1]
+		assert.Equal(time.Date(2023, 12, 26, 0, 0, 0, 0, time.UTC), time.Time(purgeSignals.Partition))
+		assert.Equal(time.Date(2023, 12, 26, 0, 0, 0, 0, time.UTC), purgeSignals.DueAt)
+		assert.Equal(engine.TaskPurgeSignals, purgeSignals.Type)
 	})
 
 	t.Run("no tasks created when prepared again ", func(t *testing.T) {
@@ -109,7 +115,7 @@ func TestMigrateAndPrepareDatabase(t *testing.T) {
 			t.Fatalf("failed to query tasks: %v", err)
 		}
 
-		assert.Len(results, 1)
+		assert.Len(results, 2)
 	})
 }
 
@@ -222,5 +228,80 @@ func TestPartitionManagementTasks(t *testing.T) {
 		}); err != nil {
 			t.Fatal(err)
 		}
+	})
+}
+
+func TestPurgeSignals(t *testing.T) {
+	assert := assert.New(t)
+
+	e := mustCreateEngine(t)
+	defer e.Shutdown()
+
+	pgEngine := e.(*pgEngine)
+
+	signal1 := &internal.SignalEntity{
+		ActiveSubscriberCount: 0,
+		CreatedAt:             time.Now(),
+		CreatedBy:             "test",
+		Name:                  "1",
+		SubscriberCount:       1,
+	}
+	signal2 := &internal.SignalEntity{
+		ActiveSubscriberCount: 2,
+		CreatedAt:             time.Now(),
+		CreatedBy:             "test",
+		Name:                  "2",
+		SubscriberCount:       2,
+	}
+
+	mustInsertEntities(t, e, []any{signal1, signal2})
+
+	signalVariableA := &internal.SignalVariableEntity{
+		SignalId: signal1.Id,
+
+		Name: "a",
+	}
+	signalVariableB := &internal.SignalVariableEntity{
+		SignalId: signal1.Id,
+
+		Name: "b",
+	}
+	signalVariableC := &internal.SignalVariableEntity{
+		SignalId: signal2.Id,
+
+		Name: "c",
+	}
+	signalVariableD := &internal.SignalVariableEntity{
+		SignalId: signal2.Id,
+
+		Name: "d",
+	}
+
+	mustInsertEntities(t, e, []any{signalVariableA, signalVariableB, signalVariableC, signalVariableD})
+
+	pgEngine.execute(func(pgCtx *pgContext) error {
+		task := purgeSignalsTask{}
+
+		if err := pgEngine.execute(func(pgCtx *pgContext) error {
+			return task.Execute(pgCtx, nil)
+		}); err != nil {
+			t.Fatalf("failed to purge signals: %v", err)
+		}
+
+		_, err1 := pgCtx.Signals().Select(signal1.Id)
+		assert.ErrorIs(err1, pgx.ErrNoRows)
+
+		_, err2 := pgCtx.Signals().Select(signal2.Id)
+		assert.NoError(err2)
+
+		signalVariables1, err1 := pgCtx.SignalVariables().SelectBySignalId(signal1.Id)
+		assert.NoError(err1)
+		assert.Len(signalVariables1, 0)
+
+		signalVariables2, err2 := pgCtx.SignalVariables().SelectBySignalId(signal2.Id)
+		assert.NoError(err2)
+		assert.Len(signalVariables2, 2)
+
+		return nil
 	})
 }

@@ -307,17 +307,15 @@ func TestCreateProcessWithTimer(t *testing.T) {
 
 					ElementId:         tasks[0].ElementId,
 					ElementInstanceId: int32(0),
-					EventId:           tasks[0].EventId,
 					ProcessId:         process1.Id,
 					ProcessInstanceId: int32(0),
 
-					CreatedAt: tasks[0].CreatedAt,
-					CreatedBy: testWorkerId,
-					DueAt:     tasks[0].DueAt,
-					Type:      engine.TaskTriggerEvent,
+					CreatedAt:      tasks[0].CreatedAt,
+					CreatedBy:      testWorkerId,
+					DueAt:          tasks[0].DueAt,
+					SerializedTask: tasks[0].SerializedTask,
+					Type:           engine.TaskTriggerEvent,
 				}, tasks[0])
-
-				assert.NotEmpty(tasks[0].EventId)
 
 				// given
 				cmd2 := engine.CreateProcessCmd{

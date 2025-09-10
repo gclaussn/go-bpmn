@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/gclaussn/go-bpmn/model"
@@ -87,16 +88,16 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 //   - [JobEvaluateExclusiveGateway]: forking exclusive gateway
 //   - [JobEvaluateInclusiveGateway]: forking inclusive gateway
 //   - [JobExecute]: business rule, script, send and service task
-//   - [JobSetSignalName]: signal catch event
 //   - [JobSetTimer]: timer catch event
+//   - [JobSubscribeSignal]: signal catch event
 type JobType int
 
 const (
 	JobEvaluateExclusiveGateway JobType = iota + 1
 	JobEvaluateInclusiveGateway
 	JobExecute
-	JobSetSignalName
 	JobSetTimer
+	JobSubscribeSignal
 )
 
 func MapJobType(s string) JobType {
@@ -107,10 +108,10 @@ func MapJobType(s string) JobType {
 		return JobEvaluateInclusiveGateway
 	case "EXECUTE":
 		return JobExecute
-	case "SET_SIGNAL_NAME":
-		return JobSetSignalName
 	case "SET_TIMER":
 		return JobSetTimer
+	case "SUBSCRIBE_SIGNAL":
+		return JobSubscribeSignal
 	default:
 		return 0
 	}
@@ -132,10 +133,10 @@ func (v JobType) String() string {
 		return "EVALUATE_INCLUSIVE_GATEWAY"
 	case JobExecute:
 		return "EXECUTE"
-	case JobSetSignalName:
-		return "SET_SIGNAL_NAME"
 	case JobSetTimer:
 		return "SET_TIMER"
+	case JobSubscribeSignal:
+		return "SUBSCRIBE_SIGNAL"
 	default:
 		return ""
 	}
@@ -168,6 +169,7 @@ func (v *JobType) UnmarshalJSON(data []byte) error {
 //   - [TaskCreatePartition] creates the table partitions for a specific date
 //   - [TaskDetachPartition] detaches completed table partitions
 //   - [TaskDropPartition] drops a detached table partitions
+//   - [TaskPurgeSignals] purges signals that have no active subscribers anymore
 type TaskType int
 
 const (
@@ -180,6 +182,7 @@ const (
 	TaskCreatePartition
 	TaskDetachPartition
 	TaskDropPartition
+	TaskPurgeSignals
 )
 
 func MapTaskType(s string) TaskType {
@@ -199,6 +202,8 @@ func MapTaskType(s string) TaskType {
 		return TaskDetachPartition
 	case "DROP_PARTITION":
 		return TaskDropPartition
+	case "PURGE_SIGNALS":
+		return TaskPurgeSignals
 	default:
 		return 0
 	}
@@ -229,6 +234,8 @@ func (v TaskType) String() string {
 		return "DETACH_PARTITION"
 	case TaskDropPartition:
 		return "DROP_PARTITION"
+	case TaskPurgeSignals:
+		return "PURGE_SIGNALS"
 	default:
 		return ""
 	}
@@ -494,10 +501,9 @@ type ProcessInstanceCriteria struct {
 	Tags map[string]string `json:"tags,omitempty"` // Tags, a process instance must have, to be included.
 }
 
-// SignalEvent represents a notification of signal subscribers (signal start or catch events).
-type SignalEvent struct {
-	Partition Partition `json:"partition" validate:"required"` // Event partition.
-	Id        int32     `json:"id" validate:"required"`        // Event ID.
+// Signal represents a notification of signal subscribers (signal start or catch events).
+type Signal struct {
+	Id int64 `json:"id" validate:"required"` // Signal ID.
 
 	CreatedAt       time.Time `json:"createdAt" validate:"required"`             // Signal sent time.
 	CreatedBy       string    `json:"createdBy" validate:"required"`             // ID of the worker or engine that sent the signal.
@@ -505,8 +511,8 @@ type SignalEvent struct {
 	SubscriberCount int       `json:"subscriberCount" validate:"required,gte=0"` // Number of notified signal subscribers.
 }
 
-func (v SignalEvent) String() string {
-	return fmt.Sprintf("%s/%d", v.Partition, v.Id)
+func (v Signal) String() string {
+	return strconv.FormatInt(v.Id, 10)
 }
 
 // Task is a unit of work, which must be locked, executed and completed by an engine.
@@ -516,7 +522,6 @@ type Task struct {
 
 	ElementId         int32 `json:"elementId,omitempty"`         // ID of the related element.
 	ElementInstanceId int32 `json:"elementInstanceId,omitempty"` // ID of the related element instance.
-	EventId           int32 `json:"eventId,omitempty"`           // ID of the related event.
 	ProcessId         int32 `json:"processId,omitempty"`         // ID of the related process.
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // ID of the enclosing process instance.
 

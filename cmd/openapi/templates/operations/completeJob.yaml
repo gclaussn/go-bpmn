@@ -33,6 +33,12 @@ requestBody:
               timer:
                 time: "2025-05-02T10:30:00.000Z"
             workerId: go-bpmn
+        subscribe_signal:
+          summary: SUBSCRIBE_SIGNAL
+          value:
+            completion:
+              signalName: example-signal
+            workerId: go-bpmn
 responses:
   "200":
     description: Job completed

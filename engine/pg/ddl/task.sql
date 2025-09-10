@@ -4,7 +4,6 @@ CREATE TABLE IF NOT EXISTS task (
 
 	element_id INTEGER,
 	element_instance_id INTEGER,
-	event_id INTEGER,
 	process_id INTEGER,
 	process_instance_id INTEGER,
 

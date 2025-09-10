@@ -48,7 +48,7 @@ func (x signalEventTest) catch(t *testing.T) {
 	})
 
 	// when signal sent
-	signalEvent, err := x.e.SendSignal(context.Background(), engine.SendSignalCmd{
+	signal, err := x.e.SendSignal(context.Background(), engine.SendSignalCmd{
 		Name: "catch-signal",
 		Variables: map[string]*engine.Data{
 			"a": {Encoding: "encoding-a", Value: "value-a"},
@@ -62,16 +62,15 @@ func (x signalEventTest) catch(t *testing.T) {
 	}
 
 	// then
-	assert.False(signalEvent.Partition.IsZero())
-	assert.NotEmpty(signalEvent.Id)
+	assert.NotEmpty(signal.Id)
 
-	assert.NotEmpty(signalEvent.CreatedAt)
-	assert.Equal(testWorkerId, signalEvent.CreatedBy)
-	assert.Equal("catch-signal", signalEvent.Name)
-	assert.Equal(1, signalEvent.SubscriberCount)
+	assert.NotEmpty(signal.CreatedAt)
+	assert.Equal(testWorkerId, signal.CreatedBy)
+	assert.Equal("catch-signal", signal.Name)
+	assert.Equal(1, signal.SubscriberCount)
 
 	// when signal sent again
-	signalEvent, err = x.e.SendSignal(context.Background(), engine.SendSignalCmd{
+	signal, err = x.e.SendSignal(context.Background(), engine.SendSignalCmd{
 		Name:     "catch-signal",
 		WorkerId: testWorkerId,
 	})
@@ -80,13 +79,12 @@ func (x signalEventTest) catch(t *testing.T) {
 	}
 
 	// then
-	assert.False(signalEvent.Partition.IsZero())
-	assert.NotEmpty(signalEvent.Id)
+	assert.NotEmpty(signal.Id)
 
-	assert.NotEmpty(signalEvent.CreatedAt)
-	assert.Equal(testWorkerId, signalEvent.CreatedBy)
-	assert.Equal("catch-signal", signalEvent.Name)
-	assert.Equal(0, signalEvent.SubscriberCount)
+	assert.NotEmpty(signal.CreatedAt)
+	assert.Equal(testWorkerId, signal.CreatedBy)
+	assert.Equal("catch-signal", signal.Name)
+	assert.Equal(0, signal.SubscriberCount)
 
 	piAssert.IsWaitingAt("signalCatchEvent")
 	piAssert.ExecuteTask()
@@ -113,14 +111,20 @@ func (x signalEventTest) start(t *testing.T) {
 		t.Fatalf("failed to create process: %v", err)
 	}
 
-	piAssert := engine.AssertSignalStart(t, x.e, process.Id, "signalStartEvent", map[string]*engine.Data{
+	piAssert1 := engine.AssertSignalStart(t, x.e, process.Id, "signalStartEvent", map[string]*engine.Data{
 		"a": {Encoding: "encoding-a", Value: "value-a"},
 		"b": {Encoding: "encoding-b", Value: "value-b"},
 		"c": nil,
 	})
 
-	piAssert.IsCompleted()
-	piAssert.HasProcessVariable("a")
-	piAssert.HasProcessVariable("b")
-	piAssert.HasNoProcessVariable("c")
+	piAssert1.IsCompleted()
+	piAssert1.HasProcessVariable("a")
+	piAssert1.HasProcessVariable("b")
+	piAssert1.HasNoProcessVariable("c")
+
+	piAssert2 := engine.AssertSignalStart(t, x.e, process.Id, "signalStartEvent")
+	piAssert2.IsCompleted()
+
+	assert := assert.New(t)
+	assert.NotEqual(piAssert1.ProcessInstance().String(), piAssert2.ProcessInstance().String())
 }

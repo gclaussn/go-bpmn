@@ -202,7 +202,7 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 			taskType = engine.TaskJoinParallelGateway
 			taskInstance = JoinParallelGatewayTask{}
 		case model.ElementSignalCatchEvent:
-			jobType = engine.JobSetSignalName
+			jobType = engine.JobSubscribeSignal
 		case model.ElementTimerCatchEvent:
 			jobType = engine.JobSetTimer
 		default:
@@ -418,7 +418,40 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 			job.Error = pgtype.Text{String: "BPMN escalation code is not supported", Valid: true}
 			return nil
 		}
-	case engine.JobSetSignalName:
+	case engine.JobSetTimer:
+		if jobCompletion == nil || jobCompletion.Timer == nil {
+			job.Error = pgtype.Text{String: "expected a timer", Valid: true}
+			return nil
+		}
+
+		dueAt, err := evaluateTimer(*jobCompletion.Timer, ctx.Time())
+		if err != nil {
+			job.Error = pgtype.Text{String: fmt.Sprintf("failed to evaluate timer: %v", err), Valid: true}
+			return nil
+		}
+
+		triggerEventTask := TaskEntity{
+			Partition: execution.Partition,
+
+			ElementId:         pgtype.Int4{Int32: execution.ElementId, Valid: true},
+			ElementInstanceId: pgtype.Int4{Int32: execution.Id, Valid: true},
+			ProcessId:         pgtype.Int4{Int32: execution.ProcessId, Valid: true},
+			ProcessInstanceId: pgtype.Int4{Int32: execution.ProcessInstanceId, Valid: true},
+
+			CreatedAt: ctx.Time(),
+			CreatedBy: ec.engineOrWorkerId,
+			DueAt:     dueAt,
+			Type:      engine.TaskTriggerEvent,
+
+			Instance: TriggerEventTask{Timer: jobCompletion.Timer},
+		}
+
+		if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {
+			return err
+		}
+
+		return nil // do not continue execution
+	case engine.JobSubscribeSignal:
 		if jobCompletion == nil || jobCompletion.SignalName == "" {
 			job.Error = pgtype.Text{String: "expected a signal name", Valid: true}
 			return nil
@@ -437,39 +470,6 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 		}
 
 		if err := ctx.SignalSubscriptions().Insert(&signalSubscription); err != nil {
-			return err
-		}
-
-		return nil // do not continue execution
-	case engine.JobSetTimer:
-		if jobCompletion == nil || jobCompletion.Timer == nil {
-			job.Error = pgtype.Text{String: "expected a timer", Valid: true}
-			return nil
-		}
-
-		dueAt, err := evaluateTimer(*jobCompletion.Timer, ctx.Time())
-		if err != nil {
-			job.Error = pgtype.Text{String: fmt.Sprintf("failed to evaluate timer: %v", err), Valid: true}
-			return nil
-		}
-
-		triggerTimerEvent := TaskEntity{
-			Partition: execution.Partition,
-
-			ElementId:         pgtype.Int4{Int32: execution.ElementId, Valid: true},
-			ElementInstanceId: pgtype.Int4{Int32: execution.Id, Valid: true},
-			ProcessId:         pgtype.Int4{Int32: execution.ProcessId, Valid: true},
-			ProcessInstanceId: pgtype.Int4{Int32: execution.ProcessInstanceId, Valid: true},
-
-			CreatedAt: ctx.Time(),
-			CreatedBy: ec.engineOrWorkerId,
-			DueAt:     dueAt,
-			Type:      engine.TaskTriggerEvent,
-
-			Instance: TriggerEventTask{},
-		}
-
-		if err := ctx.Tasks().Insert(&triggerTimerEvent); err != nil {
 			return err
 		}
 

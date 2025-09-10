@@ -234,15 +234,15 @@ func (c *client) ResumeProcessInstance(ctx context.Context, cmd engine.ResumePro
 	return c.doPatch(ctx, path, cmd, nil)
 }
 
-func (c *client) SendSignal(ctx context.Context, cmd engine.SendSignalCmd) (engine.SignalEvent, error) {
+func (c *client) SendSignal(ctx context.Context, cmd engine.SendSignalCmd) (engine.Signal, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
 
-	var signalEvent engine.SignalEvent
-	if err := c.doPost(ctx, server.PathEventsSignals, cmd, &signalEvent); err != nil {
-		return engine.SignalEvent{}, err
+	var signal engine.Signal
+	if err := c.doPost(ctx, server.PathEventsSignals, cmd, &signal); err != nil {
+		return engine.Signal{}, err
 	}
-	return signalEvent, nil
+	return signal, nil
 }
 
 func (c *client) SetElementVariables(ctx context.Context, cmd engine.SetElementVariablesCmd) error {

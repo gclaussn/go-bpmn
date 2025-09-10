@@ -15,7 +15,6 @@ type ElementInstanceEntity struct {
 	ParentId pgtype.Int4
 
 	ElementId             int32
-	EventId               pgtype.Int4
 	PrevElementId         pgtype.Int4 // internal field
 	PrevElementInstanceId pgtype.Int4 // internal field
 	ProcessId             int32

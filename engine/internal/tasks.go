@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
-	"github.com/gclaussn/go-bpmn/model"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -184,37 +183,29 @@ func (t StartProcessInstanceTask) Execute(ctx Context, task *TaskEntity) error {
 // In case of a start event, a new process instance is created.
 // In case of a catch event, an execution is continued.
 type TriggerEventTask struct {
+	SignalId int64         `json:",omitempty"`
+	Timer    *engine.Timer `json:",omitempty"`
 }
 
 func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
-	process, err := ctx.ProcessCache().GetOrCacheById(ctx, task.ProcessId.Int32)
-	if err != nil {
-		return err
-	}
-
-	node, ok := process.graph.nodeByElementId(task.ElementId.Int32)
-	if !ok {
-		return engine.Error{
-			Type:   engine.ErrorBug,
-			Title:  "failed to find execution graph node",
-			Detail: fmt.Sprintf("execution graph has no node for ID %d", task.ElementId.Int32),
+	switch {
+	case t.SignalId != 0:
+		if task.ElementInstanceId.Valid {
+			return triggerSignalCatchEvent(ctx, task, t.SignalId)
+		} else {
+			return triggerSignalStartEvent(ctx, task, t.SignalId)
 		}
-	}
-
-	switch node.bpmnElement.Type {
-	case model.ElementSignalCatchEvent:
-		return triggerSignalCatchEvent(ctx, task, process)
-	case model.ElementSignalStartEvent:
-		return triggerSignalStartEvent(ctx, task, process)
-	case model.ElementTimerCatchEvent:
-		return triggerTimerCatchEvent(ctx, task, process)
-	case model.ElementTimerStartEvent:
-		return triggerTimerStartEvent(ctx, task, process)
+	case t.Timer != nil:
+		if task.ElementInstanceId.Valid {
+			return triggerTimerCatchEvent(ctx, task, *t.Timer)
+		} else {
+			return triggerTimerStartEvent(ctx, task, *t.Timer)
+		}
 	default:
 		return engine.Error{
 			Type:   engine.ErrorBug,
-			Title:  "failed to handle element",
-			Detail: fmt.Sprintf("BPMN element type %s is not supported", node.bpmnElement.Type),
+			Title:  "failed to trigger event",
+			Detail: "event is not supported",
 		}
 	}
 }

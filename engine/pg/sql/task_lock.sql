@@ -49,7 +49,6 @@ RETURNING
 
 	task.element_id,
 	task.element_instance_id,
-	task.event_id,
 	task.process_id,
 	task.process_instance_id,
 

@@ -18,6 +18,10 @@ type elementRepository struct {
 }
 
 func (r elementRepository) InsertBatch(entities []*internal.ElementEntity) error {
+	if len(entities) == 0 {
+		return nil
+	}
+
 	batch := &pgx.Batch{}
 
 	for _, entity := range entities {

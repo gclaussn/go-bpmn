@@ -383,6 +383,10 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			continue
 		}
 
+		if signalName == "" {
+			continue
+		}
+
 		signalEventDefinitions[i] = &EventDefinitionEntity{
 			ElementId: node.id,
 
@@ -398,8 +402,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		i++
 	}
 
-	// prepare timer events, event definitions and tasks
-	timerEvents := make([]*EventEntity, len(cmd.Timers))
+	// prepare timer event definitions and trigger tasks
 	timerEventDefinitions := make([]*EventDefinitionEntity, len(cmd.Timers))
 	timerEventTasks := make([]*TaskEntity, len(cmd.Timers))
 
@@ -412,6 +415,10 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 				Type:    "timer_event",
 				Detail:  fmt.Sprintf("BPMN process %s has no element %s", processElement.Id, bpmnElementId),
 			})
+			continue
+		}
+
+		if timer == nil {
 			continue
 		}
 
@@ -439,16 +446,6 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			continue
 		}
 
-		timerEvents[i] = &EventEntity{
-			Partition: ctx.Date(),
-
-			CreatedAt:    ctx.Time(),
-			CreatedBy:    cmd.WorkerId,
-			Time:         pgtype.Timestamp{Time: timer.Time, Valid: !timer.Time.IsZero()},
-			TimeCycle:    pgtype.Text{String: timer.TimeCycle, Valid: timer.TimeCycle != ""},
-			TimeDuration: pgtype.Text{String: timer.TimeDuration.String(), Valid: !timer.TimeDuration.IsZero()},
-		}
-
 		timerEventTasks[i] = &TaskEntity{
 			Partition: ctx.Date(),
 
@@ -460,7 +457,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			DueAt:     dueAt,
 			Type:      engine.TaskTriggerEvent,
 
-			Instance: TriggerEventTask{},
+			Instance: TriggerEventTask{Timer: timer},
 		}
 
 		i++
@@ -517,17 +514,9 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		return engine.Process{}, err
 	}
 
-	// insert timer events, event definitions and tasks
+	// insert timer event definitions and trigger tasks
 	if err := ctx.EventDefinitions().InsertBatch(timerEventDefinitions); err != nil {
 		return engine.Process{}, err
-	}
-
-	for i, timerEvent := range timerEvents {
-		if err := ctx.Events().Insert(timerEvent); err != nil {
-			return engine.Process{}, err
-		}
-
-		timerEventTasks[i].EventId = pgtype.Int4{Int32: timerEvent.Id, Valid: true}
 	}
 
 	if err := ctx.Tasks().InsertBatch(timerEventTasks); err != nil {

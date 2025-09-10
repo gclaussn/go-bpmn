@@ -36,7 +36,6 @@ type TaskEntity struct {
 
 	ElementId         pgtype.Int4
 	ElementInstanceId pgtype.Int4
-	EventId           pgtype.Int4
 	ProcessId         pgtype.Int4
 	ProcessInstanceId pgtype.Int4
 
@@ -62,7 +61,6 @@ func (e TaskEntity) Task() engine.Task {
 
 		ElementId:         e.ElementId.Int32,
 		ElementInstanceId: e.ElementInstanceId.Int32,
-		EventId:           e.EventId.Int32,
 		ProcessId:         e.ProcessId.Int32,
 		ProcessInstanceId: e.ProcessInstanceId.Int32,
 
@@ -163,7 +161,6 @@ func ExecuteTask(ctx Context, task *TaskEntity) error {
 
 			ElementId:         task.ElementId,
 			ElementInstanceId: task.ElementInstanceId,
-			EventId:           task.EventId,
 			ProcessId:         task.ProcessId,
 			ProcessInstanceId: task.ProcessInstanceId,
 

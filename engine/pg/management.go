@@ -20,14 +20,15 @@ var Tables = []string{
 	"element_instance",
 	"event",
 	"event_definition",
-	"event_variable",
 	"incident",
 	"job",
 	"process",
 	"process_instance",
 	"process_instance_queue",
 	"process_instance_queue_element",
+	"signal",
 	"signal_subscription",
+	"signal_variable",
 	"task",
 	"variable",
 }
@@ -35,7 +36,6 @@ var Tables = []string{
 var partitionedTables = []string{
 	"element_instance",
 	"event",
-	"event_variable",
 	"incident",
 	"job",
 	"process_instance",
@@ -145,6 +145,28 @@ func prepareDatabase(ctx *pgContext) error {
 		}
 	}
 
+	purgeSignals := internal.TaskEntity{
+		Partition: ctx.Date().AddDate(0, 0, 2),
+
+		CreatedAt: ctx.Time(),
+		CreatedBy: ctx.Options().EngineId,
+		DueAt:     ctx.Date().AddDate(0, 0, 2),
+		Type:      engine.TaskPurgeSignals,
+
+		Instance: purgeSignalsTask{},
+	}
+
+	purgeSignalsTaskExists, err := taskExists(ctx, &purgeSignals)
+	if err != nil {
+		return fmt.Errorf("failed to check if purge signals task exists: %v", err)
+	}
+
+	if !purgeSignalsTaskExists {
+		if err := ctx.Tasks().Insert(&purgeSignals); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -193,6 +215,22 @@ func selectTablePartitionExists(ctx *pgContext, table string, date time.Time) (b
 	}
 
 	return exists, nil
+}
+
+// taskExists determines if a task of the given type exists in the partition.
+func taskExists(ctx *pgContext, task *internal.TaskEntity) (bool, error) {
+	tasks, err := ctx.Tasks().Query(engine.TaskCriteria{
+		Partition: engine.Partition(task.Partition),
+
+		Type: task.Type,
+	}, engine.QueryOptions{
+		Limit: 1,
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to query tasks: %v", err)
+	}
+
+	return len(tasks) == 1, nil
 }
 
 // createPartitionTask
@@ -399,6 +437,54 @@ func (t dropPartitionTask) Execute(ctx internal.Context, _ *internal.TaskEntity)
 
 		if _, err := pgCtx.tx.Exec(pgCtx.txCtx, dropSequence); err != nil {
 			return fmt.Errorf("failed to drop sequence: %v\n%s", err, dropSequence)
+		}
+	}
+
+	return nil
+}
+
+type purgeSignalsTask struct {
+}
+
+func (t purgeSignalsTask) Execute(ctx internal.Context, task *internal.TaskEntity) error {
+	pgCtx := ctx.(*pgContext)
+
+	if _, err := pgCtx.tx.Exec(pgCtx.txCtx, `
+DELETE FROM
+	signal_variable
+USING
+	signal
+WHERE
+	signal.active_subscriber_count = 0 AND
+	signal.id = signal_variable.signal_id
+`,
+	); err != nil {
+		return fmt.Errorf("failed to purge signal variables: %v", err)
+	}
+
+	if _, err := pgCtx.tx.Exec(pgCtx.txCtx, "DELETE FROM signal WHERE active_subscriber_count = 0"); err != nil {
+		return fmt.Errorf("failed to purge signals: %v", err)
+	}
+
+	purgeSignals := internal.TaskEntity{
+		Partition: ctx.Date().AddDate(0, 0, 1),
+
+		CreatedAt: ctx.Time(),
+		CreatedBy: ctx.Options().EngineId,
+		DueAt:     ctx.Date().AddDate(0, 0, 1),
+		Type:      engine.TaskPurgeSignals,
+
+		Instance: purgeSignalsTask{},
+	}
+
+	taskExists, err := taskExists(pgCtx, &purgeSignals)
+	if err != nil {
+		return fmt.Errorf("failed to check if task exists: %v", err)
+	}
+
+	if !taskExists {
+		if err := ctx.Tasks().Insert(&purgeSignals); err != nil {
+			return err
 		}
 	}
 
