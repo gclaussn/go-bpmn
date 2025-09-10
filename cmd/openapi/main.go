@@ -575,6 +575,9 @@ func setPropertyType(property *Property, typeName string, schemas map[string]*Sc
 	case "int", "int32":
 		property.Type = "integer"
 		property.Format = "int32"
+	case "int64":
+		property.Type = "integer"
+		property.Format = "int64"
 	case "string":
 		property.Type = "string"
 	case "engine.ISO8601Duration":
