@@ -165,7 +165,11 @@ func CreateProcessInstance(ctx Context, cmd engine.CreateProcessInstanceCmd) (en
 
 	executions := []*ElementInstanceEntity{&scope, &execution}
 	if err := ec.continueExecutions(ctx, executions); err != nil {
-		return engine.ProcessInstance{}, err
+		if _, ok := err.(engine.Error); ok {
+			return engine.ProcessInstance{}, err
+		} else {
+			return engine.ProcessInstance{}, fmt.Errorf("failed to continue executions %+v: %v", executions, err)
+		}
 	}
 
 	for _, variable := range variables {

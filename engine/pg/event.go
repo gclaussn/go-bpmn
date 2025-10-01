@@ -250,7 +250,6 @@ SELECT
 	bpmn_element_id,
 	bpmn_element_type,
 	bpmn_process_id,
-	is_suspended,
 	signal_name,
 	version
 FROM
@@ -280,7 +279,6 @@ WHERE
 			&entity.BpmnElementId,
 			&bpmnElementTypeValue,
 			&entity.BpmnProcessId,
-			&entity.IsSuspended,
 			&entity.SignalName,
 			&entity.Version,
 		); err != nil {
@@ -288,7 +286,6 @@ WHERE
 		}
 
 		entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
-		entity.IsSuspended = false
 		entity.SignalName = pgtype.Text{String: signalName, Valid: true}
 
 		entities = append(entities, &entity)

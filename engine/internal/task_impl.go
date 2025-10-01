@@ -183,8 +183,8 @@ func (t StartProcessInstanceTask) Execute(ctx Context, task *TaskEntity) error {
 // In case of a start event, a new process instance is created.
 // In case of a catch event, an execution is continued.
 type TriggerEventTask struct {
-	SignalId int64         `json:",omitempty"`
-	Timer    *engine.Timer `json:",omitempty"`
+	SignalId  int64         `json:",omitempty"`
+	Timer     *engine.Timer `json:",omitempty"`
 }
 
 func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {

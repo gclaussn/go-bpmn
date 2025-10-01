@@ -57,7 +57,7 @@ func main() {
 				variables := worker.Variables{}
 				variables.PutVariable("a", "b")
 
-				processInstance, err := serviceTaskProcess.CreateProcessInstance(variables)
+				processInstance, err := serviceTaskProcess.CreateProcessInstance(context.Background(), variables)
 				if err != nil {
 					log.Printf("failed to create process instance: %v", err)
 					continue

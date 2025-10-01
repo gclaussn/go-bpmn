@@ -50,7 +50,7 @@ func (d exclusiveGatewayGenericDelegate) CreateProcessCmd() (engine.CreateProces
 }
 
 func (d exclusiveGatewayGenericDelegate) Delegate(delegator worker.Delegator) error {
-	delegator.ExecuteGeneric("fork", d.evaluateFork)
+	delegator.ExecuteAny("fork", d.evaluateFork)
 	return nil
 }
 

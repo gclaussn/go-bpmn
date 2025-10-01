@@ -125,7 +125,8 @@ type Error struct {
 	//   - `process` indicates an error on process level
 	//   - `element` indicates an error on element level
 	//   - `sequence_flow` indicates faulty sequence flow
-	//   - `timer_event`: a missing or invalid timer definition
+	//   - `signal_event`: a missing or invalid signal event definition
+	//   - `timer_event`: a missing or invalid timer event definition
 	Type string `json:"type" validate:"required"`
 	// Human-readable, detailed information about the error.
 	Detail string `json:"detail" validate:"required"`

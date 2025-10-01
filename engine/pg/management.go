@@ -156,15 +156,8 @@ func prepareDatabase(ctx *pgContext) error {
 		Instance: purgeSignalsTask{},
 	}
 
-	purgeSignalsTaskExists, err := taskExists(ctx, &purgeSignals)
-	if err != nil {
-		return fmt.Errorf("failed to check if purge signals task exists: %v", err)
-	}
-
-	if !purgeSignalsTaskExists {
-		if err := ctx.Tasks().Insert(&purgeSignals); err != nil {
-			return err
-		}
+	if err := insertTaskIfNotExists(ctx, &purgeSignals); err != nil {
+		return fmt.Errorf("failed to insert purge signals task: %v", err)
 	}
 
 	return nil
@@ -217,8 +210,8 @@ func selectTablePartitionExists(ctx *pgContext, table string, date time.Time) (b
 	return exists, nil
 }
 
-// taskExists determines if a task of the given type exists in the partition.
-func taskExists(ctx *pgContext, task *internal.TaskEntity) (bool, error) {
+// insertTaskIfNotExists inserts a task, if no task of the given type exists in the partition.
+func insertTaskIfNotExists(ctx internal.Context, task *internal.TaskEntity) error {
 	tasks, err := ctx.Tasks().Query(engine.TaskCriteria{
 		Partition: engine.Partition(task.Partition),
 
@@ -227,10 +220,14 @@ func taskExists(ctx *pgContext, task *internal.TaskEntity) (bool, error) {
 		Limit: 1,
 	})
 	if err != nil {
-		return false, fmt.Errorf("failed to query tasks: %v", err)
+		return fmt.Errorf("failed to query tasks: %v", err)
 	}
 
-	return len(tasks) == 1, nil
+	if len(tasks) == 1 {
+		return nil
+	}
+
+	return ctx.Tasks().Insert(task)
 }
 
 // createPartitionTask
@@ -395,9 +392,7 @@ SELECT EXISTS(SELECT 1 FROM task WHERE partition = $1 AND completed_at IS NULL)
 			DueAt:     ctx.Time(),
 			Type:      engine.TaskDropPartition,
 
-			Instance: dropPartitionTask{
-				Partition: t.Partition,
-			},
+			Instance: dropPartitionTask(t),
 		}
 
 		return ctx.Tasks().Insert(&dropPartition)
@@ -417,10 +412,7 @@ func (t dropPartitionTask) Execute(ctx internal.Context, _ *internal.TaskEntity)
 	date := time.Time(t.Partition)
 
 	for i := range partitionedTables {
-		dropTable := fmt.Sprintf(
-			"DROP TABLE IF EXISTS %s",
-			partitionTable(partitionedTables[i], date),
-		)
+		dropTable := fmt.Sprintf("DROP TABLE IF EXISTS %s", partitionTable(partitionedTables[i], date))
 
 		if _, err := pgCtx.tx.Exec(pgCtx.txCtx, dropTable); err != nil {
 			return fmt.Errorf("failed to drop table partition: %v\n%s", err, dropTable)
@@ -430,10 +422,7 @@ func (t dropPartitionTask) Execute(ctx internal.Context, _ *internal.TaskEntity)
 			continue // no sequence exists, since ID of process instance is used
 		}
 
-		dropSequence := fmt.Sprintf(
-			"DROP SEQUENCE IF EXISTS %s",
-			partitionSequence(partitionedTables[i], date),
-		)
+		dropSequence := fmt.Sprintf("DROP SEQUENCE IF EXISTS %s", partitionSequence(partitionedTables[i], date))
 
 		if _, err := pgCtx.tx.Exec(pgCtx.txCtx, dropSequence); err != nil {
 			return fmt.Errorf("failed to drop sequence: %v\n%s", err, dropSequence)
@@ -477,16 +466,5 @@ WHERE
 		Instance: purgeSignalsTask{},
 	}
 
-	taskExists, err := taskExists(pgCtx, &purgeSignals)
-	if err != nil {
-		return fmt.Errorf("failed to check if task exists: %v", err)
-	}
-
-	if !taskExists {
-		if err := ctx.Tasks().Insert(&purgeSignals); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return insertTaskIfNotExists(ctx, &purgeSignals)
 }

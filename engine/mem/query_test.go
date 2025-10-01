@@ -659,47 +659,51 @@ func mustQuery(t *testing.T, q engine.Query, criteria any) []any {
 		}
 		return toResults(elements)
 	case engine.ElementInstanceCriteria:
-		elements, err := q.QueryElementInstances(context.Background(), criteria)
+		elementInstances, err := q.QueryElementInstances(context.Background(), criteria)
 		if err != nil {
 			t.Fatalf("failed to query element instances: %v", err)
 		}
-		return toResults(elements)
+		return toResults(elementInstances)
 	case engine.IncidentCriteria:
-		elements, err := q.QueryIncidents(context.Background(), criteria)
+		incidents, err := q.QueryIncidents(context.Background(), criteria)
 		if err != nil {
 			t.Fatalf("failed to query incidents: %v", err)
 		}
-		return toResults(elements)
+		return toResults(incidents)
 	case engine.JobCriteria:
-		elements, err := q.QueryJobs(context.Background(), criteria)
+		jobs, err := q.QueryJobs(context.Background(), criteria)
+		if err != nil {
+			t.Fatalf("failed to query jobs: %v", err)
+		}
+		return toResults(jobs)
 		if err != nil {
 			t.Fatalf("failed to query jobs: %v", err)
 		}
 		return toResults(elements)
 	case engine.ProcessCriteria:
-		elements, err := q.QueryProcesses(context.Background(), criteria)
+		processes, err := q.QueryProcesses(context.Background(), criteria)
 		if err != nil {
 			t.Fatalf("failed to query processes: %v", err)
 		}
-		return toResults(elements)
+		return toResults(processes)
 	case engine.ProcessInstanceCriteria:
-		elements, err := q.QueryProcessInstances(context.Background(), criteria)
+		processInstances, err := q.QueryProcessInstances(context.Background(), criteria)
 		if err != nil {
 			t.Fatalf("failed to query process instances: %v", err)
 		}
-		return toResults(elements)
+		return toResults(processInstances)
 	case engine.TaskCriteria:
-		elements, err := q.QueryTasks(context.Background(), criteria)
+		tasks, err := q.QueryTasks(context.Background(), criteria)
 		if err != nil {
 			t.Fatalf("failed to query tasks: %v", err)
 		}
-		return toResults(elements)
+		return toResults(tasks)
 	case engine.VariableCriteria:
-		elements, err := q.QueryVariables(context.Background(), criteria)
+		variables, err := q.QueryVariables(context.Background(), criteria)
 		if err != nil {
 			t.Fatalf("failed to query variables: %v", err)
 		}
-		return toResults(elements)
+		return toResults(variables)
 	default:
 		t.Fatalf("unsupported criteria type %T", criteria)
 	}

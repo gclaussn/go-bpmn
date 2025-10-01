@@ -17,12 +17,12 @@ func newEventCmd(cli *Cli) *cobra.Command {
 		Annotations: map[string]string{noEngineRequired: ""},
 	}
 
-	c.AddCommand(newSendSignalCmd(cli))
+	c.AddCommand(newEventSendSignalCmd(cli))
 
 	return &c
 }
 
-func newSendSignalCmd(cli *Cli) *cobra.Command {
+func newEventSendSignalCmd(cli *Cli) *cobra.Command {
 	var (
 		variablesV map[string]string
 
@@ -50,12 +50,12 @@ func newSendSignalCmd(cli *Cli) *cobra.Command {
 			cmd.Variables = variables
 			cmd.WorkerId = cli.workerId
 
-			signalEvent, err := cli.e.SendSignal(context.Background(), cmd)
+			signal, err := cli.e.SendSignal(context.Background(), cmd)
 			if err != nil {
 				return err
 			}
 
-			c.Print(signalEvent)
+			c.Print(signal)
 			return nil
 		},
 	}

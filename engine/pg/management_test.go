@@ -241,15 +241,11 @@ func TestPurgeSignals(t *testing.T) {
 
 	signal1 := &internal.SignalEntity{
 		ActiveSubscriberCount: 0,
-		CreatedAt:             time.Now(),
-		CreatedBy:             "test",
 		Name:                  "1",
 		SubscriberCount:       1,
 	}
 	signal2 := &internal.SignalEntity{
 		ActiveSubscriberCount: 2,
-		CreatedAt:             time.Now(),
-		CreatedBy:             "test",
 		Name:                  "2",
 		SubscriberCount:       2,
 	}
@@ -279,13 +275,13 @@ func TestPurgeSignals(t *testing.T) {
 
 	mustInsertEntities(t, e, []any{signalVariableA, signalVariableB, signalVariableC, signalVariableD})
 
-	pgEngine.execute(func(pgCtx *pgContext) error {
+	if err := pgEngine.execute(func(pgCtx *pgContext) error {
 		task := purgeSignalsTask{}
 
 		if err := pgEngine.execute(func(pgCtx *pgContext) error {
 			return task.Execute(pgCtx, nil)
 		}); err != nil {
-			t.Fatalf("failed to purge signals: %v", err)
+			return err
 		}
 
 		_, err1 := pgCtx.Signals().Select(signal1.Id)
@@ -303,5 +299,7 @@ func TestPurgeSignals(t *testing.T) {
 		assert.Len(signalVariables2, 2)
 
 		return nil
-	})
+	}); err != nil {
+		t.Fatalf("failed to purge signals: %v", err)
+	}
 }

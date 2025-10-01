@@ -41,12 +41,6 @@ type EventDefinitionEntity struct {
 	Version         string
 }
 
-func (e EventDefinitionEntity) EventDefinition() engine.EventDefinition {
-	return engine.EventDefinition{
-		SignalName: e.SignalName.String,
-	}
-}
-
 type EventDefinitionRepository interface {
 	InsertBatch([]*EventDefinitionEntity) error
 	Select(elementId int32) (*EventDefinitionEntity, error)

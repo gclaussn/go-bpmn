@@ -166,9 +166,9 @@ func (v *JobType) UnmarshalJSON(data []byte) error {
 //
 // Management related types, that are only relevant for a pg engine:
 //
-//   - [TaskCreatePartition] creates the table partitions for a specific date
-//   - [TaskDetachPartition] detaches completed table partitions
-//   - [TaskDropPartition] drops a detached table partitions
+//   - [TaskCreatePartition] creates a table partition for a specific date
+//   - [TaskDetachPartition] detaches a completed table partition
+//   - [TaskDropPartition] drops a detached table partition
 //   - [TaskPurgeSignals] purges signals that have no active subscribers anymore
 type TaskType int
 

@@ -7,6 +7,7 @@ replace github.com/gclaussn/go-bpmn => ..
 require github.com/gclaussn/go-bpmn v0.0.0-00010101000000-000000000000
 
 require (
+	github.com/adhocore/gronx v1.19.6 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.9 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect

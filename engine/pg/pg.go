@@ -369,8 +369,8 @@ func (e *pgEngine) SendSignal(ctx context.Context, cmd engine.SendSignalCmd) (en
 	}
 
 	defer cancel()
-	signalEvent, err := internal.SendSignal(pgCtx, cmd)
-	return signalEvent, e.release(pgCtx, err)
+	signal, err := internal.SendSignal(pgCtx, cmd)
+	return signal, e.release(pgCtx, err)
 }
 
 func (e *pgEngine) SetElementVariables(ctx context.Context, cmd engine.SetElementVariablesCmd) error {

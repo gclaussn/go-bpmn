@@ -56,7 +56,7 @@ func TestSignalCatchEventProcess(t *testing.T) {
 
 	if _, err := e.SendSignal(context.Background(), engine.SendSignalCmd{
 		Name:     "catch-signal",
-		WorkerId: worker.DefaultEncoding,
+		WorkerId: worker.DefaultWorkerId,
 	}); err != nil {
 		t.Fatalf("failed to send signal: %v", err)
 	}

@@ -42,7 +42,7 @@ type CreateProcessCmd struct {
 	Tags map[string]string `json:"tags,omitempty" validate:"max=100,dive,keys,tag_name,endkeys,required"`
 	// Mapping between BPMN element ID and timer definition.
 	Timers map[string]*Timer `json:"timers,omitempty" validate:"dive,timer"`
-	// Arbitrary process version.
+	// Any process version.
 	Version string `json:"version" validate:"required"`
 	// ID of the worker that created the process.
 	WorkerId string `json:"workerId" validate:"required"`
@@ -250,7 +250,7 @@ type JobCompletion struct {
 	// Applicable when job type is `EVALUATE_INCLUSIVE_GATEWAY`.
 	InclusiveGatewayDecision []string `json:"inclusiveGatewayDecision,omitempty"`
 	// Name of the signal to subscribe to.
-	// Applicable when job type is `SET_SIGNAL_NAME`.
+	// Applicable when job type is `SUBSCRIBE_SIGNAL`.
 	SignalName string `json:"signalName,omitempty"`
 	// A timer definition.
 	// Applicable when job type is `SET_TIMER`.

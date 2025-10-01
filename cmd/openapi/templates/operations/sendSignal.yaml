@@ -29,7 +29,6 @@ responses:
         schema:
           $ref: "#/components/schemas/Signal"
         example:
-          partition: "2025-07-13"
           id: 9
           createdAt: "2025-05-01T17:44:19.997Z"
           createdBy: go-bpmn

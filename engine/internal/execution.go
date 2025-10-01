@@ -458,9 +458,10 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 		}
 
 		signalSubscription := SignalSubscriptionEntity{
+			Partition: execution.Partition,
+
 			ElementId:         execution.ElementId,
 			ElementInstanceId: execution.Id,
-			Partition:         execution.Partition,
 			ProcessId:         execution.ProcessId,
 			ProcessInstanceId: execution.ProcessInstanceId,
 
@@ -548,7 +549,7 @@ func (ec executionContext) handleParallelGateway(ctx Context, task *TaskEntity) 
 
 	if err := ec.continueExecutions(ctx, joined); err != nil {
 		if _, ok := err.(engine.Error); ok {
-			task.Error = pgtype.Text{String: err.Error(), Valid: true}
+			return err
 		} else {
 			return fmt.Errorf("failed to continue executions %+v: %v", joined, err)
 		}

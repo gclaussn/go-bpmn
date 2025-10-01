@@ -86,31 +86,10 @@ func (d Delegator) Execute(bpmnElementId string, delegation func(jc JobContext) 
 	}
 }
 
-// ExecuteGeneric delegates jobs of any type. The delegation function allows to return a job-specific completion.
-func (d Delegator) ExecuteGeneric(bpmnElementId string, delegation func(jc JobContext) (*engine.JobCompletion, error)) {
+// ExecuteAny delegates jobs of any type. The delegation function allows to return a job-specific completion.
+func (d Delegator) ExecuteAny(bpmnElementId string, delegation func(jc JobContext) (*engine.JobCompletion, error)) {
 	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
 		return delegation(jc)
-	}
-}
-
-// SubscribeSignal delegates jobs of type [engine.JobSubscribeSignal].
-//
-// Applicable for BPMN element types:
-//   - signal catch event
-func (d Delegator) SubscribeSignal(bpmnElementId string, delegation func(jc JobContext) (string, error)) {
-	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
-		if jc.Job.Type != engine.JobSubscribeSignal {
-			return nil, fmt.Errorf("expected job type %s, but got %s", engine.JobSubscribeSignal, jc.Job.Type)
-		}
-
-		signalName, err := delegation(jc)
-		if err != nil {
-			return nil, err
-		}
-
-		return &engine.JobCompletion{
-			SignalName: signalName,
-		}, nil
 	}
 }
 
@@ -131,6 +110,27 @@ func (d Delegator) SetTimer(bpmnElementId string, delegation func(jc JobContext)
 
 		return &engine.JobCompletion{
 			Timer: &timer,
+		}, nil
+	}
+}
+
+// SubscribeSignal delegates jobs of type [engine.JobSubscribeSignal].
+//
+// Applicable for BPMN element types:
+//   - signal catch event
+func (d Delegator) SubscribeSignal(bpmnElementId string, delegation func(jc JobContext) (string, error)) {
+	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
+		if jc.Job.Type != engine.JobSubscribeSignal {
+			return nil, fmt.Errorf("expected job type %s, but got %s", engine.JobSubscribeSignal, jc.Job.Type)
+		}
+
+		signalName, err := delegation(jc)
+		if err != nil {
+			return nil, err
+		}
+
+		return &engine.JobCompletion{
+			SignalName: signalName,
 		}, nil
 	}
 }

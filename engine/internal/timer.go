@@ -2,22 +2,13 @@ package internal
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func triggerTimerCatchEvent(ctx Context, task *TaskEntity, timer engine.Timer) error {
 	processInstance, err := ctx.ProcessInstances().Select(task.Partition, task.ProcessInstanceId.Int32)
-	if err == pgx.ErrNoRows {
-		return engine.Error{
-			Type:   engine.ErrorBug,
-			Title:  "failed to trigger timer catch event",
-			Detail: fmt.Sprintf("process instance %s/%d could not be found", task.Partition.Format(time.DateOnly), task.ProcessInstanceId.Int32),
-		}
-	}
 	if err != nil {
 		return err
 	}
@@ -48,7 +39,7 @@ func triggerTimerCatchEvent(ctx Context, task *TaskEntity, timer engine.Timer) e
 
 	if err := ec.continueExecutions(ctx, []*ElementInstanceEntity{execution}); err != nil {
 		if _, ok := err.(engine.Error); ok {
-			task.Error = pgtype.Text{String: err.Error(), Valid: true}
+			return err
 		} else {
 			return fmt.Errorf("failed to continue execution %+v: %v", execution, err)
 		}
@@ -75,13 +66,6 @@ func triggerTimerCatchEvent(ctx Context, task *TaskEntity, timer engine.Timer) e
 
 func triggerTimerStartEvent(ctx Context, task *TaskEntity, timer engine.Timer) error {
 	eventDefinition, err := ctx.EventDefinitions().Select(task.ElementId.Int32)
-	if err == pgx.ErrNoRows {
-		return engine.Error{
-			Type:   engine.ErrorBug,
-			Title:  "failed to trigger timer start event",
-			Detail: fmt.Sprintf("event definition %d could not be found", task.ElementId.Int32),
-		}
-	}
 	if err != nil {
 		return err
 	}
@@ -95,29 +79,46 @@ func triggerTimerStartEvent(ctx Context, task *TaskEntity, timer engine.Timer) e
 		return err
 	}
 
-	processInstance := ProcessInstanceEntity{
-		Partition: ctx.Date(),
+	var processInstance *ProcessInstanceEntity
+	if task.ProcessInstanceId.Valid {
+		selectedProcessInstance, err := ctx.ProcessInstances().Select(task.Partition, task.ProcessInstanceId.Int32)
+		if err != nil {
+			return err
+		}
 
-		ProcessId: process.Id,
+		if selectedProcessInstance.EndedAt.Valid {
+			return nil
+		}
 
-		BpmnProcessId:  process.BpmnProcessId,
-		CreatedAt:      ctx.Time(),
-		CreatedBy:      ctx.Options().EngineId,
-		StartedAt:      pgtype.Timestamp{Time: ctx.Time(), Valid: true},
-		State:          engine.InstanceStarted,
-		StateChangedBy: ctx.Options().EngineId,
-		Version:        process.Version,
+		processInstance = selectedProcessInstance
+	} else {
+		processInstance = &ProcessInstanceEntity{
+			Partition: task.Partition,
+
+			ProcessId: process.Id,
+
+			BpmnProcessId:  process.BpmnProcessId,
+			CreatedAt:      ctx.Time(),
+			CreatedBy:      ctx.Options().EngineId,
+			StartedAt:      pgtype.Timestamp{Time: ctx.Time(), Valid: true},
+			State:          engine.InstanceStarted,
+			StateChangedBy: ctx.Options().EngineId,
+			Version:        process.Version,
+		}
+
+		if err := ctx.ProcessInstances().Insert(processInstance); err != nil {
+			return err
+		}
+
+		// set ID of inserted process instance for a possible retry
+		task.ProcessInstanceId = pgtype.Int4{Int32: processInstance.Id}
+
+		if err := enqueueProcessInstance(ctx, processInstance); err != nil {
+			return fmt.Errorf("failed to enqueue process instance: %v", err)
+		}
 	}
 
-	if err := ctx.ProcessInstances().Insert(&processInstance); err != nil {
-		return err
-	}
-
-	if err := enqueueProcessInstance(ctx, &processInstance); err != nil {
-		return fmt.Errorf("failed to enqueue process instance: %v", err)
-	}
-
-	scope := process.graph.createProcessScope(&processInstance)
+	scope := process.graph.createProcessScope(processInstance)
 
 	execution, err := process.graph.createExecutionAt(&scope, eventDefinition.BpmnElementId)
 	if err != nil {
@@ -131,16 +132,20 @@ func triggerTimerStartEvent(ctx Context, task *TaskEntity, timer engine.Timer) e
 	ec := executionContext{
 		engineOrWorkerId: ctx.Options().EngineId,
 		process:          process,
-		processInstance:  &processInstance,
+		processInstance:  processInstance,
 	}
 
 	executions := []*ElementInstanceEntity{&scope, &execution}
 	if err := ec.continueExecutions(ctx, executions); err != nil {
-		return err
+		if _, ok := err.(engine.Error); ok {
+			return err
+		} else {
+			return fmt.Errorf("failed to continue executions %+v: %v", executions, err)
+		}
 	}
 
 	event := EventEntity{
-		Partition: ctx.Date(),
+		Partition: execution.Partition,
 
 		ElementInstanceId: execution.Id,
 
@@ -159,14 +164,11 @@ func triggerTimerStartEvent(ctx Context, task *TaskEntity, timer engine.Timer) e
 		return nil // one-time event
 	}
 
-	// insert task for next time cycle
+	// insert task for next tick
 	dueAt, err := evaluateTimer(timer, task.DueAt)
 	if err != nil {
-		return engine.Error{
-			Type:   engine.ErrorBug,
-			Title:  "failed to evaluate timer",
-			Detail: err.Error(),
-		}
+		// next tick cannot be determined
+		return nil
 	}
 
 	triggerEventTask := TaskEntity{

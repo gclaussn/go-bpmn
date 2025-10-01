@@ -50,49 +50,34 @@ func AssertSignalStart(t *testing.T, e Engine, processId int32, bpmnStartElement
 		elementMap[element.BpmnElementId] = element
 	}
 
-	startElement, ok := elementMap[bpmnStartElementId]
-	if !ok {
-		t.Fatalf("failed to find BPMN element %s", bpmnStartElementId)
-	}
-	if startElement.EventDefinition == nil || startElement.EventDefinition.SignalName == "" {
-		t.Fatal("failed to find signal event definition")
-	}
+// AssertSignalStart asserts a process instance started by a signal start event.
+func AssertSignalStart(t *testing.T, e Engine, processId int32, cmd SendSignalCmd) *ProcessInstanceAssert {
+	q := e.CreateQuery()
 
-	signalVariables := make(map[string]*Data)
-	for _, v := range variables {
-		for variableName, data := range v {
-			signalVariables[variableName] = data
-		}
-	}
-
-	_, err = e.SendSignal(context.Background(), SendSignalCmd{
-		Name:      startElement.EventDefinition.SignalName,
-		Variables: signalVariables,
-		WorkerId:  "test-worker",
-	})
+	signal, err := e.SendSignal(context.Background(), cmd)
 	if err != nil {
 		t.Fatalf("failed to send signal: %v", err)
 	}
 
-	tasks, err := q.QueryTasks(context.Background(), TaskCriteria{ElementId: startElement.Id, Type: TaskTriggerEvent})
+	tasks, err := q.QueryTasks(context.Background(), TaskCriteria{ProcessId: processId, Type: TaskTriggerEvent})
 	if err != nil {
 		t.Fatalf("failed to query tasks: %v", err)
 	}
 
-	var nextTrigger Task
+	var triggerEventTask Task
 	for _, task := range tasks {
-		if !task.IsCompleted() {
-			nextTrigger = task
+		if !task.IsCompleted() && task.CreatedAt == signal.CreatedAt {
+			triggerEventTask = task
 			break
 		}
 	}
-	if nextTrigger.Id == 0 {
+	if triggerEventTask.Id == 0 {
 		t.Fatal("failed to find trigger event task")
 	}
 
 	completedTasks, failedTasks, err := e.ExecuteTasks(context.Background(), ExecuteTasksCmd{
-		Partition: nextTrigger.Partition,
-		Id:        nextTrigger.Id,
+		Partition: triggerEventTask.Partition,
+		Id:        triggerEventTask.Id,
 	})
 	if err != nil {
 		t.Fatalf("failed to execute task: %v", err)
@@ -101,21 +86,14 @@ func AssertSignalStart(t *testing.T, e Engine, processId int32, bpmnStartElement
 		t.Fatal("trigger event task failed")
 	}
 
-	processInstances, err := q.QueryProcessInstances(context.Background(), ProcessInstanceCriteria{ProcessId: processId})
+	elements, err := q.QueryElements(context.Background(), ElementCriteria{ProcessId: processId})
 	if err != nil {
-		t.Fatalf("failed to query process instances: %v", err)
+		t.Fatalf("failed to query elements: %v", err)
 	}
 
-	var createdProcessInstance ProcessInstance
-	for i := len(processInstances) - 1; i >= 0; i-- {
-		processInstance := processInstances[i]
-		if processInstance.CreatedAt == *completedTasks[0].CompletedAt {
-			createdProcessInstance = processInstance
-			break
-		}
-	}
-	if createdProcessInstance.Id == 0 {
-		t.Fatal("failed to find created process instance")
+	elementMap := make(map[string]Element, len(elements))
+	for _, element := range elements {
+		elementMap[element.BpmnElementId] = element
 	}
 
 	return &ProcessInstanceAssert{
@@ -124,8 +102,8 @@ func AssertSignalStart(t *testing.T, e Engine, processId int32, bpmnStartElement
 
 		elements: elementMap,
 
-		partition:         createdProcessInstance.Partition,
-		processInstanceId: createdProcessInstance.Id,
+		partition:         completedTasks[0].Partition,
+		processInstanceId: completedTasks[0].ProcessInstanceId,
 	}
 }
 
@@ -188,32 +166,14 @@ func AsserTimerStart(t *testing.T, e Engine, processId int32, bpmnStartElementId
 		t.Fatal("trigger event task failed")
 	}
 
-	processInstances, err := q.QueryProcessInstances(context.Background(), ProcessInstanceCriteria{
-		ProcessId: processId,
-	})
-	if err != nil {
-		t.Fatalf("failed to query process instances: %v", err)
-	}
-
-	var createdProcessInstance ProcessInstance
-	for _, processInstance := range processInstances {
-		if processInstance.CreatedAt == *completedTasks[0].CompletedAt {
-			createdProcessInstance = processInstance
-			break
-		}
-	}
-	if createdProcessInstance.Id == 0 {
-		t.Fatal("failed to find created process instance")
-	}
-
 	return &ProcessInstanceAssert{
 		t: t,
 		e: e,
 
 		elements: elementMap,
 
-		partition:         createdProcessInstance.Partition,
-		processInstanceId: createdProcessInstance.Id,
+		partition:         completedTasks[0].Partition,
+		processInstanceId: completedTasks[0].ProcessInstanceId,
 	}
 }
 

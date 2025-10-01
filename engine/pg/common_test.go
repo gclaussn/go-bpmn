@@ -34,7 +34,7 @@ func mustCreateEngine(t *testing.T, customizers ...func(*Options)) engine.Engine
 
 	defer conn.Close(ctx)
 
-	databaseSchema := fmt.Sprintf("test_%s", strings.Replace(time.Now().Format("20060102150405.000"), ".", "", 1))
+	databaseSchema := fmt.Sprintf("test_pg_%s", strings.Replace(time.Now().Format("20060102150405.000"), ".", "", 1))
 	_, err = conn.Exec(ctx, fmt.Sprintf("CREATE SCHEMA %s", databaseSchema))
 	if err != nil {
 		t.Fatalf("failed to create database schema: %v", err)

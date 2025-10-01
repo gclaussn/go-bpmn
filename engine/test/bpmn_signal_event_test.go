@@ -111,10 +111,14 @@ func (x signalEventTest) start(t *testing.T) {
 		t.Fatalf("failed to create process: %v", err)
 	}
 
-	piAssert1 := engine.AssertSignalStart(t, x.e, process.Id, "signalStartEvent", map[string]*engine.Data{
-		"a": {Encoding: "encoding-a", Value: "value-a"},
-		"b": {Encoding: "encoding-b", Value: "value-b"},
-		"c": nil,
+	piAssert1 := engine.AssertSignalStart(t, x.e, process.Id, engine.SendSignalCmd{
+		Name: "start-signal",
+		Variables: map[string]*engine.Data{
+			"a": {Encoding: "encoding-a", Value: "value-a"},
+			"b": {Encoding: "encoding-b", Value: "value-b"},
+			"c": nil,
+		},
+		WorkerId: testWorkerId,
 	})
 
 	piAssert1.IsCompleted()
@@ -122,7 +126,10 @@ func (x signalEventTest) start(t *testing.T) {
 	piAssert1.HasProcessVariable("b")
 	piAssert1.HasNoProcessVariable("c")
 
-	piAssert2 := engine.AssertSignalStart(t, x.e, process.Id, "signalStartEvent")
+	piAssert2 := engine.AssertSignalStart(t, x.e, process.Id, engine.SendSignalCmd{
+		Name:     "start-signal",
+		WorkerId: testWorkerId,
+	})
 	piAssert2.IsCompleted()
 
 	assert := assert.New(t)

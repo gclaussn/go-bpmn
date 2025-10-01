@@ -32,158 +32,177 @@ func TestCreateProcess(t *testing.T) {
 		WorkerId: testWorkerId,
 	}
 
-	for i, e := range engines {
-		// when
-		process, err := e.CreateProcess(context.Background(), cmd)
+	t.Run("create and get BPMN XML", func(t *testing.T) {
+		for i, e := range engines {
+			t.Run(engineTypes[i], func(t *testing.T) {
+				// when
+				process, err := e.CreateProcess(context.Background(), cmd)
+				if err != nil {
+					t.Fatalf("failed to create process: %v", err)
+				}
 
-		t.Run(engineTypes[i]+"create and get BPMN XML", func(t *testing.T) {
-			if err != nil {
-				t.Fatalf("failed to create process: %v", err)
-			}
+				// then
+				assert.Equal(engine.Process{
+					Id: process.Id,
 
-			// then
-			assert.Equal(engine.Process{
-				Id: process.Id,
+					BpmnProcessId: cmd.BpmnProcessId,
+					CreatedAt:     process.CreatedAt,
+					CreatedBy:     cmd.WorkerId,
+					Parallelism:   0,
+					Tags: map[string]string{
+						"a": "b",
+						"x": "y",
+					},
+					Version: cmd.Version,
+				}, process)
 
-				BpmnProcessId: cmd.BpmnProcessId,
-				CreatedAt:     process.CreatedAt,
-				CreatedBy:     cmd.WorkerId,
-				Parallelism:   0,
-				Tags: map[string]string{
-					"a": "b",
-					"x": "y",
-				},
-				Version: cmd.Version,
-			}, process)
+				assert.NotEmpty(process.Id)
+				assert.NotEmpty(process.CreatedAt)
 
-			assert.NotEmpty(process.Id)
-			assert.NotEmpty(process.CreatedAt)
+				results, err := e.CreateQuery().QueryProcesses(context.Background(), engine.ProcessCriteria{Id: process.Id})
+				if err != nil {
+					t.Fatalf("failed to query process: %v", err)
+				}
 
-			results, err := e.CreateQuery().QueryProcesses(context.Background(), engine.ProcessCriteria{Id: process.Id})
-			if err != nil {
-				t.Fatalf("failed to query process: %v", err)
-			}
+				assert.Lenf(results, 1, "expected on process")
 
-			assert.Lenf(results, 1, "expected on process")
+				assert.Equal(engine.Process{
+					Id: process.Id,
 
-			assert.Equal(engine.Process{
-				Id: process.Id,
+					BpmnProcessId: cmd.BpmnProcessId,
+					CreatedAt:     process.CreatedAt,
+					CreatedBy:     cmd.WorkerId,
+					Parallelism:   0,
+					Tags:          cmd.Tags,
+					Version:       cmd.Version,
+				}, results[0])
 
-				BpmnProcessId: cmd.BpmnProcessId,
-				CreatedAt:     process.CreatedAt,
-				CreatedBy:     cmd.WorkerId,
-				Parallelism:   0,
-				Tags:          cmd.Tags,
-				Version:       cmd.Version,
-			}, results[0])
+				// when
+				bpmnXml, err := e.GetBpmnXml(context.Background(), engine.GetBpmnXmlCmd{ProcessId: process.Id})
+				if err != nil {
+					t.Fatalf("failed to query process: %v", err)
+				}
 
-			// when
-			bpmnXml, err := e.GetBpmnXml(context.Background(), engine.GetBpmnXmlCmd{ProcessId: process.Id})
-			if err != nil {
-				t.Fatalf("failed to query process: %v", err)
-			}
+				// then
+				assert.Equal(cmd.BpmnXml, bpmnXml)
 
-			// then
-			assert.Equal(cmd.BpmnXml, bpmnXml)
-		})
+				t.Run("returns existing process when created again", func(t *testing.T) {
+					// when
+					existingProcess, err := e.CreateProcess(context.Background(), cmd)
+					if err != nil {
+						t.Fatalf("failed to create process: %v", err)
+					}
 
-		t.Run(engineTypes[i]+"returns existing process when created again", func(t *testing.T) {
-			// when
-			existingProcess, err := e.CreateProcess(context.Background(), cmd)
-			if err != nil {
-				t.Fatalf("failed to create process: %v", err)
-			}
+					// then
+					assert.Equal(engine.Process{
+						Id: process.Id,
 
-			// then
-			assert.Equal(engine.Process{
-				Id: process.Id,
-
-				BpmnProcessId: cmd.BpmnProcessId,
-				CreatedAt:     process.CreatedAt,
-				CreatedBy:     cmd.WorkerId,
-				Parallelism:   0,
-				Tags:          cmd.Tags,
-				Version:       cmd.Version,
-			}, existingProcess)
-		})
-
-		t.Run(engineTypes[i]+"returns error when created again with a different BPMN XML", func(t *testing.T) {
-			// when
-			cmd.BpmnXml += " "
-			_, err := e.CreateProcess(context.Background(), cmd)
-
-			// then
-			assert.IsTypef(engine.Error{}, err, "expected engine error")
-
-			engineErr := err.(engine.Error)
-			assert.Equal(engine.ErrorConflict, engineErr.Type)
-			assert.NotEmpty(engineErr.Title)
-			assert.NotEmpty(engineErr.Detail)
-		})
-
-		t.Run(engineTypes[i]+"returns error when BPMN XML cannot be parsed", func(t *testing.T) {
-			// when
-			_, err := e.CreateProcess(context.Background(), engine.CreateProcessCmd{
-				BpmnProcessId: "",
-				BpmnXml:       "",
-				Version:       "1",
-				WorkerId:      testWorkerId,
+						BpmnProcessId: cmd.BpmnProcessId,
+						CreatedAt:     process.CreatedAt,
+						CreatedBy:     cmd.WorkerId,
+						Parallelism:   0,
+						Tags:          cmd.Tags,
+						Version:       cmd.Version,
+					}, existingProcess)
+				})
 			})
+		}
+	})
 
-			// then
-			assert.IsTypef(engine.Error{}, err, "expected engine error")
+	t.Run("returns error when created again with a different BPMN XML", func(t *testing.T) {
+		for i, e := range engines {
+			t.Run(engineTypes[i], func(t *testing.T) {
+				// when
+				cmd.BpmnXml += " "
+				_, err := e.CreateProcess(context.Background(), cmd)
 
-			engineErr := err.(engine.Error)
-			assert.Equal(engine.ErrorProcessModel, engineErr.Type)
-			assert.NotEmpty(engineErr.Title)
-			assert.NotEmpty(engineErr.Detail)
-			assert.Contains(engineErr.Detail, "XML is empty")
-		})
+				// then
+				assert.IsTypef(engine.Error{}, err, "expected engine error")
 
-		t.Run(engineTypes[i]+"returns error when BPMN model has no process", func(t *testing.T) {
-			// when
-			_, err := e.CreateProcess(context.Background(), engine.CreateProcessCmd{
-				BpmnProcessId: "notExisting",
-				BpmnXml:       bpmnXml,
-				Version:       "1",
-				WorkerId:      testWorkerId,
+				engineErr := err.(engine.Error)
+				assert.Equal(engine.ErrorConflict, engineErr.Type)
+				assert.NotEmpty(engineErr.Title)
+				assert.NotEmpty(engineErr.Detail)
 			})
+		}
+	})
 
-			// then
-			assert.IsTypef(engine.Error{}, err, "expected engine error")
+	t.Run("returns error when BPMN XML cannot be parsed", func(t *testing.T) {
+		for i, e := range engines {
+			t.Run(engineTypes[i], func(t *testing.T) {
+				// when
+				_, err := e.CreateProcess(context.Background(), engine.CreateProcessCmd{
+					BpmnProcessId: "",
+					BpmnXml:       "",
+					Version:       "1",
+					WorkerId:      testWorkerId,
+				})
 
-			engineErr := err.(engine.Error)
-			assert.Equal(engine.ErrorProcessModel, engineErr.Type)
-			assert.NotEmpty(engineErr.Title)
-			assert.NotEmpty(engineErr.Detail)
-			assert.Contains(engineErr.Detail, "but [serviceTest]")
-		})
+				// then
+				assert.IsTypef(engine.Error{}, err, "expected engine error")
 
-		t.Run(engineTypes[i]+"returns error when BPMN process is invalid", func(t *testing.T) {
-			// when
-			_, err := e.CreateProcess(context.Background(), engine.CreateProcessCmd{
-				BpmnProcessId: "processNotExecutableTest",
-				BpmnXml:       mustReadBpmnFile(t, "invalid/process-not-executable.bpmn"),
-				Version:       "1",
-				WorkerId:      testWorkerId,
+				engineErr := err.(engine.Error)
+				assert.Equal(engine.ErrorProcessModel, engineErr.Type)
+				assert.NotEmpty(engineErr.Title)
+				assert.NotEmpty(engineErr.Detail)
+				assert.Contains(engineErr.Detail, "XML is empty")
 			})
+		}
+	})
 
-			// then
-			assert.IsTypef(engine.Error{}, err, "expected engine error")
+	t.Run("returns error when BPMN model has no process", func(t *testing.T) {
+		for i, e := range engines {
+			t.Run(engineTypes[i], func(t *testing.T) {
+				// when
+				_, err := e.CreateProcess(context.Background(), engine.CreateProcessCmd{
+					BpmnProcessId: "notExisting",
+					BpmnXml:       bpmnXml,
+					Version:       "1",
+					WorkerId:      testWorkerId,
+				})
 
-			engineErr := err.(engine.Error)
-			assert.Equal(engine.ErrorProcessModel, engineErr.Type)
-			assert.NotEmpty(engineErr.Title)
-			assert.NotEmpty(engineErr.Detail)
-			assert.Equal("BPMN process is invalid", engineErr.Detail)
+				// then
+				assert.IsTypef(engine.Error{}, err, "expected engine error")
 
-			assert.Len(engineErr.Causes, 1)
+				engineErr := err.(engine.Error)
+				assert.Equal(engine.ErrorProcessModel, engineErr.Type)
+				assert.NotEmpty(engineErr.Title)
+				assert.NotEmpty(engineErr.Detail)
+				assert.Contains(engineErr.Detail, "but [serviceTest]")
+			})
+		}
+	})
 
-			assert.Equal("/processNotExecutableTest", engineErr.Causes[0].Pointer)
-			assert.NotEmpty(engineErr.Causes[0].Type)
-			assert.Contains(engineErr.Causes[0].Detail, "not executable")
-		})
-	}
+	t.Run("returns error when BPMN process is invalid", func(t *testing.T) {
+		for i, e := range engines {
+			t.Run(engineTypes[i], func(t *testing.T) {
+				// when
+				_, err := e.CreateProcess(context.Background(), engine.CreateProcessCmd{
+					BpmnProcessId: "processNotExecutableTest",
+					BpmnXml:       mustReadBpmnFile(t, "invalid/process-not-executable.bpmn"),
+					Version:       "1",
+					WorkerId:      testWorkerId,
+				})
+
+				// then
+				assert.IsTypef(engine.Error{}, err, "expected engine error")
+
+				engineErr := err.(engine.Error)
+				assert.Equal(engine.ErrorProcessModel, engineErr.Type)
+				assert.NotEmpty(engineErr.Title)
+				assert.NotEmpty(engineErr.Detail)
+				assert.Equal("BPMN process is invalid", engineErr.Detail)
+
+				assert.Len(engineErr.Causes, 1)
+
+				assert.Equal("/processNotExecutableTest", engineErr.Causes[0].Pointer)
+				assert.NotEmpty(engineErr.Causes[0].Type)
+				assert.Contains(engineErr.Causes[0].Detail, "not executable")
+			})
+		}
+	})
+}
+
 }
 
 func TestCreateProcessWithTimer(t *testing.T) {

@@ -6,7 +6,6 @@ import (
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/model"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -40,9 +39,10 @@ type SignalRepository interface {
 type SignalSubscriptionEntity struct {
 	Id int64
 
+	Partition time.Time // Partition of the related process and element instance
+
 	ElementId         int32
 	ElementInstanceId int32
-	Partition         time.Time // Partition of the related process and element instance
 	ProcessId         int32
 	ProcessInstanceId int32
 
@@ -184,13 +184,6 @@ func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.Signal, error) {
 
 func triggerSignalCatchEvent(ctx Context, task *TaskEntity, signalId int64) error {
 	processInstance, err := ctx.ProcessInstances().Select(task.Partition, task.ProcessInstanceId.Int32)
-	if err == pgx.ErrNoRows {
-		return engine.Error{
-			Type:   engine.ErrorBug,
-			Title:  "failed to trigger signal catch event",
-			Detail: fmt.Sprintf("process instance %s/%d could not be found", task.Partition.Format(time.DateOnly), task.ProcessInstanceId.Int32),
-		}
-	}
 	if err != nil {
 		return err
 	}
@@ -226,7 +219,7 @@ func triggerSignalCatchEvent(ctx Context, task *TaskEntity, signalId int64) erro
 
 	if err := ec.continueExecutions(ctx, []*ElementInstanceEntity{execution}); err != nil {
 		if _, ok := err.(engine.Error); ok {
-			task.Error = pgtype.Text{String: err.Error(), Valid: true}
+			return err
 		} else {
 			return fmt.Errorf("failed to continue execution %+v: %v", execution, err)
 		}
@@ -293,25 +286,18 @@ func triggerSignalCatchEvent(ctx Context, task *TaskEntity, signalId int64) erro
 }
 
 func triggerSignalStartEvent(ctx Context, task *TaskEntity, signalId int64) error {
-	eventDefinition, err := ctx.EventDefinitions().Select(task.ElementId.Int32)
-	if err == pgx.ErrNoRows {
-		return engine.Error{
-			Type:   engine.ErrorBug,
-			Title:  "failed to trigger signal start event",
-			Detail: fmt.Sprintf("event definition %d could not be found", task.ElementId.Int32),
-		}
-	}
-	if err != nil {
-		return err
-	}
-
-	if eventDefinition.IsSuspended {
-		return nil
-	}
-
 	process, err := ctx.ProcessCache().GetOrCacheById(ctx, task.ProcessId.Int32)
 	if err != nil {
 		return err
+	}
+
+	startNode, ok := process.graph.nodeByElementId(task.ElementId.Int32)
+	if !ok {
+		return engine.Error{
+			Type:   engine.ErrorBug,
+			Title:  "failed to find start node",
+			Detail: fmt.Sprintf("start node with ID %d could not be found", task.ElementId.Int32),
+		}
 	}
 
 	signal, err := ctx.Signals().Select(signalId)
@@ -319,31 +305,48 @@ func triggerSignalStartEvent(ctx Context, task *TaskEntity, signalId int64) erro
 		return err
 	}
 
-	processInstance := ProcessInstanceEntity{
-		Partition: ctx.Date(),
+	var processInstance *ProcessInstanceEntity
+	if task.ProcessInstanceId.Valid {
+		selectedProcessInstance, err := ctx.ProcessInstances().Select(task.Partition, task.ProcessInstanceId.Int32)
+		if err != nil {
+			return err
+		}
 
-		ProcessId: process.Id,
+		if selectedProcessInstance.EndedAt.Valid {
+			return nil
+		}
 
-		BpmnProcessId:  process.BpmnProcessId,
-		CreatedAt:      ctx.Time(),
-		CreatedBy:      signal.CreatedBy,
-		StartedAt:      pgtype.Timestamp{Time: ctx.Time(), Valid: true},
-		State:          engine.InstanceStarted,
-		StateChangedBy: signal.CreatedBy,
-		Version:        process.Version,
+		processInstance = selectedProcessInstance
+	} else {
+		processInstance = &ProcessInstanceEntity{
+			Partition: task.Partition,
+
+			ProcessId: process.Id,
+
+			BpmnProcessId:  process.BpmnProcessId,
+			CreatedAt:      ctx.Time(),
+			CreatedBy:      signal.CreatedBy,
+			StartedAt:      pgtype.Timestamp{Time: ctx.Time(), Valid: true},
+			State:          engine.InstanceStarted,
+			StateChangedBy: signal.CreatedBy,
+			Version:        process.Version,
+		}
+
+		if err := ctx.ProcessInstances().Insert(processInstance); err != nil {
+			return err
+		}
+
+		// set ID of inserted process instance for a possible retry
+		task.ProcessInstanceId = pgtype.Int4{Int32: processInstance.Id}
+
+		if err := enqueueProcessInstance(ctx, processInstance); err != nil {
+			return fmt.Errorf("failed to enqueue process instance: %v", err)
+		}
 	}
 
-	if err := ctx.ProcessInstances().Insert(&processInstance); err != nil {
-		return err
-	}
+	scope := process.graph.createProcessScope(processInstance)
 
-	if err := enqueueProcessInstance(ctx, &processInstance); err != nil {
-		return fmt.Errorf("failed to enqueue process instance: %v", err)
-	}
-
-	scope := process.graph.createProcessScope(&processInstance)
-
-	execution, err := process.graph.createExecutionAt(&scope, eventDefinition.BpmnElementId)
+	execution, err := process.graph.createExecutionAt(&scope, startNode.bpmnElement.Id)
 	if err != nil {
 		return engine.Error{
 			Type:   engine.ErrorProcessModel,
@@ -355,12 +358,16 @@ func triggerSignalStartEvent(ctx Context, task *TaskEntity, signalId int64) erro
 	ec := executionContext{
 		engineOrWorkerId: signal.CreatedBy,
 		process:          process,
-		processInstance:  &processInstance,
+		processInstance:  processInstance,
 	}
 
 	executions := []*ElementInstanceEntity{&scope, &execution}
 	if err := ec.continueExecutions(ctx, executions); err != nil {
-		return err
+		if _, ok := err.(engine.Error); ok {
+			return err
+		} else {
+			return fmt.Errorf("failed to continue executions %+v: %v", executions, err)
+		}
 	}
 
 	signalVariables, err := ctx.SignalVariables().SelectBySignalId(signalId)
