@@ -73,6 +73,8 @@ func New(e engine.Engine, customizers ...func(*Options)) (*Server, error) {
 	mux.HandleFunc("GET "+PathElementInstancesVariables, server.getElementVariables)
 	mux.HandleFunc("PUT "+PathElementInstancesVariables, server.setElementVariables)
 
+	mux.HandleFunc("POST "+PathEventsMessages, server.sendMessage)
+	mux.HandleFunc("POST "+PathEventsMessagesQuery, server.queryMessages)
 	mux.HandleFunc("POST "+PathEventsSignals, server.sendSignal)
 
 	mux.HandleFunc("POST "+PathIncidentsQuery, server.queryIncidents)
@@ -430,6 +432,22 @@ func (s *Server) resumeProcessInstance(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (s *Server) sendMessage(w http.ResponseWriter, r *http.Request) {
+	var cmd engine.SendMessageCmd
+	if err := decodeJSONRequestBody(w, r, &cmd); err != nil {
+		encodeJSONProblemResponseBody(w, r, err)
+		return
+	}
+
+	messageCorrelation, err := s.e.SendMessage(r.Context(), cmd)
+	if err != nil {
+		encodeJSONProblemResponseBody(w, r, err)
+		return
+	}
+
+	encodeJSONResponseBody(w, r, messageCorrelation, http.StatusOK)
+}
+
 func (s *Server) sendSignal(w http.ResponseWriter, r *http.Request) {
 	var cmd engine.SendSignalCmd
 	if err := decodeJSONRequestBody(w, r, &cmd); err != nil {
@@ -685,6 +703,36 @@ func (s *Server) queryJobs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resBody := JobRes{
+		Count:   len(results),
+		Results: results,
+	}
+
+	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
+}
+
+func (s *Server) queryMessages(w http.ResponseWriter, r *http.Request) {
+	options, err := parseQueryOptions(r)
+	if err != nil {
+		encodeJSONProblemResponseBody(w, r, err)
+		return
+	}
+
+	var criteria engine.MessageCriteria
+	if err := decodeJSONRequestBody(w, r, &criteria); err != nil {
+		encodeJSONProblemResponseBody(w, r, err)
+		return
+	}
+
+	q := s.e.CreateQuery()
+	q.SetOptions(options)
+
+	results, err := q.QueryMessages(r.Context(), criteria)
+	if err != nil {
+		encodeJSONProblemResponseBody(w, r, err)
+		return
+	}
+
+	resBody := MessageRes{
 		Count:   len(results),
 		Results: results,
 	}

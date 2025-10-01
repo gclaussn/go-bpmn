@@ -37,6 +37,12 @@ func (q *query) QueryJobs(_ context.Context, criteria engine.JobCriteria) ([]eng
 	return memCtx.Jobs().Query(criteria, q.options)
 }
 
+func (q *query) QueryMessages(_ context.Context, criteria engine.MessageCriteria) ([]engine.Message, error) {
+	defer q.e.unlock()
+	memCtx := q.e.rlock()
+	return memCtx.Messages().Query(criteria, q.options, memCtx.Time())
+}
+
 func (q *query) QueryProcesses(_ context.Context, criteria engine.ProcessCriteria) ([]engine.Process, error) {
 	defer q.e.unlock()
 	memCtx := q.e.rlock()

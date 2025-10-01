@@ -203,6 +203,174 @@ func TestCreateProcess(t *testing.T) {
 	})
 }
 
+func TestCreateProcessWithMessage(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	engines, engineTypes := mustCreateEngines(t)
+	for _, e := range engines {
+		defer e.Shutdown()
+	}
+
+	// given
+	bpmnXml1 := mustReadBpmnFile(t, "event/message-start.bpmn")
+	bpmnXml2 := mustReadBpmnFile(t, "event/message-start.v2.bpmn")
+
+	t.Run("returns error when message name is missing", func(t *testing.T) {
+		for i, e := range engines {
+			t.Run(engineTypes[i], func(t *testing.T) {
+				// given
+				cmd := engine.CreateProcessCmd{
+					BpmnProcessId: "messageStartTest",
+					BpmnXml:       bpmnXml1,
+					Version:       "1",
+					WorkerId:      testWorkerId,
+				}
+
+				// when
+				_, err := e.CreateProcess(context.Background(), cmd)
+				require.IsType(engine.Error{}, err)
+
+				// then
+				engineErr := err.(engine.Error)
+				assert.Equal(engine.ErrorValidation, engineErr.Type)
+				assert.NotEmpty(engineErr.Title)
+				assert.NotEmpty(engineErr.Detail)
+			})
+		}
+	})
+
+	t.Run("returns error when BPMN element is not a message start event", func(t *testing.T) {
+		for i, e := range engines {
+			t.Run(engineTypes[i], func(t *testing.T) {
+				// given
+				cmd := engine.CreateProcessCmd{
+					BpmnProcessId: "messageStartTest",
+					BpmnXml:       bpmnXml1,
+					MessageNames: map[string]string{
+						"messageStartEvent": "start-message",
+						"endEvent":          "error",
+					},
+					Version:  "2",
+					WorkerId: testWorkerId,
+				}
+
+				// when
+				_, err := e.CreateProcess(context.Background(), cmd)
+				require.IsType(engine.Error{}, err)
+
+				// then
+				engineErr := err.(engine.Error)
+				assert.Equal(engine.ErrorValidation, engineErr.Type)
+				assert.NotEmpty(engineErr.Title)
+				assert.NotEmpty(engineErr.Detail)
+			})
+		}
+	})
+
+	t.Run("returns error when BPMN element not exists", func(t *testing.T) {
+		for i, e := range engines {
+			t.Run(engineTypes[i], func(t *testing.T) {
+				// given
+				cmd := engine.CreateProcessCmd{
+					BpmnProcessId: "messageStartTest",
+					BpmnXml:       bpmnXml1,
+					MessageNames: map[string]string{
+						"messageStartEvent": "start-message",
+						"not-existing":      "error",
+					},
+					Version:  "3",
+					WorkerId: testWorkerId,
+				}
+
+				// when
+				_, err := e.CreateProcess(context.Background(), cmd)
+				require.IsType(engine.Error{}, err)
+
+				// then
+				engineErr := err.(engine.Error)
+				assert.Equal(engine.ErrorValidation, engineErr.Type)
+				assert.NotEmpty(engineErr.Title)
+				assert.NotEmpty(engineErr.Detail)
+			})
+		}
+	})
+
+	t.Run("create", func(t *testing.T) {
+		for i, e := range engines {
+			t.Run(engineTypes[i], func(t *testing.T) {
+				// given
+				cmd1 := engine.CreateProcessCmd{
+					BpmnProcessId: "messageStartTest",
+					BpmnXml:       bpmnXml1,
+					MessageNames: map[string]string{
+						"messageStartEvent": "start-message",
+					},
+					Version:  "4",
+					WorkerId: testWorkerId,
+				}
+
+				// when
+				process1, err := e.CreateProcess(context.Background(), cmd1)
+				require.NoError(err, "failed to create process")
+
+				// then
+				elements, err := e.CreateQuery().QueryElements(context.Background(), engine.ElementCriteria{
+					ProcessId: process1.Id,
+
+					BpmnElementId: "messageStartEvent",
+				})
+				require.NoError(err, "failed to query elements")
+				require.Len(elements, 1)
+
+				assert.Equal(&engine.EventDefinition{
+					IsSuspended: false,
+					MessageName: "start-message",
+				}, elements[0].EventDefinition)
+
+				// given
+				cmd2 := engine.CreateProcessCmd{
+					BpmnProcessId: "messageStartTest",
+					BpmnXml:       bpmnXml2,
+					MessageNames: map[string]string{
+						"messageStartEvent": "start-message*",
+					},
+					Version:  "5",
+					WorkerId: testWorkerId,
+				}
+
+				// when
+				process2, err := e.CreateProcess(context.Background(), cmd2)
+				require.NoError(err, "failed to create process")
+
+				// then
+				elements, err = e.CreateQuery().QueryElements(context.Background(), engine.ElementCriteria{
+					ProcessId: process1.Id,
+
+					BpmnElementId: "messageStartEvent",
+				})
+				require.NoError(err, "failed to query elements")
+				require.Len(elements, 1)
+
+				assert.Equal(&engine.EventDefinition{
+					IsSuspended: true,
+					MessageName: "start-message",
+				}, elements[0].EventDefinition)
+
+				elements, err = e.CreateQuery().QueryElements(context.Background(), engine.ElementCriteria{
+					ProcessId: process2.Id,
+
+					BpmnElementId: "messageStartEvent",
+				})
+				require.NoError(err, "failed to query elements")
+				require.Len(elements, 1)
+
+				assert.Equal(&engine.EventDefinition{
+					IsSuspended: false,
+					MessageName: "start-message*",
+				}, elements[0].EventDefinition)
+			})
+		}
+	})
 }
 
 func TestCreateProcessWithTimer(t *testing.T) {

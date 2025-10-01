@@ -22,6 +22,9 @@ var Tables = []string{
 	"event_definition",
 	"incident",
 	"job",
+	"message",
+	"message_subscription",
+	"message_variable",
 	"process",
 	"process_instance",
 	"process_instance_queue",
@@ -143,6 +146,21 @@ func prepareDatabase(ctx *pgContext) error {
 		if err := createPartitionTasks[i].Execute(ctx, nil); err != nil {
 			return fmt.Errorf("failed to create partition %s: %v", createPartitionTasks[i].Partition, err)
 		}
+	}
+
+	purgeMessages := internal.TaskEntity{
+		Partition: ctx.Date().AddDate(0, 0, 2),
+
+		CreatedAt: ctx.Time(),
+		CreatedBy: ctx.Options().EngineId,
+		DueAt:     ctx.Date().AddDate(0, 0, 2),
+		Type:      engine.TaskPurgeMessages,
+
+		Instance: purgeMessagesTask{},
+	}
+
+	if err := insertTaskIfNotExists(ctx, &purgeMessages); err != nil {
+		return fmt.Errorf("failed to insert purge messages task: %v", err)
 	}
 
 	purgeSignals := internal.TaskEntity{
@@ -430,6 +448,44 @@ func (t dropPartitionTask) Execute(ctx internal.Context, _ *internal.TaskEntity)
 	}
 
 	return nil
+}
+
+type purgeMessagesTask struct {
+}
+
+func (t purgeMessagesTask) Execute(ctx internal.Context, task *internal.TaskEntity) error {
+	pgCtx := ctx.(*pgContext)
+
+	_, err := pgCtx.tx.Exec(pgCtx.txCtx, `
+DELETE FROM
+	message_variable
+USING
+	message
+WHERE
+	message.expires_at <= $1 AND
+	message.id = message_variable.message_id
+`, task.DueAt)
+
+	if err != nil {
+		return fmt.Errorf("failed to purge message variables: %v", err)
+	}
+
+	if _, err := pgCtx.tx.Exec(pgCtx.txCtx, "DELETE FROM message WHERE expires_at <= $1", task.DueAt); err != nil {
+		return fmt.Errorf("failed to purge messages: %v", err)
+	}
+
+	purgeMessages := internal.TaskEntity{
+		Partition: ctx.Date().AddDate(0, 0, 1),
+
+		CreatedAt: ctx.Time(),
+		CreatedBy: ctx.Options().EngineId,
+		DueAt:     ctx.Date().AddDate(0, 0, 1),
+		Type:      engine.TaskPurgeMessages,
+
+		Instance: purgeMessagesTask{},
+	}
+
+	return insertTaskIfNotExists(ctx, &purgeMessages)
 }
 
 type purgeSignalsTask struct {

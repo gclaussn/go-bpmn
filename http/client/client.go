@@ -234,6 +234,17 @@ func (c *client) ResumeProcessInstance(ctx context.Context, cmd engine.ResumePro
 	return c.doPatch(ctx, path, cmd, nil)
 }
 
+func (c *client) SendMessage(ctx context.Context, cmd engine.SendMessageCmd) (engine.Message, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
+	defer cancel()
+
+	var message engine.Message
+	if err := c.doPost(ctx, server.PathEventsMessages, cmd, &message); err != nil {
+		return engine.Message{}, err
+	}
+	return message, nil
+}
+
 func (c *client) SendSignal(ctx context.Context, cmd engine.SendSignalCmd) (engine.Signal, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()

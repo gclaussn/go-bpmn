@@ -387,6 +387,8 @@ func (r taskRepository) Lock(cmd engine.ExecuteTasksCmd, lockedAt time.Time) ([]
 			task := dropPartitionTask{}
 			err = json.Unmarshal([]byte(entity.SerializedTask.String), &task)
 			entity.Instance = task
+		case engine.TaskPurgeMessages:
+			entity.Instance = purgeMessagesTask{}
 		case engine.TaskPurgeSignals:
 			entity.Instance = purgeSignalsTask{}
 		default:

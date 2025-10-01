@@ -6,6 +6,7 @@ import (
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/model"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -81,6 +82,7 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 			switch execution.BpmnElementType {
 			case
 				model.ElementBusinessRuleTask,
+				model.ElementMessageCatchEvent,
 				model.ElementScriptTask,
 				model.ElementSendTask,
 				model.ElementServiceTask,
@@ -198,6 +200,8 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 			jobType = engine.JobEvaluateExclusiveGateway
 		case model.ElementInclusiveGateway:
 			jobType = engine.JobEvaluateInclusiveGateway
+		case model.ElementMessageCatchEvent:
+			jobType = engine.JobSubscribeMessage
 		case model.ElementParallelGateway:
 			taskType = engine.TaskJoinParallelGateway
 			taskInstance = JoinParallelGatewayTask{}
@@ -326,7 +330,17 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 		return fmt.Errorf("failed to dequeue process instance: %v", err)
 	}
 
-	return nil
+	if !ec.processInstance.MessageId.Valid {
+		return nil
+	}
+
+	message, err := ctx.Messages().Select(ec.processInstance.MessageId.Int64)
+	if err != nil {
+		return err
+	}
+
+	message.ExpiresAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
+	return ctx.Messages().Update(message)
 }
 
 func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion *engine.JobCompletion) error {
@@ -448,6 +462,65 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 
 		if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {
 			return err
+		}
+
+		return nil // do not continue execution
+	case engine.JobSubscribeMessage:
+		if jobCompletion == nil || jobCompletion.MessageName == "" || jobCompletion.MessageCorrelationKey == "" {
+			job.Error = pgtype.Text{String: "expected a message name and correlation key", Valid: true}
+			return nil
+		}
+
+		bufferedMessage, err := ctx.Messages().SelectBuffered(jobCompletion.MessageName, jobCompletion.MessageCorrelationKey, ctx.Time())
+		if err != nil && err != pgx.ErrNoRows {
+			return err
+		}
+
+		if bufferedMessage != nil {
+			triggerEventTask := TaskEntity{
+				Partition: execution.Partition,
+
+				ElementId:         pgtype.Int4{Int32: execution.ElementId, Valid: true},
+				ElementInstanceId: pgtype.Int4{Int32: execution.Id, Valid: true},
+				ProcessId:         pgtype.Int4{Int32: execution.ProcessId, Valid: true},
+				ProcessInstanceId: pgtype.Int4{Int32: execution.ProcessInstanceId, Valid: true},
+
+				CreatedAt: ctx.Time(),
+				CreatedBy: ec.engineOrWorkerId,
+				DueAt:     ctx.Time(),
+				Type:      engine.TaskTriggerEvent,
+
+				Instance: TriggerEventTask{MessageId: bufferedMessage.Id},
+			}
+
+			if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {
+				return err
+			}
+
+			bufferedMessage.ExpiresAt = pgtype.Timestamp{}
+			bufferedMessage.IsCorrelated = true
+
+			if err := ctx.Messages().Update(bufferedMessage); err != nil {
+				return err
+			}
+		} else {
+			messageSubscription := MessageSubscriptionEntity{
+				Partition: execution.Partition,
+
+				ElementId:         execution.ElementId,
+				ElementInstanceId: execution.Id,
+				ProcessId:         execution.ProcessId,
+				ProcessInstanceId: execution.ProcessInstanceId,
+
+				CorrelationKey: jobCompletion.MessageCorrelationKey,
+				CreatedAt:      ctx.Time(),
+				CreatedBy:      ec.engineOrWorkerId,
+				Name:           jobCompletion.MessageName,
+			}
+
+			if err := ctx.MessageSubscriptions().Insert(&messageSubscription); err != nil {
+				return err
+			}
 		}
 
 		return nil // do not continue execution

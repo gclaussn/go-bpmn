@@ -49,6 +49,15 @@ func (r *eventDefinitionRepository) SelectByBpmnProcessId(bpmnProcessId string) 
 	return results, nil
 }
 
+func (r *eventDefinitionRepository) SelectByMessageName(messageName string) (*internal.EventDefinitionEntity, error) {
+	for _, e := range r.entities {
+		if e.MessageName.Valid && e.MessageName.String == messageName && !e.IsSuspended {
+			return &e, nil
+		}
+	}
+	return nil, pgx.ErrNoRows
+}
+
 func (r *eventDefinitionRepository) SelectBySignalName(signalName string) ([]*internal.EventDefinitionEntity, error) {
 	var results []*internal.EventDefinitionEntity
 	for _, e := range r.entities {

@@ -56,6 +56,18 @@ func (c *pgContext) Jobs() internal.JobRepository {
 	return &jobRepository{tx: c.tx, txCtx: c.txCtx}
 }
 
+func (c *pgContext) Messages() internal.MessageRepository {
+	return &messageRepository{tx: c.tx, txCtx: c.txCtx}
+}
+
+func (c *pgContext) MessageSubscriptions() internal.MessageSubscriptionRepository {
+	return &messageSubscriptionRepository{tx: c.tx, txCtx: c.txCtx}
+}
+
+func (c *pgContext) MessageVariables() internal.MessageVariableRepository {
+	return &messageVariableRepository{tx: c.tx, txCtx: c.txCtx}
+}
+
 func (c *pgContext) Processes() internal.ProcessRepository {
 	return &processRepository{tx: c.tx, txCtx: c.txCtx}
 }

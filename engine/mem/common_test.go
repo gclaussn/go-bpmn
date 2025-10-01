@@ -33,6 +33,8 @@ func mustInsertEntities(t *testing.T, e engine.Engine, entities []any) {
 			ctx.Incidents().Insert(entity)
 		case *internal.JobEntity:
 			ctx.Jobs().Insert(entity)
+		case *internal.MessageEntity:
+			ctx.Messages().Insert(entity)
 		case *internal.ProcessEntity:
 			ctx.Processes().Insert(entity)
 		case *internal.ProcessInstanceEntity:

@@ -34,6 +34,8 @@ type CreateProcessCmd struct {
 	BpmnProcessId string `json:"bpmnProcessId" validate:"required"`
 	// Model of the BPMN process as XML.
 	BpmnXml string `json:"bpmnXml" validate:"required"`
+	// Mapping between BPMN element ID and message name.
+	MessageNames map[string]string `json:"messageNames,omitempty" validate:"dive,required"`
 	// Maximum number of parallel process instances being executed. If `0`, the number of parallel process instances is unlimited.
 	Parallelism int `json:"parallelism,omitempty" validate:"gte=0"`
 	// Mapping between BPMN element ID and signal name.
@@ -158,6 +160,23 @@ type ResumeProcessInstanceCmd struct {
 	WorkerId string `json:"workerId" validate:"required"`
 }
 
+// SendMessageCmd is used to notify a message subscriber or buffer a message.
+type SendMessageCmd struct {
+	// Key, used to correlate a message subscription with the message.
+	CorrelationKey string `json:"correlationKey" validate:"required"`
+	// A timer that defines when the message expires.
+	ExpirationTimer *Timer `json:"expirationTimer"`
+	// Message name.
+	Name string `json:"name" validate:"required"`
+	// Optional key that uniquely identifies the message.
+	// If a message with the same name, correlation key and unique key already exists, the message is discarded.
+	UniqueKey string `json:"uniqueKey,omitempty"`
+	// Variables to set or delete at process instance scope. For a variable deletion, no value must be provided.
+	Variables map[string]*Data `json:"variables,omitempty" validate:"dive,keys,variable_name,endkeys,omitnil,required"`
+	// ID of the worker that sent the message.
+	WorkerId string `json:"workerId" validate:"required"`
+}
+
 // SendSignalCmd is used to notify all subscribers.
 type SendSignalCmd struct {
 	// Signal name.
@@ -249,6 +268,12 @@ type JobCompletion struct {
 	// Evaluated BPMN element IDs to continue with after the inclusive gateway.
 	// Applicable when job type is `EVALUATE_INCLUSIVE_GATEWAY`.
 	InclusiveGatewayDecision []string `json:"inclusiveGatewayDecision,omitempty"`
+	// Key, used to correlate a message subscription with a message.
+	// Applicable when job type is `SUBSCRIBE_MESSAGE`.
+	MessageCorrelationKey string `json:"messageCorrelationKey,omitempty"`
+	// Name of the message to subscribe to.
+	// Applicable when job type is `SUBSCRIBE_MESSAGE`.
+	MessageName string `json:"messageName,omitempty"`
 	// Name of the signal to subscribe to.
 	// Applicable when job type is `SUBSCRIBE_SIGNAL`.
 	SignalName string `json:"signalName,omitempty"`

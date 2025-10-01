@@ -34,11 +34,41 @@ func Assert(t *testing.T, e Engine, processInstance ProcessInstance) *ProcessIns
 	}
 }
 
-// AssertSignalStart asserts a process instance started by a signal start event.
-//
-// Since a process can have multiple signal start events, the ID of the BPMN start element must be provided.
-func AssertSignalStart(t *testing.T, e Engine, processId int32, bpmnStartElementId string, variables ...map[string]*Data) *ProcessInstanceAssert {
+// AssertMessageStart asserts a process instance started by a message start event.
+func AssertMessageStart(t *testing.T, e Engine, processId int32, cmd SendMessageCmd) *ProcessInstanceAssert {
 	q := e.CreateQuery()
+
+	message, err := e.SendMessage(context.Background(), cmd)
+	if err != nil {
+		t.Fatalf("failed to send message: %v", err)
+	}
+
+	tasks, err := q.QueryTasks(context.Background(), TaskCriteria{ProcessId: processId, Type: TaskTriggerEvent})
+	if err != nil {
+		t.Fatalf("failed to query tasks: %v", err)
+	}
+
+	var triggerEventTask Task
+	for _, task := range tasks {
+		if !task.IsCompleted() && task.CreatedAt == message.CreatedAt {
+			triggerEventTask = task
+			break
+		}
+	}
+	if triggerEventTask.Id == 0 {
+		t.Fatal("failed to find trigger event task")
+	}
+
+	completedTasks, failedTasks, err := e.ExecuteTasks(context.Background(), ExecuteTasksCmd{
+		Partition: triggerEventTask.Partition,
+		Id:        triggerEventTask.Id,
+	})
+	if err != nil {
+		t.Fatalf("failed to execute task: %v", err)
+	}
+	if len(completedTasks) == 0 || len(failedTasks) != 0 {
+		t.Fatal("trigger event task failed")
+	}
 
 	elements, err := q.QueryElements(context.Background(), ElementCriteria{ProcessId: processId})
 	if err != nil {
@@ -49,6 +79,17 @@ func AssertSignalStart(t *testing.T, e Engine, processId int32, bpmnStartElement
 	for _, element := range elements {
 		elementMap[element.BpmnElementId] = element
 	}
+
+	return &ProcessInstanceAssert{
+		t: t,
+		e: e,
+
+		elements: elementMap,
+
+		partition:         completedTasks[0].Partition,
+		processInstanceId: completedTasks[0].ProcessInstanceId,
+	}
+}
 
 // AssertSignalStart asserts a process instance started by a signal start event.
 func AssertSignalStart(t *testing.T, e Engine, processId int32, cmd SendSignalCmd) *ProcessInstanceAssert {

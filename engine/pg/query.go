@@ -57,6 +57,17 @@ func (q *query) QueryJobs(ctx context.Context, criteria engine.JobCriteria) ([]e
 	return results, q.e.release(pgCtx, err)
 }
 
+func (q *query) QueryMessages(ctx context.Context, criteria engine.MessageCriteria) ([]engine.Message, error) {
+	pgCtx, cancel, err := q.e.acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	defer cancel()
+	results, err := pgCtx.Messages().Query(criteria, q.options, pgCtx.Time())
+	return results, q.e.release(pgCtx, err)
+}
+
 func (q *query) QueryProcesses(ctx context.Context, criteria engine.ProcessCriteria) ([]engine.Process, error) {
 	pgCtx, cancel, err := q.e.acquire(ctx)
 	if err != nil {

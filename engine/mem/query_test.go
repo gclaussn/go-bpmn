@@ -21,7 +21,8 @@ func TestQuery(t *testing.T) {
 	defer e.Shutdown()
 
 	var (
-		date      = time.Now().UTC().Truncate(24 * time.Hour)
+		now       = time.Now().UTC().Truncate(time.Millisecond)
+		date      = now.Truncate(24 * time.Hour)
 		datePlus1 = date.AddDate(0, 0, 1)
 
 		partitions = []time.Time{date, date, date, datePlus1, datePlus1}
@@ -43,6 +44,10 @@ func TestQuery(t *testing.T) {
 			engine.InstanceQueued,
 			engine.InstanceQueued,
 		}
+
+		// message
+		messageExpiresAt = []time.Time{now, {}, now.Add(time.Hour), {}, now.Add(time.Hour)}
+		messageNames     = []string{"a", "a", "b", "c", "c"}
 
 		// process + process instance
 		tags = []map[string]string{
@@ -116,6 +121,11 @@ func TestQuery(t *testing.T) {
 			ElementInstanceId: elementInstanceIds[i],
 			ProcessId:         processIds[i],
 			ProcessInstanceId: processInstanceIds[i],
+		})
+
+		entities = append(entities, &internal.MessageEntity{
+			ExpiresAt: pgtype.Timestamp{Time: messageExpiresAt[i], Valid: !messageExpiresAt[i].IsZero()},
+			Name:      messageNames[i],
 		})
 
 		entities = append(entities, &internal.ProcessEntity{
@@ -366,6 +376,39 @@ func TestQuery(t *testing.T) {
 					assert.Equal(int32(10), results[0].(engine.Job).ProcessInstanceId)
 					assert.Equal(int32(10), results[1].(engine.Job).ProcessInstanceId)
 					assert.Equal(int32(10), results[2].(engine.Job).ProcessInstanceId)
+				},
+			},
+		})
+	})
+
+	t.Run("message", func(t *testing.T) {
+		runQueryTests(t, e, []queryTest{
+			{
+				"by ID",
+				engine.MessageCriteria{Id: 3},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 1)
+					assert.Equal(int64(3), results[0].(engine.Message).Id)
+				},
+			},
+			{
+				"by name",
+				engine.MessageCriteria{Name: "c"},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 2)
+					assert.Equal("c", results[0].(engine.Message).Name)
+					assert.Equal("c", results[1].(engine.Message).Name)
+				},
+			},
+			{
+				"exclude expired",
+				engine.MessageCriteria{ExcludeExpired: true},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 4)
+					assert.Equal(int64(2), results[0].(engine.Message).Id)
+					assert.Equal(int64(3), results[1].(engine.Message).Id)
+					assert.Equal(int64(4), results[2].(engine.Message).Id)
+					assert.Equal(int64(5), results[3].(engine.Message).Id)
 				},
 			},
 		})
@@ -676,10 +719,12 @@ func mustQuery(t *testing.T, q engine.Query, criteria any) []any {
 			t.Fatalf("failed to query jobs: %v", err)
 		}
 		return toResults(jobs)
+	case engine.MessageCriteria:
+		messages, err := q.QueryMessages(context.Background(), criteria)
 		if err != nil {
 			t.Fatalf("failed to query jobs: %v", err)
 		}
-		return toResults(elements)
+		return toResults(messages)
 	case engine.ProcessCriteria:
 		processes, err := q.QueryProcesses(context.Background(), criteria)
 		if err != nil {

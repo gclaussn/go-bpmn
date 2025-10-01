@@ -18,6 +18,7 @@ func newMemContext(options Options) *memContext {
 	ctx.eventDefinitions.entities = make(map[int32]internal.EventDefinitionEntity)
 	ctx.incidents.partitions = make(map[string][]internal.IncidentEntity)
 	ctx.jobs.partitions = make(map[string][]internal.JobEntity)
+	ctx.messageVariables.variables = make(map[int64][]*internal.MessageVariableEntity)
 	ctx.processInstanceQueues.queues = make(map[string]internal.ProcessInstanceQueueEntity)
 	ctx.processInstanceQueues.queueElementPartitions = make(map[string][]internal.ProcessInstanceQueueElementEntity)
 	ctx.processInstances.partitions = make(map[string][]internal.ProcessInstanceEntity)
@@ -44,6 +45,9 @@ type memContext struct {
 	eventDefinitions      eventDefinitionRepository
 	incidents             incidentRepository
 	jobs                  jobRepository
+	messages              messageRepository
+	messageSubscriptions  messageSubscriptionRepository
+	messageVariables      messageVariableRepository
 	processes             processRepository
 	processCache          *internal.ProcessCache
 	processInstances      processInstanceRepository
@@ -91,6 +95,18 @@ func (c *memContext) Jobs() internal.JobRepository {
 	return &c.jobs
 }
 
+func (c *memContext) Messages() internal.MessageRepository {
+	return &c.messages
+}
+
+func (c *memContext) MessageSubscriptions() internal.MessageSubscriptionRepository {
+	return &c.messageSubscriptions
+}
+
+func (c *memContext) MessageVariables() internal.MessageVariableRepository {
+	return &c.messageVariables
+}
+
 func (c *memContext) Processes() internal.ProcessRepository {
 	return &c.processes
 }
@@ -136,6 +152,9 @@ func (c *memContext) clear() {
 	clear(c.elementInstances.partitions)
 	clear(c.incidents.partitions)
 	clear(c.jobs.partitions)
+	c.messages.entities = nil
+	c.messageSubscriptions.entities = nil
+	clear(c.messageVariables.variables)
 	c.processes.entities = nil
 	clear(c.processInstances.partitions)
 	clear(c.processInstanceQueues.queues)

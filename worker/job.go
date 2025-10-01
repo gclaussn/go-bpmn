@@ -114,6 +114,30 @@ func (d Delegator) SetTimer(bpmnElementId string, delegation func(jc JobContext)
 	}
 }
 
+// SubscribeMessage delegates jobs of type [engine.JobSubscribeMessage].
+//
+// A delegation function must return message name and correlation key.
+//
+// Applicable for BPMN element types:
+//   - message catch event
+func (d Delegator) SubscribeMessage(bpmnElementId string, delegation func(jc JobContext) (string, string, error)) {
+	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
+		if jc.Job.Type != engine.JobSubscribeMessage {
+			return nil, fmt.Errorf("expected job type %s, but got %s", engine.JobSubscribeMessage, jc.Job.Type)
+		}
+
+		messageName, messageCorrelationKey, err := delegation(jc)
+		if err != nil {
+			return nil, err
+		}
+
+		return &engine.JobCompletion{
+			MessageName:           messageName,
+			MessageCorrelationKey: messageCorrelationKey,
+		}, nil
+	}
+}
+
 // SubscribeSignal delegates jobs of type [engine.JobSubscribeSignal].
 //
 // Applicable for BPMN element types:

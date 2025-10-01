@@ -25,6 +25,7 @@ INSERT INTO process_instance (
 	parent_id,
 	root_id,
 
+	message_id,
 	process_id,
 
 	bpmn_process_id,
@@ -44,8 +45,8 @@ INSERT INTO process_instance (
 	$4,
 
 	$5,
-
 	$6,
+
 	$7,
 	$8,
 	$9,
@@ -53,7 +54,8 @@ INSERT INTO process_instance (
 	$11,
 	$12,
 	$13,
-	$14
+	$14,
+	$15
 ) RETURNING id
 `,
 		entity.Partition,
@@ -62,6 +64,7 @@ INSERT INTO process_instance (
 		entity.ParentId,
 		entity.RootId,
 
+		entity.MessageId,
 		entity.ProcessId,
 
 		entity.BpmnProcessId,
@@ -88,6 +91,7 @@ SELECT
 	parent_id,
 	root_id,
 
+	message_id,
 	process_id,
 
 	bpmn_process_id,
@@ -115,6 +119,7 @@ FOR UPDATE
 		&entity.ParentId,
 		&entity.RootId,
 
+		&entity.MessageId,
 		&entity.ProcessId,
 
 		&entity.BpmnProcessId,

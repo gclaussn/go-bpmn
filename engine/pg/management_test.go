@@ -9,6 +9,7 @@ import (
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/engine/internal"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -75,7 +76,7 @@ func TestMigrateAndPrepareDatabase(t *testing.T) {
 			t.Fatalf("failed to query tasks: %v", err)
 		}
 
-		assert.Len(results, 2)
+		assert.Len(results, 3)
 
 		detachPartition := results[0]
 		assert.Equal(time.Date(2023, 12, 26, 0, 0, 0, 0, time.UTC), time.Time(detachPartition.Partition))
@@ -89,7 +90,12 @@ func TestMigrateAndPrepareDatabase(t *testing.T) {
 
 		assert.Equal(time.Date(2023, 12, 24, 0, 0, 0, 0, time.UTC), time.Time(detachPartitionTask.Partition))
 
-		purgeSignals := results[1]
+		purgeMessages := results[1]
+		assert.Equal(time.Date(2023, 12, 26, 0, 0, 0, 0, time.UTC), time.Time(purgeMessages.Partition))
+		assert.Equal(time.Date(2023, 12, 26, 0, 0, 0, 0, time.UTC), purgeMessages.DueAt)
+		assert.Equal(engine.TaskPurgeMessages, purgeMessages.Type)
+
+		purgeSignals := results[2]
 		assert.Equal(time.Date(2023, 12, 26, 0, 0, 0, 0, time.UTC), time.Time(purgeSignals.Partition))
 		assert.Equal(time.Date(2023, 12, 26, 0, 0, 0, 0, time.UTC), purgeSignals.DueAt)
 		assert.Equal(engine.TaskPurgeSignals, purgeSignals.Type)
@@ -115,7 +121,7 @@ func TestMigrateAndPrepareDatabase(t *testing.T) {
 			t.Fatalf("failed to query tasks: %v", err)
 		}
 
-		assert.Len(results, 2)
+		assert.Len(results, 3)
 	})
 }
 
@@ -229,6 +235,91 @@ func TestPartitionManagementTasks(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+}
+
+func TestPurgeMessages(t *testing.T) {
+	assert := assert.New(t)
+
+	e := mustCreateEngine(t)
+	defer e.Shutdown()
+
+	pgEngine := e.(*pgEngine)
+
+	message1 := &internal.MessageEntity{
+		CorrelationKey: "1",
+		ExpiresAt:      pgtype.Timestamp{Time: time.Now().Add(time.Hour), Valid: true},
+		Name:           "1",
+	}
+	message2 := &internal.MessageEntity{
+		CorrelationKey: "2",
+		ExpiresAt:      pgtype.Timestamp{Time: time.Now().Add(time.Hour * 2), Valid: true},
+		Name:           "2",
+	}
+	message3 := &internal.MessageEntity{
+		CorrelationKey: "3",
+		ExpiresAt:      pgtype.Timestamp{},
+		Name:           "3",
+	}
+
+	mustInsertEntities(t, e, []any{message1, message2, message3})
+
+	messageVariableA := &internal.MessageVariableEntity{
+		MessageId: message1.Id,
+
+		Name: "a",
+	}
+	messageVariableB := &internal.MessageVariableEntity{
+		MessageId: message1.Id,
+
+		Name: "b",
+	}
+	messageVariableC := &internal.MessageVariableEntity{
+		MessageId: message2.Id,
+
+		Name: "c",
+	}
+	messageVariableD := &internal.MessageVariableEntity{
+		MessageId: message3.Id,
+
+		Name: "d",
+	}
+
+	mustInsertEntities(t, e, []any{messageVariableA, messageVariableB, messageVariableC, messageVariableD})
+
+	if err := pgEngine.execute(func(pgCtx *pgContext) error {
+		task := purgeMessagesTask{}
+
+		if err := pgEngine.execute(func(pgCtx *pgContext) error {
+			return task.Execute(pgCtx, &internal.TaskEntity{DueAt: message1.ExpiresAt.Time})
+		}); err != nil {
+			return err
+		}
+
+		_, err1 := pgCtx.Messages().Select(message1.Id)
+		assert.ErrorIs(err1, pgx.ErrNoRows)
+
+		_, err2 := pgCtx.Messages().Select(message2.Id)
+		assert.NoError(err2)
+
+		_, err3 := pgCtx.Messages().Select(message3.Id)
+		assert.NoError(err3)
+
+		messageVariables1, err1 := pgCtx.MessageVariables().SelectByMessageId(message1.Id)
+		assert.NoError(err1)
+		assert.Len(messageVariables1, 0)
+
+		messageVariables2, err2 := pgCtx.MessageVariables().SelectByMessageId(message2.Id)
+		assert.NoError(err2)
+		assert.Len(messageVariables2, 1)
+
+		messageVariables3, err3 := pgCtx.MessageVariables().SelectByMessageId(message3.Id)
+		assert.NoError(err3)
+		assert.Len(messageVariables3, 1)
+
+		return nil
+	}); err != nil {
+		t.Fatalf("failed to purge messages: %v", err)
+	}
 }
 
 func TestPurgeSignals(t *testing.T) {

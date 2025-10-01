@@ -61,6 +61,12 @@ type JobRes struct {
 	Results []engine.Job `json:"results" validate:"required"`     // Query results.
 }
 
+// Response of a message query.
+type MessageRes struct {
+	Count   int              `json:"count" validate:"required,gte=0"` // Number of results.
+	Results []engine.Message `json:"results" validate:"required"`     // Query results.
+}
+
 // Response of a process query.
 type ProcessRes struct {
 	Count   int              `json:"count" validate:"required,gte=0"` // Number of results.

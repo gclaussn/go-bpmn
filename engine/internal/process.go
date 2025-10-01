@@ -241,6 +241,25 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 	// validate events
 	for _, bpmnElement := range bpmnElements {
+		messageName := cmd.MessageNames[bpmnElement.Id]
+		if messageName != "" {
+			if bpmnElement.Type != model.ElementMessageStartEvent {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(bpmnElement),
+					Type:    "message_event",
+					Detail:  fmt.Sprintf("BPMN element %s is not a message start event", bpmnElement.Id),
+				})
+			}
+		} else {
+			if bpmnElement.Type == model.ElementMessageStartEvent {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(bpmnElement),
+					Type:    "message_event",
+					Detail:  fmt.Sprintf("no message name defined for BPMN element %s", bpmnElement.Id),
+				})
+			}
+		}
+
 		signalName := cmd.SignalNames[bpmnElement.Id]
 		if signalName != "" {
 			if bpmnElement.Type != model.ElementSignalStartEvent {
@@ -366,12 +385,38 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		}
 	}
 
-	var i int
+	eventDefinitions := make([]*EventDefinitionEntity, 0, len(cmd.MessageNames)+len(cmd.SignalNames)+len(cmd.Timers))
+
+	// prepare message event definitions
+	for bpmnElementId, messageName := range cmd.MessageNames {
+		node, ok := graph.nodes[bpmnElementId]
+		if !ok {
+			causes = append(causes, engine.ErrorCause{
+				Pointer: elementPointer(graph.processElement),
+				Type:    "message_event",
+				Detail:  fmt.Sprintf("BPMN process %s has no element %s", processElement.Id, bpmnElementId),
+			})
+			continue
+		}
+
+		if messageName == "" {
+			continue
+		}
+
+		eventDefinitions = append(eventDefinitions, &EventDefinitionEntity{
+			ElementId: node.id,
+
+			ProcessId: process.Id,
+
+			BpmnElementId:   bpmnElementId,
+			BpmnElementType: node.bpmnElement.Type,
+			BpmnProcessId:   process.BpmnProcessId,
+			MessageName:     pgtype.Text{String: messageName, Valid: true},
+			Version:         process.Version,
+		})
+	}
 
 	// prepare signal event definitions
-	signalEventDefinitions := make([]*EventDefinitionEntity, len(cmd.SignalNames))
-
-	i = 0
 	for bpmnElementId, signalName := range cmd.SignalNames {
 		node, ok := graph.nodes[bpmnElementId]
 		if !ok {
@@ -387,7 +432,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			continue
 		}
 
-		signalEventDefinitions[i] = &EventDefinitionEntity{
+		eventDefinitions = append(eventDefinitions, &EventDefinitionEntity{
 			ElementId: node.id,
 
 			ProcessId: process.Id,
@@ -397,16 +442,12 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			BpmnProcessId:   process.BpmnProcessId,
 			SignalName:      pgtype.Text{String: signalName, Valid: true},
 			Version:         process.Version,
-		}
-
-		i++
+		})
 	}
 
-	// prepare timer event definitions and trigger tasks
-	timerEventDefinitions := make([]*EventDefinitionEntity, len(cmd.Timers))
-	timerEventTasks := make([]*TaskEntity, len(cmd.Timers))
+	// prepare timer event definitions and trigger timer event tasks
+	triggerTimerEventTasks := make([]*TaskEntity, 0, len(cmd.Timers))
 
-	i = 0
 	for bpmnElementId, timer := range cmd.Timers {
 		node, ok := graph.nodes[bpmnElementId]
 		if !ok {
@@ -422,7 +463,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			continue
 		}
 
-		timerEventDefinitions[i] = &EventDefinitionEntity{
+		eventDefinitions = append(eventDefinitions, &EventDefinitionEntity{
 			ElementId: node.id,
 
 			ProcessId: process.Id,
@@ -434,7 +475,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			TimeCycle:       pgtype.Text{String: timer.TimeCycle, Valid: timer.TimeCycle != ""},
 			TimeDuration:    pgtype.Text{String: timer.TimeDuration.String(), Valid: !timer.TimeDuration.IsZero()},
 			Version:         process.Version,
-		}
+		})
 
 		dueAt, err := evaluateTimer(*timer, ctx.Time())
 		if err != nil {
@@ -446,7 +487,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			continue
 		}
 
-		timerEventTasks[i] = &TaskEntity{
+		triggerTimerEventTasks = append(triggerTimerEventTasks, &TaskEntity{
 			Partition: ctx.Date(),
 
 			ElementId: pgtype.Int4{Int32: node.id, Valid: true},
@@ -458,9 +499,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			Type:      engine.TaskTriggerEvent,
 
 			Instance: TriggerEventTask{Timer: timer},
-		}
-
-		i++
+		})
 	}
 
 	if len(causes) != 0 {
@@ -509,17 +548,13 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		return engine.Process{}, err
 	}
 
-	// insert signal event definitions
-	if err := ctx.EventDefinitions().InsertBatch(signalEventDefinitions); err != nil {
+	// insert event definitions
+	if err := ctx.EventDefinitions().InsertBatch(eventDefinitions); err != nil {
 		return engine.Process{}, err
 	}
 
-	// insert timer event definitions and trigger tasks
-	if err := ctx.EventDefinitions().InsertBatch(timerEventDefinitions); err != nil {
-		return engine.Process{}, err
-	}
-
-	if err := ctx.Tasks().InsertBatch(timerEventTasks); err != nil {
+	// insert trigger timer trigger tasks
+	if err := ctx.Tasks().InsertBatch(triggerTimerEventTasks); err != nil {
 		return engine.Process{}, err
 	}
 

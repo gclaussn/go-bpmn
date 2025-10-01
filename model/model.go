@@ -81,6 +81,13 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				element = newElement(ElementNoneThrowEvent, t.Attr)
 			case "manualTask":
 				element = newElement(ElementManualTask, t.Attr)
+			case "messageEventDefinition":
+				switch element.Type {
+				case ElementNoneStartEvent:
+					element.Type = ElementMessageStartEvent
+				default:
+					element.Type = ElementMessageCatchEvent
+				}
 			case "outgoing":
 				isOutgoing = true
 			case "parallelGateway":

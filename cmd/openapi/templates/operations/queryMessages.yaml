@@ -1,0 +1,38 @@
+tags:
+  - Events
+summary: Query messages
+description: >
+  Performs a message query.
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/MessageCriteria"
+responses:
+  "200":
+    description: OK
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/MessageRes"
+        example:
+          count: 1
+          results:
+            - id: 9
+              correlationKey: example-key
+              createdAt: "2025-05-01T17:44:19.997Z"
+              createdBy: go-bpmn
+              expiresAt: "2025-05-01T18:44:19.997Z"
+              correlated: false
+              name: example-message
+  "400":
+    description: Bad request
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          invalid_limit:
+            $ref: "#/components/examples/QueryLimitProblem"
+          invalid_offset:
+            $ref: "#/components/examples/QueryOffsetProblem"

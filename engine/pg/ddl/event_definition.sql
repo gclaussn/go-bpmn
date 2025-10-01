@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS event_definition (
 	bpmn_element_type VARCHAR NOT NULL,
 	bpmn_process_id VARCHAR NOT NULL,
 	is_suspended BOOLEAN NOT NULL,
+	message_name VARCHAR,
 	signal_name VARCHAR,
 	time TIMESTAMP(3),
 	time_cycle VARCHAR,

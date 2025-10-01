@@ -24,6 +24,8 @@ INSERT INTO event (
 
 	created_at,
 	created_by,
+	message_correlation_key,
+	message_name,
 	signal_name,
 	time,
 	time_cycle,
@@ -38,7 +40,9 @@ INSERT INTO event (
 	$5,
 	$6,
 	$7,
-	$8
+	$8,
+	$9,
+	$10
 )
 `,
 		entity.Partition,
@@ -47,6 +51,8 @@ INSERT INTO event (
 
 		entity.CreatedAt,
 		entity.CreatedBy,
+		entity.MessageCorrelationKey,
+		entity.MessageName,
 		entity.SignalName,
 		entity.Time,
 		entity.TimeCycle,
@@ -81,6 +87,7 @@ INSERT INTO event_definition (
 	bpmn_element_type,
 	bpmn_process_id,
 	is_suspended,
+	message_name,
 	signal_name,
 	time,
 	time_cycle,
@@ -99,7 +106,8 @@ INSERT INTO event_definition (
 	$8,
 	$9,
 	$10,
-	$11
+	$11,
+	$12
 )
 `,
 			entity.ElementId,
@@ -110,6 +118,7 @@ INSERT INTO event_definition (
 			entity.BpmnElementType.String(),
 			entity.BpmnProcessId,
 			entity.IsSuspended,
+			entity.MessageName,
 			entity.SignalName,
 			entity.Time,
 			entity.TimeCycle,
@@ -191,6 +200,7 @@ SELECT
 	bpmn_element_id,
 	bpmn_element_type,
 	is_suspended,
+	message_name,
 	signal_name,
 	time,
 	time_cycle,
@@ -222,6 +232,7 @@ WHERE
 			&entity.BpmnElementId,
 			&bpmnElementTypeValue,
 			&entity.IsSuspended,
+			&entity.MessageName,
 			&entity.SignalName,
 			&entity.Time,
 			&entity.TimeCycle,
@@ -238,6 +249,58 @@ WHERE
 	}
 
 	return entities, nil
+}
+
+func (r eventDefinitionRepository) SelectByMessageName(messageName string) (*internal.EventDefinitionEntity, error) {
+	row := r.tx.QueryRow(r.txCtx, `
+SELECT
+	element_id,
+
+	process_id,
+
+	bpmn_element_id,
+	bpmn_element_type,
+	bpmn_process_id,
+	message_name,
+	version
+FROM
+	event_definition
+WHERE
+	message_name = $1 AND
+	is_suspended IS FALSE
+ORDER BY
+	element_id
+LIMIT
+	1
+`, messageName)
+
+	var (
+		entity               internal.EventDefinitionEntity
+		bpmnElementTypeValue string
+	)
+
+	if err := row.Scan(
+		&entity.ElementId,
+
+		&entity.ProcessId,
+
+		&entity.BpmnElementId,
+		&bpmnElementTypeValue,
+		&entity.BpmnProcessId,
+		&entity.MessageName,
+		&entity.Version,
+	); err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, err
+		} else {
+			return nil, fmt.Errorf("failed to select not suspended event definition by message name %s: %v", messageName, err)
+		}
+	}
+
+	entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
+	entity.MessageName = pgtype.Text{String: messageName, Valid: true}
+
+	return &entity, nil
 }
 
 func (r eventDefinitionRepository) SelectBySignalName(signalName string) ([]*internal.EventDefinitionEntity, error) {

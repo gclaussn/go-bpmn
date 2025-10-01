@@ -42,6 +42,17 @@ func TestBpmn(t *testing.T) {
 		}
 	})
 
+	t.Run("message event", func(t *testing.T) {
+		for i, e := range engines {
+			messageEventTest := newMessageEventTest(t, e)
+
+			t.Run(engineTypes[i]+"catch", messageEventTest.catch)
+			t.Run(engineTypes[i]+"catchMessageSentBefore", messageEventTest.catchMessageSentBefore)
+			t.Run(engineTypes[i]+"start", messageEventTest.start)
+			t.Run(engineTypes[i]+"startSingleton", messageEventTest.startSingleton)
+		}
+	})
+
 	t.Run("parallel gateway", func(t *testing.T) {
 		for i, e := range engines {
 			parallelGatewayTest := newParallelGatewayTest(t, e)

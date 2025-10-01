@@ -89,6 +89,7 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 //   - [JobEvaluateInclusiveGateway]: forking inclusive gateway
 //   - [JobExecute]: business rule, script, send and service task
 //   - [JobSetTimer]: timer catch event
+//   - [JobSubscribeMessage]: message catch event
 //   - [JobSubscribeSignal]: signal catch event
 type JobType int
 
@@ -97,6 +98,7 @@ const (
 	JobEvaluateInclusiveGateway
 	JobExecute
 	JobSetTimer
+	JobSubscribeMessage
 	JobSubscribeSignal
 )
 
@@ -110,6 +112,8 @@ func MapJobType(s string) JobType {
 		return JobExecute
 	case "SET_TIMER":
 		return JobSetTimer
+	case "SUBSCRIBE_MESSAGE":
+		return JobSubscribeMessage
 	case "SUBSCRIBE_SIGNAL":
 		return JobSubscribeSignal
 	default:
@@ -135,6 +139,8 @@ func (v JobType) String() string {
 		return "EXECUTE"
 	case JobSetTimer:
 		return "SET_TIMER"
+	case JobSubscribeMessage:
+		return "SUBSCRIBE_MESSAGE"
 	case JobSubscribeSignal:
 		return "SUBSCRIBE_SIGNAL"
 	default:
@@ -169,6 +175,7 @@ func (v *JobType) UnmarshalJSON(data []byte) error {
 //   - [TaskCreatePartition] creates a table partition for a specific date
 //   - [TaskDetachPartition] detaches a completed table partition
 //   - [TaskDropPartition] drops a detached table partition
+//   - [TaskPurgeMessages] purges messages that are expired
 //   - [TaskPurgeSignals] purges signals that have no active subscribers anymore
 type TaskType int
 
@@ -182,6 +189,7 @@ const (
 	TaskCreatePartition
 	TaskDetachPartition
 	TaskDropPartition
+	TaskPurgeMessages
 	TaskPurgeSignals
 )
 
@@ -202,6 +210,8 @@ func MapTaskType(s string) TaskType {
 		return TaskDetachPartition
 	case "DROP_PARTITION":
 		return TaskDropPartition
+	case "PURGE_MESSAGES":
+		return TaskPurgeMessages
 	case "PURGE_SIGNALS":
 		return TaskPurgeSignals
 	default:
@@ -234,6 +244,8 @@ func (v TaskType) String() string {
 		return "DETACH_PARTITION"
 	case TaskDropPartition:
 		return "DROP_PARTITION"
+	case TaskPurgeMessages:
+		return "PURGE_MESSAGES"
 	case TaskPurgeSignals:
 		return "PURGE_SIGNALS"
 	default:
@@ -284,6 +296,8 @@ func (v Element) String() string {
 // ElementCriteria specifies the results, returned by an element instance query.
 type ElementCriteria struct {
 	ProcessId int32 `json:"processId,omitempty"` // Process filter.
+
+	BpmnElementId string `json:"bpmnElementId,omitempty"` // BPMN element ID filter.
 }
 
 // ElementInstance is an instance of a BPMN element in the scope of an process instance.
@@ -334,9 +348,10 @@ type ElementInstanceCriteria struct {
 
 // EventDefinition is a generic definition of a BPMN event, while a BPMN element has exactly one type.
 type EventDefinition struct {
-	IsSuspended bool   `json:"suspended"`            // Determines if a start event definition is suspended.
-	SignalName  string `json:"signalName,omitempty"` // Name of the signal - set in case of a signal event.
-	Timer       *Timer `json:"timer,omitempty"`      // A timer definition - set in case of a timer event.
+	IsSuspended bool   `json:"suspended"`             // Determines if a start event definition is suspended.
+	MessageName string `json:"messageName,omitempty"` // Name of the message - set in case of a message event.
+	SignalName  string `json:"signalName,omitempty"`  // Name of the signal - set in case of a signal event.
+	Timer       *Timer `json:"timer,omitempty"`       // A timer definition - set in case of a timer event.
 }
 
 // Incident represents a failed job or task, which has no more retries left.
@@ -429,6 +444,30 @@ type JobCriteria struct {
 	ElementInstanceId int32 `json:"elementInstanceId,omitempty"` // Element instance filter.
 	ProcessId         int32 `json:"processId,omitempty"`         // Process filter.
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // Process instance filter.
+}
+
+// Message represents a sent message.
+//
+// If a message is correlated, a message subscriber (message start or catch event) has been notified.
+// Otherwise a message is buffered (waiting to be correlated) until it expires.
+type Message struct {
+	Id int64 `json:"id" validate:"required"` // Message ID.
+
+	CorrelationKey string     `json:"correlationKey" validate:"required"` // Key, used to correlate a message subscription with the message.
+	CreatedAt      time.Time  `json:"createdAt" validate:"required"`      // Message sent time.
+	CreatedBy      string     `json:"createdBy" validate:"required"`      // ID of the worker that sent the message.
+	ExpiresAt      *time.Time `json:"expiresAt,omitempty"`                // Point in time, when the message expires.
+	IsCorrelated   bool       `json:"correlated" validate:"required"`     // Indicates if the message is correlated or not.
+	Name           string     `json:"name" validate:"required"`           // Message name.
+	UniqueKey      string     `json:"uniqueKey,omitempty"`                // Key that uniquely identifies the message.
+}
+
+// MessageCriteria specifies the results, returned by a message query.
+type MessageCriteria struct {
+	Id int64 `json:"id,omitempty"` // Message filter.
+
+	ExcludeExpired bool   `json:"excludeExpired"` // Determines if expired messages are returned.
+	Name           string `json:"name,omitempty"` // Message name filter.
 }
 
 // Process represents a BPMN process that consists of a set of BPMN elements.

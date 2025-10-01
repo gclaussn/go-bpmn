@@ -22,6 +22,7 @@ var (
 	sqlJobLock              *template.Template = newSqlTemplate("job_lock.sql")
 	sqlJobQuery             *template.Template = newSqlTemplate("job_query.sql")
 	sqlJobUnlock            *template.Template = newSqlTemplate("job_unlock.sql")
+	sqlMessageQuery         *template.Template = newSqlTemplate("message_query.sql")
 	sqlProcessInstanceQuery *template.Template = newSqlTemplate("process_instance_query.sql")
 	sqlProcessQuery         *template.Template = newSqlTemplate("process_query.sql")
 	sqlTaskLock             *template.Template = newSqlTemplate("task_lock.sql")

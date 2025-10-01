@@ -17,6 +17,7 @@ type ProcessInstanceEntity struct {
 	ParentId pgtype.Int4
 	RootId   pgtype.Int4
 
+	MessageId pgtype.Int8 // internal field
 	ProcessId int32
 
 	BpmnProcessId  string

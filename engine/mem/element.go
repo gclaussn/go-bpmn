@@ -42,6 +42,10 @@ func (r *elementRepository) Query(c engine.ElementCriteria, o engine.QueryOption
 			continue
 		}
 
+		if c.BpmnElementId != "" && c.BpmnElementId != e.BpmnElementId {
+			continue
+		}
+
 		if offset < o.Offset {
 			offset++
 			continue
@@ -79,6 +83,7 @@ func (r *elementRepository) getEventDefinition(elementId int32) *engine.EventDef
 
 	return &engine.EventDefinition{
 		IsSuspended: entity.IsSuspended,
+		MessageName: entity.MessageName.String,
 		SignalName:  entity.SignalName.String,
 		Timer:       timer,
 	}

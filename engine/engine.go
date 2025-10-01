@@ -54,6 +54,13 @@ type Engine interface {
 	// ResumeProcessInstance resumes a suspended process instance.
 	ResumeProcessInstance(context.Context, ResumeProcessInstanceCmd) error
 
+	// SendMessage sends a message to notify a message subscriber or buffer it.
+	//
+	// A subscriber can be a message start or catch event.
+	// In case of a message start event, a new process instance is created.
+	// In case of a message catch event, an existing process instance is continued.
+	SendMessage(context.Context, SendMessageCmd) (Message, error)
+
 	// SendSignal sends a signal to notify signal subscribers.
 	//
 	// A subscriber can be a signal start or catch event.
@@ -89,6 +96,7 @@ type Query interface {
 	QueryElementInstances(context.Context, ElementInstanceCriteria) ([]ElementInstance, error)
 	QueryIncidents(context.Context, IncidentCriteria) ([]Incident, error)
 	QueryJobs(context.Context, JobCriteria) ([]Job, error)
+	QueryMessages(context.Context, MessageCriteria) ([]Message, error)
 	QueryProcesses(context.Context, ProcessCriteria) ([]Process, error)
 	QueryProcessInstances(context.Context, ProcessInstanceCriteria) ([]ProcessInstance, error)
 	QueryTasks(context.Context, TaskCriteria) ([]Task, error)
