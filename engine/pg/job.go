@@ -178,7 +178,7 @@ func (r jobRepository) Query(criteria engine.JobCriteria, options engine.QueryOp
 
 	defer rows.Close()
 
-	var results []engine.Job
+	results := make([]engine.Job, 0)
 	for rows.Next() {
 		var (
 			entity    internal.JobEntity

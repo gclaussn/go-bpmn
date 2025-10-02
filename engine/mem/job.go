@@ -50,9 +50,8 @@ func (r *jobRepository) Update(entity *internal.JobEntity) error {
 
 func (r *jobRepository) Query(c engine.JobCriteria, o engine.QueryOptions) ([]engine.Job, error) {
 	var (
-		results []engine.Job
-		offset  int
-		limit   int
+		offset int
+		limit  int
 
 		partitionKey string
 	)
@@ -67,6 +66,7 @@ func (r *jobRepository) Query(c engine.JobCriteria, o engine.QueryOptions) ([]en
 	}
 	sort.Strings(keys)
 
+	results := make([]engine.Job, 0)
 	for i := 0; i < len(keys); i++ {
 		if partitionKey != "" && partitionKey != keys[i] {
 			continue

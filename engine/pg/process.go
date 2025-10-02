@@ -161,7 +161,7 @@ func (r processRepository) Query(criteria engine.ProcessCriteria, options engine
 
 	defer rows.Close()
 
-	var results []engine.Process
+	results := make([]engine.Process, 0)
 	for rows.Next() {
 		var entity internal.ProcessEntity
 

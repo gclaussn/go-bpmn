@@ -127,7 +127,7 @@ func (r elementRepository) Query(criteria engine.ElementCriteria, options engine
 
 	defer rows.Close()
 
-	var results []engine.Element
+	results := make([]engine.Element, 0)
 	for rows.Next() {
 		var (
 			entity internal.ElementEntity

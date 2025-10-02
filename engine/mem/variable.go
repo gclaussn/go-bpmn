@@ -119,9 +119,8 @@ func (r *variableRepository) Upsert(entity *internal.VariableEntity) error {
 
 func (r *variableRepository) Query(c engine.VariableCriteria, o engine.QueryOptions) ([]engine.Variable, error) {
 	var (
-		results []engine.Variable
-		offset  int
-		limit   int
+		offset int
+		limit  int
 
 		partitionKey string
 	)
@@ -136,6 +135,7 @@ func (r *variableRepository) Query(c engine.VariableCriteria, o engine.QueryOpti
 	}
 	sort.Strings(keys)
 
+	results := make([]engine.Variable, 0)
 	for i := 0; i < len(keys); i++ {
 		if partitionKey != "" && partitionKey != keys[i] {
 			continue

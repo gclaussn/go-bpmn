@@ -155,7 +155,7 @@ func (r incidentRepository) Query(criteria engine.IncidentCriteria, options engi
 
 	defer rows.Close()
 
-	var results []engine.Incident
+	results := make([]engine.Incident, 0)
 	for rows.Next() {
 		var entity internal.IncidentEntity
 

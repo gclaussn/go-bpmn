@@ -77,7 +77,7 @@ func (r *messageRepository) Query(c engine.MessageCriteria, o engine.QueryOption
 		limit  int
 	)
 
-	var results []engine.Message
+	results := make([]engine.Message, 0)
 	for _, e := range r.entities {
 		if c.Id != 0 && c.Id != e.Id {
 			continue

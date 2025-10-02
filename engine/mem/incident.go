@@ -48,9 +48,8 @@ func (r *incidentRepository) Update(entity *internal.IncidentEntity) error {
 
 func (r *incidentRepository) Query(c engine.IncidentCriteria, o engine.QueryOptions) ([]engine.Incident, error) {
 	var (
-		results []engine.Incident
-		offset  int
-		limit   int
+		offset int
+		limit  int
 
 		partitionKey string
 	)
@@ -65,6 +64,7 @@ func (r *incidentRepository) Query(c engine.IncidentCriteria, o engine.QueryOpti
 	}
 	sort.Strings(keys)
 
+	results := make([]engine.Incident, 0)
 	for i := 0; i < len(keys); i++ {
 		if partitionKey != "" && partitionKey != keys[i] {
 			continue

@@ -44,11 +44,11 @@ func (r *processRepository) SelectByBpmnProcessIdAndVersion(bpmnProcessId string
 
 func (r *processRepository) Query(c engine.ProcessCriteria, o engine.QueryOptions) ([]engine.Process, error) {
 	var (
-		results []engine.Process
-		offset  int
-		limit   int
+		offset int
+		limit  int
 	)
 
+	results := make([]engine.Process, 0)
 	for _, e := range r.entities {
 		if c.Id != 0 && c.Id != e.Id {
 			continue

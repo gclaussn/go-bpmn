@@ -96,9 +96,8 @@ func (r *processInstanceRepository) Update(entity *internal.ProcessInstanceEntit
 
 func (r *processInstanceRepository) Query(c engine.ProcessInstanceCriteria, o engine.QueryOptions) ([]engine.ProcessInstance, error) {
 	var (
-		results []engine.ProcessInstance
-		offset  int
-		limit   int
+		offset int
+		limit  int
 
 		partitionKey string
 	)
@@ -113,6 +112,7 @@ func (r *processInstanceRepository) Query(c engine.ProcessInstanceCriteria, o en
 	}
 	sort.Strings(keys)
 
+	results := make([]engine.ProcessInstance, 0)
 	for i := 0; i < len(keys); i++ {
 		if partitionKey != "" && partitionKey != keys[i] {
 			continue

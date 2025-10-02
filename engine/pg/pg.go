@@ -260,12 +260,10 @@ func (e *pgEngine) ExecuteTasks(ctx context.Context, cmd engine.ExecuteTasksCmd)
 
 	cancel()
 
-	var (
-		completedTasks []engine.Task
-		failedTasks    []engine.Task
+	completedTasks := make([]engine.Task, 0, len(lockedTasks))
+	failedTasks := make([]engine.Task, 0)
 
-		errs []error
-	)
+	var errs []error
 	for _, lockedTask := range lockedTasks {
 		pgCtx, cancel, err := e.acquire(ctx)
 		if err != nil {

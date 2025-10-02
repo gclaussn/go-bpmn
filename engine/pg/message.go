@@ -199,7 +199,7 @@ func (r messageRepository) Query(criteria engine.MessageCriteria, options engine
 
 	defer rows.Close()
 
-	var results []engine.Message
+	results := make([]engine.Message, 0)
 	for rows.Next() {
 		var entity internal.MessageEntity
 

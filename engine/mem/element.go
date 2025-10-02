@@ -32,11 +32,11 @@ func (r *elementRepository) SelectByProcessId(processId int32) ([]*internal.Elem
 
 func (r *elementRepository) Query(c engine.ElementCriteria, o engine.QueryOptions) ([]engine.Element, error) {
 	var (
-		results []engine.Element
-		offset  int
-		limit   int
+		offset int
+		limit  int
 	)
 
+	results := make([]engine.Element, 0)
 	for _, e := range r.entities {
 		if c.ProcessId != 0 && c.ProcessId != e.ProcessId {
 			continue

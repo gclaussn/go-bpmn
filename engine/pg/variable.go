@@ -296,7 +296,7 @@ func (r variableRepository) Query(criteria engine.VariableCriteria, options engi
 
 	defer rows.Close()
 
-	var results []engine.Variable
+	results := make([]engine.Variable, 0)
 	for rows.Next() {
 		var entity internal.VariableEntity
 

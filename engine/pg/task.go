@@ -272,7 +272,7 @@ func (r taskRepository) Query(criteria engine.TaskCriteria, options engine.Query
 
 	defer rows.Close()
 
-	var results []engine.Task
+	results := make([]engine.Task, 0)
 	for rows.Next() {
 		var (
 			entity    internal.TaskEntity

@@ -58,9 +58,8 @@ func (r *taskRepository) Update(entity *internal.TaskEntity) error {
 
 func (r *taskRepository) Query(c engine.TaskCriteria, o engine.QueryOptions) ([]engine.Task, error) {
 	var (
-		results []engine.Task
-		offset  int
-		limit   int
+		offset int
+		limit  int
 
 		partitionKey string
 	)
@@ -75,6 +74,7 @@ func (r *taskRepository) Query(c engine.TaskCriteria, o engine.QueryOptions) ([]
 	}
 	sort.Strings(keys)
 
+	results := make([]engine.Task, 0)
 	for i := 0; i < len(keys); i++ {
 		if partitionKey != "" && partitionKey != keys[i] {
 			continue

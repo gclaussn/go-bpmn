@@ -360,7 +360,7 @@ func (r elementInstanceRepository) Query(criteria engine.ElementInstanceCriteria
 
 	defer rows.Close()
 
-	var results []engine.ElementInstance
+	results := make([]engine.ElementInstance, 0)
 	for rows.Next() {
 		var entity internal.ElementInstanceEntity
 

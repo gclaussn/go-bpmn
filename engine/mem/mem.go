@@ -103,12 +103,10 @@ func (e *memEngine) ExecuteTasks(_ context.Context, cmd engine.ExecuteTasksCmd) 
 		return nil, nil, err
 	}
 
-	var (
-		completedTasks []engine.Task
-		failedTasks    []engine.Task
+	completedTasks := make([]engine.Task, 0, len(lockedTasks))
+	failedTasks := make([]engine.Task, 0)
 
-		errs []error
-	)
+	var errs []error
 	for _, lockedTask := range lockedTasks {
 		err := internal.ExecuteTask(ctx, lockedTask)
 

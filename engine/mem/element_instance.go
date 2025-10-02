@@ -85,9 +85,8 @@ func (r *elementInstanceRepository) Update(entity *internal.ElementInstanceEntit
 
 func (r *elementInstanceRepository) Query(c engine.ElementInstanceCriteria, o engine.QueryOptions) ([]engine.ElementInstance, error) {
 	var (
-		results []engine.ElementInstance
-		offset  int
-		limit   int
+		offset int
+		limit  int
 
 		partitionKey string
 	)
@@ -102,6 +101,7 @@ func (r *elementInstanceRepository) Query(c engine.ElementInstanceCriteria, o en
 	}
 	sort.Strings(keys)
 
+	results := make([]engine.ElementInstance, 0)
 	for i := 0; i < len(keys); i++ {
 		if partitionKey != "" && partitionKey != keys[i] {
 			continue

@@ -242,7 +242,7 @@ func (r processInstanceRepository) Query(criteria engine.ProcessInstanceCriteria
 
 	defer rows.Close()
 
-	var results []engine.ProcessInstance
+	results := make([]engine.ProcessInstance, 0)
 	for rows.Next() {
 		var entity internal.ProcessInstanceEntity
 
