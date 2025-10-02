@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/gclaussn/go-bpmn/engine"
-	"github.com/gclaussn/go-bpmn/http/server"
+	"github.com/gclaussn/go-bpmn/http/common"
 )
 
 type query struct {
@@ -14,9 +14,9 @@ type query struct {
 }
 
 func (q *query) QueryElements(ctx context.Context, criteria engine.ElementCriteria) ([]engine.Element, error) {
-	path := server.PathElementsQuery + encodeQueryOptions(q.options)
+	path := common.PathElementsQuery + encodeQueryOptions(q.options)
 
-	var resBody server.ElementRes
+	var resBody common.ElementRes
 	if err := q.c.doPost(ctx, path, criteria, &resBody); err != nil {
 		return nil, err
 	}
@@ -25,9 +25,9 @@ func (q *query) QueryElements(ctx context.Context, criteria engine.ElementCriter
 }
 
 func (q *query) QueryElementInstances(ctx context.Context, criteria engine.ElementInstanceCriteria) ([]engine.ElementInstance, error) {
-	path := server.PathElementInstancesQuery + encodeQueryOptions(q.options)
+	path := common.PathElementInstancesQuery + encodeQueryOptions(q.options)
 
-	var resBody server.ElementInstanceRes
+	var resBody common.ElementInstanceRes
 	if err := q.c.doPost(ctx, path, criteria, &resBody); err != nil {
 		return nil, err
 	}
@@ -36,9 +36,9 @@ func (q *query) QueryElementInstances(ctx context.Context, criteria engine.Eleme
 }
 
 func (q *query) QueryIncidents(ctx context.Context, criteria engine.IncidentCriteria) ([]engine.Incident, error) {
-	path := server.PathIncidentsQuery + encodeQueryOptions(q.options)
+	path := common.PathIncidentsQuery + encodeQueryOptions(q.options)
 
-	var resBody server.IncidentRes
+	var resBody common.IncidentRes
 	if err := q.c.doPost(ctx, path, criteria, &resBody); err != nil {
 		return nil, err
 	}
@@ -47,9 +47,9 @@ func (q *query) QueryIncidents(ctx context.Context, criteria engine.IncidentCrit
 }
 
 func (q *query) QueryJobs(ctx context.Context, criteria engine.JobCriteria) ([]engine.Job, error) {
-	path := server.PathJobsQuery + encodeQueryOptions(q.options)
+	path := common.PathJobsQuery + encodeQueryOptions(q.options)
 
-	var resBody server.JobRes
+	var resBody common.JobRes
 	if err := q.c.doPost(ctx, path, criteria, &resBody); err != nil {
 		return nil, err
 	}
@@ -58,9 +58,9 @@ func (q *query) QueryJobs(ctx context.Context, criteria engine.JobCriteria) ([]e
 }
 
 func (q *query) QueryMessages(ctx context.Context, criteria engine.MessageCriteria) ([]engine.Message, error) {
-	path := server.PathEventsMessagesQuery + encodeQueryOptions(q.options)
+	path := common.PathEventsMessagesQuery + encodeQueryOptions(q.options)
 
-	var resBody server.MessageRes
+	var resBody common.MessageRes
 	if err := q.c.doPost(ctx, path, criteria, &resBody); err != nil {
 		return nil, err
 	}
@@ -69,9 +69,9 @@ func (q *query) QueryMessages(ctx context.Context, criteria engine.MessageCriter
 }
 
 func (q *query) QueryProcesses(ctx context.Context, criteria engine.ProcessCriteria) ([]engine.Process, error) {
-	path := server.PathProcessesQuery + encodeQueryOptions(q.options)
+	path := common.PathProcessesQuery + encodeQueryOptions(q.options)
 
-	var resBody server.ProcessRes
+	var resBody common.ProcessRes
 	if err := q.c.doPost(ctx, path, criteria, &resBody); err != nil {
 		return nil, err
 	}
@@ -80,9 +80,9 @@ func (q *query) QueryProcesses(ctx context.Context, criteria engine.ProcessCrite
 }
 
 func (q *query) QueryProcessInstances(ctx context.Context, criteria engine.ProcessInstanceCriteria) ([]engine.ProcessInstance, error) {
-	path := server.PathProcessInstancesQuery + encodeQueryOptions(q.options)
+	path := common.PathProcessInstancesQuery + encodeQueryOptions(q.options)
 
-	var resBody server.ProcessInstanceRes
+	var resBody common.ProcessInstanceRes
 	if err := q.c.doPost(ctx, path, criteria, &resBody); err != nil {
 		return nil, err
 	}
@@ -91,9 +91,9 @@ func (q *query) QueryProcessInstances(ctx context.Context, criteria engine.Proce
 }
 
 func (q *query) QueryTasks(ctx context.Context, criteria engine.TaskCriteria) ([]engine.Task, error) {
-	path := server.PathTasksQuery + encodeQueryOptions(q.options)
+	path := common.PathTasksQuery + encodeQueryOptions(q.options)
 
-	var resBody server.TaskRes
+	var resBody common.TaskRes
 	if err := q.c.doPost(ctx, path, criteria, &resBody); err != nil {
 		return nil, err
 	}
@@ -102,9 +102,9 @@ func (q *query) QueryTasks(ctx context.Context, criteria engine.TaskCriteria) ([
 }
 
 func (q *query) QueryVariables(ctx context.Context, criteria engine.VariableCriteria) ([]engine.Variable, error) {
-	path := server.PathVariablesQuery + encodeQueryOptions(q.options)
+	path := common.PathVariablesQuery + encodeQueryOptions(q.options)
 
-	var resBody server.VariableRes
+	var resBody common.VariableRes
 	if err := q.c.doPost(ctx, path, criteria, &resBody); err != nil {
 		return nil, err
 	}

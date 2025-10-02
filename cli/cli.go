@@ -15,7 +15,7 @@ import (
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/http/client"
-	"github.com/gclaussn/go-bpmn/http/server"
+	"github.com/gclaussn/go-bpmn/http/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -251,8 +251,8 @@ func debugResponse(res *http.Response) error {
 
 	var resBodyStr string
 
-	contentType := res.Header.Get(server.HeaderContentType)
-	if contentType == server.ContentTypeJson || contentType == server.ContentTypeProblemJson {
+	contentType := res.Header.Get(common.HeaderContentType)
+	if contentType == common.ContentTypeJson || contentType == common.ContentTypeProblemJson {
 		buf := &bytes.Buffer{}
 		if err := json.Indent(buf, b, "", "  "); err == nil {
 			resBodyStr = buf.String()
@@ -265,7 +265,7 @@ func debugResponse(res *http.Response) error {
 		res.Body = io.NopCloser(bytes.NewReader(b)) // make body readable again
 	}
 
-	if resBodyStr != "" && contentType != server.ContentTypeXml {
+	if resBodyStr != "" && contentType != common.ContentTypeXml {
 		log.Printf("response body:\n%s", resBodyStr)
 	}
 	return nil

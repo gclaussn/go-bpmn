@@ -8,7 +8,7 @@ import (
 	"net/http"
 
 	"github.com/gclaussn/go-bpmn/engine"
-	"github.com/gclaussn/go-bpmn/http/server"
+	"github.com/gclaussn/go-bpmn/http/common"
 )
 
 func decodeJSONResponseBody(res *http.Response, v any) error {
@@ -16,24 +16,24 @@ func decodeJSONResponseBody(res *http.Response, v any) error {
 
 	decoder := json.NewDecoder(res.Body)
 
-	contentType := res.Header.Get(server.HeaderContentType)
-	if contentType == server.ContentTypeProblemJson {
-		var problem server.Problem
+	contentType := res.Header.Get(common.HeaderContentType)
+	if contentType == common.ContentTypeProblemJson {
+		var problem common.Problem
 		if err := decoder.Decode(&problem); err != nil {
 			return fmt.Errorf("failed to decode JSON problem response body: %v", err)
 		}
 
 		var errorType engine.ErrorType
 		switch problem.Type {
-		case server.ProblemTypeConflict:
+		case common.ProblemConflict:
 			errorType = engine.ErrorConflict
-		case server.ProblemTypeNotFound:
+		case common.ProblemNotFound:
 			errorType = engine.ErrorNotFound
-		case server.ProblemTypeProcessModel:
+		case common.ProblemProcessModel:
 			errorType = engine.ErrorProcessModel
-		case server.ProblemTypeQuery:
+		case common.ProblemQuery:
 			errorType = engine.ErrorQuery
-		case server.ProblemTypeValidation:
+		case common.ProblemValidation:
 			errorType = engine.ErrorValidation
 		default:
 			return problem

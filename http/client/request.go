@@ -6,17 +6,17 @@ import (
 	"strings"
 
 	"github.com/gclaussn/go-bpmn/engine"
-	"github.com/gclaussn/go-bpmn/http/server"
+	"github.com/gclaussn/go-bpmn/http/common"
 )
 
 func encodeQueryOptions(options engine.QueryOptions) string {
 	values := make(url.Values)
 
 	if options.Offset > 0 {
-		values.Add(server.QueryOffset, strconv.Itoa(options.Offset))
+		values.Add(common.QueryOffset, strconv.Itoa(options.Offset))
 	}
 	if options.Limit > 0 {
-		values.Add(server.QueryLimit, strconv.Itoa(options.Limit))
+		values.Add(common.QueryLimit, strconv.Itoa(options.Limit))
 	}
 
 	if len(values) == 0 {

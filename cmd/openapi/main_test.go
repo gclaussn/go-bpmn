@@ -6,7 +6,7 @@ import (
 	"go/token"
 	"testing"
 
-	"github.com/gclaussn/go-bpmn/http/server"
+	"github.com/gclaussn/go-bpmn/http/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -28,8 +28,8 @@ func TestGenerator(t *testing.T) {
 func TestDescribeEnum(t *testing.T) {
 	assert := assert.New(t)
 
-	problemType, problemTypeValues := describeEnum(server.ProblemType(0))
-	assert.Equal("server.ProblemType", problemType)
+	problemType, problemTypeValues := describeEnum(common.ProblemType(0))
+	assert.Equal("common.ProblemType", problemType)
 	assert.NotEmpty(problemTypeValues)
 	assert.Equal("UNKNOWN", problemTypeValues[len(problemTypeValues)-1])
 }

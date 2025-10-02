@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gclaussn/go-bpmn/engine"
+	"github.com/gclaussn/go-bpmn/http/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -73,10 +74,10 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 	t.Run("unsupported media type", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest("", "/", strings.NewReader(validJson))
-		r.Header.Add(HeaderContentType, "text/plain")
+		r.Header.Add(common.HeaderContentType, "text/plain")
 
 		err := decodeJSONRequestBody(w, r, &body)
-		assertProblem(t, err, ProblemTypeHttpMediaType, http.StatusUnsupportedMediaType)
+		assertProblem(t, err, common.ProblemHttpMediaType, http.StatusUnsupportedMediaType)
 		assert.Contains(err.Error(), "text/plain")
 	})
 
@@ -85,7 +86,7 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		r := httptest.NewRequest("", "/", strings.NewReader(""))
 
 		err := decodeJSONRequestBody(w, r, &body)
-		assertProblem(t, err, ProblemTypeHttpRequestBody, http.StatusBadRequest)
+		assertProblem(t, err, common.ProblemHttpRequestBody, http.StatusBadRequest)
 		assert.Contains(err.Error(), "request body is empty")
 	})
 
@@ -101,7 +102,7 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		r := httptest.NewRequest("", "/", bytes.NewReader(b))
 
 		err := decodeJSONRequestBody(w, r, &body)
-		assertProblem(t, err, ProblemTypeHttpRequestBody, http.StatusBadRequest)
+		assertProblem(t, err, common.ProblemHttpRequestBody, http.StatusBadRequest)
 		assert.Contains(err.Error(), "1MB")
 	})
 
@@ -110,7 +111,7 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		r := httptest.NewRequest("", "/", strings.NewReader("{_}"))
 
 		err := decodeJSONRequestBody(w, r, &body)
-		assertProblem(t, err, ProblemTypeHttpRequestBody, http.StatusBadRequest)
+		assertProblem(t, err, common.ProblemHttpRequestBody, http.StatusBadRequest)
 		assert.Contains(err.Error(), "at position 2")
 	})
 
@@ -119,7 +120,7 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		r := httptest.NewRequest("", "/", strings.NewReader("{"))
 
 		err := decodeJSONRequestBody(w, r, &body)
-		assertProblem(t, err, ProblemTypeHttpRequestBody, http.StatusBadRequest)
+		assertProblem(t, err, common.ProblemHttpRequestBody, http.StatusBadRequest)
 		assert.Contains(err.Error(), "unexpected end of JSON")
 	})
 
@@ -128,7 +129,7 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		r := httptest.NewRequest("", "/", strings.NewReader(`{"vrequired":1}`))
 
 		err := decodeJSONRequestBody(w, r, &body)
-		assertProblem(t, err, ProblemTypeHttpRequestBody, http.StatusBadRequest)
+		assertProblem(t, err, common.ProblemHttpRequestBody, http.StatusBadRequest)
 		assert.Contains(err.Error(), "JSON field vrequired has an invalid value at position 14")
 	})
 
@@ -137,7 +138,7 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		r := httptest.NewRequest("", "/", strings.NewReader(`{"vunknown":-1}`))
 
 		err := decodeJSONRequestBody(w, r, &body)
-		assertProblem(t, err, ProblemTypeHttpRequestBody, http.StatusBadRequest)
+		assertProblem(t, err, common.ProblemHttpRequestBody, http.StatusBadRequest)
 		assert.Contains(err.Error(), `unknown JSON field "vunknown"`)
 	})
 
@@ -161,22 +162,22 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		r := httptest.NewRequest("", "/", strings.NewReader(invalidJson))
 
 		err := decodeJSONRequestBody(w, r, &body)
-		assertProblem(t, err, ProblemTypeHttpRequestBody, http.StatusBadRequest)
+		assertProblem(t, err, common.ProblemHttpRequestBody, http.StatusBadRequest)
 
-		problem := err.(Problem)
+		problem := err.(common.Problem)
 		assert.Len(problem.Errors, 14)
 
-		findError := func(pointer string) Error {
+		findError := func(pointer string) common.Error {
 			for i := range problem.Errors {
 				if problem.Errors[i].Pointer == pointer {
 					return problem.Errors[i]
 				}
 			}
 			t.Fatalf("failed to find error for pointer %s", pointer)
-			return Error{}
+			return common.Error{}
 		}
 
-		var e Error
+		var e common.Error
 
 		e = findError("#/vgte")
 		assert.Equal("gte", e.Type)
@@ -250,9 +251,9 @@ func TestDecodeJSONRequestBodyTimer(t *testing.T) {
 		r := httptest.NewRequest("", "/", strings.NewReader(`{"vtimer": null}`))
 
 		err := decodeJSONRequestBody(w, r, &body)
-		assertProblem(t, err, ProblemTypeHttpRequestBody, http.StatusBadRequest)
+		assertProblem(t, err, common.ProblemHttpRequestBody, http.StatusBadRequest)
 
-		problem := err.(Problem)
+		problem := err.(common.Problem)
 		assert.Lenf(problem.Errors, 1, "expected one error")
 
 		e := problem.Errors[0]
@@ -267,9 +268,9 @@ func TestDecodeJSONRequestBodyTimer(t *testing.T) {
 		r := httptest.NewRequest("", "/", strings.NewReader(`{"vtimer": {}}`))
 
 		err := decodeJSONRequestBody(w, r, &body)
-		assertProblem(t, err, ProblemTypeHttpRequestBody, http.StatusBadRequest)
+		assertProblem(t, err, common.ProblemHttpRequestBody, http.StatusBadRequest)
 
-		problem := err.(Problem)
+		problem := err.(common.Problem)
 		assert.Lenf(problem.Errors, 1, "expected one error")
 
 		e := problem.Errors[0]
@@ -315,7 +316,7 @@ func TestDecodeJSONRequestBodyTimer(t *testing.T) {
 
 		err := decodeJSONRequestBody(w, r, &body)
 
-		problem := err.(Problem)
+		problem := err.(common.Problem)
 		assert.Lenf(problem.Errors, 1, "expected one error")
 
 		e := problem.Errors[0]
@@ -424,12 +425,12 @@ func TestParseQueryOptions(t *testing.T) {
 	})
 }
 
-func assertProblem(t *testing.T, err error, expectedType ProblemType, expectedStatus int) {
+func assertProblem(t *testing.T, err error, expectedType common.ProblemType, expectedStatus int) {
 	if err == nil {
 		t.Fatal("error is nil")
 	}
 
-	problem, ok := err.(Problem)
+	problem, ok := err.(common.Problem)
 	if !ok {
 		t.Fatalf("error is not of type Problem: %v", err)
 	}

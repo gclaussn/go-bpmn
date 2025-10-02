@@ -1,49 +1,44 @@
-package server
+package common
 
 import (
-	"encoding/json"
 	"fmt"
-	"log"
-	"net/http"
 	"strings"
-
-	"github.com/gclaussn/go-bpmn/engine"
 )
 
 // ProblemType determines if a problem is HTTP and engine related.
 type ProblemType int
 
 const (
-	ProblemTypeHttpMediaType ProblemType = iota + 1
-	ProblemTypeHttpRequestBody
-	ProblemTypeHttpRequestUri
+	ProblemHttpMediaType ProblemType = iota + 1
+	ProblemHttpRequestBody
+	ProblemHttpRequestUri
 
 	// engine error types
-	ProblemTypeConflict
-	ProblemTypeNotFound
-	ProblemTypeProcessModel
-	ProblemTypeQuery
-	ProblemTypeValidation
+	ProblemConflict
+	ProblemNotFound
+	ProblemProcessModel
+	ProblemQuery
+	ProblemValidation
 )
 
 func MapProblemType(s string) ProblemType {
 	switch s {
 	case "HTTP_MEDIA_TYPE":
-		return ProblemTypeHttpMediaType
+		return ProblemHttpMediaType
 	case "HTTP_REQUEST_BODY":
-		return ProblemTypeHttpRequestBody
+		return ProblemHttpRequestBody
 	case "HTTP_REQUEST_URI":
-		return ProblemTypeHttpRequestUri
+		return ProblemHttpRequestUri
 	case "VALIDATION":
-		return ProblemTypeValidation
+		return ProblemValidation
 	case "CONFLICT":
-		return ProblemTypeConflict
+		return ProblemConflict
 	case "NOT_FOUND":
-		return ProblemTypeNotFound
+		return ProblemNotFound
 	case "PROCESS_MODEL":
-		return ProblemTypeProcessModel
+		return ProblemProcessModel
 	case "QUERY":
-		return ProblemTypeQuery
+		return ProblemQuery
 	default:
 		return 0
 	}
@@ -55,21 +50,21 @@ func (v ProblemType) MarshalJSON() ([]byte, error) {
 
 func (v ProblemType) String() string {
 	switch v {
-	case ProblemTypeHttpMediaType:
+	case ProblemHttpMediaType:
 		return "HTTP_MEDIA_TYPE"
-	case ProblemTypeHttpRequestBody:
+	case ProblemHttpRequestBody:
 		return "HTTP_REQUEST_BODY"
-	case ProblemTypeHttpRequestUri:
+	case ProblemHttpRequestUri:
 		return "HTTP_REQUEST_URI"
-	case ProblemTypeValidation:
+	case ProblemValidation:
 		return "VALIDATION"
-	case ProblemTypeConflict:
+	case ProblemConflict:
 		return "CONFLICT"
-	case ProblemTypeNotFound:
+	case ProblemNotFound:
 		return "NOT_FOUND"
-	case ProblemTypeProcessModel:
+	case ProblemProcessModel:
 		return "PROCESS_MODEL"
-	case ProblemTypeQuery:
+	case ProblemQuery:
 		return "QUERY"
 	default:
 		return "UNKNOWN"
@@ -137,70 +132,4 @@ type Error struct {
 
 func (v Error) String() string {
 	return fmt.Sprintf("%s: %s", v.Pointer, v.Detail)
-}
-
-func encodeJSONProblemResponseBody(w http.ResponseWriter, r *http.Request, err error) {
-	problem, ok := err.(Problem)
-	if !ok {
-		engineErr, ok := err.(engine.Error)
-		if !ok || engineErr.Type == 0 {
-			log.Printf("%s %s: unexpected error occurred: %v", r.Method, r.RequestURI, err)
-
-			problem = Problem{
-				Status: http.StatusInternalServerError,
-				Title:  "unexpected error occurred",
-				Detail: "see server logs",
-			}
-		} else {
-			var (
-				status      int
-				problemType ProblemType
-			)
-
-			switch engineErr.Type {
-			case engine.ErrorConflict:
-				status = http.StatusConflict
-				problemType = ProblemTypeConflict
-			case engine.ErrorNotFound:
-				status = http.StatusNotFound
-				problemType = ProblemTypeNotFound
-			case engine.ErrorProcessModel:
-				status = http.StatusUnprocessableEntity
-				problemType = ProblemTypeProcessModel
-			case engine.ErrorQuery:
-				status = http.StatusBadRequest
-				problemType = ProblemTypeQuery
-			case engine.ErrorValidation:
-				status = http.StatusBadRequest
-				problemType = ProblemTypeValidation
-			default:
-				status = http.StatusInternalServerError
-			}
-
-			errors := make([]Error, len(engineErr.Causes))
-			for i, cause := range engineErr.Causes {
-				errors[i] = Error{
-					Pointer: cause.Pointer,
-					Type:    cause.Type,
-					Detail:  cause.Detail,
-				}
-			}
-
-			problem = Problem{
-				Status: status,
-				Type:   problemType,
-				Title:  engineErr.Title,
-				Detail: engineErr.Detail,
-				Errors: errors,
-			}
-		}
-	}
-
-	w.Header().Set(HeaderContentType, ContentTypeProblemJson)
-	w.WriteHeader(problem.Status)
-
-	if err := json.NewEncoder(w).Encode(problem); err != nil {
-		log.Printf("%s %s: failed to create JSON problem response body: %v", r.Method, r.RequestURI, err)
-		http.Error(w, "unexpected error occurred - see server logs", http.StatusInternalServerError)
-	}
 }

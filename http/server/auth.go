@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gclaussn/go-bpmn/engine/pg"
+	"github.com/gclaussn/go-bpmn/http/common"
 )
 
 // auth is used as context value key by the authHandler.
@@ -17,12 +18,12 @@ type authHandler struct {
 }
 
 func (h *authHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.RequestURI == PathReadiness {
+	if r.RequestURI == common.PathReadiness {
 		h.handler.ServeHTTP(w, r)
 		return
 	}
 
-	authorization := r.Header.Get(HeaderAuthorization)
+	authorization := r.Header.Get(common.HeaderAuthorization)
 
 	apiKey, err := h.apiKeyManager.GetApiKey(r.Context(), authorization)
 	if err != nil {
@@ -42,7 +43,7 @@ type basicAuthHandler struct {
 }
 
 func (h *basicAuthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.RequestURI == PathReadiness {
+	if r.RequestURI == common.PathReadiness {
 		h.handler.ServeHTTP(w, r)
 		return
 	}

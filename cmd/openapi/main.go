@@ -27,6 +27,7 @@ import (
 	"unicode"
 
 	"github.com/gclaussn/go-bpmn/engine"
+	"github.com/gclaussn/go-bpmn/http/common"
 	"github.com/gclaussn/go-bpmn/http/server"
 	"github.com/gclaussn/go-bpmn/model"
 )
@@ -77,10 +78,10 @@ func main() {
 	generator.generateSchemas("engine/model.go")
 
 	// server
-	problemType, problemTypeValues := describeEnum(server.ProblemType(0))
+	problemType, problemTypeValues := describeEnum(common.ProblemType(0))
 	generator.generateEnum(problemType, problemTypeValues)
-	generator.generateSchemas("http/server/problem.go")
-	generator.generateSchemas("http/server/response.go")
+	generator.generateSchemas("http/common/problem.go")
+	generator.generateSchemas("http/common/response.go")
 
 	generator.generateOperations()
 
@@ -184,10 +185,12 @@ func (g *generator) generateOperations() {
 
 	pathConsts := g.getPathConsts()
 
-	for i := 0; i < len(tokens); i += 6 {
+	for i := 0; i < len(tokens); i += 7 {
+		// e.g. ["mux", "HandleFunc", "\"POST \"", "common", "PathElementsQuery", "server", "queryElements"]
+
 		method := strings.ToLower(tokens[i+2][1 : len(tokens[i+2])-2]) // e.g. `"POST "` -> "post"
-		pathConst := tokens[i+3]                                       // e.g. "PathElementsQuery"
-		operationId := tokens[i+5]                                     // e.g. "queryElements"
+		pathConst := tokens[i+4]                                       // e.g. "PathElementsQuery"
+		operationId := tokens[i+6]                                     // e.g. "queryElements"
 
 		path, ok := pathConsts[pathConst]
 		if !ok {
@@ -215,13 +218,13 @@ func (g *generator) generateOperations() {
 
 		// set query parameters
 		if strings.HasPrefix(operationId, "query") {
-			parameters = append(parameters, server.QueryOffset)
-			parameters = append(parameters, server.QueryLimit)
+			parameters = append(parameters, common.QueryOffset)
+			parameters = append(parameters, common.QueryLimit)
 		}
 
-		if path == server.PathElementInstancesVariables || path == server.PathProcessInstancesVariables {
+		if path == common.PathElementInstancesVariables || path == common.PathProcessInstancesVariables {
 			if method == "get" {
-				parameters = append(parameters, server.QueryNames)
+				parameters = append(parameters, common.QueryNames)
 			}
 		}
 
@@ -445,7 +448,7 @@ func (g *generator) generateYaml(version string) string {
 }
 
 func (g *generator) getPathConsts() map[string]string {
-	f, err := parser.ParseFile(g.fileSet, g.sourcePath+"/http/server/http.go", nil, 0)
+	f, err := parser.ParseFile(g.fileSet, g.sourcePath+"/http/common/common.go", nil, 0)
 	if err != nil {
 		log.Fatal(err)
 	}

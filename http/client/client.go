@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
-	"github.com/gclaussn/go-bpmn/http/server"
+	"github.com/gclaussn/go-bpmn/http/common"
 )
 
 func New(url string, authorization string, customizers ...func(*Options)) (engine.Engine, error) {
@@ -82,7 +82,7 @@ func (c *client) CompleteJob(ctx context.Context, cmd engine.CompleteJobCmd) (en
 	defer cancel()
 
 	var job engine.Job
-	path := resolve(server.PathJobsComplete, cmd.Partition, cmd.Id)
+	path := resolve(common.PathJobsComplete, cmd.Partition, cmd.Id)
 	if err := c.doPatch(ctx, path, cmd, &job); err != nil {
 		return engine.Job{}, err
 	}
@@ -94,7 +94,7 @@ func (c *client) CreateProcess(ctx context.Context, cmd engine.CreateProcessCmd)
 	defer cancel()
 
 	var process engine.Process
-	if err := c.doPost(ctx, server.PathProcesses, cmd, &process); err != nil {
+	if err := c.doPost(ctx, common.PathProcesses, cmd, &process); err != nil {
 		return engine.Process{}, err
 	}
 	return process, nil
@@ -105,7 +105,7 @@ func (c *client) CreateProcessInstance(ctx context.Context, cmd engine.CreatePro
 	defer cancel()
 
 	var processInstance engine.ProcessInstance
-	if err := c.doPost(ctx, server.PathProcessInstances, cmd, &processInstance); err != nil {
+	if err := c.doPost(ctx, common.PathProcessInstances, cmd, &processInstance); err != nil {
 		return engine.ProcessInstance{}, err
 	}
 	return processInstance, nil
@@ -119,8 +119,8 @@ func (c *client) ExecuteTasks(ctx context.Context, cmd engine.ExecuteTasksCmd) (
 	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
 
-	var resBody server.ExecuteTasksRes
-	if err := c.doPost(ctx, server.PathTasksExecute, cmd, &resBody); err != nil {
+	var resBody common.ExecuteTasksRes
+	if err := c.doPost(ctx, common.PathTasksExecute, cmd, &resBody); err != nil {
 		return nil, nil, err
 	}
 	return resBody.CompletedTasks, resBody.FailedTasks, nil
@@ -130,7 +130,7 @@ func (c *client) GetBpmnXml(ctx context.Context, cmd engine.GetBpmnXmlCmd) (stri
 	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
 
-	path := strings.Replace(server.PathProcessesBpmnXml, "{id}", strconv.Itoa(int(cmd.ProcessId)), 1)
+	path := strings.Replace(common.PathProcessesBpmnXml, "{id}", strconv.Itoa(int(cmd.ProcessId)), 1)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.url+path, nil)
 	if err != nil {
@@ -143,7 +143,7 @@ func (c *client) GetBpmnXml(ctx context.Context, cmd engine.GetBpmnXmlCmd) (stri
 		}
 	}
 
-	req.Header.Add(server.HeaderAuthorization, c.authorization)
+	req.Header.Add(common.HeaderAuthorization, c.authorization)
 
 	res, err := c.httpClient.Do(req)
 	if err != nil {
@@ -156,8 +156,8 @@ func (c *client) GetBpmnXml(ctx context.Context, cmd engine.GetBpmnXmlCmd) (stri
 		}
 	}
 
-	contentType := res.Header.Get(server.HeaderContentType)
-	if contentType != server.ContentTypeXml {
+	contentType := res.Header.Get(common.HeaderContentType)
+	if contentType != common.ContentTypeXml {
 		return "", decodeJSONResponseBody(res, nil)
 	}
 
@@ -175,13 +175,13 @@ func (c *client) GetElementVariables(ctx context.Context, cmd engine.GetElementV
 	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
 
-	path := resolve(server.PathElementInstancesVariables, cmd.Partition, cmd.ElementInstanceId)
+	path := resolve(common.PathElementInstancesVariables, cmd.Partition, cmd.ElementInstanceId)
 
 	if len(cmd.Names) != 0 {
-		path = fmt.Sprintf("%s?%s=%s", path, server.QueryNames, strings.Join(cmd.Names, ","))
+		path = fmt.Sprintf("%s?%s=%s", path, common.QueryNames, strings.Join(cmd.Names, ","))
 	}
 
-	var resBody server.GetVariablesRes
+	var resBody common.GetVariablesRes
 	if err := c.doGet(ctx, path, &resBody); err != nil {
 		return nil, err
 	}
@@ -193,13 +193,13 @@ func (c *client) GetProcessVariables(ctx context.Context, cmd engine.GetProcessV
 	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
 
-	path := resolve(server.PathProcessInstancesVariables, cmd.Partition, cmd.ProcessInstanceId)
+	path := resolve(common.PathProcessInstancesVariables, cmd.Partition, cmd.ProcessInstanceId)
 
 	if len(cmd.Names) != 0 {
-		path = fmt.Sprintf("%s?%s=%s", path, server.QueryNames, strings.Join(cmd.Names, ","))
+		path = fmt.Sprintf("%s?%s=%s", path, common.QueryNames, strings.Join(cmd.Names, ","))
 	}
 
-	var resBody server.GetVariablesRes
+	var resBody common.GetVariablesRes
 	if err := c.doGet(ctx, path, &resBody); err != nil {
 		return nil, err
 	}
@@ -211,8 +211,8 @@ func (c *client) LockJobs(ctx context.Context, cmd engine.LockJobsCmd) ([]engine
 	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
 
-	var resBody server.LockJobsRes
-	if err := c.doPost(ctx, server.PathJobsLock, cmd, &resBody); err != nil {
+	var resBody common.LockJobsRes
+	if err := c.doPost(ctx, common.PathJobsLock, cmd, &resBody); err != nil {
 		return nil, err
 	}
 	return resBody.Jobs, nil
@@ -222,7 +222,7 @@ func (c *client) ResolveIncident(ctx context.Context, cmd engine.ResolveIncident
 	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
 
-	path := resolve(server.PathIncidentsResolve, cmd.Partition, cmd.Id)
+	path := resolve(common.PathIncidentsResolve, cmd.Partition, cmd.Id)
 	return c.doPatch(ctx, path, cmd, nil)
 }
 
@@ -230,7 +230,7 @@ func (c *client) ResumeProcessInstance(ctx context.Context, cmd engine.ResumePro
 	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
 
-	path := resolve(server.PathProcessInstancesResume, cmd.Partition, cmd.Id)
+	path := resolve(common.PathProcessInstancesResume, cmd.Partition, cmd.Id)
 	return c.doPatch(ctx, path, cmd, nil)
 }
 
@@ -239,7 +239,7 @@ func (c *client) SendMessage(ctx context.Context, cmd engine.SendMessageCmd) (en
 	defer cancel()
 
 	var message engine.Message
-	if err := c.doPost(ctx, server.PathEventsMessages, cmd, &message); err != nil {
+	if err := c.doPost(ctx, common.PathEventsMessages, cmd, &message); err != nil {
 		return engine.Message{}, err
 	}
 	return message, nil
@@ -250,7 +250,7 @@ func (c *client) SendSignal(ctx context.Context, cmd engine.SendSignalCmd) (engi
 	defer cancel()
 
 	var signal engine.Signal
-	if err := c.doPost(ctx, server.PathEventsSignals, cmd, &signal); err != nil {
+	if err := c.doPost(ctx, common.PathEventsSignals, cmd, &signal); err != nil {
 		return engine.Signal{}, err
 	}
 	return signal, nil
@@ -260,7 +260,7 @@ func (c *client) SetElementVariables(ctx context.Context, cmd engine.SetElementV
 	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
 
-	path := resolve(server.PathElementInstancesVariables, cmd.Partition, cmd.ElementInstanceId)
+	path := resolve(common.PathElementInstancesVariables, cmd.Partition, cmd.ElementInstanceId)
 	return c.doPut(ctx, path, cmd, nil)
 }
 
@@ -268,7 +268,7 @@ func (c *client) SetProcessVariables(ctx context.Context, cmd engine.SetProcessV
 	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
 
-	path := resolve(server.PathProcessInstancesVariables, cmd.Partition, cmd.ProcessInstanceId)
+	path := resolve(common.PathProcessInstancesVariables, cmd.Partition, cmd.ProcessInstanceId)
 	return c.doPut(ctx, path, cmd, nil)
 }
 
@@ -276,14 +276,14 @@ func (c *client) SetTime(ctx context.Context, cmd engine.SetTimeCmd) error {
 	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
 
-	return c.doPatch(ctx, server.PathTime, cmd, nil)
+	return c.doPatch(ctx, common.PathTime, cmd, nil)
 }
 
 func (c *client) SuspendProcessInstance(ctx context.Context, cmd engine.SuspendProcessInstanceCmd) error {
 	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
 
-	path := resolve(server.PathProcessInstancesSuspend, cmd.Partition, cmd.Id)
+	path := resolve(common.PathProcessInstancesSuspend, cmd.Partition, cmd.Id)
 	return c.doPatch(ctx, path, cmd, nil)
 }
 
@@ -291,8 +291,8 @@ func (c *client) UnlockJobs(ctx context.Context, cmd engine.UnlockJobsCmd) (int,
 	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
 
-	var resBody server.CountRes
-	if err := c.doPost(ctx, server.PathJobsUnlock, cmd, &resBody); err != nil {
+	var resBody common.CountRes
+	if err := c.doPost(ctx, common.PathJobsUnlock, cmd, &resBody); err != nil {
 		return -1, err
 	}
 	return resBody.Count, nil
@@ -302,8 +302,8 @@ func (c *client) UnlockTasks(ctx context.Context, cmd engine.UnlockTasksCmd) (in
 	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
 
-	var resBody server.CountRes
-	if err := c.doPost(ctx, server.PathTasksUnlock, cmd, &resBody); err != nil {
+	var resBody common.CountRes
+	if err := c.doPost(ctx, common.PathTasksUnlock, cmd, &resBody); err != nil {
 		return -1, err
 	}
 	return resBody.Count, nil
@@ -325,7 +325,7 @@ func (c *client) doGet(ctx context.Context, path string, resBody any) error {
 		}
 	}
 
-	req.Header.Add(server.HeaderAuthorization, c.authorization)
+	req.Header.Add(common.HeaderAuthorization, c.authorization)
 
 	res, err := c.httpClient.Do(req)
 	if err != nil {
@@ -358,7 +358,7 @@ func (c *client) doPatch(ctx context.Context, path string, reqBody any, resBody 
 		}
 	}
 
-	req.Header.Add(server.HeaderAuthorization, c.authorization)
+	req.Header.Add(common.HeaderAuthorization, c.authorization)
 
 	res, err := c.httpClient.Do(req)
 	if err != nil {
@@ -395,7 +395,7 @@ func (c *client) doPost(ctx context.Context, path string, reqBody any, resBody a
 		}
 	}
 
-	req.Header.Add(server.HeaderAuthorization, c.authorization)
+	req.Header.Add(common.HeaderAuthorization, c.authorization)
 
 	res, err := c.httpClient.Do(req)
 	if err != nil {
@@ -428,7 +428,7 @@ func (c *client) doPut(ctx context.Context, path string, reqBody any, resBody an
 		}
 	}
 
-	req.Header.Add(server.HeaderAuthorization, c.authorization)
+	req.Header.Add(common.HeaderAuthorization, c.authorization)
 
 	res, err := c.httpClient.Do(req)
 	if err != nil {

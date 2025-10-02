@@ -13,6 +13,7 @@ import (
 
 	"github.com/adhocore/gronx"
 	"github.com/gclaussn/go-bpmn/engine"
+	"github.com/gclaussn/go-bpmn/http/common"
 	"github.com/go-playground/validator/v10"
 )
 
@@ -62,12 +63,12 @@ func newValidate() *validator.Validate {
 //
 // inspired by https://www.alexedwards.net/blog/how-to-properly-parse-a-json-request-body
 func decodeJSONRequestBody(w http.ResponseWriter, r *http.Request, v any) error {
-	if contentType := r.Header.Get(HeaderContentType); contentType != "" {
+	if contentType := r.Header.Get(common.HeaderContentType); contentType != "" {
 		mediaType := strings.TrimSpace(strings.Split(contentType, ";")[0])
-		if mediaType != ContentTypeJson {
-			return Problem{
+		if mediaType != common.ContentTypeJson {
+			return common.Problem{
 				Status: http.StatusUnsupportedMediaType,
-				Type:   ProblemTypeHttpMediaType,
+				Type:   common.ProblemHttpMediaType,
 				Title:  "unsupported media type",
 				Detail: fmt.Sprintf("media type %s is not supported", mediaType),
 			}
@@ -83,9 +84,9 @@ func decodeJSONRequestBody(w http.ResponseWriter, r *http.Request, v any) error 
 		var syntaxError *json.SyntaxError
 		var unmarshalTypeError *json.UnmarshalTypeError
 
-		problem := Problem{
+		problem := common.Problem{
 			Status: http.StatusBadRequest,
-			Type:   ProblemTypeHttpRequestBody,
+			Type:   common.ProblemHttpRequestBody,
 			Title:  "invalid request body",
 		}
 
@@ -111,7 +112,7 @@ func decodeJSONRequestBody(w http.ResponseWriter, r *http.Request, v any) error 
 	}
 
 	if err := validate.Struct(v); err != nil {
-		errors := make([]Error, 0)
+		errors := make([]common.Error, 0)
 		for _, fieldError := range err.(validator.ValidationErrors) {
 			var (
 				pointerBuilder strings.Builder
@@ -183,7 +184,7 @@ func decodeJSONRequestBody(w http.ResponseWriter, r *http.Request, v any) error 
 				value = fmt.Sprintf("%v", fieldError.Value())
 			}
 
-			errors = append(errors, Error{
+			errors = append(errors, common.Error{
 				Pointer: pointerBuilder.String(),
 				Type:    fieldError.Tag(),
 				Detail:  detail,
@@ -191,9 +192,9 @@ func decodeJSONRequestBody(w http.ResponseWriter, r *http.Request, v any) error 
 			})
 		}
 
-		return Problem{
+		return common.Problem{
 			Status: http.StatusBadRequest,
-			Type:   ProblemTypeHttpRequestBody,
+			Type:   common.ProblemHttpRequestBody,
 			Title:  "invalid request body",
 			Detail: "failed to validate request body",
 			Errors: errors,
@@ -207,17 +208,17 @@ func parseId(r *http.Request) (int32, error) {
 	idValue := r.PathValue("id")
 	id, err := strconv.ParseInt(idValue, 10, 32)
 	if err != nil {
-		return 0, Problem{
+		return 0, common.Problem{
 			Status: http.StatusBadRequest,
-			Type:   ProblemTypeHttpRequestUri,
+			Type:   common.ProblemHttpRequestUri,
 			Title:  "invalid path parameter id",
 			Detail: fmt.Sprintf("failed to parse value '%s'", idValue),
 		}
 	}
 	if id < 1 {
-		return 0, Problem{
+		return 0, common.Problem{
 			Status: http.StatusBadRequest,
-			Type:   ProblemTypeValidation,
+			Type:   common.ProblemValidation,
 			Title:  "invalid path parameter id",
 			Detail: fmt.Sprintf("ID %s must be greater than 0", idValue),
 		}
@@ -229,9 +230,9 @@ func parsePartitionId(r *http.Request) (engine.Partition, int32, error) {
 	partitionValue := r.PathValue("partition")
 	partition, err := engine.NewPartition(partitionValue)
 	if err != nil {
-		return engine.Partition{}, 0, Problem{
+		return engine.Partition{}, 0, common.Problem{
 			Status: http.StatusBadRequest,
-			Type:   ProblemTypeHttpRequestUri,
+			Type:   common.ProblemHttpRequestUri,
 			Title:  "invalid path parameter partition",
 			Detail: fmt.Sprintf("failed to parse value '%s'", partitionValue),
 		}
@@ -253,42 +254,42 @@ func parseQueryOptions(r *http.Request) (engine.QueryOptions, error) {
 		offset int64
 	)
 
-	if limitValues, ok := r.URL.Query()[QueryLimit]; ok {
+	if limitValues, ok := r.URL.Query()[common.QueryLimit]; ok {
 		limit, err = strconv.ParseInt(limitValues[0], 10, 32)
 		if err != nil {
-			return engine.QueryOptions{}, Problem{
+			return engine.QueryOptions{}, common.Problem{
 				Status: http.StatusBadRequest,
-				Type:   ProblemTypeHttpRequestUri,
-				Title:  "invalid query parameter " + QueryLimit,
+				Type:   common.ProblemHttpRequestUri,
+				Title:  "invalid query parameter " + common.QueryLimit,
 				Detail: "failed to parse value " + limitValues[0],
 			}
 		}
 		if limit < 0 {
-			return engine.QueryOptions{}, Problem{
+			return engine.QueryOptions{}, common.Problem{
 				Status: http.StatusBadRequest,
-				Type:   ProblemTypeValidation,
-				Title:  "invalid query parameter " + QueryLimit,
-				Detail: fmt.Sprintf("%s %d must be greater than or equal to 0", QueryLimit, limit),
+				Type:   common.ProblemValidation,
+				Title:  "invalid query parameter " + common.QueryLimit,
+				Detail: fmt.Sprintf("%s %d must be greater than or equal to 0", common.QueryLimit, limit),
 			}
 		}
 	}
 
-	if offsetValues, ok := r.URL.Query()[QueryOffset]; ok {
+	if offsetValues, ok := r.URL.Query()[common.QueryOffset]; ok {
 		offset, err = strconv.ParseInt(offsetValues[0], 10, 32)
 		if err != nil {
-			return engine.QueryOptions{}, Problem{
+			return engine.QueryOptions{}, common.Problem{
 				Status: http.StatusBadRequest,
-				Type:   ProblemTypeHttpRequestUri,
-				Title:  "invalid query parameter " + QueryOffset,
+				Type:   common.ProblemHttpRequestUri,
+				Title:  "invalid query parameter " + common.QueryOffset,
 				Detail: "failed to parse value " + offsetValues[0],
 			}
 		}
 		if offset < 0 {
-			return engine.QueryOptions{}, Problem{
+			return engine.QueryOptions{}, common.Problem{
 				Status: http.StatusBadRequest,
-				Type:   ProblemTypeValidation,
-				Title:  "invalid query parameter " + QueryOffset,
-				Detail: fmt.Sprintf("%s %d must be greater than or equal to 0", QueryOffset, offset),
+				Type:   common.ProblemValidation,
+				Title:  "invalid query parameter " + common.QueryOffset,
+				Detail: fmt.Sprintf("%s %d must be greater than or equal to 0", common.QueryOffset, offset),
 			}
 		}
 	}

@@ -6,93 +6,77 @@ import (
 	"net/http"
 
 	"github.com/gclaussn/go-bpmn/engine"
+	"github.com/gclaussn/go-bpmn/http/common"
 )
 
-// Response of a batch operation like the unlocking of jobs or tasks.
-type CountRes struct {
-	Count int `json:"count" validate:"required,gte=0"` // The number of affected entities.
-}
+func encodeJSONProblemResponseBody(w http.ResponseWriter, r *http.Request, err error) {
+	problem, ok := err.(common.Problem)
+	if !ok {
+		engineErr, ok := err.(engine.Error)
+		if !ok || engineErr.Type == 0 {
+			log.Printf("%s %s: unexpected error occurred: %v", r.Method, r.RequestURI, err)
 
-// Response of a task execution.
-type ExecuteTasksRes struct {
-	Locked    int `json:"locked" validate:"required,gte=0"`    // Number of locked tasks.
-	Completed int `json:"completed" validate:"required,gte=0"` // Number of completed tasks.
-	Failed    int `json:"failed" validate:"required,gte=0"`    // Number of failed tasks.
+			problem = common.Problem{
+				Status: http.StatusInternalServerError,
+				Title:  "unexpected error occurred",
+				Detail: "see server logs",
+			}
+		} else {
+			var (
+				status      int
+				problemType common.ProblemType
+			)
 
-	CompletedTasks []engine.Task `json:"completedTasks" validate:"required"` // Completed tasks.
-	FailedTasks    []engine.Task `json:"failedTasks" validate:"required"`    // Failed tasks.
-}
+			switch engineErr.Type {
+			case engine.ErrorConflict:
+				status = http.StatusConflict
+				problemType = common.ProblemConflict
+			case engine.ErrorNotFound:
+				status = http.StatusNotFound
+				problemType = common.ProblemNotFound
+			case engine.ErrorProcessModel:
+				status = http.StatusUnprocessableEntity
+				problemType = common.ProblemProcessModel
+			case engine.ErrorQuery:
+				status = http.StatusBadRequest
+				problemType = common.ProblemQuery
+			case engine.ErrorValidation:
+				status = http.StatusBadRequest
+				problemType = common.ProblemValidation
+			default:
+				status = http.StatusInternalServerError
+			}
 
-// Process instance or element instance variable response.
-type GetVariablesRes struct {
-	Count     int                    `json:"count" validate:"required,gte=0"` // Number of variables.
-	Variables map[string]engine.Data `json:"variables" validate:"required"`   // Variable map, using variable names as keys.
-}
+			errors := make([]common.Error, len(engineErr.Causes))
+			for i, cause := range engineErr.Causes {
+				errors[i] = common.Error{
+					Pointer: cause.Pointer,
+					Type:    cause.Type,
+					Detail:  cause.Detail,
+				}
+			}
 
-// Response of a job locking.
-type LockJobsRes struct {
-	Count int          `json:"count" validate:"required,gte=0"` // Number of locked jobs.
-	Jobs  []engine.Job `json:"jobs" validate:"required"`        // Locked jobs.
-}
+			problem = common.Problem{
+				Status: status,
+				Type:   problemType,
+				Title:  engineErr.Title,
+				Detail: engineErr.Detail,
+				Errors: errors,
+			}
+		}
+	}
 
-// query responses
+	w.Header().Set(common.HeaderContentType, common.ContentTypeProblemJson)
+	w.WriteHeader(problem.Status)
 
-// Response of an element query.
-type ElementRes struct {
-	Count   int              `json:"count" validate:"required,gte=0"` // Number of results.
-	Results []engine.Element `json:"results" validate:"required"`     // Query results.
-}
-
-// Response of an element instance query.
-type ElementInstanceRes struct {
-	Count   int                      `json:"count" validate:"required,gte=0"` // Number of results.
-	Results []engine.ElementInstance `json:"results" validate:"required"`     // Query results.
-}
-
-// Response of an incident query.
-type IncidentRes struct {
-	Count   int               `json:"count" validate:"required,gte=0"` // Number of results.
-	Results []engine.Incident `json:"results" validate:"required"`     // Query results.
-}
-
-// Response of a job query.
-type JobRes struct {
-	Count   int          `json:"count" validate:"required,gte=0"` // Number of results.
-	Results []engine.Job `json:"results" validate:"required"`     // Query results.
-}
-
-// Response of a message query.
-type MessageRes struct {
-	Count   int              `json:"count" validate:"required,gte=0"` // Number of results.
-	Results []engine.Message `json:"results" validate:"required"`     // Query results.
-}
-
-// Response of a process query.
-type ProcessRes struct {
-	Count   int              `json:"count" validate:"required,gte=0"` // Number of results.
-	Results []engine.Process `json:"results" validate:"required"`     // Query results.
-}
-
-// Response of a process instance query.
-type ProcessInstanceRes struct {
-	Count   int                      `json:"count" validate:"required,gte=0"` // Number of results.
-	Results []engine.ProcessInstance `json:"results" validate:"required"`     // Query results.
-}
-
-// Response of a task query.
-type TaskRes struct {
-	Count   int           `json:"count" validate:"required,gte=0"` // Number of results.
-	Results []engine.Task `json:"results" validate:"required"`     // Query results.
-}
-
-// Response of variable query.
-type VariableRes struct {
-	Count   int               `json:"count" validate:"required,gte=0"` // Number of results.
-	Results []engine.Variable `json:"results" validate:"required"`     // Query results.
+	if err := json.NewEncoder(w).Encode(problem); err != nil {
+		log.Printf("%s %s: failed to create JSON problem response body: %v", r.Method, r.RequestURI, err)
+		http.Error(w, "unexpected error occurred - see server logs", http.StatusInternalServerError)
+	}
 }
 
 func encodeJSONResponseBody(w http.ResponseWriter, r *http.Request, v any, statusCode int) {
-	w.Header().Set(HeaderContentType, ContentTypeJson)
+	w.Header().Set(common.HeaderContentType, common.ContentTypeJson)
 	w.WriteHeader(statusCode)
 
 	if err := json.NewEncoder(w).Encode(v); err != nil {

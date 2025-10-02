@@ -12,6 +12,7 @@ import (
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/engine/pg"
+	"github.com/gclaussn/go-bpmn/http/common"
 )
 
 func New(e engine.Engine, customizers ...func(*Options)) (*Server, error) {
@@ -67,43 +68,43 @@ func New(e engine.Engine, customizers ...func(*Options)) (*Server, error) {
 	}
 
 	// operations:start
-	mux.HandleFunc("POST "+PathElementsQuery, server.queryElements)
+	mux.HandleFunc("POST "+common.PathElementsQuery, server.queryElements)
 
-	mux.HandleFunc("POST "+PathElementInstancesQuery, server.queryElementInstances)
-	mux.HandleFunc("GET "+PathElementInstancesVariables, server.getElementVariables)
-	mux.HandleFunc("PUT "+PathElementInstancesVariables, server.setElementVariables)
+	mux.HandleFunc("POST "+common.PathElementInstancesQuery, server.queryElementInstances)
+	mux.HandleFunc("GET "+common.PathElementInstancesVariables, server.getElementVariables)
+	mux.HandleFunc("PUT "+common.PathElementInstancesVariables, server.setElementVariables)
 
-	mux.HandleFunc("POST "+PathEventsMessages, server.sendMessage)
-	mux.HandleFunc("POST "+PathEventsMessagesQuery, server.queryMessages)
-	mux.HandleFunc("POST "+PathEventsSignals, server.sendSignal)
+	mux.HandleFunc("POST "+common.PathEventsMessages, server.sendMessage)
+	mux.HandleFunc("POST "+common.PathEventsMessagesQuery, server.queryMessages)
+	mux.HandleFunc("POST "+common.PathEventsSignals, server.sendSignal)
 
-	mux.HandleFunc("POST "+PathIncidentsQuery, server.queryIncidents)
-	mux.HandleFunc("PATCH "+PathIncidentsResolve, server.resolveIncident)
+	mux.HandleFunc("POST "+common.PathIncidentsQuery, server.queryIncidents)
+	mux.HandleFunc("PATCH "+common.PathIncidentsResolve, server.resolveIncident)
 
-	mux.HandleFunc("PATCH "+PathJobsComplete, server.completeJob)
-	mux.HandleFunc("POST "+PathJobsLock, server.lockJobs)
-	mux.HandleFunc("POST "+PathJobsQuery, server.queryJobs)
-	mux.HandleFunc("POST "+PathJobsUnlock, server.unlockJobs)
+	mux.HandleFunc("PATCH "+common.PathJobsComplete, server.completeJob)
+	mux.HandleFunc("POST "+common.PathJobsLock, server.lockJobs)
+	mux.HandleFunc("POST "+common.PathJobsQuery, server.queryJobs)
+	mux.HandleFunc("POST "+common.PathJobsUnlock, server.unlockJobs)
 
-	mux.HandleFunc("POST "+PathProcesses, server.createProcess)
-	mux.HandleFunc("GET "+PathProcessesBpmnXml, server.getBpmnXml)
-	mux.HandleFunc("POST "+PathProcessesQuery, server.queryProcesses)
+	mux.HandleFunc("POST "+common.PathProcesses, server.createProcess)
+	mux.HandleFunc("GET "+common.PathProcessesBpmnXml, server.getBpmnXml)
+	mux.HandleFunc("POST "+common.PathProcessesQuery, server.queryProcesses)
 
-	mux.HandleFunc("POST "+PathProcessInstances, server.createProcessInstance)
-	mux.HandleFunc("POST "+PathProcessInstancesQuery, server.queryProcessInstances)
-	mux.HandleFunc("PATCH "+PathProcessInstancesResume, server.resumeProcessInstance)
-	mux.HandleFunc("PATCH "+PathProcessInstancesSuspend, server.suspendProcessInstance)
-	mux.HandleFunc("GET "+PathProcessInstancesVariables, server.getProcessVariables)
-	mux.HandleFunc("PUT "+PathProcessInstancesVariables, server.setProcessVariables)
+	mux.HandleFunc("POST "+common.PathProcessInstances, server.createProcessInstance)
+	mux.HandleFunc("POST "+common.PathProcessInstancesQuery, server.queryProcessInstances)
+	mux.HandleFunc("PATCH "+common.PathProcessInstancesResume, server.resumeProcessInstance)
+	mux.HandleFunc("PATCH "+common.PathProcessInstancesSuspend, server.suspendProcessInstance)
+	mux.HandleFunc("GET "+common.PathProcessInstancesVariables, server.getProcessVariables)
+	mux.HandleFunc("PUT "+common.PathProcessInstancesVariables, server.setProcessVariables)
 
-	mux.HandleFunc("POST "+PathTasksExecute, server.executeTasks)
-	mux.HandleFunc("POST "+PathTasksQuery, server.queryTasks)
-	mux.HandleFunc("POST "+PathTasksUnlock, server.unlockTasks)
+	mux.HandleFunc("POST "+common.PathTasksExecute, server.executeTasks)
+	mux.HandleFunc("POST "+common.PathTasksQuery, server.queryTasks)
+	mux.HandleFunc("POST "+common.PathTasksUnlock, server.unlockTasks)
 
-	mux.HandleFunc("POST "+PathVariablesQuery, server.queryVariables)
+	mux.HandleFunc("POST "+common.PathVariablesQuery, server.queryVariables)
 
-	mux.HandleFunc("GET "+PathReadiness, server.checkReadiness)
-	mux.HandleFunc("PATCH "+PathTime, server.setTime)
+	mux.HandleFunc("GET "+common.PathReadiness, server.checkReadiness)
+	mux.HandleFunc("PATCH "+common.PathTime, server.setTime)
 	// operations:end
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -268,7 +269,7 @@ func (s *Server) executeTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resBody := ExecuteTasksRes{
+	resBody := common.ExecuteTasksRes{
 		Locked:    len(completedTasks) + len(failedTasks),
 		Completed: len(completedTasks),
 		Failed:    len(failedTasks),
@@ -293,7 +294,7 @@ func (s *Server) getBpmnXml(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set(HeaderContentType, ContentTypeXml)
+	w.Header().Set(common.HeaderContentType, common.ContentTypeXml)
 	w.Write([]byte(bpmnXml))
 }
 
@@ -305,7 +306,7 @@ func (s *Server) getElementVariables(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var names []string
-	if namesValues, ok := r.URL.Query()[QueryNames]; ok {
+	if namesValues, ok := r.URL.Query()[common.QueryNames]; ok {
 		for _, namesValue := range namesValues {
 			names = append(names, strings.Split(namesValue, ",")...)
 		}
@@ -322,7 +323,7 @@ func (s *Server) getElementVariables(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resBody := GetVariablesRes{
+	resBody := common.GetVariablesRes{
 		Count:     len(variables),
 		Variables: variables,
 	}
@@ -338,7 +339,7 @@ func (s *Server) getProcessVariables(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var names []string
-	if namesValues, ok := r.URL.Query()[QueryNames]; ok {
+	if namesValues, ok := r.URL.Query()[common.QueryNames]; ok {
 		for _, namesValue := range namesValues {
 			names = append(names, strings.Split(namesValue, ",")...)
 		}
@@ -355,7 +356,7 @@ func (s *Server) getProcessVariables(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resBody := GetVariablesRes{
+	resBody := common.GetVariablesRes{
 		Count:     len(variables),
 		Variables: variables,
 	}
@@ -376,7 +377,7 @@ func (s *Server) lockJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resBody := LockJobsRes{
+	resBody := common.LockJobsRes{
 		Count: len(jobs),
 		Jobs:  jobs,
 	}
@@ -569,7 +570,7 @@ func (s *Server) unlockJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	encodeJSONResponseBody(w, r, CountRes{Count: count}, http.StatusOK)
+	encodeJSONResponseBody(w, r, common.CountRes{Count: count}, http.StatusOK)
 }
 
 func (s *Server) unlockTasks(w http.ResponseWriter, r *http.Request) {
@@ -585,7 +586,7 @@ func (s *Server) unlockTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	encodeJSONResponseBody(w, r, CountRes{Count: count}, http.StatusOK)
+	encodeJSONResponseBody(w, r, common.CountRes{Count: count}, http.StatusOK)
 }
 
 // query handler
@@ -612,7 +613,7 @@ func (s *Server) queryElements(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resBody := ElementRes{
+	resBody := common.ElementRes{
 		Count:   len(results),
 		Results: results,
 	}
@@ -642,7 +643,7 @@ func (s *Server) queryElementInstances(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resBody := ElementInstanceRes{
+	resBody := common.ElementInstanceRes{
 		Count:   len(results),
 		Results: results,
 	}
@@ -672,7 +673,7 @@ func (s *Server) queryIncidents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resBody := IncidentRes{
+	resBody := common.IncidentRes{
 		Count:   len(results),
 		Results: results,
 	}
@@ -702,7 +703,7 @@ func (s *Server) queryJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resBody := JobRes{
+	resBody := common.JobRes{
 		Count:   len(results),
 		Results: results,
 	}
@@ -732,7 +733,7 @@ func (s *Server) queryMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resBody := MessageRes{
+	resBody := common.MessageRes{
 		Count:   len(results),
 		Results: results,
 	}
@@ -762,7 +763,7 @@ func (s *Server) queryProcesses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resBody := ProcessRes{
+	resBody := common.ProcessRes{
 		Count:   len(results),
 		Results: results,
 	}
@@ -792,7 +793,7 @@ func (s *Server) queryProcessInstances(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resBody := ProcessInstanceRes{
+	resBody := common.ProcessInstanceRes{
 		Count:   len(results),
 		Results: results,
 	}
@@ -822,7 +823,7 @@ func (s *Server) queryTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resBody := TaskRes{
+	resBody := common.TaskRes{
 		Count:   len(results),
 		Results: results,
 	}
@@ -852,7 +853,7 @@ func (s *Server) queryVariables(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resBody := VariableRes{
+	resBody := common.VariableRes{
 		Count:   len(results),
 		Results: results,
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/engine/mem"
 	"github.com/gclaussn/go-bpmn/engine/pg"
+	"github.com/gclaussn/go-bpmn/http/common"
 	"github.com/gclaussn/go-bpmn/http/server"
 	"github.com/gclaussn/go-bpmn/model"
 	"github.com/stretchr/testify/assert"
@@ -87,11 +88,11 @@ func TestClientServer(t *testing.T) {
 		_, err := client.CreateProcess(context.Background(), engine.CreateProcessCmd{})
 
 		// then
-		assert.IsTypef(server.Problem{}, err, "expected problem")
+		assert.IsTypef(common.Problem{}, err, "expected problem")
 
-		problem := err.(server.Problem)
+		problem := err.(common.Problem)
 		assert.Equal(http.StatusBadRequest, problem.Status)
-		assert.Equal(server.ProblemTypeHttpRequestBody, problem.Type)
+		assert.Equal(common.ProblemHttpRequestBody, problem.Type)
 		assert.NotEmpty(problem.Title)
 		assert.NotEmpty(problem.Detail)
 		assert.NotEmpty(problem.Errors)
@@ -229,9 +230,9 @@ func TestClientServerWithApiKeyManager(t *testing.T) {
 		defer client.Shutdown()
 
 		_, err = client.CreateProcess(context.Background(), engine.CreateProcessCmd{})
-		assert.IsTypef(server.Problem{}, err, "expected problem")
+		assert.IsTypef(common.Problem{}, err, "expected problem")
 
-		problem := err.(server.Problem)
+		problem := err.(common.Problem)
 		assert.Equal(http.StatusBadRequest, problem.Status)
 	})
 }
