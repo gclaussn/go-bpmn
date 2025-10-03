@@ -66,19 +66,19 @@ func uploadReleaseAsset(releaseId, name string, contentType string) {
 		"curl",
 		"-L",
 		"-X", "POST",
-		"-H", fmt.Sprintf("%q", "Accept: application/vnd.github+json"),
-		"-H", fmt.Sprintf("%q", "Authorization: Bearer "+githubToken),
-		"-H", fmt.Sprintf("%q", "X-GitHub-Api-Version: 2022-11-28"),
-		"-H", fmt.Sprintf("%q", "Content-Type: "+contentType),
+		"-H", "Accept: application/vnd.github+json",
+		"-H", "Authorization: Bearer "+githubToken,
+		"-H", "X-GitHub-Api-Version: 2022-11-28",
+		"-H", "Content-Type: "+contentType,
 		fmt.Sprintf("https://uploads.github.com/repos/gclaussn/go-bpmn/releases/%s/assets?name=%s", releaseId, name),
 		"--data-binary", "@./build/"+name,
 	)
 
 	out, err := cmd.Output()
-	if err != nil {
-		log.Fatalf("failed to run command: %v", err)
-	}
 	if len(out) != 0 {
 		log.Println(string(out))
+	}
+	if err != nil {
+		log.Fatalf("failed to run command: %v", err)
 	}
 }
