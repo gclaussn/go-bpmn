@@ -5,6 +5,8 @@ description: API documentation reference.
 
 import { Code, Tabs, TabItem } from '@astrojs/starlight/components';
 
+import Link from '../../../components/Link.astro';
+
 import release from '../../../assets/release.json';
 
 ## HTTP API
@@ -13,7 +15,7 @@ To integrate a process engine in any language, application or system, go-bpmn pr
 The API is described using OpenAPI standard in version [3.1.0](https://spec.openapis.org/oas/v3.1.0.html).
 
 :::tip[Explore the API]
-see [OpenAPI documentation](/go-bpmn/openapi.html) as HTML version
+see <Link href="/go-bpmn/openapi.html">OpenAPI documentation</Link> as HTML version
 :::
 
 The structured API description in form of a `yaml` file, can be downloaded from the go-bpmn release artifacts:
@@ -29,4 +31,4 @@ The structured API description in form of a `yaml` file, can be downloaded from 
 
 ## Go API
 
-For embedding a process engine or automating a process, in Go, visit the documentation of Go module [github.com/gclaussn/go-bpmn](https://pkg.go.dev/github.com/gclaussn/go-bpmn).
+For embedding a process engine or automating a process, in Go, visit the documentation of Go module <Link href={`https://pkg.go.dev/github.com/gclaussn/go-bpmn@${release.version}`}>{`github.com/gclaussn/go-bpmn@${release.version}`}</Link>.

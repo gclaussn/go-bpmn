@@ -7,12 +7,13 @@ import { Code, Tabs, TabItem } from '@astrojs/starlight/components';
 
 import release from '../../../assets/release.json';
 
+import darwinPath from 'installation-darwin-path.mdx';
 import linuxPath from 'installation-linux-path.mdx';
 import windowsPath from 'installation-windows-path.mdx';
 
 This guide shows how to install the go-bpmn process engine daemon and CLI.
 
-1. Download a compatible release artifact:
+## Download release artifact
 
 <Tabs syncKey="osarch">
   {release.artifacts.map((artifact) => (
@@ -27,7 +28,7 @@ This guide shows how to install the go-bpmn process engine daemon and CLI.
 
 Looking for a specific version? - [View releases on Github](https://github.com/gclaussn/go-bpmn/releases)
 
-2. Validate the downloaded archive:
+## Validate archive
 
 <Tabs syncKey="osarch">
   {release.artifacts.map((artifact) => (
@@ -40,7 +41,7 @@ Looking for a specific version? - [View releases on Github](https://github.com/g
   ))}
 </Tabs>
 
-3. Extract the archive:
+## Extract archive
 
 <Tabs syncKey="osarch">
   {release.artifacts.map((artifact) => (
@@ -53,12 +54,12 @@ Looking for a specific version? - [View releases on Github](https://github.com/g
   ))}
 </Tabs>
 
-4. Add executables to `PATH` environment variable:
+## Install executables
 
 <Tabs syncKey="osarch">
   {release.artifacts.map((artifact) => (
     <TabItem label={artifact.osarch}>
-      {artifact.os === "linux" ? linuxPath() : (artifact.os === "windows" ? windowsPath() : null)}
+      {artifact.os === "linux" ? linuxPath() : (artifact.os === "windows" ? windowsPath() : darwinPath())}
     </TabItem>
   ))}
 </Tabs>

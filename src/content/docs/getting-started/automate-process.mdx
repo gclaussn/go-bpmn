@@ -14,7 +14,7 @@ After the gateway is evaluated, one service task must be executed to end an inst
 <Tabs>
   <TabItem label="Example process">
 
-<p align="center">
+<p align="center" style="background-color: white">
   <img src="/go-bpmn/getting-started/automate-process/example.svg" alt="example.bpmn"></img>
 </p>
 
@@ -96,7 +96,7 @@ go-bpmn process create \
 Create a process engine, using a PostgreSQL database URL:
 
 ```go
-e, err := pg.New("postgres://usernam:password@127.0.0.1:5432/database?search_path=schema")
+e, err := pg.New("postgres://username:password@127.0.0.1:5432/database?search_path=schema")
 if err != nil {
   log.Fatalf("failed to create process engine: %v", err)
 }
@@ -119,7 +119,7 @@ if err != nil {
   log.Fatalf("failed to read BPMN XML: %v", err)
 }
 
-process, err := e.CreateProcess(engine.CreateProcessCmd{
+process, err := e.CreateProcess(context.Background(), engine.CreateProcessCmd{
   BpmnProcessId: "example",
   BpmnXml:       bpmnXml,
   Version:       "1",
@@ -165,7 +165,7 @@ go-bpmn process-instance create \
   <TabItem label="Go">
 
 ```go
-processInstance, err := e.CreateProcessInstance(engine.CreateProcessInstanceCmd{
+processInstance, err := e.CreateProcessInstance(context.Background(), engine.CreateProcessInstanceCmd{
   BpmnProcessId: "example",
   Variables: map[string]*engine.Data{
     "xory": {
@@ -194,7 +194,7 @@ In case of an exclusive gateway, a job needs to be completed with a decision tha
 <Tabs syncKey="lang">
   <TabItem label="curl">
 
-Lock job:
+Lock job to allow an exclusive execution:
 
 ```sh
 curl -v \
@@ -225,7 +225,7 @@ curl -v \
   </TabItem>
   <TabItem label="CLI">
 
-Lock job:
+Lock job to allow an exclusive execution:
 
 ```sh
 go-bpmn job lock
@@ -249,10 +249,10 @@ go-bpmn job complete \
   </TabItem>
   <TabItem label="Go">
 
-Lock job:
+Lock job to allow an exclusive execution:
 
 ```go
-lockedJobs, err := e.LockJobs(engine.LockJobsCmd{
+lockedJobs, err := e.LockJobs(context.Background(), engine.LockJobsCmd{
   WorkerId:  "go",
 })
 if err != nil {
@@ -266,7 +266,7 @@ if len(lockedJobs) == 0 {
 Get variables of process instance (to make an decision):
 
 ```go
-variables, err := e.GetProcessVariables(engine.GetProcessVariablesCmd{
+variables, err := e.GetProcessVariables(context.Background(), engine.GetProcessVariablesCmd{
   Partition:         engine.Partition{},
   ProcessInstanceId: 1,
 })
@@ -278,7 +278,7 @@ if err != nil {
 Complete job with an exclusive gateway decision:
 
 ```go
-completedJob, err := e.CompleteJob(engine.CompleteJobCmd{
+completedJob, err := e.CompleteJob(context.Background(), engine.CompleteJobCmd{
   Partition: lockedJobs[0].Partition,
   Id:        lockedJobs[0].Id,
   Completion: &engine.JobCompletion{
@@ -304,7 +304,7 @@ In case of a service task, no type-specific completion is required.
 <Tabs syncKey="lang">
   <TabItem label="curl">
 
-Lock job:
+Lock job to allow an exclusive execution:
 
 ```sh
 curl -v \
@@ -337,7 +337,7 @@ curl -v \
   </TabItem>
   <TabItem label="CLI">
 
-Lock job:
+Lock job to allow an exclusive execution:
 
 ```sh
 go-bpmn job lock
@@ -347,7 +347,6 @@ Complete job, which confirms the execution of service task `doX`:
 
 ```sh
 go-bpmn job complete \
---exclusive-gateway-decision doX \
 --partition $(date -I) \
 --process-variable result='{"encoding": "json", "value": "x done"}' \
 --id 2
@@ -362,10 +361,10 @@ go-bpmn process-instance query
   </TabItem>
   <TabItem label="Go">
 
-Lock job:
+Lock job to allow an exclusive execution:
 
 ```go
-lockedJobs, err := e.LockJobs(engine.LockJobsCmd{
+lockedJobs, err := e.LockJobs(context.Background(), engine.LockJobsCmd{
   WorkerId:  "go",
 })
 if err != nil {
@@ -379,7 +378,7 @@ if len(lockedJobs) == 0 {
 Complete job, which confirms the execution of service task `doX`:
 
 ```go
-completedJob, err := e.CompleteJob(engine.CompleteJobCmd{
+completedJob, err := e.CompleteJob(context.Background(), engine.CompleteJobCmd{
   Partition: lockedJobs[0].Partition,
   Id:        lockedJobs[0].Id,
   WorkerId: "go",
@@ -392,7 +391,9 @@ if err != nil {
 Verify that process instance is in state `ENDED`:
 
 ```go
-results, err := e.Query(engine.ProcessInstanceCriteria{
+q := e.CreateQuery()
+
+results, err := q.QueryProessInstances(context.Background(), engine.ProcessInstanceCriteria{
   Partition: engine.Partition{},
   Id:        1,
 })
@@ -404,7 +405,7 @@ if len(results) != 1 {
   log.Fatalf("expected one process instance, but got %d", len(results))
 }
 
-processInstance := results[0].(engine.ProcessInstance)
+processInstance := results[0]
 if !processInstance.IsEnded() {
   log.Fatalf("expected process instance to be ended, but is not ended")
 }

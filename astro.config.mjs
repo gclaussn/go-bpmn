@@ -1,6 +1,9 @@
-// @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+
+import {readFileSync } from 'fs';
+
+var release = JSON.parse(readFileSync('src/assets/release.json', 'utf8'));
 
 // https://astro.build/config
 export default defineConfig({
@@ -8,7 +11,7 @@ export default defineConfig({
   base: 'go-bpmn',
   integrations: [
     starlight({
-      title: 'go-bpmn',
+      title: `go-bpmn ${release.version}`,
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/gclaussn/go-bpmn' }],
       sidebar: [
         {

@@ -1,17 +1,33 @@
 ---
-title: linux-path
+title: darwin-path
 ---
 
 **Install CLI**
 
 ```sh
-sudo install -o root -g root -m 0755 ./go-bpmn /usr/local/bin/go-bpmn
+chmod +x ./go-bpmn
+```
+
+```sh
+sudo mv ./go-bpmn /usr/local/bin/go-bpmn
+```
+
+```sh
+sudo chown root:root /usr/local/bin/go-bpmn
 ```
 
 **Install process engine daemon**
 
 ```sh
-sudo install -o root -g root -m 0755 ./go-bpmn-pgd /usr/local/bin/go-bpmn-pgd
+chmod +x ./go-bpmn-pgd
+```
+
+```sh
+sudo mv ./go-bpmn-pgd /usr/local/bin/go-bpmn-pgd
+```
+
+```sh
+sudo chown root:root /usr/local/bin/go-bpmn-pgd
 ```
 
 :::note
