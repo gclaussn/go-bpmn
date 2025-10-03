@@ -22,3 +22,4 @@ pnpm-debug.log*
 
 openapi.html
 openapi.yaml
+src/assets/release.json

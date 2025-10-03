@@ -8,6 +8,11 @@ fi
 
 RELEASE_TAG_NAME="$1"
 
+# download release information
+curl -L \
+--create-dirs -o src/assets/release.json \
+https://github.com/gclaussn/go-bpmn/releases/download/${RELEASE_TAG_NAME}/release.json
+
 # download openapi.yaml
 curl -L \
 -o openapi.yaml \
