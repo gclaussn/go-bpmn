@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
+	"github.com/gclaussn/go-bpmn/model"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
 )
@@ -12,8 +13,8 @@ import (
 func TestValidateProcess(t *testing.T) {
 	assert := assert.New(t)
 
-	t.Run("returns problem when BPMN process is not executable", func(t *testing.T) {
-		causes := mustValidateProcess(t, "invalid/process-not-executable.bpmn", "processNotExecutableTest")
+	t.Run("returns cause when BPMN process is not executable", func(t *testing.T) {
+		causes := mustValidateProcess(t, "invalid/process-not-executable.bpmn")
 		assert.Len(causes, 1)
 
 		assert.Equal("/processNotExecutableTest", causes[0].Pointer)
@@ -21,26 +22,89 @@ func TestValidateProcess(t *testing.T) {
 		assert.Contains(causes[0].Detail, "not executable")
 	})
 
-	t.Run("returns problem when BPMN element has no ID", func(t *testing.T) {
-		causes := mustValidateProcess(t, "invalid/element-without-id.bpmn", "elementWithoutIdTest")
+	t.Run("returns cause when BPMN element has no ID", func(t *testing.T) {
+		causes := mustValidateProcess(t, "start-end.bpmn", func(processElement *model.Element) {
+			startEvent := processElement.ElementById("startEvent")
+			startEvent.Id = ""
+		})
 		assert.Len(causes, 1)
 
-		assert.Equal("/elementWithoutIdTest/", causes[0].Pointer)
+		assert.Equal("/startEndTest/", causes[0].Pointer)
 		assert.NotEmpty(causes[0].Type)
 		assert.Equal("BPMN element of type NONE_START_EVENT has no ID", causes[0].Detail)
 	})
 
-	t.Run("returns problem when BPMN process contains joining inclusive gateway", func(t *testing.T) {
-		causes := mustValidateProcess(t, "invalid/inclusive-gateway-join.bpmn", "inclusiveGatewayJoinTest")
-		assert.Len(causes, 1)
+	t.Run("exclusive gateway", func(t *testing.T) {
+		t.Run("returns cause when default sequence flow not exists", func(t *testing.T) {
+			causes := mustValidateProcess(t, "gateway/exclusive-default.bpmn", func(processElement *model.Element) {
+				fork := processElement.ElementById("fork")
+				fork.Model = model.ExclusiveGateway{
+					Default: "notExisting",
+				}
+			})
+			assert.Len(causes, 1)
 
-		assert.Equal("/inclusiveGatewayJoinTest/join", causes[0].Pointer)
-		assert.NotEmpty(causes[0].Type)
-		assert.Contains(causes[0].Detail, "joining inclusive gateway", causes[0].Detail)
+			assert.Equal("/exclusiveDefaultTest/fork", causes[0].Pointer)
+			assert.NotEmpty(causes[0].Type)
+			assert.Equal("exclusive gateway fork has no default sequence flow notExisting", causes[0].Detail)
+		})
+
+		t.Run("returns cause when default sequence flow is incoming", func(t *testing.T) {
+			causes := mustValidateProcess(t, "gateway/exclusive-default.bpmn", func(processElement *model.Element) {
+				fork := processElement.ElementById("fork")
+				fork.Model = model.ExclusiveGateway{
+					Default: "f1",
+				}
+			})
+			assert.Len(causes, 1)
+
+			assert.Equal("/exclusiveDefaultTest/fork", causes[0].Pointer)
+			assert.NotEmpty(causes[0].Type)
+			assert.Equal("exclusive gateway fork has no default sequence flow f1", causes[0].Detail)
+		})
 	})
 
-	t.Run("returns problem when BPMN sequence flow has no source or target", func(t *testing.T) {
-		causes := mustValidateProcess(t, "invalid/element-unknown.bpmn", "elementUnknownTest")
+	t.Run("inclusive gateway", func(t *testing.T) {
+		t.Run("returns cause when default sequence flow not exists", func(t *testing.T) {
+			causes := mustValidateProcess(t, "gateway/inclusive-default.bpmn", func(processElement *model.Element) {
+				fork := processElement.ElementById("fork")
+				fork.Model = model.InclusiveGateway{
+					Default: "notExisting",
+				}
+			})
+			assert.Len(causes, 1)
+
+			assert.Equal("/inclusiveDefaultTest/fork", causes[0].Pointer)
+			assert.NotEmpty(causes[0].Type)
+			assert.Equal("inclusive gateway fork has no default sequence flow notExisting", causes[0].Detail)
+		})
+
+		t.Run("returns cause when default sequence flow is incoming", func(t *testing.T) {
+			causes := mustValidateProcess(t, "gateway/inclusive-default.bpmn", func(processElement *model.Element) {
+				fork := processElement.ElementById("fork")
+				fork.Model = model.InclusiveGateway{
+					Default: "f1",
+				}
+			})
+			assert.Len(causes, 1)
+
+			assert.Equal("/inclusiveDefaultTest/fork", causes[0].Pointer)
+			assert.NotEmpty(causes[0].Type)
+			assert.Equal("inclusive gateway fork has no default sequence flow f1", causes[0].Detail)
+		})
+
+		t.Run("returns cause when BPMN process contains joining gateway", func(t *testing.T) {
+			causes := mustValidateProcess(t, "invalid/inclusive-gateway-join.bpmn")
+			assert.Len(causes, 1)
+
+			assert.Equal("/inclusiveGatewayJoinTest/join", causes[0].Pointer)
+			assert.NotEmpty(causes[0].Type)
+			assert.Contains(causes[0].Detail, "joining inclusive gateway", causes[0].Detail)
+		})
+	})
+
+	t.Run("returns cause when BPMN sequence flow has no source or target", func(t *testing.T) {
+		causes := mustValidateProcess(t, "invalid/element-unknown.bpmn")
 		assert.Len(causes, 2)
 
 		assert.Equal("/elementUnknownTest/f1", causes[0].Pointer)

@@ -23,6 +23,7 @@ func TestBpmn(t *testing.T) {
 			exclusiveGatewayTest := newExclusiveGatewayTest(t, e)
 
 			t.Run(engineTypes[i]+"gateway", exclusiveGatewayTest.gateway)
+			t.Run(engineTypes[i]+"gateway default", exclusiveGatewayTest.gatewayDefault)
 
 			t.Run(engineTypes[i]+"completes with error when none BPMN element ID set", exclusiveGatewayTest.errorNoBpmnElementId)
 			t.Run(engineTypes[i]+"completes with error when sequence flow not exists", exclusiveGatewayTest.errorSequenceFlowNotExits)
@@ -35,6 +36,9 @@ func TestBpmn(t *testing.T) {
 
 			t.Run(engineTypes[i]+"gateway all", inclusiveGatewayTest.gatewayAll)
 			t.Run(engineTypes[i]+"gateway one", inclusiveGatewayTest.gatewayOne)
+			t.Run(engineTypes[i]+"gateway default", inclusiveGatewayTest.gatewayDefault)
+			t.Run(engineTypes[i]+"gateway default implicit", inclusiveGatewayTest.gatewayDefaultImplicit)
+			t.Run(engineTypes[i]+"gateway default explicit", inclusiveGatewayTest.gatewayDefaultExplicit)
 
 			t.Run(engineTypes[i]+"completes with error when no BPMN element ID set", inclusiveGatewayTest.errorNoBpmnElementId)
 			t.Run(engineTypes[i]+"completes with error when duplicate BPMN element ID set", inclusiveGatewayTest.errorDuplicateBpmnElementId)

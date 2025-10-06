@@ -71,8 +71,14 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				element = newElement(ElementNoneEndEvent, t.Attr)
 			case "exclusiveGateway":
 				element = newElement(ElementExclusiveGateway, t.Attr)
+				element.Model = ExclusiveGateway{
+					Default: getAttrValue(t.Attr, "default"),
+				}
 			case "inclusiveGateway":
 				element = newElement(ElementInclusiveGateway, t.Attr)
+				element.Model = InclusiveGateway{
+					Default: getAttrValue(t.Attr, "default"),
+				}
 			case "incoming":
 				isIncoming = true
 			case "intermediateCatchEvent":
@@ -103,7 +109,7 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				isExecutable, _ := strconv.ParseBool(getAttrValue(t.Attr, "isExecutable"))
 
 				parentElement = newElement(ElementProcess, t.Attr)
-				parentElement.Model = &Process{IsExecutable: isExecutable}
+				parentElement.Model = Process{IsExecutable: isExecutable}
 
 				definitions.Processes = append(definitions.Processes, parentElement)
 			case "scriptTask":

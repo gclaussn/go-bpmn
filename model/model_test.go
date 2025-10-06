@@ -87,7 +87,7 @@ func TestServiceTask(t *testing.T) {
 	assert.Len(processElement.SequenceFlows, 2)
 	assert.Equal(ElementProcess, processElement.Type)
 
-	process := processElement.Model.(*Process)
+	process := processElement.Model.(Process)
 	assert.True(process.IsExecutable)
 
 	startEvent := processElement.ElementById("startEvent")

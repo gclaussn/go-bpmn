@@ -51,7 +51,7 @@ func mustCreateGraph(t *testing.T, fileName string, bpmnProcessId string) graph 
 	return graph
 }
 
-func mustValidateProcess(t *testing.T, fileName string, bpmnProcessId string) []engine.ErrorCause {
+func mustValidateProcess(t *testing.T, fileName string, customizers ...func(processElement *model.Element)) []engine.ErrorCause {
 	fileName = "../../test/bpmn/" + fileName
 
 	bpmnFile, err := os.Open(fileName)
@@ -66,9 +66,14 @@ func mustValidateProcess(t *testing.T, fileName string, bpmnProcessId string) []
 		t.Fatalf("failed to parse BPMN XML: %v", err)
 	}
 
-	processElement, err := model.ProcessById(bpmnProcessId)
-	if err != nil {
-		t.Fatal(err.Error())
+	if len(model.Definitions.Processes) == 0 {
+		t.Fatal("model has no process")
+	}
+
+	processElement := model.Definitions.Processes[0]
+
+	for _, customizer := range customizers {
+		customizer(processElement)
 	}
 
 	causes, err := validateProcess(processElement.AllElements())

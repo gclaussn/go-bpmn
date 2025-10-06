@@ -356,17 +356,40 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 
 	executions := []*ElementInstanceEntity{scope, execution}
 
+	graph := ec.process.graph
+
+	node, ok := graph.nodes[execution.BpmnElementId]
+	if !ok {
+		job.Error = pgtype.Text{String: fmt.Sprintf("BPMN process %s has no element %s", graph.processElement.Id, execution.BpmnElementId), Valid: true}
+		return nil
+	}
+
 	switch job.Type {
 	case engine.JobEvaluateExclusiveGateway:
-		if jobCompletion == nil || jobCompletion.ExclusiveGatewayDecision == "" {
+		bpmnElement := node.bpmnElement
+		if bpmnElement.Type != model.ElementExclusiveGateway {
+			job.Error = pgtype.Text{String: fmt.Sprintf("expected BPMN element %s to be an exclusive gateway", execution.BpmnElementId), Valid: true}
+			return nil
+		}
+
+		exclusiveGateway := bpmnElement.Model.(model.ExclusiveGateway)
+
+		if (jobCompletion == nil || jobCompletion.ExclusiveGatewayDecision == "") && exclusiveGateway.Default == "" {
 			job.Error = pgtype.Text{String: "expected an exclusive gateway decision", Valid: true}
 			return nil
 		}
 
-		bpmnElementId := jobCompletion.ExclusiveGatewayDecision
-		if err := ec.process.graph.ensureSequenceFlow(job.BpmnElementId, bpmnElementId); err != nil {
-			job.Error = pgtype.Text{String: err.Error(), Valid: true}
-			return nil
+		var targetId string
+		if jobCompletion != nil {
+			targetId = jobCompletion.ExclusiveGatewayDecision
+
+			if err := graph.ensureSequenceFlow(job.BpmnElementId, targetId); err != nil {
+				job.Error = pgtype.Text{String: err.Error(), Valid: true}
+				return nil
+			}
+		} else {
+			outgoing := bpmnElement.OutgoingById(exclusiveGateway.Default)
+			targetId = outgoing.Target.Id
 		}
 
 		execution.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
@@ -375,9 +398,9 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 
 		scope.ExecutionCount = scope.ExecutionCount - 1
 
-		next, err := ec.process.graph.createExecutionAt(scope, bpmnElementId)
+		next, err := graph.createExecutionAt(scope, targetId)
 		if err != nil {
-			job.Error = pgtype.Text{String: fmt.Sprintf("failed to create execution at %s: %v", bpmnElementId, err), Valid: true}
+			job.Error = pgtype.Text{String: fmt.Sprintf("failed to create execution at %s: %v", targetId, err), Valid: true}
 			return nil
 		}
 
@@ -385,24 +408,42 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 
 		executions = append(executions, &next)
 	case engine.JobEvaluateInclusiveGateway:
-		if jobCompletion == nil || len(jobCompletion.InclusiveGatewayDecision) == 0 {
+		bpmnElement := node.bpmnElement
+		if bpmnElement.Type != model.ElementInclusiveGateway {
+			job.Error = pgtype.Text{String: fmt.Sprintf("expected BPMN element %s to be an inclusive gateway", execution.BpmnElementId), Valid: true}
+			return nil
+		}
+
+		inclusiveGateway := bpmnElement.Model.(model.InclusiveGateway)
+
+		if (jobCompletion == nil || len(jobCompletion.InclusiveGatewayDecision) == 0) && inclusiveGateway.Default == "" {
 			job.Error = pgtype.Text{String: "expected an inclusive gateway decision", Valid: true}
 			return nil
 		}
 
-		bpmnElementIds := jobCompletion.InclusiveGatewayDecision
-		for i := range bpmnElementIds {
-			for j := i + 1; j < len(bpmnElementIds); j++ {
-				if bpmnElementIds[i] == bpmnElementIds[j] {
-					job.Error = pgtype.Text{String: fmt.Sprintf("decision contains duplicate BPMN element ID %s", bpmnElementIds[i]), Valid: true}
+		var targetIds []string
+		if jobCompletion != nil {
+			targetIds = jobCompletion.InclusiveGatewayDecision
+			for i := range targetIds {
+				for j := i + 1; j < len(targetIds); j++ {
+					if targetIds[i] == targetIds[j] {
+						job.Error = pgtype.Text{String: fmt.Sprintf("decision contains duplicate BPMN element ID %s", targetIds[i]), Valid: true}
+						return nil
+					}
+				}
+			}
+			for i := range targetIds {
+				if err := graph.ensureSequenceFlow(job.BpmnElementId, targetIds[i]); err != nil {
+					job.Error = pgtype.Text{String: err.Error(), Valid: true}
 					return nil
 				}
 			}
 		}
-		for i := range bpmnElementIds {
-			if err := ec.process.graph.ensureSequenceFlow(job.BpmnElementId, bpmnElementIds[i]); err != nil {
-				job.Error = pgtype.Text{String: err.Error(), Valid: true}
-				return nil
+
+		if inclusiveGateway.Default != "" {
+			outgoing := bpmnElement.OutgoingById(inclusiveGateway.Default)
+			if !slices.Contains(targetIds, outgoing.Target.Id) {
+				targetIds = append(targetIds, outgoing.Target.Id)
 			}
 		}
 
@@ -412,10 +453,10 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 
 		scope.ExecutionCount = scope.ExecutionCount - 1
 
-		for i := range bpmnElementIds {
-			next, err := ec.process.graph.createExecutionAt(scope, bpmnElementIds[i])
+		for _, targetId := range targetIds {
+			next, err := graph.createExecutionAt(scope, targetId)
 			if err != nil {
-				job.Error = pgtype.Text{String: fmt.Sprintf("failed to create execution at %s: %v", bpmnElementIds[i], err), Valid: true}
+				job.Error = pgtype.Text{String: fmt.Sprintf("failed to create execution at %s: %v", targetId, err), Valid: true}
 				return nil
 			}
 

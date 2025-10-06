@@ -12,14 +12,16 @@ func newExclusiveGatewayTest(t *testing.T, e engine.Engine) exclusiveGatewayTest
 	return exclusiveGatewayTest{
 		e: e,
 
-		exclusiveTest: mustCreateProcess(t, e, "gateway/exclusive.bpmn", "exclusiveTest"),
+		exclusiveTest:        mustCreateProcess(t, e, "gateway/exclusive.bpmn", "exclusiveTest"),
+		exclusiveDefaultTest: mustCreateProcess(t, e, "gateway/exclusive-default.bpmn", "exclusiveDefaultTest"),
 	}
 }
 
 type exclusiveGatewayTest struct {
 	e engine.Engine
 
-	exclusiveTest engine.Process
+	exclusiveTest        engine.Process
+	exclusiveDefaultTest engine.Process
 }
 
 func (x exclusiveGatewayTest) gateway(t *testing.T) {
@@ -33,6 +35,23 @@ func (x exclusiveGatewayTest) gateway(t *testing.T) {
 			ExclusiveGatewayDecision: "join",
 		},
 	})
+
+	piAssert.IsCompleted()
+
+	elementInstances := piAssert.ElementInstances()
+	assert.Len(elementInstances, 5)
+
+	completed := piAssert.ElementInstances(engine.ElementInstanceCriteria{States: []engine.InstanceState{engine.InstanceCompleted}})
+	assert.Len(completed, 5)
+}
+
+func (x exclusiveGatewayTest) gatewayDefault(t *testing.T) {
+	assert := assert.New(t)
+
+	piAssert := mustCreateProcessInstance(t, x.e, x.exclusiveDefaultTest)
+
+	piAssert.IsWaitingAt("fork")
+	piAssert.CompleteJob()
 
 	piAssert.IsCompleted()
 

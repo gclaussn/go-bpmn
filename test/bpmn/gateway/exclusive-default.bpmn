@@ -1,0 +1,24 @@
+<definitions id="test">
+  <process id="exclusiveDefaultTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="fork" />
+    <exclusiveGateway id="fork" default="f2">
+      <incoming>f1</incoming>
+      <outgoing>f2</outgoing>
+      <outgoing>f3</outgoing>
+    </exclusiveGateway>
+    <sequenceFlow id="f2" sourceRef="fork" targetRef="join" />
+    <sequenceFlow id="f3" sourceRef="fork" targetRef="join" />
+    <exclusiveGateway id="join">
+      <incoming>f2</incoming>
+      <incoming>f3</incoming>
+      <outgoing>f4</outgoing>
+    </exclusiveGateway>
+    <sequenceFlow id="f4" sourceRef="join" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f4</incoming>
+    </endEvent>
+  </process>
+</definitions>

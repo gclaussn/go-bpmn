@@ -19,7 +19,7 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 		}
 	}
 
-	process, ok := bpmnElements[0].Model.(*model.Process)
+	process, ok := bpmnElements[0].Model.(model.Process)
 	if !ok {
 		return nil, engine.Error{
 			Type:   engine.ErrorBug,
@@ -48,7 +48,31 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 		}
 
 		switch bpmnElement.Type {
+		case model.ElementExclusiveGateway:
+			exclusivGateway := bpmnElement.Model.(model.ExclusiveGateway)
+			if exclusivGateway.Default != "" {
+				sequenceFlow := bpmnElement.OutgoingById(exclusivGateway.Default)
+				if sequenceFlow == nil || sequenceFlow.Source != bpmnElement {
+					causes = append(causes, engine.ErrorCause{
+						Pointer: elementPointer(bpmnElement),
+						Type:    "element",
+						Detail:  fmt.Sprintf("exclusive gateway %s has no default sequence flow %s", bpmnElement.Id, exclusivGateway.Default),
+					})
+				}
+			}
 		case model.ElementInclusiveGateway:
+			inclusiveGateway := bpmnElement.Model.(model.InclusiveGateway)
+			if inclusiveGateway.Default != "" {
+				sequenceFlow := bpmnElement.OutgoingById(inclusiveGateway.Default)
+				if sequenceFlow == nil || sequenceFlow.Source != bpmnElement {
+					causes = append(causes, engine.ErrorCause{
+						Pointer: elementPointer(bpmnElement),
+						Type:    "element",
+						Detail:  fmt.Sprintf("inclusive gateway %s has no default sequence flow %s", bpmnElement.Id, inclusiveGateway.Default),
+					})
+				}
+			}
+
 			if len(bpmnElement.Incoming) > 1 {
 				causes = append(causes, engine.ErrorCause{
 					Pointer: elementPointer(bpmnElement),
@@ -211,7 +235,7 @@ func (g graph) ensureSequenceFlow(sourceId string, targetId string) error {
 	if !ok {
 		return fmt.Errorf("BPMN process %s has no element %s", g.processElement.Id, sourceId)
 	}
-	if node.bpmnElement.OutgoingById(targetId) == nil {
+	if node.bpmnElement.TargetById(targetId) == nil {
 		return fmt.Errorf("BPMN element %s has no outgoing sequence flow to %s", sourceId, targetId)
 	}
 	return nil

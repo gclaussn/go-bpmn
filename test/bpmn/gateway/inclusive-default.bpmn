@@ -1,0 +1,26 @@
+<definitions id="test">
+  <process id="inclusiveDefaultTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="fork" />
+    <inclusiveGateway id="fork" default="f2">
+      <incoming>f1</incoming>
+      <outgoing>f2</outgoing>
+      <outgoing>f3</outgoing>
+      <outgoing>f4</outgoing>
+    </inclusiveGateway>
+    <sequenceFlow id="f2" sourceRef="fork" targetRef="endEventA" />
+    <sequenceFlow id="f3" sourceRef="fork" targetRef="endEventB" />
+    <sequenceFlow id="f4" sourceRef="fork" targetRef="endEventC" />
+    <endEvent id="endEventA">
+      <incoming>f2</incoming>
+    </endEvent>
+    <endEvent id="endEventB">
+      <incoming>f3</incoming>
+    </endEvent>
+    <endEvent id="endEventC">
+      <incoming>f4</incoming>
+    </endEvent>
+  </process>
+</definitions>
