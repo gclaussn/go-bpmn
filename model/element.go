@@ -67,7 +67,7 @@ func (e *Element) TargetById(targetId string) *Element {
 	return nil
 }
 
-func (e *Element) getSequenceFlow(id string) *SequenceFlow {
+func (e *Element) sequenceFlowById(id string) *SequenceFlow {
 	for i := range e.SequenceFlows {
 		if e.SequenceFlows[i].Id == id {
 			return e.SequenceFlows[i]

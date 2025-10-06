@@ -149,11 +149,11 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 			if element == nil {
 				continue // skip processing for unknown elements
 			} else if isIncoming {
-				sequenceFlow := parentElement.getSequenceFlow(string(t))
+				sequenceFlow := parentElement.sequenceFlowById(string(t))
 				sequenceFlow.Target = element
 				element.Incoming = append(element.Incoming, sequenceFlow)
 			} else if isOutgoing {
-				sequenceFlow := parentElement.getSequenceFlow(string(t))
+				sequenceFlow := parentElement.sequenceFlowById(string(t))
 				sequenceFlow.Source = element
 				element.Outgoing = append(element.Outgoing, sequenceFlow)
 			}

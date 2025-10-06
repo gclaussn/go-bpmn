@@ -298,13 +298,13 @@ func (g graph) joinParallelGateway(waiting []*ElementInstanceEntity) ([]*Element
 	return nil, nil
 }
 
-func (g graph) nodeByElementId(elementId int32) (node, bool) {
+func (g graph) elementByElementId(elementId int32) *model.Element {
 	for _, node := range g.nodes {
 		if node.id == elementId {
-			return node, true
+			return node.bpmnElement
 		}
 	}
-	return node{}, false
+	return nil
 }
 
 type node struct {
