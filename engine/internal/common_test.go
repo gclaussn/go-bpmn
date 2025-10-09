@@ -23,12 +23,10 @@ func mustCreateGraph(t *testing.T, fileName string, bpmnProcessId string) graph 
 		t.Fatalf("failed to parse BPMN XML: %v", err)
 	}
 
-	processElement, err := model.ProcessById(bpmnProcessId)
-	if err != nil {
-		t.Fatal(err.Error())
+	processElements := model.ElementsByProcessId(bpmnProcessId)
+	if len(processElements) == 0 {
+		t.Fatalf("failed to collect elements of BPMN process %s", bpmnProcessId)
 	}
-
-	processElements := processElement.AllElements()
 
 	elements := make([]*ElementEntity, len(processElements))
 	for i, e := range processElements {
@@ -76,7 +74,9 @@ func mustValidateProcess(t *testing.T, fileName string, customizers ...func(proc
 		customizer(processElement)
 	}
 
-	causes, err := validateProcess(processElement.AllElements())
+	processElements := model.ElementsByProcessId(processElement.Id)
+
+	causes, err := validateProcess(processElements)
 	if err != nil {
 		t.Fatalf("failed to validate BPMN process: %v", err)
 	}

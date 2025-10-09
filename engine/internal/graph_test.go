@@ -24,7 +24,7 @@ func TestValidateProcess(t *testing.T) {
 
 	t.Run("returns cause when BPMN element has no ID", func(t *testing.T) {
 		causes := mustValidateProcess(t, "start-end.bpmn", func(processElement *model.Element) {
-			startEvent := processElement.ElementById("startEvent")
+			startEvent := processElement.ChildById("startEvent")
 			startEvent.Id = ""
 		})
 		assert.Len(causes, 1)
@@ -37,7 +37,7 @@ func TestValidateProcess(t *testing.T) {
 	t.Run("exclusive gateway", func(t *testing.T) {
 		t.Run("returns cause when default sequence flow not exists", func(t *testing.T) {
 			causes := mustValidateProcess(t, "gateway/exclusive-default.bpmn", func(processElement *model.Element) {
-				fork := processElement.ElementById("fork")
+				fork := processElement.ChildById("fork")
 				fork.Model = model.ExclusiveGateway{
 					Default: "notExisting",
 				}
@@ -51,7 +51,7 @@ func TestValidateProcess(t *testing.T) {
 
 		t.Run("returns cause when default sequence flow is incoming", func(t *testing.T) {
 			causes := mustValidateProcess(t, "gateway/exclusive-default.bpmn", func(processElement *model.Element) {
-				fork := processElement.ElementById("fork")
+				fork := processElement.ChildById("fork")
 				fork.Model = model.ExclusiveGateway{
 					Default: "f1",
 				}
@@ -67,7 +67,7 @@ func TestValidateProcess(t *testing.T) {
 	t.Run("inclusive gateway", func(t *testing.T) {
 		t.Run("returns cause when default sequence flow not exists", func(t *testing.T) {
 			causes := mustValidateProcess(t, "gateway/inclusive-default.bpmn", func(processElement *model.Element) {
-				fork := processElement.ElementById("fork")
+				fork := processElement.ChildById("fork")
 				fork.Model = model.InclusiveGateway{
 					Default: "notExisting",
 				}
@@ -81,7 +81,7 @@ func TestValidateProcess(t *testing.T) {
 
 		t.Run("returns cause when default sequence flow is incoming", func(t *testing.T) {
 			causes := mustValidateProcess(t, "gateway/inclusive-default.bpmn", func(processElement *model.Element) {
-				fork := processElement.ElementById("fork")
+				fork := processElement.ChildById("fork")
 				fork.Model = model.InclusiveGateway{
 					Default: "f1",
 				}
