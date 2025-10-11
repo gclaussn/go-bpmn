@@ -1,5 +1,11 @@
 package model
 
+type Error struct {
+	Id   string
+	Name string
+	Code string
+}
+
 type Element struct {
 	Id   string
 	Name string
@@ -63,6 +69,15 @@ type SequenceFlow struct {
 }
 
 // element specific models
+
+type BoundaryEvent struct {
+	AttachedTo      *Element
+	EventDefinition EventDefinition
+}
+
+type EventDefinition struct {
+	Error *Error
+}
 
 type ExclusiveGateway struct {
 	Default string // Optional ID of a default sequence flow.

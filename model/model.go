@@ -10,10 +10,11 @@ import (
 
 func New(bpmnXmlReader io.Reader) (*Model, error) {
 	var (
+		definitions       Definitions
+		definitionsParsed bool
+
 		elements      []*Element
 		sequenceFlows []*SequenceFlow
-
-		definitions *Definitions
 
 		element       *Element
 		parentElement *Element
@@ -69,23 +70,39 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 			switch t.Name.Local {
 			case "boundaryEvent":
 				element = newElement(0, t.Attr) // unknown type
+				element.Model = BoundaryEvent{AttachedTo: &Element{Id: getAttrValue(t.Attr, "attachedToRef")}}
 			case "businessRuleTask":
 				addNewElement(ElementBusinessRuleTask, t.Attr)
 			case "definitions":
-				definitions = &Definitions{}
 				definitions.Id = getAttrValue(t.Attr, "id")
+				definitionsParsed = true
 			case "endEvent":
 				addNewElement(ElementNoneEndEvent, t.Attr)
+			case "error":
+				bpmnErrorId := getAttrValue(t.Attr, "id")
+				bpmnError := definitions.errorById(bpmnErrorId)
+				bpmnError.Name = getAttrValue(t.Attr, "name")
+				bpmnError.Code = getAttrValue(t.Attr, "errorCode")
+			case "errorEventDefinition":
+				if element.Type == 0 {
+					element.Type = ElementErrorBoundaryEvent
+				}
+
+				bpmnErrorId := getAttrValue(t.Attr, "errorRef")
+				bpmnError := definitions.errorById(bpmnErrorId)
+				eventDefinition := EventDefinition{Error: bpmnError}
+
+				switch model := element.Model.(type) {
+				case BoundaryEvent:
+					model.EventDefinition = eventDefinition
+					element.Model = model
+				}
 			case "exclusiveGateway":
 				addNewElement(ElementExclusiveGateway, t.Attr)
-				element.Model = ExclusiveGateway{
-					Default: getAttrValue(t.Attr, "default"),
-				}
+				element.Model = ExclusiveGateway{Default: getAttrValue(t.Attr, "default")}
 			case "inclusiveGateway":
 				addNewElement(ElementInclusiveGateway, t.Attr)
-				element.Model = InclusiveGateway{
-					Default: getAttrValue(t.Attr, "default"),
-				}
+				element.Model = InclusiveGateway{Default: getAttrValue(t.Attr, "default")}
 			case "incoming":
 				isIncoming = true
 			case "intermediateCatchEvent":
@@ -106,13 +123,6 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 			case "parallelGateway":
 				addNewElement(ElementParallelGateway, t.Attr)
 			case "process":
-				if definitions == nil {
-					if err := decoder.Skip(); err != nil {
-						return nil, errors.New("XML is invalid")
-					}
-					break
-				}
-
 				isExecutable, _ := strconv.ParseBool(getAttrValue(t.Attr, "isExecutable"))
 
 				addNewElement(ElementProcess, t.Attr)
@@ -148,12 +158,6 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				element = nil
 			}
 		case xml.CharData:
-			if definitions == nil {
-				if err := decoder.Skip(); err != nil {
-					return nil, errors.New("XML is invalid")
-				}
-				break
-			}
 			if element == nil {
 				continue // skip unknown element
 			} else if isIncoming {
@@ -183,21 +187,28 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 		}
 	}
 
-	if definitions == nil {
+	if !definitionsParsed {
 		return nil, errors.New("no definitions found")
 	}
 
-	return &Model{
-		Definitions: definitions,
+	model := Model{
+		Definitions: &definitions,
 
 		Elements:      elements,
 		SequenceFlows: sequenceFlows,
-	}, nil
-}
+	}
 
-type Definitions struct {
-	Id        string
-	Processes []*Element
+	for _, element := range model.Elements {
+		switch element.Type {
+		case ElementErrorBoundaryEvent:
+			// resolve placeholder "attached to" element
+			boundaryEvent := element.Model.(BoundaryEvent)
+			boundaryEvent.AttachedTo = model.ElementById(boundaryEvent.AttachedTo.Id)
+			element.Model = boundaryEvent
+		}
+	}
+
+	return &model, nil
 }
 
 type Model struct {
@@ -251,6 +262,25 @@ func (m *Model) ProcessById(id string) *Element {
 		}
 	}
 	return nil
+}
+
+type Definitions struct {
+	Id string
+
+	Errors    []*Error
+	Processes []*Element
+}
+
+func (d *Definitions) errorById(id string) *Error {
+	for _, bpmnError := range d.Errors {
+		if bpmnError.Id == id {
+			return bpmnError
+		}
+	}
+
+	bpmnError := &Error{Id: id}
+	d.Errors = append(d.Errors, bpmnError)
+	return bpmnError
 }
 
 func getAttrValue(attributes []xml.Attr, name string) string {
