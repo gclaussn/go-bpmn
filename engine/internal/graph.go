@@ -85,7 +85,7 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 		for _, sequenceFlow := range bpmnElement.Incoming {
 			if sequenceFlow.Source == nil {
 				causes = append(causes, engine.ErrorCause{
-					Pointer: fmt.Sprintf("%s/%s", elementPointer(bpmnElement), sequenceFlow.Id),
+					Pointer: fmt.Sprintf("%s/%s", elementPointer(bpmnElement.Parent), sequenceFlow.Id),
 					Type:    "sequence_flow",
 					Detail:  fmt.Sprintf("BPMN sequence flow %s has no source element", sequenceFlow.Id),
 				})
@@ -94,7 +94,7 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 		for _, sequenceFlow := range bpmnElement.Outgoing {
 			if sequenceFlow.Target == nil {
 				causes = append(causes, engine.ErrorCause{
-					Pointer: fmt.Sprintf("%s/%s", elementPointer(bpmnElement), sequenceFlow.Id),
+					Pointer: fmt.Sprintf("%s/%s", elementPointer(bpmnElement.Parent), sequenceFlow.Id),
 					Type:    "sequence_flow",
 					Detail:  fmt.Sprintf("BPMN sequence flow %s has no target element", sequenceFlow.Id),
 				})

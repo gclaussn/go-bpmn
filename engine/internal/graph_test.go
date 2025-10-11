@@ -104,14 +104,14 @@ func TestValidateProcess(t *testing.T) {
 	})
 
 	t.Run("returns cause when BPMN sequence flow has no source or target", func(t *testing.T) {
-		causes := mustValidateProcess(t, "invalid/element-unknown.bpmn")
+		causes := mustValidateProcess(t, "invalid/unknown-element.bpmn")
 		assert.Len(causes, 2)
 
-		assert.Equal("/elementUnknownTest/f1", causes[0].Pointer)
+		assert.Equal("/unknownElementTest/f1", causes[0].Pointer)
 		assert.NotEmpty(causes[0].Type)
 		assert.Contains(causes[0].Detail, "no target element")
 
-		assert.Equal("/elementUnknownTest/f2", causes[1].Pointer)
+		assert.Equal("/unknownElementTest/f2", causes[1].Pointer)
 		assert.NotEmpty(causes[1].Type)
 		assert.Contains(causes[1].Detail, "no source element")
 	})

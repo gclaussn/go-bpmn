@@ -10,7 +10,11 @@ import (
 
 func New(bpmnXmlReader io.Reader) (*Model, error) {
 	var (
-		definitions   *Definitions
+		elements      []*Element
+		sequenceFlows []*SequenceFlow
+
+		definitions *Definitions
+
 		element       *Element
 		parentElement *Element
 
@@ -24,12 +28,24 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 			parentElement.Children = append(parentElement.Children, element)
 		}
 
-		definitions.Elements = append(definitions.Elements, element)
+		elements = append(elements, element)
 	}
 
 	addNewElement := func(elementType ElementType, attributes []xml.Attr) {
 		element = newElement(elementType, attributes)
 		addElement()
+	}
+
+	sequenceFlowById := func(id string) *SequenceFlow {
+		for _, sequenceFlow := range sequenceFlows {
+			if sequenceFlow.Id == id {
+				return sequenceFlow
+			}
+		}
+
+		sequenceFlow := &SequenceFlow{Id: id}
+		sequenceFlows = append(sequenceFlows, sequenceFlow)
+		return sequenceFlow
 	}
 
 	decoder := xml.NewDecoder(bpmnXmlReader)
@@ -141,11 +157,11 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 			if element == nil {
 				continue // skip unknown element
 			} else if isIncoming {
-				sequenceFlow := definitions.sequenceFlowById(string(t))
+				sequenceFlow := sequenceFlowById(string(t))
 				sequenceFlow.Target = element
 				element.Incoming = append(element.Incoming, sequenceFlow)
 			} else if isOutgoing {
-				sequenceFlow := definitions.sequenceFlowById(string(t))
+				sequenceFlow := sequenceFlowById(string(t))
 				sequenceFlow.Source = element
 				element.Outgoing = append(element.Outgoing, sequenceFlow)
 			}
@@ -171,35 +187,28 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 		return nil, errors.New("no definitions found")
 	}
 
-	return &Model{Definitions: definitions}, nil
+	return &Model{
+		Definitions: definitions,
+
+		Elements:      elements,
+		SequenceFlows: sequenceFlows,
+	}, nil
 }
 
 type Definitions struct {
 	Id        string
 	Processes []*Element
+}
+
+type Model struct {
+	Definitions *Definitions
 
 	Elements      []*Element
 	SequenceFlows []*SequenceFlow
 }
 
-func (e *Definitions) sequenceFlowById(id string) *SequenceFlow {
-	for i := range e.SequenceFlows {
-		if e.SequenceFlows[i].Id == id {
-			return e.SequenceFlows[i]
-		}
-	}
-
-	sequenceFlow := &SequenceFlow{Id: id}
-	e.SequenceFlows = append(e.SequenceFlows, sequenceFlow)
-	return sequenceFlow
-}
-
-type Model struct {
-	Definitions *Definitions
-}
-
 func (m *Model) ElementById(id string) *Element {
-	for _, element := range m.Definitions.Elements {
+	for _, element := range m.Elements {
 		if element.Id == id {
 			return element
 		}
@@ -213,21 +222,21 @@ func (m *Model) ElementsByProcessId(processId string) []*Element {
 		return nil
 	}
 
-	processElements := make([]*Element, 1, len(processElement.Children)+1)
-	processElements[0] = processElement
+	bpmnElements := make([]*Element, 1, len(processElement.Children)+1)
+	bpmnElements[0] = processElement
 
 	i := 0
-	for i < len(processElements) {
-		processElements = append(processElements, processElements[i].Children...)
+	for i < len(bpmnElements) {
+		bpmnElements = append(bpmnElements, bpmnElements[i].Children...)
 		i++
 	}
 
-	return processElements
+	return bpmnElements
 }
 
 func (m *Model) ElementsByType(elementType ElementType) []*Element {
 	var elements []*Element
-	for _, element := range m.Definitions.Elements {
+	for _, element := range m.Elements {
 		if element.Type == elementType {
 			elements = append(elements, element)
 		}

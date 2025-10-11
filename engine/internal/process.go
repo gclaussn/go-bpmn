@@ -128,9 +128,9 @@ func (c *ProcessCache) cache(ctx Context, process *ProcessEntity) error {
 		return err
 	}
 
-	processElements := model.ElementsByProcessId(process.BpmnProcessId)
+	bpmnElements := model.ElementsByProcessId(process.BpmnProcessId)
 
-	graph, err := newGraph(processElements, elements)
+	graph, err := newGraph(bpmnElements, elements)
 	if err != nil {
 		return engine.Error{
 			Type:   engine.ErrorBug,

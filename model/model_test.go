@@ -30,7 +30,7 @@ func TestUnknownElement(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
 	// when
-	model := mustCreateModel(t, "invalid/element-unknown.bpmn")
+	model := mustCreateModel(t, "invalid/unknown-element.bpmn")
 
 	// then
 	assert.Equal("test", model.Definitions.Id)
@@ -39,6 +39,7 @@ func TestUnknownElement(t *testing.T) {
 
 	processElement := model.Definitions.Processes[0]
 	require.Len(processElement.Children, 2)
+	require.Nil(processElement.ChildById("unknownElement"))
 
 	startEvent := processElement.Children[0]
 	require.Len(startEvent.Outgoing, 1)
@@ -57,7 +58,7 @@ func TestUnknownCatchEvent(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
 	// when
-	model := mustCreateModel(t, "invalid/catch-event-unknown.bpmn")
+	model := mustCreateModel(t, "invalid/unknown-catch-event.bpmn")
 
 	// then
 	require.Len(model.Definitions.Processes, 1)
