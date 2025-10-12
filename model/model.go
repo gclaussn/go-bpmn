@@ -10,7 +10,12 @@ import (
 
 func New(bpmnXmlReader io.Reader) (*Model, error) {
 	var (
-		definitions   *Definitions
+		definitions       Definitions
+		definitionsParsed bool
+
+		elements      []*Element
+		sequenceFlows []*SequenceFlow
+
 		element       *Element
 		parentElement *Element
 
@@ -18,29 +23,30 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 		isOutgoing bool
 	)
 
-	getAttrValue := func(attributes []xml.Attr, name string) string {
-		for i := range attributes {
-			if attributes[i].Name.Local == name {
-				return attributes[i].Value
-			}
+	addElement := func() {
+		if parentElement != nil {
+			element.Parent = parentElement
+			parentElement.Children = append(parentElement.Children, element)
 		}
-		return ""
+
+		elements = append(elements, element)
 	}
 
-	newElement := func(elementType ElementType, attributes []xml.Attr) *Element {
-		element := Element{
-			Id:   getAttrValue(attributes, "id"),
-			Name: getAttrValue(attributes, "name"),
-			Type: elementType,
+	addNewElement := func(elementType ElementType, attributes []xml.Attr) {
+		element = newElement(elementType, attributes)
+		addElement()
+	}
 
-			Parent: parentElement,
+	sequenceFlowById := func(id string) *SequenceFlow {
+		for _, sequenceFlow := range sequenceFlows {
+			if sequenceFlow.Id == id {
+				return sequenceFlow
+			}
 		}
 
-		if parentElement != nil {
-			parentElement.Elements = append(parentElement.Elements, &element)
-		}
-
-		return &element
+		sequenceFlow := &SequenceFlow{Id: id}
+		sequenceFlows = append(sequenceFlows, sequenceFlow)
+		return sequenceFlow
 	}
 
 	decoder := xml.NewDecoder(bpmnXmlReader)
@@ -63,30 +69,26 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 		case xml.StartElement:
 			switch t.Name.Local {
 			case "businessRuleTask":
-				element = newElement(ElementBusinessRuleTask, t.Attr)
+				addNewElement(ElementBusinessRuleTask, t.Attr)
 			case "definitions":
-				definitions = &Definitions{}
 				definitions.Id = getAttrValue(t.Attr, "id")
+				definitionsParsed = true
 			case "endEvent":
-				element = newElement(ElementNoneEndEvent, t.Attr)
+				addNewElement(ElementNoneEndEvent, t.Attr)
 			case "exclusiveGateway":
-				element = newElement(ElementExclusiveGateway, t.Attr)
-				element.Model = ExclusiveGateway{
-					Default: getAttrValue(t.Attr, "default"),
-				}
+				addNewElement(ElementExclusiveGateway, t.Attr)
+				element.Model = ExclusiveGateway{Default: getAttrValue(t.Attr, "default")}
 			case "inclusiveGateway":
-				element = newElement(ElementInclusiveGateway, t.Attr)
-				element.Model = InclusiveGateway{
-					Default: getAttrValue(t.Attr, "default"),
-				}
+				addNewElement(ElementInclusiveGateway, t.Attr)
+				element.Model = InclusiveGateway{Default: getAttrValue(t.Attr, "default")}
 			case "incoming":
 				isIncoming = true
 			case "intermediateCatchEvent":
 				element = newElement(0, t.Attr) // unknown type
 			case "intermediateThrowEvent":
-				element = newElement(ElementNoneThrowEvent, t.Attr)
+				addNewElement(ElementNoneThrowEvent, t.Attr)
 			case "manualTask":
-				element = newElement(ElementManualTask, t.Attr)
+				addNewElement(ElementManualTask, t.Attr)
 			case "messageEventDefinition":
 				switch element.Type {
 				case ElementNoneStartEvent:
@@ -97,27 +99,21 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 			case "outgoing":
 				isOutgoing = true
 			case "parallelGateway":
-				element = newElement(ElementParallelGateway, t.Attr)
+				addNewElement(ElementParallelGateway, t.Attr)
 			case "process":
-				if definitions == nil {
-					if err := decoder.Skip(); err != nil {
-						return nil, errors.New("XML is invalid")
-					}
-					break
-				}
-
 				isExecutable, _ := strconv.ParseBool(getAttrValue(t.Attr, "isExecutable"))
 
-				parentElement = newElement(ElementProcess, t.Attr)
+				addNewElement(ElementProcess, t.Attr)
+				parentElement = element
 				parentElement.Model = Process{IsExecutable: isExecutable}
 
 				definitions.Processes = append(definitions.Processes, parentElement)
 			case "scriptTask":
-				element = newElement(ElementScriptTask, t.Attr)
+				addNewElement(ElementScriptTask, t.Attr)
 			case "sendTask":
-				element = newElement(ElementSendTask, t.Attr)
+				addNewElement(ElementSendTask, t.Attr)
 			case "serviceTask":
-				element = newElement(ElementServiceTask, t.Attr)
+				addNewElement(ElementServiceTask, t.Attr)
 			case "signalEventDefinition":
 				switch element.Type {
 				case ElementNoneStartEvent:
@@ -126,9 +122,9 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 					element.Type = ElementSignalCatchEvent
 				}
 			case "startEvent":
-				element = newElement(ElementNoneStartEvent, t.Attr)
+				addNewElement(ElementNoneStartEvent, t.Attr)
 			case "task":
-				element = newElement(ElementTask, t.Attr)
+				addNewElement(ElementTask, t.Attr)
 			case "timerEventDefinition":
 				switch element.Type {
 				case ElementNoneStartEvent:
@@ -140,20 +136,14 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				element = nil
 			}
 		case xml.CharData:
-			if definitions == nil {
-				if err := decoder.Skip(); err != nil {
-					return nil, errors.New("XML is invalid")
-				}
-				break
-			}
 			if element == nil {
-				continue // skip processing for unknown elements
+				continue // skip unknown element
 			} else if isIncoming {
-				sequenceFlow := parentElement.getSequenceFlow(string(t))
+				sequenceFlow := sequenceFlowById(string(t))
 				sequenceFlow.Target = element
 				element.Incoming = append(element.Incoming, sequenceFlow)
 			} else if isOutgoing {
-				sequenceFlow := parentElement.getSequenceFlow(string(t))
+				sequenceFlow := sequenceFlowById(string(t))
 				sequenceFlow.Source = element
 				element.Outgoing = append(element.Outgoing, sequenceFlow)
 			}
@@ -162,8 +152,8 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 			case "incoming":
 				isIncoming = false
 			case "intermediateCatchEvent":
-				if element.Type == 0 { // if unknown, handle as pass through element
-					element.Type = ElementNoneThrowEvent
+				if element.Type != 0 { // add element, if type is known
+					addElement()
 				}
 			case "outgoing":
 				isOutgoing = false
@@ -171,27 +161,95 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 		}
 	}
 
-	if definitions == nil {
+	if !definitionsParsed {
 		return nil, errors.New("no definitions found")
 	}
 
-	return &Model{Definitions: definitions}, nil
-}
+	return &Model{
+		Definitions: &definitions,
 
-type Definitions struct {
-	Id        string
-	Processes []*Element
+		Elements:      elements,
+		SequenceFlows: sequenceFlows,
+	}, nil
 }
 
 type Model struct {
 	Definitions *Definitions
+
+	Elements      []*Element
+	SequenceFlows []*SequenceFlow
 }
 
-func (m *Model) ProcessById(id string) (*Element, error) {
-	for i := range m.Definitions.Processes {
-		if m.Definitions.Processes[i].Id == id {
-			return m.Definitions.Processes[i], nil
+// ElementById returns the element with the given id, or nil, if no such element exists.
+func (m *Model) ElementById(id string) *Element {
+	for _, element := range m.Elements {
+		if element.Id == id {
+			return element
 		}
 	}
-	return nil, fmt.Errorf("failed to find BPMN process by ID %s", id)
+	return nil
+}
+
+// ElementsByProcessId returns all elements of a process, including the process element itself.
+// If the process does not exist, nil is returned.
+func (m *Model) ElementsByProcessId(processId string) []*Element {
+	processElement := m.ProcessById(processId)
+	if processElement == nil {
+		return nil
+	}
+
+	bpmnElements := make([]*Element, 1, len(processElement.Children)+1)
+	bpmnElements[0] = processElement
+
+	i := 0
+	for i < len(bpmnElements) {
+		bpmnElements = append(bpmnElements, bpmnElements[i].Children...)
+		i++
+	}
+
+	return bpmnElements
+}
+
+// ElementsByType returns all elements of the given type.
+func (m *Model) ElementsByType(elementType ElementType) []*Element {
+	var elements []*Element
+	for _, element := range m.Elements {
+		if element.Type == elementType {
+			elements = append(elements, element)
+		}
+	}
+	return elements
+}
+
+// ProcessById returns the process with the given id, or nil, if no such process exists.
+func (m *Model) ProcessById(id string) *Element {
+	for i := range m.Definitions.Processes {
+		if m.Definitions.Processes[i].Id == id {
+			return m.Definitions.Processes[i]
+		}
+	}
+	return nil
+}
+
+type Definitions struct {
+	Id string
+
+	Processes []*Element
+}
+
+func getAttrValue(attributes []xml.Attr, name string) string {
+	for i := range attributes {
+		if attributes[i].Name.Local == name {
+			return attributes[i].Value
+		}
+	}
+	return ""
+}
+
+func newElement(elementType ElementType, attributes []xml.Attr) *Element {
+	return &Element{
+		Id:   getAttrValue(attributes, "id"),
+		Name: getAttrValue(attributes, "name"),
+		Type: elementType,
+	}
 }

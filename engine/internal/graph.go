@@ -82,17 +82,19 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 			}
 		}
 
-		for _, sequenceFlow := range bpmnElement.SequenceFlows {
+		for _, sequenceFlow := range bpmnElement.Incoming {
 			if sequenceFlow.Source == nil {
 				causes = append(causes, engine.ErrorCause{
-					Pointer: fmt.Sprintf("%s/%s", elementPointer(bpmnElement), sequenceFlow.Id),
+					Pointer: fmt.Sprintf("%s/%s", elementPointer(bpmnElement.Parent), sequenceFlow.Id),
 					Type:    "sequence_flow",
 					Detail:  fmt.Sprintf("BPMN sequence flow %s has no source element", sequenceFlow.Id),
 				})
 			}
+		}
+		for _, sequenceFlow := range bpmnElement.Outgoing {
 			if sequenceFlow.Target == nil {
 				causes = append(causes, engine.ErrorCause{
-					Pointer: fmt.Sprintf("%s/%s", elementPointer(bpmnElement), sequenceFlow.Id),
+					Pointer: fmt.Sprintf("%s/%s", elementPointer(bpmnElement.Parent), sequenceFlow.Id),
 					Type:    "sequence_flow",
 					Detail:  fmt.Sprintf("BPMN sequence flow %s has no target element", sequenceFlow.Id),
 				})
@@ -150,7 +152,7 @@ func (g graph) createExecution(scope *ElementInstanceEntity) (ElementInstanceEnt
 	var noneStartEvents []*model.Element
 	switch scopeNode.bpmnElement.Type {
 	case model.ElementProcess:
-		noneStartEvents = scopeNode.bpmnElement.ElementsByType(model.ElementNoneStartEvent)
+		noneStartEvents = scopeNode.bpmnElement.ChildrenByType(model.ElementNoneStartEvent)
 	}
 
 	if len(noneStartEvents) == 0 {
@@ -298,13 +300,13 @@ func (g graph) joinParallelGateway(waiting []*ElementInstanceEntity) ([]*Element
 	return nil, nil
 }
 
-func (g graph) nodeByElementId(elementId int32) (node, bool) {
+func (g graph) elementByElementId(elementId int32) *model.Element {
 	for _, node := range g.nodes {
 		if node.id == elementId {
-			return node, true
+			return node.bpmnElement
 		}
 	}
-	return node{}, false
+	return nil
 }
 
 type node struct {

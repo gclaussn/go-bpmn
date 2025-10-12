@@ -291,8 +291,8 @@ func triggerSignalStartEvent(ctx Context, task *TaskEntity, signalId int64) erro
 		return err
 	}
 
-	startNode, ok := process.graph.nodeByElementId(task.ElementId.Int32)
-	if !ok {
+	startElement := process.graph.elementByElementId(task.ElementId.Int32)
+	if startElement == nil {
 		return engine.Error{
 			Type:   engine.ErrorBug,
 			Title:  "failed to find start node",
@@ -346,7 +346,7 @@ func triggerSignalStartEvent(ctx Context, task *TaskEntity, signalId int64) erro
 
 	scope := process.graph.createProcessScope(processInstance)
 
-	execution, err := process.graph.createExecutionAt(&scope, startNode.bpmnElement.Id)
+	execution, err := process.graph.createExecutionAt(&scope, startElement.Id)
 	if err != nil {
 		return engine.Error{
 			Type:   engine.ErrorProcessModel,

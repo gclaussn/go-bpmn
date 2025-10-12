@@ -6,44 +6,33 @@ type Element struct {
 	Type ElementType
 
 	Parent   *Element
+	Children []*Element
+
 	Incoming []*SequenceFlow
 	Outgoing []*SequenceFlow
-
-	Elements      []*Element
-	SequenceFlows []*SequenceFlow
 
 	Model any
 }
 
-func (e *Element) AllElements() []*Element {
-	all := []*Element{e}
-
-	i := 0
-	for i < len(all) {
-		all = append(all, all[i].Elements...)
-		i++
-	}
-
-	return all
-}
-
-func (e *Element) ElementById(id string) *Element {
-	for i := range e.Elements {
-		if e.Elements[i].Id == id {
-			return e.Elements[i]
+// ChildById returns the child element with the given id, or nil, if no such element exists.
+func (e *Element) ChildById(id string) *Element {
+	for _, child := range e.Children {
+		if child.Id == id {
+			return child
 		}
 	}
 	return nil
 }
 
-func (e *Element) ElementsByType(elementType ElementType) []*Element {
-	var elements []*Element
-	for i := range e.Elements {
-		if e.Elements[i].Type == elementType {
-			elements = append(elements, e.Elements[i])
+// ChildrenByType returns all child elements of the given type.
+func (e *Element) ChildrenByType(elementType ElementType) []*Element {
+	var children []*Element
+	for _, child := range e.Children {
+		if child.Type == elementType {
+			children = append(children, child)
 		}
 	}
-	return elements
+	return children
 }
 
 // OutgoingById returns the outgoing sequence flow with the given id or nil, if no such sequence flow exists.
@@ -65,18 +54,6 @@ func (e *Element) TargetById(targetId string) *Element {
 		}
 	}
 	return nil
-}
-
-func (e *Element) getSequenceFlow(id string) *SequenceFlow {
-	for i := range e.SequenceFlows {
-		if e.SequenceFlows[i].Id == id {
-			return e.SequenceFlows[i]
-		}
-	}
-
-	sequenceFlow := &SequenceFlow{Id: id}
-	e.SequenceFlows = append(e.SequenceFlows, sequenceFlow)
-	return sequenceFlow
 }
 
 type SequenceFlow struct {

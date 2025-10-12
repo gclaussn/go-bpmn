@@ -114,8 +114,8 @@ func (c *ProcessCache) cache(ctx Context, process *ProcessEntity) error {
 		return err
 	}
 
-	processElement, err := model.ProcessById(process.BpmnProcessId)
-	if err != nil {
+	processElement := model.ProcessById(process.BpmnProcessId)
+	if processElement == nil {
 		return engine.Error{
 			Type:   engine.ErrorBug,
 			Title:  "failed to cache process",
@@ -128,7 +128,9 @@ func (c *ProcessCache) cache(ctx Context, process *ProcessEntity) error {
 		return err
 	}
 
-	graph, err := newGraph(processElement.AllElements(), elements)
+	bpmnElements := model.ElementsByProcessId(process.BpmnProcessId)
+
+	graph, err := newGraph(bpmnElements, elements)
 	if err != nil {
 		return engine.Error{
 			Type:   engine.ErrorBug,
@@ -207,8 +209,8 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	}
 
 	// find process
-	processElement, err := bpmnModel.ProcessById(cmd.BpmnProcessId)
-	if err != nil {
+	processElement := bpmnModel.ProcessById(cmd.BpmnProcessId)
+	if processElement == nil {
 		// collect actual BPMN process IDs
 		bpmnProcessIds := make([]string, len(bpmnModel.Definitions.Processes))
 		for i := range bpmnProcessIds {
@@ -222,7 +224,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		}
 	}
 
-	bpmnElements := processElement.AllElements()
+	bpmnElements := bpmnModel.ElementsByProcessId(cmd.BpmnProcessId)
 
 	// validate process
 	causes, err := validateProcess(bpmnElements)

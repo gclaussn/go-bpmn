@@ -1,5 +1,5 @@
 <definitions id="test">
-  <process id="elementUnknownTest" isExecutable="true">
+  <process id="unknownElementTest" isExecutable="true">
     <startEvent id="startEvent">
       <outgoing>f1</outgoing>
     </startEvent>
