@@ -68,6 +68,9 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 		switch t := token.(type) {
 		case xml.StartElement:
 			switch t.Name.Local {
+			case "boundaryEvent":
+				element = newElement(0, t.Attr) // unknown type
+				element.Model = BoundaryEvent{AttachedTo: &Element{Id: getAttrValue(t.Attr, "attachedToRef")}}
 			case "businessRuleTask":
 				addNewElement(ElementBusinessRuleTask, t.Attr)
 			case "definitions":
@@ -75,6 +78,29 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				definitionsParsed = true
 			case "endEvent":
 				addNewElement(ElementNoneEndEvent, t.Attr)
+			case "error":
+				bpmnErrorId := getAttrValue(t.Attr, "id")
+				bpmnError := definitions.errorById(bpmnErrorId)
+				bpmnError.Name = getAttrValue(t.Attr, "name")
+				bpmnError.Code = getAttrValue(t.Attr, "errorCode")
+			case "errorEventDefinition":
+				if element.Type == 0 {
+					element.Type = ElementErrorBoundaryEvent
+				}
+
+				bpmnErrorId := getAttrValue(t.Attr, "errorRef")
+				if bpmnErrorId == "" {
+					continue
+				}
+
+				bpmnError := definitions.errorById(bpmnErrorId)
+				eventDefinition := EventDefinition{Error: bpmnError}
+
+				switch model := element.Model.(type) {
+				case BoundaryEvent:
+					model.EventDefinition = eventDefinition
+					element.Model = model
+				}
 			case "exclusiveGateway":
 				addNewElement(ElementExclusiveGateway, t.Attr)
 				element.Model = ExclusiveGateway{Default: getAttrValue(t.Attr, "default")}
@@ -149,6 +175,10 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 			}
 		case xml.EndElement:
 			switch t.Name.Local {
+			case "boundaryEvent":
+				if element.Type != 0 { // add element, if type is known
+					addElement()
+				}
 			case "incoming":
 				isIncoming = false
 			case "intermediateCatchEvent":
@@ -165,12 +195,24 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 		return nil, errors.New("no definitions found")
 	}
 
-	return &Model{
+	model := Model{
 		Definitions: &definitions,
 
 		Elements:      elements,
 		SequenceFlows: sequenceFlows,
-	}, nil
+	}
+
+	for _, element := range model.Elements {
+		switch element.Type {
+		case ElementErrorBoundaryEvent:
+			// resolve placeholder "attached to" element
+			boundaryEvent := element.Model.(BoundaryEvent)
+			boundaryEvent.AttachedTo = model.ElementById(boundaryEvent.AttachedTo.Id)
+			element.Model = boundaryEvent
+		}
+	}
+
+	return &model, nil
 }
 
 type Model struct {
@@ -234,7 +276,26 @@ func (m *Model) ProcessById(id string) *Element {
 type Definitions struct {
 	Id string
 
+	Errors    []*Error
 	Processes []*Element
+}
+
+func (d *Definitions) errorById(id string) *Error {
+	for _, bpmnError := range d.Errors {
+		if bpmnError.Id == id {
+			return bpmnError
+		}
+	}
+
+	bpmnError := &Error{Id: id}
+	d.Errors = append(d.Errors, bpmnError)
+	return bpmnError
+}
+
+type Error struct {
+	Id   string
+	Name string
+	Code string
 }
 
 func getAttrValue(attributes []xml.Attr, name string) string {
