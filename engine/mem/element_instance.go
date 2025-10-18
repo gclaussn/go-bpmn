@@ -56,13 +56,13 @@ func (r *elementInstanceRepository) SelectParallelGateways(execution *internal.E
 		if e.ProcessInstanceId != execution.ProcessInstanceId {
 			continue
 		}
+		if e.State != execution.State {
+			continue
+		}
 		if e.ElementId != execution.ElementId {
 			continue
 		}
 		if e.ParentId.Int32 != execution.ParentId.Int32 {
-			continue
-		}
-		if e.State != execution.State {
 			continue
 		}
 		results = append(results, &e)

@@ -80,6 +80,15 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 					Detail:  fmt.Sprintf("BPMN element %s is not supported: joining inclusive gateway", bpmnElement.Id),
 				})
 			}
+		case model.ElementErrorBoundaryEvent:
+			boundaryEvent := bpmnElement.Model.(model.BoundaryEvent)
+			if boundaryEvent.AttachedTo == nil {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(bpmnElement),
+					Type:    "element",
+					Detail:  fmt.Sprintf("boundary event %s is not attached", bpmnElement.Id),
+				})
+			}
 		}
 
 		for _, sequenceFlow := range bpmnElement.Incoming {
@@ -105,7 +114,7 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 	return causes, nil
 }
 
-func newGraph(bpmnElements []*model.Element, elements []*ElementEntity) (graph, error) {
+func newGraph(bpmnModel *model.Model, bpmnElements []*model.Element, elements []*ElementEntity) (graph, error) {
 	if len(bpmnElements) == 0 {
 		return graph{}, errors.New("expected BPMN elements not to be empty")
 	}
@@ -133,12 +142,14 @@ func newGraph(bpmnElements []*model.Element, elements []*ElementEntity) (graph, 
 	}
 
 	return graph{
+		model:          bpmnModel,
 		nodes:          nodes,
 		processElement: processElement,
 	}, nil
 }
 
 type graph struct {
+	model          *model.Model
 	nodes          map[string]node // mapping between BPMN element IDs and nodes
 	processElement *model.Element  // root element
 }
@@ -177,6 +188,141 @@ func (g graph) createExecution(scope *ElementInstanceEntity) (ElementInstanceEnt
 	scope.ExecutionCount = 1
 
 	return execution, nil
+}
+
+func (g graph) continueExecution(executions []*ElementInstanceEntity, execution *ElementInstanceEntity) ([]*ElementInstanceEntity, error) {
+	node, ok := g.nodes[execution.BpmnElementId]
+	if !ok {
+		return executions, fmt.Errorf("BPMN process %s has no element %s", g.processElement.Id, execution.BpmnElementId)
+	}
+
+	if execution.State == engine.InstanceCompleted {
+		return executions, nil // skip already completed execution
+	}
+
+	scope := execution.parent
+	if scope.State == engine.InstanceQueued {
+		execution.State = scope.State // end branch
+		return executions, nil
+	} else if execution.State == engine.InstanceStarted {
+		execution.State = engine.InstanceCompleted // continue branch
+	} else if scope.State == engine.InstanceSuspended {
+		execution.State = engine.InstanceSuspended // end branch
+		return executions, nil
+	} else {
+		// end branch, if BPMN element requires a job to be completed or a task to be executed
+		switch execution.BpmnElementType {
+		case
+			model.ElementBusinessRuleTask,
+			model.ElementErrorBoundaryEvent,
+			model.ElementMessageCatchEvent,
+			model.ElementScriptTask,
+			model.ElementSendTask,
+			model.ElementServiceTask,
+			model.ElementSignalCatchEvent,
+			model.ElementTimerCatchEvent:
+			execution.State = engine.InstanceCreated
+		case
+			model.ElementExclusiveGateway,
+			model.ElementInclusiveGateway:
+			if len(node.bpmnElement.Outgoing) > 1 {
+				execution.State = engine.InstanceCreated
+			} else {
+				execution.State = engine.InstanceCompleted
+			}
+		case model.ElementParallelGateway:
+			if len(node.bpmnElement.Incoming) > 1 {
+				execution.State = engine.InstanceCreated
+			} else {
+				execution.State = engine.InstanceCompleted
+			}
+		default:
+			// continue branch, if element has no behavior (pass through element)
+			execution.State = engine.InstanceCompleted
+		}
+	}
+
+	if execution.State == engine.InstanceCompleted {
+		for _, sequenceFlow := range node.bpmnElement.Outgoing {
+			target := sequenceFlow.Target
+			targetNode := g.nodes[target.Id]
+
+			var prev *ElementInstanceEntity
+
+			// determine if a previous execution should be set
+			// if set, the next execution will be part of the "element_instance_prev_id_idx" index
+			switch target.Type {
+			case
+				// required for a possible event based gateway
+				model.ElementMessageCatchEvent,
+				model.ElementSignalCatchEvent,
+				model.ElementTimerCatchEvent,
+				// required for a parallel gateway join
+				model.ElementParallelGateway:
+				prev = execution
+			}
+
+			// start branch
+			next := ElementInstanceEntity{
+				Partition: scope.Partition,
+
+				ElementId:         targetNode.id,
+				ProcessId:         scope.ProcessId,
+				ProcessInstanceId: scope.ProcessInstanceId,
+
+				BpmnElementId:   target.Id,
+				BpmnElementType: target.Type,
+
+				parent: scope,
+				prev:   prev,
+			}
+
+			executions = append(executions, &next)
+
+			scope.ExecutionCount = scope.ExecutionCount + 1
+		}
+
+		scope.ExecutionCount = scope.ExecutionCount - 1
+
+		if scope.ExecutionCount == 0 && scope.ParentId.Valid {
+			executions = append(executions, scope)
+		}
+	}
+
+	if execution.State == engine.InstanceCreated {
+		switch execution.BpmnElementType {
+		case
+			model.ElementBusinessRuleTask,
+			model.ElementScriptTask,
+			model.ElementSendTask,
+			model.ElementServiceTask:
+			attachments := g.model.AttachedTo(execution.BpmnElementId)
+			for _, attachment := range attachments {
+				attachedNode := g.nodes[attachment.Id]
+
+				// start branch
+				next := ElementInstanceEntity{
+					Partition: scope.Partition,
+
+					ElementId:         attachedNode.id,
+					ProcessId:         scope.ProcessId,
+					ProcessInstanceId: scope.ProcessInstanceId,
+
+					BpmnElementId:   attachment.Id,
+					BpmnElementType: attachment.Type,
+
+					parent: scope,
+					prev:   execution,
+				}
+
+				executions = append(executions, &next)
+			}
+
+			execution.ExecutionCount = len(attachments) * -1
+		}
+	}
+
+	return executions, nil
 }
 
 func (g graph) createExecutionAt(scope *ElementInstanceEntity, bpmnElementId string) (ElementInstanceEntity, error) {
@@ -228,7 +374,6 @@ func (g graph) createProcessScope(processInstance *ProcessInstanceEntity) Elemen
 		CreatedBy:       processInstance.CreatedBy,
 		StartedAt:       processInstance.StartedAt,
 		State:           processInstance.State,
-		StateChangedBy:  processInstance.StateChangedBy,
 	}
 }
 

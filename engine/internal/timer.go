@@ -97,13 +97,12 @@ func triggerTimerStartEvent(ctx Context, task *TaskEntity, timer engine.Timer) e
 
 			ProcessId: process.Id,
 
-			BpmnProcessId:  process.BpmnProcessId,
-			CreatedAt:      ctx.Time(),
-			CreatedBy:      ctx.Options().EngineId,
-			StartedAt:      pgtype.Timestamp{Time: ctx.Time(), Valid: true},
-			State:          engine.InstanceStarted,
-			StateChangedBy: ctx.Options().EngineId,
-			Version:        process.Version,
+			BpmnProcessId: process.BpmnProcessId,
+			CreatedAt:     ctx.Time(),
+			CreatedBy:     ctx.Options().EngineId,
+			StartedAt:     pgtype.Timestamp{Time: ctx.Time(), Valid: true},
+			State:         engine.InstanceStarted,
+			Version:       process.Version,
 		}
 
 		if err := ctx.ProcessInstances().Insert(processInstance); err != nil {

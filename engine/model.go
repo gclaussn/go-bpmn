@@ -14,6 +14,7 @@ type InstanceState int
 const (
 	InstanceCanceled InstanceState = iota + 1
 	InstanceCompleted
+	InstanceCreated
 	InstanceQueued
 	InstanceStarted
 	InstanceSuspended
@@ -26,6 +27,8 @@ func MapInstanceState(s string) InstanceState {
 		return InstanceCanceled
 	case "COMPLETED":
 		return InstanceCompleted
+	case "CREATED":
+		return InstanceCreated
 	case "QUEUED":
 		return InstanceQueued
 	case "STARTED":
@@ -53,6 +56,8 @@ func (v InstanceState) String() string {
 		return "CANCELED"
 	case InstanceCompleted:
 		return "COMPLETED"
+	case InstanceCreated:
+		return "CREATED"
 	case InstanceQueued:
 		return "QUEUED"
 	case InstanceStarted:
@@ -88,6 +93,7 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 //   - [JobEvaluateExclusiveGateway]: forking exclusive gateway
 //   - [JobEvaluateInclusiveGateway]: forking inclusive gateway
 //   - [JobExecute]: business rule, script, send and service task
+//   - [JobSetErrorCode]: error boundary event
 //   - [JobSetTimer]: timer catch event
 //   - [JobSubscribeMessage]: message catch event
 //   - [JobSubscribeSignal]: signal catch event
@@ -97,6 +103,7 @@ const (
 	JobEvaluateExclusiveGateway JobType = iota + 1
 	JobEvaluateInclusiveGateway
 	JobExecute
+	JobSetErrorCode
 	JobSetTimer
 	JobSubscribeMessage
 	JobSubscribeSignal
@@ -110,6 +117,8 @@ func MapJobType(s string) JobType {
 		return JobEvaluateInclusiveGateway
 	case "EXECUTE":
 		return JobExecute
+	case "SET_ERROR_CODE":
+		return JobSetErrorCode
 	case "SET_TIMER":
 		return JobSetTimer
 	case "SUBSCRIBE_MESSAGE":
@@ -137,6 +146,8 @@ func (v JobType) String() string {
 		return "EVALUATE_INCLUSIVE_GATEWAY"
 	case JobExecute:
 		return "EXECUTE"
+	case JobSetErrorCode:
+		return "SET_ERROR_CODE"
 	case JobSetTimer:
 		return "SET_TIMER"
 	case JobSubscribeMessage:
@@ -319,7 +330,6 @@ type ElementInstance struct {
 	IsMultiInstance bool              `json:"multiInstance,omitempty"`             // Determines if the element instance is a multi instance.
 	StartedAt       *time.Time        `json:"startedAt,omitempty"`                 // Start time.
 	State           InstanceState     `json:"state" validate:"required"`           // Current state.
-	StateChangedBy  string            `json:"stateChangedBy" validate:"required"`  // ID of the worker or engine that changed the state.
 }
 
 func (v ElementInstance) HasParent() bool {
@@ -348,7 +358,9 @@ type ElementInstanceCriteria struct {
 
 // EventDefinition is a generic definition of a BPMN event, while a BPMN element has exactly one type.
 type EventDefinition struct {
-	IsSuspended bool   `json:"suspended"`             // Determines if a start event definition is suspended.
+	IsSuspended bool `json:"suspended"` // Determines if a start event definition is suspended.
+
+	ErrorCode   string `json:"errorCode,omitempty"`   // Code of a BPMN error - set in case of a error event.
 	MessageName string `json:"messageName,omitempty"` // Name of the message - set in case of a message event.
 	SignalName  string `json:"signalName,omitempty"`  // Name of the signal - set in case of a signal event.
 	Timer       *Timer `json:"timer,omitempty"`       // A timer definition - set in case of a timer event.
@@ -503,16 +515,15 @@ type ProcessInstance struct {
 
 	ProcessId int32 `json:"processId"` // ID of the related process.
 
-	BpmnProcessId  string            `json:"bpmnProcessId" validate:"required"`  // ID of the process element within the BPMN XML.
-	CorrelationKey string            `json:"correlationKey,omitempty"`           // Key, used to correlate a process instance with a business entity.
-	CreatedAt      time.Time         `json:"createdAt" validate:"required"`      // Creation time.
-	CreatedBy      string            `json:"createdBy" validate:"required"`      // ID of the worker or engine that created the process instance.
-	EndedAt        *time.Time        `json:"endedAt,omitempty"`                  // End time.
-	StartedAt      *time.Time        `json:"startedAt,omitempty"`                // Start time.
-	State          InstanceState     `json:"state" validate:"required"`          // Current state.
-	StateChangedBy string            `json:"stateChangedBy" validate:"required"` // ID of the worker or engine that changed the state.
-	Tags           map[string]string `json:"tags,omitempty"`                     // Tags, consisting of name and value pairs.
-	Version        string            `json:"version" validate:"required"`        // Process version.
+	BpmnProcessId  string            `json:"bpmnProcessId" validate:"required"` // ID of the process element within the BPMN XML.
+	CorrelationKey string            `json:"correlationKey,omitempty"`          // Key, used to correlate a process instance with a business entity.
+	CreatedAt      time.Time         `json:"createdAt" validate:"required"`     // Creation time.
+	CreatedBy      string            `json:"createdBy" validate:"required"`     // ID of the worker or engine that created the process instance.
+	EndedAt        *time.Time        `json:"endedAt,omitempty"`                 // End time.
+	StartedAt      *time.Time        `json:"startedAt,omitempty"`               // Start time.
+	State          InstanceState     `json:"state" validate:"required"`         // Current state.
+	Tags           map[string]string `json:"tags,omitempty"`                    // Tags, consisting of name and value pairs.
+	Version        string            `json:"version" validate:"required"`       // Process version.
 }
 
 func (v ProcessInstance) HasParent() bool {

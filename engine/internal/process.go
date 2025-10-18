@@ -109,12 +109,12 @@ func (c *ProcessCache) GetOrCacheById(ctx Context, id int32) (*ProcessEntity, er
 }
 
 func (c *ProcessCache) cache(ctx Context, process *ProcessEntity) error {
-	model, err := model.New(strings.NewReader(process.BpmnXml))
+	bpmnModel, err := model.New(strings.NewReader(process.BpmnXml))
 	if err != nil {
 		return err
 	}
 
-	processElement := model.ProcessById(process.BpmnProcessId)
+	processElement := bpmnModel.ProcessById(process.BpmnProcessId)
 	if processElement == nil {
 		return engine.Error{
 			Type:   engine.ErrorBug,
@@ -128,9 +128,9 @@ func (c *ProcessCache) cache(ctx Context, process *ProcessEntity) error {
 		return err
 	}
 
-	bpmnElements := model.ElementsByProcessId(process.BpmnProcessId)
+	bpmnElements := bpmnModel.ElementsByProcessId(process.BpmnProcessId)
 
-	graph, err := newGraph(bpmnElements, elements)
+	graph, err := newGraph(bpmnModel, bpmnElements, elements)
 	if err != nil {
 		return engine.Error{
 			Type:   engine.ErrorBug,
@@ -243,6 +243,25 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 	// validate events
 	for _, bpmnElement := range bpmnElements {
+		errorCode := cmd.ErrorCodes[bpmnElement.Id]
+		if errorCode != "" {
+			if bpmnElement.Type != model.ElementErrorBoundaryEvent {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(bpmnElement),
+					Type:    "error_event",
+					Detail:  fmt.Sprintf("BPMN element %s is not an error boundary event", bpmnElement.Id),
+				})
+			}
+		} else {
+			if bpmnElement.Type == model.ElementErrorBoundaryEvent {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(bpmnElement),
+					Type:    "error_event",
+					Detail:  fmt.Sprintf("no error code defined for BPMN element %s", bpmnElement.Id),
+				})
+			}
+		}
+
 		messageName := cmd.MessageNames[bpmnElement.Id]
 		if messageName != "" {
 			if bpmnElement.Type != model.ElementMessageStartEvent {
@@ -378,7 +397,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	}
 
 	// create execution graph
-	graph, err := newGraph(bpmnElements, elements)
+	graph, err := newGraph(bpmnModel, bpmnElements, elements)
 	if err != nil {
 		return engine.Process{}, engine.Error{
 			Type:   engine.ErrorBug,
@@ -387,7 +406,41 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		}
 	}
 
-	eventDefinitions := make([]*EventDefinitionEntity, 0, len(cmd.MessageNames)+len(cmd.SignalNames)+len(cmd.Timers))
+	eventDefinitions := make([]*EventDefinitionEntity, 0, 0+
+		len(cmd.ErrorCodes)+
+		len(cmd.MessageNames)+
+		len(cmd.SignalNames)+
+		len(cmd.Timers),
+	)
+
+	// prepare error event definitions
+	for bpmnElementId, errorCode := range cmd.ErrorCodes {
+		node, ok := graph.nodes[bpmnElementId]
+		if !ok {
+			causes = append(causes, engine.ErrorCause{
+				Pointer: elementPointer(graph.processElement),
+				Type:    "message_event",
+				Detail:  fmt.Sprintf("BPMN process %s has no element %s", processElement.Id, bpmnElementId),
+			})
+			continue
+		}
+
+		if errorCode == "" {
+			continue
+		}
+
+		eventDefinitions = append(eventDefinitions, &EventDefinitionEntity{
+			ElementId: node.id,
+
+			ProcessId: process.Id,
+
+			BpmnElementId:   bpmnElementId,
+			BpmnElementType: node.bpmnElement.Type,
+			BpmnProcessId:   process.BpmnProcessId,
+			ErrorCode:       pgtype.Text{String: errorCode, Valid: true},
+			Version:         process.Version,
+		})
+	}
 
 	// prepare message event definitions
 	for bpmnElementId, messageName := range cmd.MessageNames {

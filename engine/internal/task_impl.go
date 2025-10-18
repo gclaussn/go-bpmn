@@ -154,18 +154,16 @@ func (t StartProcessInstanceTask) Execute(ctx Context, task *TaskEntity) error {
 	}
 
 	for _, execution := range executions {
-		if execution.ExecutionCount == 0 {
-			continue // skip non scopes
+		if execution.ExecutionCount <= 0 {
+			continue // skip non scope
 		}
 
 		execution.StartedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
 		execution.State = engine.InstanceStarted
-		execution.StateChangedBy = ec.engineOrWorkerId
 	}
 
 	processInstance.StartedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
 	processInstance.State = engine.InstanceStarted
-	processInstance.StateChangedBy = ec.engineOrWorkerId
 
 	if err := ec.continueExecutions(ctx, executions); err != nil {
 		if _, ok := err.(engine.Error); ok {

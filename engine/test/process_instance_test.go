@@ -73,7 +73,6 @@ func TestCreateProcessInstance(t *testing.T) {
 					EndedAt:        nil,
 					StartedAt:      &processInstance.CreatedAt,
 					State:          engine.InstanceStarted,
-					StateChangedBy: testWorkerId,
 					Tags:           cmd.Tags,
 					Version:        process.Version,
 				}, processInstance)
@@ -104,7 +103,6 @@ func TestCreateProcessInstance(t *testing.T) {
 					EndedAt:        nil,
 					StartedAt:      &processInstance.CreatedAt,
 					State:          engine.InstanceStarted,
-					StateChangedBy: testWorkerId,
 					Tags:           cmd.Tags,
 					Version:        process.Version,
 				}, piAssert.ProcessInstance())

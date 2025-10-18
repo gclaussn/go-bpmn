@@ -12,16 +12,17 @@ type ElementInstanceEntity struct {
 	Partition time.Time
 	Id        int32
 
-	ParentId pgtype.Int4
+	ParentId      pgtype.Int4
+	PrevElementId pgtype.Int4 // internal field
+	PrevId        pgtype.Int4 // internal field
 
-	ElementId             int32
-	PrevElementId         pgtype.Int4 // internal field
-	PrevElementInstanceId pgtype.Int4 // internal field
-	ProcessId             int32
-	ProcessInstanceId     int32
+	ElementId         int32
+	ProcessId         int32
+	ProcessInstanceId int32
 
 	BpmnElementId   string
 	BpmnElementType model.ElementType
+	Context         pgtype.Text // internal field, used for error code and escalation code
 	CreatedAt       time.Time
 	CreatedBy       string
 	EndedAt         pgtype.Timestamp
@@ -29,7 +30,6 @@ type ElementInstanceEntity struct {
 	IsMultiInstance bool
 	StartedAt       pgtype.Timestamp
 	State           engine.InstanceState
-	StateChangedBy  string
 
 	parent *ElementInstanceEntity
 	prev   *ElementInstanceEntity
@@ -54,7 +54,6 @@ func (e ElementInstanceEntity) ElementInstance() engine.ElementInstance {
 		IsMultiInstance: e.IsMultiInstance,
 		StartedAt:       timeOrNil(e.StartedAt),
 		State:           e.State,
-		StateChangedBy:  e.StateChangedBy,
 	}
 }
 

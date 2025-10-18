@@ -205,9 +205,18 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 	for _, element := range model.Elements {
 		switch element.Type {
 		case ElementErrorBoundaryEvent:
-			// resolve placeholder "attached to" element
+			// resolve "attached to" placeholder
 			boundaryEvent := element.Model.(BoundaryEvent)
-			boundaryEvent.AttachedTo = model.ElementById(boundaryEvent.AttachedTo.Id)
+
+			attachedTo := model.ElementById(boundaryEvent.AttachedTo.Id)
+			if attachedTo != nil {
+				model.attachments = append(model.attachments, attachment{
+					Id:      attachedTo.Id,
+					Element: element,
+				})
+			}
+
+			boundaryEvent.AttachedTo = attachedTo
 			element.Model = boundaryEvent
 		}
 	}
@@ -220,6 +229,19 @@ type Model struct {
 
 	Elements      []*Element
 	SequenceFlows []*SequenceFlow
+
+	attachments []attachment
+}
+
+// AttachedTo returns all elements that are attached to a specific task, sub process or call activity.
+func (m *Model) AttachedTo(id string) []*Element {
+	var elements []*Element
+	for _, attachment := range m.attachments {
+		if attachment.Id == id {
+			elements = append(elements, attachment.Element)
+		}
+	}
+	return elements
 }
 
 // ElementById returns the element with the given id, or nil, if no such element exists.
@@ -296,6 +318,18 @@ type Error struct {
 	Id   string
 	Name string
 	Code string
+}
+
+type SequenceFlow struct {
+	Id     string
+	Source *Element
+	Target *Element
+}
+
+// attachment represent an attached to relation between a boundary event and a task, sub process or call activity.
+type attachment struct {
+	Id      string   // ID of a task or sub process.
+	Element *Element // The attached element.
 }
 
 func getAttrValue(attributes []xml.Attr, name string) string {

@@ -24,23 +24,23 @@ INSERT INTO element_instance (
 	id,
 
 	parent_id,
+	prev_element_id,
+	prev_id,
 
 	element_id,
-	prev_element_id,
-	prev_element_instance_id,
 	process_id,
 	process_instance_id,
 
 	bpmn_element_id,
 	bpmn_element_type,
+	context,
 	created_at,
 	created_by,
 	ended_at,
 	execution_count,
 	is_multi_instance,
 	started_at,
-	state,
-	state_changed_by
+	state
 ) VALUES (
 	$1,
 	nextval($2),
@@ -48,6 +48,7 @@ INSERT INTO element_instance (
 	$3,
 	$4,
 	$5,
+
 	$6,
 	$7,
 	$8,
@@ -68,15 +69,16 @@ INSERT INTO element_instance (
 		partitionSequence("element_instance", entity.Partition),
 
 		entity.ParentId,
+		entity.PrevElementId,
+		entity.PrevId,
 
 		entity.ElementId,
-		entity.PrevElementId,
-		entity.PrevElementInstanceId,
 		entity.ProcessId,
 		entity.ProcessInstanceId,
 
 		entity.BpmnElementId,
 		entity.BpmnElementType.String(),
+		entity.Context,
 		entity.CreatedAt,
 		entity.CreatedBy,
 		entity.EndedAt,
@@ -84,7 +86,6 @@ INSERT INTO element_instance (
 		entity.IsMultiInstance,
 		entity.StartedAt,
 		entity.State.String(),
-		entity.StateChangedBy,
 	)
 
 	if err := row.Scan(&entity.Id); err != nil {
@@ -98,23 +99,23 @@ func (r elementInstanceRepository) Select(partition time.Time, id int32) (*inter
 	row := r.tx.QueryRow(r.txCtx, `
 SELECT
 	parent_id,
+	prev_element_id,
+	prev_id,
 
 	element_id,
-	prev_element_id,
-	prev_element_instance_id,
 	process_id,
 	process_instance_id,
 
 	bpmn_element_id,
 	bpmn_element_type,
+	context,
 	created_at,
 	created_by,
 	ended_at,
 	execution_count,
 	is_multi_instance,
 	started_at,
-	state,
-	state_changed_by
+	state
 FROM
 	element_instance
 WHERE
@@ -128,15 +129,16 @@ WHERE
 	var entity internal.ElementInstanceEntity
 	if err := row.Scan(
 		&entity.ParentId,
+		&entity.PrevElementId,
+		&entity.PrevId,
 
 		&entity.ElementId,
-		&entity.PrevElementId,
-		&entity.PrevElementInstanceId,
 		&entity.ProcessId,
 		&entity.ProcessInstanceId,
 
 		&entity.BpmnElementId,
 		&bpmnElementTypeValue,
+		&entity.Context,
 		&entity.CreatedAt,
 		&entity.CreatedBy,
 		&entity.EndedAt,
@@ -144,7 +146,6 @@ WHERE
 		&entity.IsMultiInstance,
 		&entity.StartedAt,
 		&stateValue,
-		&entity.StateChangedBy,
 	); err != nil {
 		return nil, fmt.Errorf("failed to select element instance %s/%d: %v", partition.Format(time.DateOnly), id, err)
 	}
@@ -163,21 +164,21 @@ SELECT
 	id,
 
 	parent_id,
+	prev_element_id,
+	prev_id,
 
 	element_id,
-	prev_element_id,
-	prev_element_instance_id,
 	process_id,
 
 	bpmn_element_id,
 	bpmn_element_type,
+	context,
 	created_at,
 	created_by,
 	ended_at,
 	execution_count,
 	is_multi_instance,
-	started_at,
-	state_changed_by
+	started_at
 FROM
 	element_instance
 WHERE
@@ -207,21 +208,21 @@ WHERE
 			&entity.Id,
 
 			&entity.ParentId,
+			&entity.PrevElementId,
+			&entity.PrevId,
 
 			&entity.ElementId,
-			&entity.PrevElementId,
-			&entity.PrevElementInstanceId,
 			&entity.ProcessId,
 
 			&entity.BpmnElementId,
 			&bpmnElementTypeValue,
+			&entity.Context,
 			&entity.CreatedAt,
 			&entity.CreatedBy,
 			&entity.EndedAt,
 			&entity.ExecutionCount,
 			&entity.IsMultiInstance,
 			&entity.StartedAt,
-			&entity.StateChangedBy,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan element instance row: %v", err)
 		}
@@ -243,31 +244,30 @@ SELECT
 	id,
 
 	prev_element_id,
-	prev_element_instance_id,
+	prev_id,
+
 	process_id,
 
 	bpmn_element_id,
 	bpmn_element_type,
+	context,
 	created_at,
 	created_by,
 	ended_at,
 	execution_count,
 	is_multi_instance,
-	started_at,
-	state_changed_by
+	started_at
 FROM
 	element_instance
 WHERE
 	partition = $1 AND
-	process_instance_id = $2 AND
+	parent_id = $2 AND
 	element_id = $3 AND
-	parent_id = $4 AND
-	state = $5
+	state = $4
 `,
 		execution.Partition,
-		execution.ProcessInstanceId,
-		execution.ElementId,
 		execution.ParentId.Int32,
+		execution.ElementId,
 		execution.State.String(),
 	)
 	if err != nil {
@@ -286,18 +286,19 @@ WHERE
 			&entity.Id,
 
 			&entity.PrevElementId,
-			&entity.PrevElementInstanceId,
+			&entity.PrevId,
+
 			&entity.ProcessId,
 
 			&entity.BpmnElementId,
 			&bpmnElementTypeValue,
+			&entity.Context,
 			&entity.CreatedAt,
 			&entity.CreatedBy,
 			&entity.EndedAt,
 			&entity.ExecutionCount,
 			&entity.IsMultiInstance,
 			&entity.StartedAt,
-			&entity.StateChangedBy,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan element instance row: %v", err)
 		}
@@ -320,11 +321,11 @@ func (r elementInstanceRepository) Update(entity *internal.ElementInstanceEntity
 UPDATE
 	element_instance
 SET
-	ended_at = $3,
-	execution_count = $4,
-	started_at = $5,
-	state = $6,
-	state_changed_by = $7
+	context = $3,
+	ended_at = $4,
+	execution_count = $5,
+	started_at = $6,
+	state = $7
 WHERE
 	partition = $1 AND
 	id = $2
@@ -332,11 +333,11 @@ WHERE
 		entity.Partition,
 		entity.Id,
 
+		entity.Context,
 		entity.EndedAt,
 		entity.ExecutionCount,
 		entity.StartedAt,
 		entity.State.String(),
-		entity.StateChangedBy,
 	); err != nil {
 		return fmt.Errorf("failed to update element instance %+v: %v", entity, err)
 	}
@@ -385,7 +386,6 @@ func (r elementInstanceRepository) Query(criteria engine.ElementInstanceCriteria
 			&entity.IsMultiInstance,
 			&entity.StartedAt,
 			&stateValue,
-			&entity.StateChangedBy,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan element instance row: %v", err)
 		}

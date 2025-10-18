@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS event (
 
 	created_at TIMESTAMP(3) NOT NULL,
 	created_by VARCHAR NOT NULL,
+	error_code VARCHAR,
 	message_correlation_key VARCHAR,
 	message_name VARCHAR,
 	signal_name VARCHAR,

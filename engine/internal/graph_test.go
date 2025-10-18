@@ -194,10 +194,9 @@ func TestCreateProcessScope(t *testing.T) {
 
 		ProcessId: 1,
 
-		CreatedAt:      time.Now(),
-		CreatedBy:      "test",
-		State:          engine.InstanceStarted,
-		StateChangedBy: "test",
+		CreatedAt: time.Now(),
+		CreatedBy: "test",
+		State:     engine.InstanceStarted,
 	}
 
 	// when
@@ -216,7 +215,6 @@ func TestCreateProcessScope(t *testing.T) {
 		CreatedAt:       processInstance.CreatedAt,
 		CreatedBy:       processInstance.CreatedBy,
 		State:           engine.InstanceStarted,
-		StateChangedBy:  processInstance.StateChangedBy,
 	}, scope)
 }
 

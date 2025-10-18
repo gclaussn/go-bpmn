@@ -396,7 +396,6 @@ func triggerMessageStartEvent(ctx Context, task *TaskEntity, messageId int64, ex
 			CreatedBy:      message.CreatedBy,
 			StartedAt:      pgtype.Timestamp{Time: ctx.Time(), Valid: true},
 			State:          engine.InstanceStarted,
-			StateChangedBy: message.CreatedBy,
 			Version:        process.Version,
 		}
 

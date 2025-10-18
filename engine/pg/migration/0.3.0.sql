@@ -1,0 +1,1 @@
+DROP INDEX element_instance_process_instance_id_element_id_idx;

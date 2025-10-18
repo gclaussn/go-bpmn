@@ -14,7 +14,6 @@ SELECT
 	ended_at,
 	started_at,
 	state,
-	state_changed_by,
 	tags,
 	version
 FROM

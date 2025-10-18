@@ -56,12 +56,6 @@ func (e *Element) TargetById(targetId string) *Element {
 	return nil
 }
 
-type SequenceFlow struct {
-	Id     string
-	Source *Element
-	Target *Element
-}
-
 // element specific models
 
 type BoundaryEvent struct {
