@@ -24,6 +24,7 @@ INSERT INTO event (
 
 	created_at,
 	created_by,
+	error_code,
 	message_correlation_key,
 	message_name,
 	signal_name,
@@ -42,7 +43,8 @@ INSERT INTO event (
 	$7,
 	$8,
 	$9,
-	$10
+	$10,
+	$11
 )
 `,
 		entity.Partition,
@@ -51,6 +53,7 @@ INSERT INTO event (
 
 		entity.CreatedAt,
 		entity.CreatedBy,
+		entity.ErrorCode,
 		entity.MessageCorrelationKey,
 		entity.MessageName,
 		entity.SignalName,
@@ -86,6 +89,7 @@ INSERT INTO event_definition (
 	bpmn_element_id,
 	bpmn_element_type,
 	bpmn_process_id,
+	error_code,
 	is_suspended,
 	message_name,
 	signal_name,
@@ -107,7 +111,8 @@ INSERT INTO event_definition (
 	$9,
 	$10,
 	$11,
-	$12
+	$12,
+	$13
 )
 `,
 			entity.ElementId,
@@ -117,6 +122,7 @@ INSERT INTO event_definition (
 			entity.BpmnElementId,
 			entity.BpmnElementType.String(),
 			entity.BpmnProcessId,
+			entity.ErrorCode,
 			entity.IsSuspended,
 			entity.MessageName,
 			entity.SignalName,
@@ -147,8 +153,8 @@ SELECT
 	bpmn_element_id,
 	bpmn_element_type,
 	bpmn_process_id,
+	error_code,
 	is_suspended,
-	signal_name,
 	time,
 	time_cycle,
 	time_duration,
@@ -170,8 +176,8 @@ WHERE
 		&entity.BpmnElementId,
 		&bpmnElementTypeValue,
 		&entity.BpmnProcessId,
+		&entity.ErrorCode,
 		&entity.IsSuspended,
-		&entity.SignalName,
 		&entity.Time,
 		&entity.TimeCycle,
 		&entity.TimeDuration,
@@ -243,6 +249,65 @@ WHERE
 		}
 
 		entity.BpmnProcessId = bpmnProcessId
+		entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
+
+		entities = append(entities, &entity)
+	}
+
+	return entities, nil
+}
+
+func (r eventDefinitionRepository) SelectByProcessId(processId int32) ([]*internal.EventDefinitionEntity, error) {
+	rows, err := r.tx.Query(r.txCtx, `
+SELECT
+	element_id,
+
+	bpmn_element_id,
+	bpmn_element_type,
+	bpmn_process_id,
+	is_suspended,
+	message_name,
+	signal_name,
+	time,
+	time_cycle,
+	time_duration,
+	version
+FROM
+	event_definition
+WHERE
+	process_id = $1
+`, processId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to select event definitions by process ID %d: %v", processId, err)
+	}
+
+	defer rows.Close()
+
+	var entities []*internal.EventDefinitionEntity
+	for rows.Next() {
+		var (
+			entity               internal.EventDefinitionEntity
+			bpmnElementTypeValue string
+		)
+
+		if err := rows.Scan(
+			&entity.ElementId,
+
+			&entity.BpmnElementId,
+			&bpmnElementTypeValue,
+			&entity.BpmnProcessId,
+			&entity.IsSuspended,
+			&entity.MessageName,
+			&entity.SignalName,
+			&entity.Time,
+			&entity.TimeCycle,
+			&entity.TimeDuration,
+			&entity.Version,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan event definition row: %v", err)
+		}
+
+		entity.ProcessId = processId
 		entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
 
 		entities = append(entities, &entity)

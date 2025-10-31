@@ -18,6 +18,19 @@ func TestBpmn(t *testing.T) {
 		}
 	})
 
+	t.Run("error event", func(t *testing.T) {
+		for i, e := range engines {
+			errorEventTest := newErrorEventTest(t, e)
+
+			t.Run(engineTypes[i]+"boundary", errorEventTest.boundary)
+			t.Run(engineTypes[i]+"boundary with event definition", errorEventTest.boundaryWithEventDefinition)
+			t.Run(engineTypes[i]+"boundary with code", errorEventTest.boundaryWithoutCode)
+			t.Run(engineTypes[i]+"boundary terminated", errorEventTest.boundaryTerminated)
+			t.Run(engineTypes[i]+"boundary multiple", errorEventTest.boundaryMultiple)
+			t.Run(engineTypes[i]+"boundary not found", errorEventTest.boundaryNotFound)
+		}
+	})
+
 	t.Run("exclusive gateway", func(t *testing.T) {
 		for i, e := range engines {
 			exclusiveGatewayTest := newExclusiveGatewayTest(t, e)
@@ -86,7 +99,6 @@ func TestBpmn(t *testing.T) {
 			t.Run(engineTypes[i]+"service", taskTest.service)
 			t.Run(engineTypes[i]+"task", taskTest.task)
 
-			t.Run(engineTypes[i]+"completes with error when completed with BPMN error code", taskTest.errorBpmnErrorCodeNotSupported)
 			t.Run(engineTypes[i]+"completes with error completed with BPMN esclation code", taskTest.errorBpmnEscalationCodeNotSupported)
 		}
 	})

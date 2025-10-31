@@ -9,6 +9,8 @@ SELECT
 	element.is_multi_instance,
 
 	event_definition.is_suspended,
+
+	event_definition.error_code,
 	event_definition.message_name,
 	event_definition.signal_name,
 	event_definition.time,

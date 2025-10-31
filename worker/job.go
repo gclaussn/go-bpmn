@@ -93,6 +93,27 @@ func (d Delegator) ExecuteAny(bpmnElementId string, delegation func(jc JobContex
 	}
 }
 
+// SetErrorCode delegates jobs of type [engine.JobSetErrorCode].
+//
+// Applicable for BPMN element types:
+//   - error boundary event
+func (d Delegator) SetErrorCode(bpmnElementId string, delegation func(jc JobContext) (string, error)) {
+	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
+		if jc.Job.Type != engine.JobSetErrorCode {
+			return nil, fmt.Errorf("expected job type %s, but got %s", engine.JobSetErrorCode, jc.Job.Type)
+		}
+
+		errorCode, err := delegation(jc)
+		if err != nil {
+			return nil, err
+		}
+
+		return &engine.JobCompletion{
+			ErrorCode: errorCode,
+		}, nil
+	}
+}
+
 // SetTimer delegates jobs of type [engine.JobSetTimer].
 //
 // Applicable for BPMN element types:

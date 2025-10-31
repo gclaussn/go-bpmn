@@ -28,7 +28,7 @@ func TestCreateProcess(t *testing.T) {
 			"a": "b",
 			"x": "y",
 		},
-		Version:  "1",
+		Version:  t.Name(),
 		WorkerId: testWorkerId,
 	}
 
@@ -134,7 +134,7 @@ func TestCreateProcess(t *testing.T) {
 				_, err := e.CreateProcess(context.Background(), engine.CreateProcessCmd{
 					BpmnProcessId: "",
 					BpmnXml:       "",
-					Version:       "1",
+					Version:       t.Name(),
 					WorkerId:      testWorkerId,
 				})
 
@@ -157,7 +157,7 @@ func TestCreateProcess(t *testing.T) {
 				_, err := e.CreateProcess(context.Background(), engine.CreateProcessCmd{
 					BpmnProcessId: "notExisting",
 					BpmnXml:       bpmnXml,
-					Version:       "1",
+					Version:       t.Name(),
 					WorkerId:      testWorkerId,
 				})
 
@@ -180,7 +180,7 @@ func TestCreateProcess(t *testing.T) {
 				_, err := e.CreateProcess(context.Background(), engine.CreateProcessCmd{
 					BpmnProcessId: "processNotExecutableTest",
 					BpmnXml:       mustReadBpmnFile(t, "invalid/process-not-executable.bpmn"),
-					Version:       "1",
+					Version:       t.Name(),
 					WorkerId:      testWorkerId,
 				})
 
@@ -198,6 +198,108 @@ func TestCreateProcess(t *testing.T) {
 				assert.Equal("/processNotExecutableTest", engineErr.Causes[0].Pointer)
 				assert.NotEmpty(engineErr.Causes[0].Type)
 				assert.Contains(engineErr.Causes[0].Detail, "not executable")
+			})
+		}
+	})
+}
+
+func TestCreateProcessWithErrorCode(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	engines, engineTypes := mustCreateEngines(t)
+	for _, e := range engines {
+		defer e.Shutdown()
+	}
+
+	// given
+	bpmnXml := mustReadBpmnFile(t, "event/error-boundary-event.bpmn")
+
+	t.Run("returns error when BPMN element is not an error boundary event", func(t *testing.T) {
+		for i, e := range engines {
+			t.Run(engineTypes[i], func(t *testing.T) {
+				// given
+				cmd := engine.CreateProcessCmd{
+					BpmnProcessId: "errorBoundaryEventTest",
+					BpmnXml:       bpmnXml,
+					ErrorCodes: map[string]string{
+						"errorBoundaryEvent": "TEST_CODE",
+						"endEvent":           "TEST_CODE",
+					},
+					Version:  t.Name(),
+					WorkerId: testWorkerId,
+				}
+
+				// when
+				_, err := e.CreateProcess(context.Background(), cmd)
+				require.IsType(engine.Error{}, err)
+
+				// then
+				engineErr := err.(engine.Error)
+				assert.Equal(engine.ErrorValidation, engineErr.Type)
+				assert.NotEmpty(engineErr.Title)
+				assert.NotEmpty(engineErr.Detail)
+			})
+		}
+	})
+
+	t.Run("returns error when BPMN element not exists", func(t *testing.T) {
+		for i, e := range engines {
+			t.Run(engineTypes[i], func(t *testing.T) {
+				// given
+				cmd := engine.CreateProcessCmd{
+					BpmnProcessId: "errorBoundaryEventTest",
+					BpmnXml:       bpmnXml,
+					ErrorCodes: map[string]string{
+						"errorBoundaryEvent": "TEST_CODE",
+						"not-existing":       "TEST_CODE",
+					},
+					Version:  t.Name(),
+					WorkerId: testWorkerId,
+				}
+
+				// when
+				_, err := e.CreateProcess(context.Background(), cmd)
+				require.IsType(engine.Error{}, err)
+
+				// then
+				engineErr := err.(engine.Error)
+				assert.Equal(engine.ErrorValidation, engineErr.Type)
+				assert.NotEmpty(engineErr.Title)
+				assert.NotEmpty(engineErr.Detail)
+			})
+		}
+	})
+
+	t.Run("create", func(t *testing.T) {
+		for i, e := range engines {
+			t.Run(engineTypes[i], func(t *testing.T) {
+				// given
+				cmd := engine.CreateProcessCmd{
+					BpmnProcessId: "errorBoundaryEventTest",
+					BpmnXml:       bpmnXml,
+					ErrorCodes: map[string]string{
+						"errorBoundaryEvent": "TEST_CODE",
+					},
+					Version:  t.Name(),
+					WorkerId: testWorkerId,
+				}
+
+				// when
+				process, err := e.CreateProcess(context.Background(), cmd)
+				require.NoError(err, "failed to create process")
+
+				// then
+				elements, err := e.CreateQuery().QueryElements(context.Background(), engine.ElementCriteria{
+					ProcessId: process.Id,
+
+					BpmnElementId: "errorBoundaryEvent",
+				})
+				require.NoError(err, "failed to query elements")
+				require.Len(elements, 1)
+
+				assert.Equal(&engine.EventDefinition{
+					ErrorCode: "TEST_CODE",
+				}, elements[0].EventDefinition)
 			})
 		}
 	})

@@ -54,6 +54,20 @@ func TestUnknownElement(t *testing.T) {
 	assert.NotNil(endEvent.Incoming[0].Target)
 }
 
+func TestUnknownBoundaryEvent(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	// when
+	model := mustCreateModel(t, "invalid/unknown-boundary-event.bpmn")
+
+	// then
+	require.Len(model.Definitions.Processes, 1)
+
+	processElement := model.Definitions.Processes[0]
+	assert.Len(processElement.Children, 4)
+	assert.Nil(processElement.ChildById("unknownBoundaryEvent"))
+}
+
 func TestUnknownCatchEvent(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
@@ -145,6 +159,31 @@ func TestServiceTask(t *testing.T) {
 	require.Len(noneStartEvents, 1)
 
 	assert.Equal(noneStartEvents[0], startEvent)
+}
+
+func TestErrorBoundaryEvent(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	// when
+	model := mustCreateModel(t, "event/error-boundary-event.bpmn")
+
+	// then
+	processElement := model.ProcessById("errorBoundaryEventTest")
+	require.NotNil(processElement)
+	assert.Len(processElement.Children, 5)
+
+	errorBoundaryEvent := processElement.ChildById("errorBoundaryEvent")
+	require.NotNil(errorBoundaryEvent)
+
+	assert.Equal(ElementErrorBoundaryEvent, errorBoundaryEvent.Type)
+
+	assert.Len(errorBoundaryEvent.Incoming, 0)
+	assert.Len(errorBoundaryEvent.Outgoing, 1)
+
+	boundaryEvent := errorBoundaryEvent.Model.(BoundaryEvent)
+	require.NotNil(boundaryEvent.AttachedTo)
+	assert.Equal("serviceTask", boundaryEvent.AttachedTo.Id)
+	assert.Equal(ElementServiceTask, boundaryEvent.AttachedTo.Type)
 }
 
 func TestTimerCatchEvent(t *testing.T) {

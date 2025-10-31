@@ -119,6 +119,7 @@ type Error struct {
 	// BPMN element related values:
 	//   - `process` indicates an error on process level
 	//   - `element` indicates an error on element level
+	//   - `error_event`: invalid error event definition
 	//   - `message_event`: a missing or invalid message event definition
 	//   - `sequence_flow` indicates faulty sequence flow
 	//   - `signal_event`: a missing or invalid signal event definition

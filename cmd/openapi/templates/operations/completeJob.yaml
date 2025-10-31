@@ -26,6 +26,11 @@ requestBody:
                 value: "{...}"
             error: an error occurred
             workerId: go-bpmn
+        set_error_code:
+          summary: SET_ERROR_CODE
+          value:
+            completion:
+              errorCode: example-error
         set_timer:
           summary: SET_TIMER
           value:

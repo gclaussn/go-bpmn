@@ -89,6 +89,7 @@ func newProcessCreateCmd(cli *Cli) *cobra.Command {
 	c.Flags().StringVar(&bpmnFileName, "bpmn-file", "", "Path to a BPMN XML file")
 
 	c.Flags().StringVar(&cmd.BpmnProcessId, "bpmn-process-id", "", "ID of the process element within the BPMN XML")
+	c.Flags().StringToStringVar(&cmd.ErrorCodes, "error-code", nil, "Mapping between BPMN element ID and error code")
 	c.Flags().StringToStringVar(&cmd.MessageNames, "message-name", nil, "Message name that triggers the message start event")
 	c.Flags().IntVar(&cmd.Parallelism, "parallelism", 0, "Maximum number of parallel process instances being executed")
 	c.Flags().StringToStringVar(&cmd.SignalNames, "signal-name", nil, "Signal name that triggers the signal start event")

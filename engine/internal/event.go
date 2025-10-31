@@ -14,6 +14,7 @@ type EventEntity struct {
 
 	CreatedAt             time.Time
 	CreatedBy             string
+	ErrorCode             pgtype.Text
 	MessageCorrelationKey pgtype.Text
 	MessageName           pgtype.Text
 	SignalName            pgtype.Text
@@ -34,6 +35,7 @@ type EventDefinitionEntity struct {
 	BpmnElementId   string
 	BpmnElementType model.ElementType
 	BpmnProcessId   string
+	ErrorCode       pgtype.Text
 	IsSuspended     bool
 	MessageName     pgtype.Text
 	SignalName      pgtype.Text
@@ -46,6 +48,9 @@ type EventDefinitionEntity struct {
 type EventDefinitionRepository interface {
 	InsertBatch([]*EventDefinitionEntity) error
 	Select(elementId int32) (*EventDefinitionEntity, error)
+
+	SelectByProcessId(processId int32) ([]*EventDefinitionEntity, error)
+
 	SelectByBpmnProcessId(bpmnProcessId string) ([]*EventDefinitionEntity, error)
 
 	// SelectByMessageName selects a not suspended event definition for the message name.

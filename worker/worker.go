@@ -42,6 +42,10 @@ func New(e engine.Engine, customizers ...func(*Options)) (*Worker, error) {
 	return &worker, nil
 }
 
+func NewBpmnError(code string) error {
+	return bpmnError{code: code}
+}
+
 func NewOptions() Options {
 	return Options{
 		Decoders: map[string]Decoder{
@@ -200,16 +204,21 @@ func (w *Worker) ExecuteJob(ctx context.Context, job engine.Job) (engine.Job, er
 	}
 
 	if delegationErr != nil {
-		if jobErr, ok := delegationErr.(jobError); ok {
-			if err := jobErr.Unwrap(); err != nil {
+		switch delegationErr := delegationErr.(type) {
+		case jobError:
+			if err := delegationErr.Unwrap(); err != nil {
 				cmd.Error = err.Error()
 			} else {
 				cmd.Error = fmt.Sprintf("%T failed to execute job", process.delegate)
 			}
 
-			cmd.RetryCount = jobErr.retryCount
-			cmd.RetryTimer = jobErr.retryTimer
-		} else {
+			cmd.RetryCount = delegationErr.retryCount
+			cmd.RetryTimer = delegationErr.retryTimer
+		case bpmnError:
+			cmd.Completion = &engine.JobCompletion{
+				ErrorCode: delegationErr.code,
+			}
+		default:
 			cmd.Error = delegationErr.Error()
 		}
 	}
@@ -316,6 +325,14 @@ func (w *Worker) encodeVariables(variables Variables) (map[string]*engine.Data, 
 	}
 
 	return encodedVariables, nil
+}
+
+type bpmnError struct {
+	code string
+}
+
+func (e bpmnError) Error() string {
+	return e.code
 }
 
 type jsonDecoder struct{}

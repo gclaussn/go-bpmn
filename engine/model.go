@@ -93,6 +93,7 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 //   - [JobEvaluateExclusiveGateway]: forking exclusive gateway
 //   - [JobEvaluateInclusiveGateway]: forking inclusive gateway
 //   - [JobExecute]: business rule, script, send and service task
+//   - [JobSetErrorCode]: error boundary event
 //   - [JobSetTimer]: timer catch event
 //   - [JobSubscribeMessage]: message catch event
 //   - [JobSubscribeSignal]: signal catch event
@@ -102,6 +103,7 @@ const (
 	JobEvaluateExclusiveGateway JobType = iota + 1
 	JobEvaluateInclusiveGateway
 	JobExecute
+	JobSetErrorCode
 	JobSetTimer
 	JobSubscribeMessage
 	JobSubscribeSignal
@@ -115,6 +117,8 @@ func MapJobType(s string) JobType {
 		return JobEvaluateInclusiveGateway
 	case "EXECUTE":
 		return JobExecute
+	case "SET_ERROR_CODE":
+		return JobSetErrorCode
 	case "SET_TIMER":
 		return JobSetTimer
 	case "SUBSCRIBE_MESSAGE":
@@ -142,6 +146,8 @@ func (v JobType) String() string {
 		return "EVALUATE_INCLUSIVE_GATEWAY"
 	case JobExecute:
 		return "EXECUTE"
+	case JobSetErrorCode:
+		return "SET_ERROR_CODE"
 	case JobSetTimer:
 		return "SET_TIMER"
 	case JobSubscribeMessage:
@@ -352,7 +358,9 @@ type ElementInstanceCriteria struct {
 
 // EventDefinition is a generic definition of a BPMN event, while a BPMN element has exactly one type.
 type EventDefinition struct {
-	IsSuspended bool   `json:"suspended"`             // Determines if a start event definition is suspended.
+	IsSuspended bool `json:"suspended"` // Determines if a start event definition is suspended.
+
+	ErrorCode   string `json:"errorCode,omitempty"`   // Code of a BPMN error - set in case of an error event.
 	MessageName string `json:"messageName,omitempty"` // Name of the message - set in case of a message event.
 	SignalName  string `json:"signalName,omitempty"`  // Name of the signal - set in case of a signal event.
 	Timer       *Timer `json:"timer,omitempty"`       // A timer definition - set in case of a timer event.

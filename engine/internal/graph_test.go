@@ -8,6 +8,7 @@ import (
 	"github.com/gclaussn/go-bpmn/model"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestValidateProcess(t *testing.T) {
@@ -161,6 +162,246 @@ func TestContinueExecution(t *testing.T) {
 			assert.Equal(model.ElementNoneEndEvent, executions2[0].BpmnElementType)
 			assert.Equal(scope, executions2[0].parent)
 			assert.Nil(executions2[0].prev)
+		})
+	})
+
+	t.Run("service task with boundary event", func(t *testing.T) {
+		// given
+		graph := mustCreateGraph(t, "event/error-boundary-event.bpmn", "errorBoundaryEventTest")
+
+		t.Run("scope STARTED", func(t *testing.T) {
+			// given
+			scope.State = engine.InstanceStarted
+
+			execution := &ElementInstanceEntity{
+				BpmnElementId:   "serviceTask",
+				BpmnElementType: model.ElementServiceTask,
+
+				parent: scope,
+			}
+
+			// when
+			executions1, err := graph.continueExecution(nil, execution)
+
+			// then
+			require.NoError(err)
+			require.Len(executions1, 1)
+
+			assert.Equal(engine.InstanceCreated, execution.State)
+			assert.Equal(-1, execution.ExecutionCount)
+
+			assert.Equal("errorBoundaryEvent", executions1[0].BpmnElementId)
+			assert.Equal(model.ElementErrorBoundaryEvent, executions1[0].BpmnElementType)
+			assert.Equal(scope, executions1[0].parent)
+			assert.Equal(execution, executions1[0].prev)
+
+			// when
+			executions2, err := graph.continueExecution(nil, executions1[0])
+
+			// then
+			require.NoError(err)
+			require.Len(executions2, 0)
+
+			assert.Equal(engine.InstanceCreated, executions1[0].State)
+		})
+
+		t.Run("scope SUSPENDED", func(t *testing.T) {
+			// given
+			scope.State = engine.InstanceSuspended
+
+			execution := &ElementInstanceEntity{
+				BpmnElementId:   "serviceTask",
+				BpmnElementType: model.ElementServiceTask,
+
+				parent: scope,
+			}
+
+			// when
+			executions1, err := graph.continueExecution(nil, execution)
+
+			// then
+			require.NoError(err)
+			require.Len(executions1, 1)
+
+			assert.Equal(engine.InstanceSuspended, execution.State)
+			assert.Equal(-1, execution.ExecutionCount)
+
+			assert.Equal("errorBoundaryEvent", executions1[0].BpmnElementId)
+			assert.Equal(model.ElementErrorBoundaryEvent, executions1[0].BpmnElementType)
+			assert.Equal(scope, executions1[0].parent)
+			assert.Equal(execution, executions1[0].prev)
+
+			// when
+			executions2, err := graph.continueExecution(nil, executions1[0])
+
+			// then
+			require.NoError(err)
+			require.Len(executions2, 0)
+
+			assert.Equal(engine.InstanceSuspended, executions1[0].State)
+
+			// when
+			scope.State = engine.InstanceStarted
+
+			executions3, err := graph.continueExecution(nil, execution)
+
+			// then
+			require.NoError(err)
+			require.Len(executions3, 0)
+
+			assert.Equal(engine.InstanceCreated, execution.State)
+			assert.Equal(-1, execution.ExecutionCount)
+
+			// when
+			executions4, err := graph.continueExecution(nil, executions1[0])
+
+			// then
+			require.NoError(err)
+			require.Len(executions4, 0)
+
+			assert.Equal(engine.InstanceCreated, executions1[0].State)
+		})
+
+		t.Run("with event definition", func(t *testing.T) {
+			// given
+			graph.setEventDefinitions([]*EventDefinitionEntity{
+				{ElementId: graph.nodes["errorBoundaryEvent"].id, ErrorCode: pgtype.Text{String: "TEST_CODE"}},
+			})
+
+			scope.State = engine.InstanceStarted
+
+			execution := &ElementInstanceEntity{
+				BpmnElementId:   "serviceTask",
+				BpmnElementType: model.ElementServiceTask,
+
+				parent: scope,
+			}
+
+			// when
+			executions, err := graph.continueExecution(nil, execution)
+
+			// then
+			require.NoError(err)
+			require.Len(executions, 1)
+
+			assert.Equal(engine.InstanceStarted, execution.State)
+			assert.Equal(0, execution.ExecutionCount)
+
+			assert.Equal("errorBoundaryEvent", executions[0].BpmnElementId)
+			assert.Equal(model.ElementErrorBoundaryEvent, executions[0].BpmnElementType)
+			assert.Equal("TEST_CODE", executions[0].Context.String)
+			assert.True(executions[0].Context.Valid)
+		})
+	})
+
+	t.Run("created service task with boundary event", func(t *testing.T) {
+		// given
+		graph := mustCreateGraph(t, "event/error-boundary-event.bpmn", "errorBoundaryEventTest")
+
+		t.Run("scope STARTED", func(t *testing.T) {
+			// given
+			scope.State = engine.InstanceStarted
+
+			execution := &ElementInstanceEntity{
+				BpmnElementId:   "serviceTask",
+				BpmnElementType: model.ElementServiceTask,
+				State:           engine.InstanceCreated,
+
+				parent: scope,
+			}
+
+			// when
+			executions, err := graph.continueExecution(nil, execution)
+
+			// then
+			require.NoError(err)
+			require.Len(executions, 0)
+
+			assert.Equal(engine.InstanceStarted, execution.State)
+			assert.Equal(0, execution.ExecutionCount)
+		})
+
+		t.Run("scope STARTED, but not all boundary events defined", func(t *testing.T) {
+			// given
+			scope.State = engine.InstanceStarted
+
+			execution := &ElementInstanceEntity{
+				BpmnElementId:   "serviceTask",
+				BpmnElementType: model.ElementServiceTask,
+				ExecutionCount:  -1,
+				State:           engine.InstanceCreated,
+
+				parent: scope,
+			}
+
+			// when
+			executions, err := graph.continueExecution(nil, execution)
+
+			// then
+			require.NoError(err)
+			require.Len(executions, 0)
+
+			assert.Equal(engine.InstanceCreated, execution.State)
+			assert.Equal(-1, execution.ExecutionCount)
+		})
+
+		t.Run("scope SUSPENDED, but not all boundary events defined", func(t *testing.T) {
+			// given
+			scope.State = engine.InstanceSuspended
+
+			execution := &ElementInstanceEntity{
+				BpmnElementId:   "serviceTask",
+				BpmnElementType: model.ElementServiceTask,
+				ExecutionCount:  -1,
+				State:           engine.InstanceCreated,
+
+				parent: scope,
+			}
+
+			// when
+			executions1, err := graph.continueExecution(nil, execution)
+
+			// then
+			require.NoError(err)
+			require.Len(executions1, 0)
+
+			assert.Equal(engine.InstanceSuspended, execution.State)
+			assert.Equal(-1, execution.ExecutionCount)
+
+			// when
+			scope.State = engine.InstanceStarted
+
+			executions2, err := graph.continueExecution(nil, execution)
+
+			// then
+			require.NoError(err)
+			require.Len(executions2, 0)
+
+			assert.Equal(engine.InstanceCreated, execution.State)
+			assert.Equal(-1, execution.ExecutionCount)
+		})
+
+		t.Run("SUSPENDED", func(t *testing.T) {
+			// given
+			scope.State = engine.InstanceStarted
+
+			execution := &ElementInstanceEntity{
+				BpmnElementId:   "serviceTask",
+				BpmnElementType: model.ElementServiceTask,
+				State:           engine.InstanceSuspended,
+
+				parent: scope,
+			}
+
+			// when
+			executions, err := graph.continueExecution(nil, execution)
+
+			// then
+			require.NoError(err)
+			require.Len(executions, 0)
+
+			assert.Equal(engine.InstanceStarted, execution.State)
+			assert.Equal(0, execution.ExecutionCount)
 		})
 	})
 }

@@ -39,6 +39,16 @@ func (r *eventDefinitionRepository) Select(elementId int32) (*internal.EventDefi
 	return nil, pgx.ErrNoRows
 }
 
+func (r *eventDefinitionRepository) SelectByProcessId(processId int32) ([]*internal.EventDefinitionEntity, error) {
+	var results []*internal.EventDefinitionEntity
+	for _, e := range r.entities {
+		if e.ProcessId == processId {
+			results = append(results, &e)
+		}
+	}
+	return results, nil
+}
+
 func (r *eventDefinitionRepository) SelectByBpmnProcessId(bpmnProcessId string) ([]*internal.EventDefinitionEntity, error) {
 	var results []*internal.EventDefinitionEntity
 	for _, e := range r.entities {

@@ -72,17 +72,6 @@ func (x taskTest) task(t *testing.T) {
 	piAssert.IsCompleted()
 }
 
-func (x taskTest) errorBpmnErrorCodeNotSupported(t *testing.T) {
-	piAssert := mustCreateProcessInstance(t, x.e, x.serviceTest)
-
-	piAssert.IsWaitingAt("serviceTask")
-	piAssert.CompleteJobWithError(engine.CompleteJobCmd{
-		Completion: &engine.JobCompletion{
-			ErrorCode: "error-code",
-		},
-	})
-}
-
 func (x taskTest) errorBpmnEscalationCodeNotSupported(t *testing.T) {
 	piAssert := mustCreateProcessInstance(t, x.e, x.serviceTest)
 

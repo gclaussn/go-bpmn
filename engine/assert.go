@@ -563,6 +563,18 @@ func (a *ProcessInstanceAssert) Job() Job {
 	return Job{}
 }
 
+func (a *ProcessInstanceAssert) Jobs() []Job {
+	results, err := a.e.CreateQuery().QueryJobs(context.Background(), JobCriteria{
+		Partition:         a.partition,
+		ProcessInstanceId: a.processInstanceId,
+	})
+	if err != nil {
+		a.Fatalf("failed to query jobs: %v", err)
+	}
+
+	return results
+}
+
 func (a *ProcessInstanceAssert) ProcessInstance() ProcessInstance {
 	results, err := a.e.CreateQuery().QueryProcessInstances(context.Background(), ProcessInstanceCriteria{
 		Partition: a.partition,

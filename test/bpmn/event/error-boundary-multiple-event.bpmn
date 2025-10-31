@@ -1,0 +1,32 @@
+<definitions id="test">
+  <process id="errorBoundaryMultipleEventTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="serviceTask" />
+    <serviceTask id="serviceTask">
+      <incoming>f1</incoming>
+      <outgoing>f2</outgoing>
+    </serviceTask>
+    <sequenceFlow id="f2" sourceRef="serviceTask" targetRef="endEventA" />
+    <endEvent id="endEventA">
+      <incoming>f2</incoming>
+    </endEvent>
+    <boundaryEvent id="errorBoundaryEventA" attachedToRef="serviceTask">
+      <outgoing>f3</outgoing>
+      <errorEventDefinition id="errorBoundaryEventDefinitionA" />
+    </boundaryEvent>
+    <sequenceFlow id="f3" sourceRef="errorBoundaryEventA" targetRef="endEventB" />
+    <endEvent id="endEventB">
+      <incoming>f3</incoming>
+    </endEvent>
+    <boundaryEvent id="errorBoundaryEventB" attachedToRef="serviceTask">
+      <outgoing>f4</outgoing>
+      <errorEventDefinition id="errorBoundaryEventDefinitionB" />
+    </boundaryEvent>
+    <sequenceFlow id="f4" sourceRef="errorBoundaryEventB" targetRef="endEventC" />
+    <endEvent id="endEventC">
+      <incoming>f4</incoming>
+    </endEvent>
+  </process>
+</definitions>

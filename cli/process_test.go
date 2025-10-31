@@ -10,6 +10,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestCreateProcessWithError(t *testing.T) {
+	e := mustCreateEngine(t)
+	defer e.Shutdown()
+
+	mustExecute(t, e, []string{
+		"process",
+		"create",
+		"--bpmn-file",
+		"../test/bpmn/event/error-boundary-event.bpmn",
+		"--bpmn-process-id",
+		"errorBoundaryEventTest",
+		"--version",
+		"1",
+		"--error-code",
+		"errorBoundaryEvent=TEST_CODE",
+	})
+}
+
 func TestCreateProcessWithSignal(t *testing.T) {
 	e := mustCreateEngine(t)
 	defer e.Shutdown()

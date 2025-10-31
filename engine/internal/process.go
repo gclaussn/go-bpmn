@@ -139,6 +139,13 @@ func (c *ProcessCache) cache(ctx Context, process *ProcessEntity) error {
 		}
 	}
 
+	eventDefinitions, err := ctx.EventDefinitions().SelectByProcessId(process.Id)
+	if err != nil {
+		return err
+	}
+
+	graph.setEventDefinitions(eventDefinitions)
+
 	process.graph = &graph
 	c.Add(process)
 
@@ -243,6 +250,17 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 	// validate events
 	for _, bpmnElement := range bpmnElements {
+		errorCode := cmd.ErrorCodes[bpmnElement.Id]
+		if errorCode != "" {
+			if bpmnElement.Type != model.ElementErrorBoundaryEvent {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(bpmnElement),
+					Type:    "error_event",
+					Detail:  fmt.Sprintf("BPMN element %s is not an error boundary event", bpmnElement.Id),
+				})
+			}
+		}
+
 		messageName := cmd.MessageNames[bpmnElement.Id]
 		if messageName != "" {
 			if bpmnElement.Type != model.ElementMessageStartEvent {
@@ -387,7 +405,37 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		}
 	}
 
-	eventDefinitions := make([]*EventDefinitionEntity, 0, len(cmd.MessageNames)+len(cmd.SignalNames)+len(cmd.Timers))
+	eventDefinitions := make([]*EventDefinitionEntity, 0, 0+
+		len(cmd.ErrorCodes)+
+		len(cmd.MessageNames)+
+		len(cmd.SignalNames)+
+		len(cmd.Timers),
+	)
+
+	// prepare error event definitions
+	for bpmnElementId, errorCode := range cmd.ErrorCodes {
+		node, ok := graph.nodes[bpmnElementId]
+		if !ok {
+			causes = append(causes, engine.ErrorCause{
+				Pointer: elementPointer(graph.processElement),
+				Type:    "error_event",
+				Detail:  fmt.Sprintf("BPMN process %s has no element %s", processElement.Id, bpmnElementId),
+			})
+			continue
+		}
+
+		eventDefinitions = append(eventDefinitions, &EventDefinitionEntity{
+			ElementId: node.id,
+
+			ProcessId: process.Id,
+
+			BpmnElementId:   bpmnElementId,
+			BpmnElementType: node.bpmnElement.Type,
+			BpmnProcessId:   process.BpmnProcessId,
+			ErrorCode:       pgtype.Text{String: errorCode, Valid: true},
+			Version:         process.Version,
+		})
+	}
 
 	// prepare message event definitions
 	for bpmnElementId, messageName := range cmd.MessageNames {
@@ -559,6 +607,8 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	if err := ctx.Tasks().InsertBatch(triggerTimerEventTasks); err != nil {
 		return engine.Process{}, err
 	}
+
+	graph.setEventDefinitions(eventDefinitions)
 
 	// cache process
 	process.graph = &graph

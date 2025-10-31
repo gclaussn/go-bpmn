@@ -396,14 +396,76 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 			executions = append(executions, &next)
 		}
 	case engine.JobExecute:
-		if jobCompletion != nil && jobCompletion.ErrorCode != "" {
-			job.Error = pgtype.Text{String: "BPMN error code is not supported", Valid: true}
-			return nil
+		boundaryEvents, err := ctx.ElementInstances().SelectBoundaryEvents(execution)
+		if err != nil {
+			return err
 		}
+
+		if jobCompletion != nil && jobCompletion.ErrorCode != "" {
+			errorCode := jobCompletion.ErrorCode
+
+			target := findErrorBoundaryEvent(boundaryEvents, errorCode)
+			if target == nil {
+				job.Error = pgtype.Text{String: fmt.Sprintf("failed to find boundary event for error code %s", errorCode), Valid: true}
+				return nil
+			}
+
+			execution.State = engine.InstanceTerminated
+
+			for _, boundaryEvent := range boundaryEvents {
+				if boundaryEvent.Id == target.Id {
+					boundaryEvent.State = engine.InstanceStarted
+				} else {
+					boundaryEvent.State = engine.InstanceTerminated
+				}
+				executions = append(executions, boundaryEvent)
+			}
+
+			event := EventEntity{
+				Partition: target.Partition,
+
+				ElementInstanceId: target.Id,
+
+				CreatedAt: ctx.Time(),
+				CreatedBy: ec.engineOrWorkerId,
+				ErrorCode: pgtype.Text{String: errorCode, Valid: true},
+			}
+
+			if err := ctx.Events().Insert(&event); err != nil {
+				return err
+			}
+
+			break
+		}
+
 		if jobCompletion != nil && jobCompletion.EscalationCode != "" {
 			job.Error = pgtype.Text{String: "BPMN escalation code is not supported", Valid: true}
 			return nil
 		}
+
+		for _, boundaryEvent := range boundaryEvents {
+			boundaryEvent.State = engine.InstanceTerminated
+			executions = append(executions, boundaryEvent)
+		}
+	case engine.JobSetErrorCode:
+		attachedTo, err := ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
+		if err != nil {
+			return fmt.Errorf("failed to select attached to element instance: %v", err)
+		}
+
+		if attachedTo.EndedAt.Valid {
+			return nil // terminated or canceled
+		}
+
+		var errorCode string
+		if jobCompletion != nil {
+			errorCode = jobCompletion.ErrorCode
+		}
+
+		execution.Context = pgtype.Text{String: errorCode, Valid: true}
+
+		attachedTo.ExecutionCount = attachedTo.ExecutionCount + 1
+		executions = append(executions, attachedTo)
 	case engine.JobSetTimer:
 		if jobCompletion == nil || jobCompletion.Timer == nil {
 			job.Error = pgtype.Text{String: "expected a timer", Valid: true}

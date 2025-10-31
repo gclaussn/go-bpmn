@@ -68,6 +68,9 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 		switch t := token.(type) {
 		case xml.StartElement:
 			switch t.Name.Local {
+			case "boundaryEvent":
+				element = newElement(0, t.Attr) // unknown type
+				element.Model = BoundaryEvent{AttachedTo: &Element{Id: getAttrValue(t.Attr, "attachedToRef")}}
 			case "businessRuleTask":
 				addNewElement(ElementBusinessRuleTask, t.Attr)
 			case "definitions":
@@ -75,6 +78,10 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				definitionsParsed = true
 			case "endEvent":
 				addNewElement(ElementNoneEndEvent, t.Attr)
+			case "errorEventDefinition":
+				if element.Type == 0 {
+					element.Type = ElementErrorBoundaryEvent
+				}
 			case "exclusiveGateway":
 				addNewElement(ElementExclusiveGateway, t.Attr)
 				element.Model = ExclusiveGateway{Default: getAttrValue(t.Attr, "default")}
@@ -149,6 +156,10 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 			}
 		case xml.EndElement:
 			switch t.Name.Local {
+			case "boundaryEvent":
+				if element.Type != 0 { // add element, if type is known
+					addElement()
+				}
 			case "incoming":
 				isIncoming = false
 			case "intermediateCatchEvent":
@@ -165,12 +176,33 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 		return nil, errors.New("no definitions found")
 	}
 
-	return &Model{
+	model := Model{
 		Definitions: &definitions,
 
 		Elements:      elements,
 		SequenceFlows: sequenceFlows,
-	}, nil
+	}
+
+	for _, element := range model.Elements {
+		switch element.Type {
+		case ElementErrorBoundaryEvent:
+			// resolve "attached to" placeholder
+			boundaryEvent := element.Model.(BoundaryEvent)
+
+			attachedTo := model.ElementById(boundaryEvent.AttachedTo.Id)
+			if attachedTo != nil {
+				model.attachments = append(model.attachments, attachment{
+					Id:      attachedTo.Id,
+					Element: element,
+				})
+			}
+
+			boundaryEvent.AttachedTo = attachedTo
+			element.Model = boundaryEvent
+		}
+	}
+
+	return &model, nil
 }
 
 type Model struct {
@@ -178,6 +210,19 @@ type Model struct {
 
 	Elements      []*Element
 	SequenceFlows []*SequenceFlow
+
+	attachments []attachment
+}
+
+// AttachedTo returns all boundary events that are attached to a specific task, sub process or call activity.
+func (m *Model) AttachedTo(id string) []*Element {
+	var elements []*Element
+	for _, attachment := range m.attachments {
+		if attachment.Id == id {
+			elements = append(elements, attachment.Element)
+		}
+	}
+	return elements
 }
 
 // ElementById returns the element with the given id, or nil, if no such element exists.
@@ -235,6 +280,18 @@ type Definitions struct {
 	Id string
 
 	Processes []*Element
+}
+
+type SequenceFlow struct {
+	Id     string
+	Source *Element
+	Target *Element
+}
+
+// attachment represent an attached to relation between a boundary event and a task, sub process or call activity.
+type attachment struct {
+	Id      string   // ID of a task or sub process.
+	Element *Element // The attached element.
 }
 
 func getAttrValue(attributes []xml.Attr, name string) string {

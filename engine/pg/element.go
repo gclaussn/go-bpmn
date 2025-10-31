@@ -134,7 +134,9 @@ func (r elementRepository) Query(criteria engine.ElementCriteria, options engine
 
 			bpmnElementTypeValue string
 
-			isSuspended  pgtype.Bool
+			isSuspended pgtype.Bool
+
+			errorCode    pgtype.Text
 			messageName  pgtype.Text
 			signalName   pgtype.Text
 			time         pgtype.Timestamp
@@ -153,6 +155,8 @@ func (r elementRepository) Query(criteria engine.ElementCriteria, options engine
 			&entity.IsMultiInstance,
 
 			&isSuspended,
+
+			&errorCode,
 			&messageName,
 			&signalName,
 			&time,
@@ -178,6 +182,8 @@ func (r elementRepository) Query(criteria engine.ElementCriteria, options engine
 
 			result.EventDefinition = &engine.EventDefinition{
 				IsSuspended: isSuspended.Bool,
+
+				ErrorCode:   errorCode.String,
 				MessageName: messageName.String,
 				SignalName:  signalName.String,
 				Timer:       timer,

@@ -34,6 +34,8 @@ type CreateProcessCmd struct {
 	BpmnProcessId string `json:"bpmnProcessId" validate:"required"`
 	// Model of the BPMN process as XML.
 	BpmnXml string `json:"bpmnXml" validate:"required"`
+	// Mapping between BPMN element ID and error code.
+	ErrorCodes map[string]string `json:"errorCodes,omitempty"`
 	// Mapping between BPMN element ID and message name.
 	MessageNames map[string]string `json:"messageNames,omitempty" validate:"dive,required"`
 	// Maximum number of parallel process instances being executed. If `0`, the number of parallel process instances is unlimited.
@@ -256,9 +258,9 @@ type UnlockTasksCmd struct {
 
 // A job completion is used to complete jobs of various types.
 type JobCompletion struct {
-	// Code, used to trigger a BPMN error.
-	// Applicable when job type is `EXECUTE`.
-	ErrorCode string `json:"bpmnErrorCode,omitempty"`
+	// Code of a BPMN error, used to specify or to trigger a BPMN error.
+	// Applicable when job type is `SET_ERROR_CODE` or `EXECUTE`.
+	ErrorCode string `json:"errorCode,omitempty"`
 	// Code, used to trigger a BPMN escalation.
 	// Applicable when job type is `EXECUTE`.
 	EscalationCode string `json:"bpmnEscalationCode,omitempty"`

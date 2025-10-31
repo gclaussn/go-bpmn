@@ -192,18 +192,6 @@ func (a *ProcessInstanceAssert) GetProcessVariable(name string, value any) {
 	decoder.Decode(data.Value, &value)
 }
 
-func (a *ProcessInstanceAssert) IsCompleted() {
-	a.a.IsCompleted()
-}
-
-func (a *ProcessInstanceAssert) IsNotCompleted() {
-	a.a.IsNotCompleted()
-}
-
-func (a *ProcessInstanceAssert) IsWaitingAt(bpmnElementId string) {
-	a.a.IsWaitingAt(bpmnElementId)
-}
-
 func (a *ProcessInstanceAssert) HasNoProcessVariable(name string) {
 	processInstance := a.a.ProcessInstance()
 
@@ -219,4 +207,20 @@ func (a *ProcessInstanceAssert) HasNoProcessVariable(name string) {
 	if _, ok := processVariables[name]; ok {
 		a.a.Fatalf("expected process instance to have no variable %s, but has", name)
 	}
+}
+
+func (a *ProcessInstanceAssert) HasPassed(bpmnElementId string) {
+	a.a.HasPassed(bpmnElementId)
+}
+
+func (a *ProcessInstanceAssert) IsCompleted() {
+	a.a.IsCompleted()
+}
+
+func (a *ProcessInstanceAssert) IsNotCompleted() {
+	a.a.IsNotCompleted()
+}
+
+func (a *ProcessInstanceAssert) IsWaitingAt(bpmnElementId string) {
+	a.a.IsWaitingAt(bpmnElementId)
 }

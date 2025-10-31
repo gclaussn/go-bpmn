@@ -65,6 +65,9 @@ type ElementInstanceRepository interface {
 	// Only element instances with the same state as the process instance are selected.
 	SelectByProcessInstanceAndState(*ProcessInstanceEntity) ([]*ElementInstanceEntity, error)
 
+	// SelectBoundaryEvents selects element instances, which are attached to the given element instance.
+	SelectBoundaryEvents(*ElementInstanceEntity) ([]*ElementInstanceEntity, error)
+
 	// SelectParallelGateways selects element instances, which have the same
 	//  - parent element instance
 	//  - element
@@ -74,4 +77,21 @@ type ElementInstanceRepository interface {
 	Update(*ElementInstanceEntity) error
 
 	Query(engine.ElementInstanceCriteria, engine.QueryOptions) ([]engine.ElementInstance, error)
+}
+
+func findErrorBoundaryEvent(boundaryEvents []*ElementInstanceEntity, errorCode string) *ElementInstanceEntity {
+	var target *ElementInstanceEntity
+	for _, boundaryEvent := range boundaryEvents {
+		if boundaryEvent.BpmnElementType != model.ElementErrorBoundaryEvent {
+			continue
+		}
+		if boundaryEvent.Context.String == "" && target == nil {
+			target = boundaryEvent
+			continue
+		}
+		if boundaryEvent.Context.String == errorCode {
+			return boundaryEvent
+		}
+	}
+	return target
 }

@@ -242,6 +242,75 @@ WHERE
 	return entities, nil
 }
 
+func (r elementInstanceRepository) SelectBoundaryEvents(execution *internal.ElementInstanceEntity) ([]*internal.ElementInstanceEntity, error) {
+	rows, err := r.tx.Query(r.txCtx, `
+SELECT
+	id,
+
+	parent_id,
+
+	element_id,
+	process_id,
+
+	bpmn_element_id,
+	bpmn_element_type,
+	context,
+	created_at,
+	created_by,
+	state
+FROM
+	element_instance
+WHERE
+	partition = $1 AND
+	prev_id = $2
+ORDER BY
+	id
+`,
+		execution.Partition,
+		execution.Id,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to select boundary event element instances: %v", err)
+	}
+
+	defer rows.Close()
+
+	var entities []*internal.ElementInstanceEntity
+	for rows.Next() {
+		var entity internal.ElementInstanceEntity
+
+		var bpmnElementTypeValue string
+		var stateValue string
+
+		if err := rows.Scan(
+			&entity.Id,
+
+			&entity.ParentId,
+
+			&entity.ElementId,
+			&entity.ProcessId,
+
+			&entity.BpmnElementId,
+			&bpmnElementTypeValue,
+			&entity.Context,
+			&entity.CreatedAt,
+			&entity.CreatedBy,
+			&stateValue,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan element instance row: %v", err)
+		}
+
+		entity.Partition = execution.Partition
+		entity.ProcessInstanceId = execution.ProcessInstanceId
+		entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
+		entity.State = engine.MapInstanceState(stateValue)
+
+		entities = append(entities, &entity)
+	}
+
+	return entities, nil
+}
+
 func (r elementInstanceRepository) SelectParallelGateways(execution *internal.ElementInstanceEntity) ([]*internal.ElementInstanceEntity, error) {
 	rows, err := r.tx.Query(r.txCtx, `
 SELECT

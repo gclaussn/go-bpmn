@@ -48,6 +48,19 @@ func (r *elementInstanceRepository) SelectByProcessInstanceAndState(processInsta
 	return results, nil
 }
 
+func (r *elementInstanceRepository) SelectBoundaryEvents(execution *internal.ElementInstanceEntity) ([]*internal.ElementInstanceEntity, error) {
+	var results []*internal.ElementInstanceEntity
+
+	key := execution.Partition.Format(time.DateOnly)
+	for _, e := range r.partitions[key] {
+		if e.PrevId.Int32 == execution.Id {
+			results = append(results, &e)
+		}
+	}
+
+	return results, nil
+}
+
 func (r *elementInstanceRepository) SelectParallelGateways(execution *internal.ElementInstanceEntity) ([]*internal.ElementInstanceEntity, error) {
 	var results []*internal.ElementInstanceEntity
 
@@ -56,13 +69,13 @@ func (r *elementInstanceRepository) SelectParallelGateways(execution *internal.E
 		if e.ProcessInstanceId != execution.ProcessInstanceId {
 			continue
 		}
+		if e.State != execution.State {
+			continue
+		}
 		if e.ElementId != execution.ElementId {
 			continue
 		}
 		if e.ParentId.Int32 != execution.ParentId.Int32 {
-			continue
-		}
-		if e.State != execution.State {
 			continue
 		}
 		results = append(results, &e)

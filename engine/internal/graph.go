@@ -6,6 +6,7 @@ import (
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/model"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // validateProcess validates if the process and its elements can be executed.
@@ -78,6 +79,15 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 					Pointer: elementPointer(bpmnElement),
 					Type:    "element",
 					Detail:  fmt.Sprintf("BPMN element %s is not supported: joining inclusive gateway", bpmnElement.Id),
+				})
+			}
+		case model.ElementErrorBoundaryEvent:
+			boundaryEvent := bpmnElement.Model.(model.BoundaryEvent)
+			if boundaryEvent.AttachedTo == nil {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(bpmnElement),
+					Type:    "element",
+					Detail:  fmt.Sprintf("boundary event %s is not attached", bpmnElement.Id),
 				})
 			}
 		}
@@ -244,6 +254,9 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 			model.ElementSignalCatchEvent,
 			model.ElementTimerCatchEvent:
 			execution.State = engine.InstanceCreated
+		case
+			model.ElementErrorBoundaryEvent:
+			execution.State = engine.InstanceCreated
 		default:
 			// continue branch, if element has no behavior (pass through element)
 			execution.State = engine.InstanceCompleted
@@ -312,6 +325,34 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 			}
 
 			executionCount := 0
+
+			attachments := g.model.AttachedTo(execution.BpmnElementId)
+			for _, attachment := range attachments {
+				attachedNode := g.nodes[attachment.Id]
+
+				// start branch
+				next := ElementInstanceEntity{
+					Partition: scope.Partition,
+
+					ElementId:         attachedNode.id,
+					ProcessId:         scope.ProcessId,
+					ProcessInstanceId: scope.ProcessInstanceId,
+
+					BpmnElementId:   attachment.Id,
+					BpmnElementType: attachment.Type,
+
+					parent: scope,
+					prev:   execution,
+				}
+
+				if attachedNode.eventDefinition != nil {
+					next.Context = pgtype.Text{String: attachedNode.eventContext(), Valid: true}
+				} else {
+					executionCount--
+				}
+
+				executions = append(executions, &next)
+			}
 
 			if executionCount == 0 {
 				execution.State = engine.InstanceStarted
@@ -453,7 +494,36 @@ func (g graph) elementByElementId(elementId int32) *model.Element {
 	return nil
 }
 
+// setEventDefinitions enriches graph nodes by adding event definitions.
+func (g graph) setEventDefinitions(eventDefinitions []*EventDefinitionEntity) {
+	for _, eventeventDefinition := range eventDefinitions {
+		bpmnElement := g.elementByElementId(eventeventDefinition.ElementId)
+		if bpmnElement == nil {
+			continue
+		}
+
+		node := g.nodes[bpmnElement.Id]
+		node.eventDefinition = eventeventDefinition
+		g.nodes[bpmnElement.Id] = node
+	}
+}
+
 type node struct {
-	id          int32 // ID of the related ElementEntity
-	bpmnElement *model.Element
+	id              int32 // ID of the related ElementEntity
+	bpmnElement     *model.Element
+	eventDefinition *EventDefinitionEntity
+}
+
+// eventContext returns the context value (an event name or code) to use when creating an event related execution.
+func (n node) eventContext() string {
+	if n.eventDefinition == nil {
+		return ""
+	}
+
+	switch n.bpmnElement.Type {
+	case model.ElementErrorBoundaryEvent:
+		return n.eventDefinition.ErrorCode.String
+	default:
+		return ""
+	}
 }
