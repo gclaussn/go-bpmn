@@ -125,7 +125,7 @@ func enqueueProcessInstance(ctx Context, processInstance *ProcessInstanceEntity)
 	return ctx.ProcessInstanceQueues().Update(queue)
 }
 
-func dequeueProcessInstance(ctx Context, processInstance *ProcessInstanceEntity) error {
+func dequeueProcessInstance(ctx Context, processInstance *ProcessInstanceEntity, engineOrWorkerId string) error {
 	queue, err := ctx.ProcessInstanceQueues().Select(processInstance.BpmnProcessId)
 	if err != nil {
 		return err
@@ -156,7 +156,7 @@ func dequeueProcessInstance(ctx Context, processInstance *ProcessInstanceEntity)
 			ProcessInstanceId: pgtype.Int4{Int32: head.Id, Valid: true},
 
 			CreatedAt: ctx.Time(),
-			CreatedBy: processInstance.StateChangedBy,
+			CreatedBy: engineOrWorkerId,
 			DueAt:     ctx.Time(),
 			Type:      engine.TaskStartProcessInstance,
 

@@ -34,7 +34,6 @@ INSERT INTO process_instance (
 	created_by,
 	started_at,
 	state,
-	state_changed_by,
 	tags,
 	version
 ) VALUES (
@@ -54,8 +53,7 @@ INSERT INTO process_instance (
 	$11,
 	$12,
 	$13,
-	$14,
-	$15
+	$14
 ) RETURNING id
 `,
 		entity.Partition,
@@ -73,7 +71,6 @@ INSERT INTO process_instance (
 		entity.CreatedBy,
 		entity.StartedAt,
 		entity.State.String(),
-		entity.StateChangedBy,
 		entity.Tags,
 		entity.Version,
 	)
@@ -101,7 +98,6 @@ SELECT
 	ended_at,
 	started_at,
 	state,
-	state_changed_by,
 	tags,
 	version
 FROM
@@ -129,7 +125,6 @@ FOR UPDATE
 		&entity.EndedAt,
 		&entity.StartedAt,
 		&stateValue,
-		&entity.StateChangedBy,
 		&entity.Tags,
 		&entity.Version,
 	); err != nil {
@@ -204,8 +199,7 @@ UPDATE
 SET
 	ended_at = $3,
 	started_at = $4,
-	state = $5,
-	state_changed_by = $6
+	state = $5
 WHERE
 	partition = $1 AND
 	id = $2
@@ -216,7 +210,6 @@ WHERE
 		entity.EndedAt,
 		entity.StartedAt,
 		entity.State.String(),
-		entity.StateChangedBy,
 	); err != nil {
 		return fmt.Errorf("failed to update process instance %+v: %v", entity, err)
 	}
@@ -264,7 +257,6 @@ func (r processInstanceRepository) Query(criteria engine.ProcessInstanceCriteria
 			&entity.EndedAt,
 			&entity.StartedAt,
 			&stateValue,
-			&entity.StateChangedBy,
 			&entity.Tags,
 			&entity.Version,
 		); err != nil {

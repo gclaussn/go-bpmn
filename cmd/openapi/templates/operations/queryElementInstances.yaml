@@ -35,7 +35,6 @@ responses:
               createdBy: go-bpmn
               startedAt: "2025-05-01T17:44:19.997Z"
               state: SUSPENDED
-              stateChangedBy: go-bpmn
             - partition: "2025-05-01"
               id: 2296
               parentId: 2295
@@ -49,7 +48,6 @@ responses:
               endedAt: "2025-05-01T17:44:19.997Z"
               startedAt: "2025-05-01T17:44:19.997Z"
               state: COMPLETED
-              stateChangedBy: go-bpmn
             - partition: "2025-05-01"
               id: 2297
               parentId: 2295
@@ -62,7 +60,6 @@ responses:
               createdBy: go-bpmn
               startedAt: "2025-05-01T17:44:19.997Z"
               state: STARTED
-              stateChangedBy: go-bpmn
   "400":
     description: Bad request
     content:

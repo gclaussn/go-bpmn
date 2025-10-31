@@ -228,7 +228,6 @@ func (g graph) createProcessScope(processInstance *ProcessInstanceEntity) Elemen
 		CreatedBy:       processInstance.CreatedBy,
 		StartedAt:       processInstance.StartedAt,
 		State:           processInstance.State,
-		StateChangedBy:  processInstance.StateChangedBy,
 	}
 }
 

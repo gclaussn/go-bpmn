@@ -24,10 +24,10 @@ INSERT INTO element_instance (
 	id,
 
 	parent_id,
+	prev_element_id,
+	prev_id,
 
 	element_id,
-	prev_element_id,
-	prev_element_instance_id,
 	process_id,
 	process_instance_id,
 
@@ -39,8 +39,7 @@ INSERT INTO element_instance (
 	execution_count,
 	is_multi_instance,
 	started_at,
-	state,
-	state_changed_by
+	state
 ) VALUES (
 	$1,
 	nextval($2),
@@ -48,6 +47,7 @@ INSERT INTO element_instance (
 	$3,
 	$4,
 	$5,
+
 	$6,
 	$7,
 	$8,
@@ -60,18 +60,17 @@ INSERT INTO element_instance (
 	$14,
 	$15,
 	$16,
-	$17,
-	$18
+	$17
 ) RETURNING id
 `,
 		entity.Partition,
 		partitionSequence("element_instance", entity.Partition),
 
 		entity.ParentId,
+		entity.PrevElementId,
+		entity.PrevId,
 
 		entity.ElementId,
-		entity.PrevElementId,
-		entity.PrevElementInstanceId,
 		entity.ProcessId,
 		entity.ProcessInstanceId,
 
@@ -84,7 +83,6 @@ INSERT INTO element_instance (
 		entity.IsMultiInstance,
 		entity.StartedAt,
 		entity.State.String(),
-		entity.StateChangedBy,
 	)
 
 	if err := row.Scan(&entity.Id); err != nil {
@@ -98,10 +96,10 @@ func (r elementInstanceRepository) Select(partition time.Time, id int32) (*inter
 	row := r.tx.QueryRow(r.txCtx, `
 SELECT
 	parent_id,
+	prev_element_id,
+	prev_id,
 
 	element_id,
-	prev_element_id,
-	prev_element_instance_id,
 	process_id,
 	process_instance_id,
 
@@ -113,8 +111,7 @@ SELECT
 	execution_count,
 	is_multi_instance,
 	started_at,
-	state,
-	state_changed_by
+	state
 FROM
 	element_instance
 WHERE
@@ -128,10 +125,10 @@ WHERE
 	var entity internal.ElementInstanceEntity
 	if err := row.Scan(
 		&entity.ParentId,
+		&entity.PrevElementId,
+		&entity.PrevId,
 
 		&entity.ElementId,
-		&entity.PrevElementId,
-		&entity.PrevElementInstanceId,
 		&entity.ProcessId,
 		&entity.ProcessInstanceId,
 
@@ -144,7 +141,6 @@ WHERE
 		&entity.IsMultiInstance,
 		&entity.StartedAt,
 		&stateValue,
-		&entity.StateChangedBy,
 	); err != nil {
 		return nil, fmt.Errorf("failed to select element instance %s/%d: %v", partition.Format(time.DateOnly), id, err)
 	}
@@ -163,10 +159,10 @@ SELECT
 	id,
 
 	parent_id,
+	prev_element_id,
+	prev_id,
 
 	element_id,
-	prev_element_id,
-	prev_element_instance_id,
 	process_id,
 
 	bpmn_element_id,
@@ -176,15 +172,18 @@ SELECT
 	ended_at,
 	execution_count,
 	is_multi_instance,
-	started_at,
-	state_changed_by
+	started_at
 FROM
 	element_instance
 WHERE
 	partition = $1 AND
 	process_instance_id = $2 AND
 	state = $3
-`, processInstance.Partition, processInstance.Id, processInstance.State.String())
+`,
+		processInstance.Partition,
+		processInstance.Id,
+		processInstance.State.String(),
+	)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"failed to select element instances by process instance %s/%d and state %s: %v",
@@ -207,10 +206,10 @@ WHERE
 			&entity.Id,
 
 			&entity.ParentId,
+			&entity.PrevElementId,
+			&entity.PrevId,
 
 			&entity.ElementId,
-			&entity.PrevElementId,
-			&entity.PrevElementInstanceId,
 			&entity.ProcessId,
 
 			&entity.BpmnElementId,
@@ -221,7 +220,6 @@ WHERE
 			&entity.ExecutionCount,
 			&entity.IsMultiInstance,
 			&entity.StartedAt,
-			&entity.StateChangedBy,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan element instance row: %v", err)
 		}
@@ -243,7 +241,8 @@ SELECT
 	id,
 
 	prev_element_id,
-	prev_element_instance_id,
+	prev_id,
+
 	process_id,
 
 	bpmn_element_id,
@@ -253,21 +252,18 @@ SELECT
 	ended_at,
 	execution_count,
 	is_multi_instance,
-	started_at,
-	state_changed_by
+	started_at
 FROM
 	element_instance
 WHERE
 	partition = $1 AND
-	process_instance_id = $2 AND
+	parent_id = $2 AND
 	element_id = $3 AND
-	parent_id = $4 AND
-	state = $5
+	state = $4
 `,
 		execution.Partition,
-		execution.ProcessInstanceId,
-		execution.ElementId,
 		execution.ParentId.Int32,
+		execution.ElementId,
 		execution.State.String(),
 	)
 	if err != nil {
@@ -286,7 +282,8 @@ WHERE
 			&entity.Id,
 
 			&entity.PrevElementId,
-			&entity.PrevElementInstanceId,
+			&entity.PrevId,
+
 			&entity.ProcessId,
 
 			&entity.BpmnElementId,
@@ -297,7 +294,6 @@ WHERE
 			&entity.ExecutionCount,
 			&entity.IsMultiInstance,
 			&entity.StartedAt,
-			&entity.StateChangedBy,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan element instance row: %v", err)
 		}
@@ -324,7 +320,6 @@ SET
 	execution_count = $4,
 	started_at = $5,
 	state = $6,
-	state_changed_by = $7
 WHERE
 	partition = $1 AND
 	id = $2
@@ -336,7 +331,6 @@ WHERE
 		entity.ExecutionCount,
 		entity.StartedAt,
 		entity.State.String(),
-		entity.StateChangedBy,
 	); err != nil {
 		return fmt.Errorf("failed to update element instance %+v: %v", entity, err)
 	}
@@ -385,7 +379,6 @@ func (r elementInstanceRepository) Query(criteria engine.ElementInstanceCriteria
 			&entity.IsMultiInstance,
 			&entity.StartedAt,
 			&stateValue,
-			&entity.StateChangedBy,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan element instance row: %v", err)
 		}

@@ -102,7 +102,7 @@ func mustCreateProcess(t *testing.T, e engine.Engine, fileName string, bpmnProce
 	process, err := e.CreateProcess(context.Background(), engine.CreateProcessCmd{
 		BpmnProcessId: bpmnProcessId,
 		BpmnXml:       bpmnXml,
-		Version:       "1",
+		Version:       t.Name(),
 		WorkerId:      testWorkerId,
 	})
 	if err != nil {

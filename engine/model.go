@@ -319,7 +319,6 @@ type ElementInstance struct {
 	IsMultiInstance bool              `json:"multiInstance,omitempty"`             // Determines if the element instance is a multi instance.
 	StartedAt       *time.Time        `json:"startedAt,omitempty"`                 // Start time.
 	State           InstanceState     `json:"state" validate:"required"`           // Current state.
-	StateChangedBy  string            `json:"stateChangedBy" validate:"required"`  // ID of the worker or engine that changed the state.
 }
 
 func (v ElementInstance) HasParent() bool {
@@ -503,16 +502,15 @@ type ProcessInstance struct {
 
 	ProcessId int32 `json:"processId"` // ID of the related process.
 
-	BpmnProcessId  string            `json:"bpmnProcessId" validate:"required"`  // ID of the process element within the BPMN XML.
-	CorrelationKey string            `json:"correlationKey,omitempty"`           // Key, used to correlate a process instance with a business entity.
-	CreatedAt      time.Time         `json:"createdAt" validate:"required"`      // Creation time.
-	CreatedBy      string            `json:"createdBy" validate:"required"`      // ID of the worker or engine that created the process instance.
-	EndedAt        *time.Time        `json:"endedAt,omitempty"`                  // End time.
-	StartedAt      *time.Time        `json:"startedAt,omitempty"`                // Start time.
-	State          InstanceState     `json:"state" validate:"required"`          // Current state.
-	StateChangedBy string            `json:"stateChangedBy" validate:"required"` // ID of the worker or engine that changed the state.
-	Tags           map[string]string `json:"tags,omitempty"`                     // Tags, consisting of name and value pairs.
-	Version        string            `json:"version" validate:"required"`        // Process version.
+	BpmnProcessId  string            `json:"bpmnProcessId" validate:"required"` // ID of the process element within the BPMN XML.
+	CorrelationKey string            `json:"correlationKey,omitempty"`          // Key, used to correlate a process instance with a business entity.
+	CreatedAt      time.Time         `json:"createdAt" validate:"required"`     // Creation time.
+	CreatedBy      string            `json:"createdBy" validate:"required"`     // ID of the worker or engine that created the process instance.
+	EndedAt        *time.Time        `json:"endedAt,omitempty"`                 // End time.
+	StartedAt      *time.Time        `json:"startedAt,omitempty"`               // Start time.
+	State          InstanceState     `json:"state" validate:"required"`         // Current state.
+	Tags           map[string]string `json:"tags,omitempty"`                    // Tags, consisting of name and value pairs.
+	Version        string            `json:"version" validate:"required"`       // Process version.
 }
 
 func (v ProcessInstance) HasParent() bool {

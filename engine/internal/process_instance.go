@@ -27,7 +27,6 @@ type ProcessInstanceEntity struct {
 	EndedAt        pgtype.Timestamp
 	StartedAt      pgtype.Timestamp
 	State          engine.InstanceState
-	StateChangedBy string
 	Tags           pgtype.Text
 	Version        string
 }
@@ -54,7 +53,6 @@ func (e ProcessInstanceEntity) ProcessInstance() engine.ProcessInstance {
 		EndedAt:        timeOrNil(e.EndedAt),
 		StartedAt:      timeOrNil(e.StartedAt),
 		State:          e.State,
-		StateChangedBy: e.StateChangedBy,
 		Tags:           tags,
 		Version:        e.Version,
 	}
@@ -103,7 +101,6 @@ func CreateProcessInstance(ctx Context, cmd engine.CreateProcessInstanceCmd) (en
 		CreatedBy:      cmd.WorkerId,
 		StartedAt:      pgtype.Timestamp{Time: ctx.Time(), Valid: true},
 		State:          engine.InstanceStarted,
-		StateChangedBy: cmd.WorkerId,
 		Tags:           pgtype.Text{String: tags, Valid: tags != ""},
 		Version:        process.Version,
 	}
@@ -131,12 +128,12 @@ func CreateProcessInstance(ctx Context, cmd engine.CreateProcessInstanceCmd) (en
 			ProcessInstanceId: processInstance.Id,
 
 			CreatedAt:   processInstance.CreatedAt,
-			CreatedBy:   cmd.WorkerId,
+			CreatedBy:   processInstance.CreatedBy,
 			Encoding:    data.Encoding,
 			IsEncrypted: data.IsEncrypted,
 			Name:        variableName,
 			UpdatedAt:   processInstance.CreatedAt,
-			UpdatedBy:   cmd.WorkerId,
+			UpdatedBy:   processInstance.CreatedBy,
 			Value:       data.Value,
 		}
 
@@ -230,11 +227,9 @@ func ResumeProcessInstance(ctx Context, cmd engine.ResumeProcessInstanceCmd) err
 		}
 
 		execution.State = engine.InstanceStarted
-		execution.StateChangedBy = ec.engineOrWorkerId
 	}
 
 	processInstance.State = engine.InstanceStarted
-	processInstance.StateChangedBy = ec.engineOrWorkerId
 
 	if err := ec.continueExecutions(ctx, executions); err != nil {
 		if _, ok := err.(engine.Error); ok {
@@ -284,7 +279,6 @@ func SuspendProcessInstance(ctx Context, cmd engine.SuspendProcessInstanceCmd) e
 		}
 
 		execution.State = engine.InstanceSuspended
-		execution.StateChangedBy = cmd.WorkerId
 
 		if err := ctx.ElementInstances().Update(execution); err != nil {
 			return err
@@ -292,7 +286,6 @@ func SuspendProcessInstance(ctx Context, cmd engine.SuspendProcessInstanceCmd) e
 	}
 
 	processInstance.State = engine.InstanceSuspended
-	processInstance.StateChangedBy = cmd.WorkerId
 
 	return ctx.ProcessInstances().Update(processInstance)
 }

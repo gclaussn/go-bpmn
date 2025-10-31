@@ -28,7 +28,6 @@ responses:
               endedAt: "2025-05-09T17:44:02.421Z"
               startedAt: "2025-05-09T17:43:52.417Z"
               state: COMPLETED
-              stateChangedBy: default-worker
               version: "1"
             - partition: "2025-05-09"
               id: 48
@@ -38,7 +37,6 @@ responses:
               createdBy: go-bpmn
               startedAt: "2025-05-09T17:43:56.392Z"
               state: STARTED
-              stateChangedBy: go-bpmn
               version: "1"
   "400":
     description: Bad request

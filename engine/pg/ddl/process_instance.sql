@@ -15,7 +15,6 @@ CREATE TABLE IF NOT EXISTS process_instance (
 	ended_at TIMESTAMP(3),
 	started_at TIMESTAMP(3),
 	state VARCHAR NOT NULL,
-	state_changed_by VARCHAR NOT NULL,
 	tags JSONB,
 	version VARCHAR NOT NULL
 ) PARTITION BY LIST (partition);

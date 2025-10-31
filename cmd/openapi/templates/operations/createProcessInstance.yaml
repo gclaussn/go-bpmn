@@ -37,7 +37,6 @@ responses:
           createdBy: go-bpmn
           startedAt: "2025-05-01T17:44:19.997Z"
           state: STARTED
-          stateChangedBy: go-bpmn
           tags:
             x: y
           version: "1"

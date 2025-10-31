@@ -84,6 +84,8 @@ func TestExecuteTask(t *testing.T) {
 		memEngine.unlock()
 
 		// then
+		expectedDueAt := ctx.Time().Add(time.Hour)
+
 		assert.Nil(err)
 		assert.True(entity.Error.Valid)
 		assert.Equal("NOT_FOUND: dummy title: dummy detail", entity.Error.String)
@@ -101,7 +103,7 @@ func TestExecuteTask(t *testing.T) {
 
 		assert.NotEmpty(results[0].CreatedAt)
 		assert.Equal(engine.DefaultEngineId, results[0].CreatedBy)
-		assert.Equal(ctx.Time().Add(time.Hour), results[0].DueAt)
+		assert.Equal(expectedDueAt, results[0].DueAt)
 		assert.Equal(1, results[0].RetryCount)
 		assert.Equal(entity.RetryTimer.String, results[0].RetryTimer.String())
 		assert.Equal(entity.SerializedTask.String, results[0].SerializedTask)

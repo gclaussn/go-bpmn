@@ -15,8 +15,7 @@ SELECT
 	ended_at,
 	is_multi_instance,
 	started_at,
-	state,
-	state_changed_by
+	state
 FROM
 	element_instance
 WHERE

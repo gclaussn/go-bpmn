@@ -12,13 +12,13 @@ type ElementInstanceEntity struct {
 	Partition time.Time
 	Id        int32
 
-	ParentId pgtype.Int4
+	ParentId      pgtype.Int4
+	PrevElementId pgtype.Int4 // internal field
+	PrevId        pgtype.Int4 // internal field
 
-	ElementId             int32
-	PrevElementId         pgtype.Int4 // internal field
-	PrevElementInstanceId pgtype.Int4 // internal field
-	ProcessId             int32
-	ProcessInstanceId     int32
+	ElementId         int32
+	ProcessId         int32
+	ProcessInstanceId int32
 
 	BpmnElementId   string
 	BpmnElementType model.ElementType
@@ -29,7 +29,6 @@ type ElementInstanceEntity struct {
 	IsMultiInstance bool
 	StartedAt       pgtype.Timestamp
 	State           engine.InstanceState
-	StateChangedBy  string
 
 	parent *ElementInstanceEntity
 	prev   *ElementInstanceEntity
@@ -54,7 +53,6 @@ func (e ElementInstanceEntity) ElementInstance() engine.ElementInstance {
 		IsMultiInstance: e.IsMultiInstance,
 		StartedAt:       timeOrNil(e.StartedAt),
 		State:           e.State,
-		StateChangedBy:  e.StateChangedBy,
 	}
 }
 
@@ -62,9 +60,14 @@ type ElementInstanceRepository interface {
 	Insert(*ElementInstanceEntity) error
 	Select(partition time.Time, id int32) (*ElementInstanceEntity, error)
 
-	// SelectByProcessInstanceAndState selects all element instances related to a process instance and are in the same state.
+	// SelectByProcessInstanceAndState selects element instances related to a process instance.
+	// Only element instances with the same state as the process instance are selected.
 	SelectByProcessInstanceAndState(*ProcessInstanceEntity) ([]*ElementInstanceEntity, error)
-	// SelectParallelGateways selects all element instances that have a specific element ID, parent element instance ID and state.
+
+	// SelectParallelGateways selects element instances, which have the same
+	//  - parent element instance
+	//  - element
+	//  - state
 	SelectParallelGateways(*ElementInstanceEntity) ([]*ElementInstanceEntity, error)
 
 	Update(*ElementInstanceEntity) error

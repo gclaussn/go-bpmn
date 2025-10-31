@@ -323,13 +323,12 @@ func triggerSignalStartEvent(ctx Context, task *TaskEntity, signalId int64) erro
 
 			ProcessId: process.Id,
 
-			BpmnProcessId:  process.BpmnProcessId,
-			CreatedAt:      ctx.Time(),
-			CreatedBy:      signal.CreatedBy,
-			StartedAt:      pgtype.Timestamp{Time: ctx.Time(), Valid: true},
-			State:          engine.InstanceStarted,
-			StateChangedBy: signal.CreatedBy,
-			Version:        process.Version,
+			BpmnProcessId: process.BpmnProcessId,
+			CreatedAt:     ctx.Time(),
+			CreatedBy:     signal.CreatedBy,
+			StartedAt:     pgtype.Timestamp{Time: ctx.Time(), Valid: true},
+			State:         engine.InstanceStarted,
+			Version:       process.Version,
 		}
 
 		if err := ctx.ProcessInstances().Insert(processInstance); err != nil {

@@ -109,8 +109,6 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 			}
 		}
 
-		execution.StateChangedBy = ec.engineOrWorkerId
-
 		switch execution.State {
 		case engine.InstanceStarted:
 			execution.StartedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
@@ -158,12 +156,10 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 			// complete process scope
 			scope.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
 			scope.State = engine.InstanceCompleted
-			scope.StateChangedBy = ec.engineOrWorkerId
 
 			// complete process instance
 			ec.processInstance.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
 			ec.processInstance.State = engine.InstanceCompleted
-			ec.processInstance.StateChangedBy = ec.engineOrWorkerId
 		}
 	}
 
@@ -278,7 +274,7 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 			prev := execution.prev
 			if prev != nil {
 				execution.PrevElementId = pgtype.Int4{Int32: prev.ElementId, Valid: true}
-				execution.PrevElementInstanceId = pgtype.Int4{Int32: prev.Id, Valid: true}
+				execution.PrevId = pgtype.Int4{Int32: prev.Id, Valid: true}
 			}
 
 			execution.parent = nil
@@ -326,7 +322,7 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 		return err
 	}
 
-	if err := dequeueProcessInstance(ctx, ec.processInstance); err != nil {
+	if err := dequeueProcessInstance(ctx, ec.processInstance, ec.engineOrWorkerId); err != nil {
 		return fmt.Errorf("failed to dequeue process instance: %v", err)
 	}
 
@@ -394,7 +390,6 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 
 		execution.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
 		execution.State = engine.InstanceCompleted
-		execution.StateChangedBy = ec.engineOrWorkerId
 
 		scope.ExecutionCount = scope.ExecutionCount - 1
 
@@ -449,7 +444,6 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 
 		execution.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
 		execution.State = engine.InstanceCompleted
-		execution.StateChangedBy = ec.engineOrWorkerId
 
 		scope.ExecutionCount = scope.ExecutionCount - 1
 
@@ -648,7 +642,6 @@ func (ec executionContext) handleParallelGateway(ctx Context, task *TaskEntity) 
 			// end all, but first joined execution
 			joinedExecution.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
 			joinedExecution.State = engine.InstanceCompleted
-			joinedExecution.StateChangedBy = ec.engineOrWorkerId
 		}
 	}
 
