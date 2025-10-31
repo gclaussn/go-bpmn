@@ -22,6 +22,7 @@ type ElementInstanceEntity struct {
 
 	BpmnElementId   string
 	BpmnElementType model.ElementType
+	Context         pgtype.Text // internal field, used for error code and escalation code
 	CreatedAt       time.Time
 	CreatedBy       string
 	EndedAt         pgtype.Timestamp

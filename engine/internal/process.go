@@ -109,12 +109,12 @@ func (c *ProcessCache) GetOrCacheById(ctx Context, id int32) (*ProcessEntity, er
 }
 
 func (c *ProcessCache) cache(ctx Context, process *ProcessEntity) error {
-	model, err := model.New(strings.NewReader(process.BpmnXml))
+	bpmnModel, err := model.New(strings.NewReader(process.BpmnXml))
 	if err != nil {
 		return err
 	}
 
-	processElement := model.ProcessById(process.BpmnProcessId)
+	processElement := bpmnModel.ProcessById(process.BpmnProcessId)
 	if processElement == nil {
 		return engine.Error{
 			Type:   engine.ErrorBug,
@@ -128,9 +128,9 @@ func (c *ProcessCache) cache(ctx Context, process *ProcessEntity) error {
 		return err
 	}
 
-	bpmnElements := model.ElementsByProcessId(process.BpmnProcessId)
+	bpmnElements := bpmnModel.ElementsByProcessId(process.BpmnProcessId)
 
-	graph, err := newGraph(bpmnElements, elements)
+	graph, err := newGraph(bpmnModel, bpmnElements, elements)
 	if err != nil {
 		return engine.Error{
 			Type:   engine.ErrorBug,
@@ -378,7 +378,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	}
 
 	// create execution graph
-	graph, err := newGraph(bpmnElements, elements)
+	graph, err := newGraph(bpmnModel, bpmnElements, elements)
 	if err != nil {
 		return engine.Process{}, engine.Error{
 			Type:   engine.ErrorBug,

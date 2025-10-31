@@ -222,8 +222,8 @@ func ResumeProcessInstance(ctx Context, cmd engine.ResumeProcessInstanceCmd) err
 	}
 
 	for _, execution := range executions {
-		if execution.ExecutionCount == 0 {
-			continue // skip non scopes
+		if execution.ExecutionCount <= 0 {
+			continue // skip non scope
 		}
 
 		execution.State = engine.InstanceStarted
@@ -274,8 +274,8 @@ func SuspendProcessInstance(ctx Context, cmd engine.SuspendProcessInstanceCmd) e
 	}
 
 	for _, execution := range executions {
-		if execution.ExecutionCount == 0 {
-			continue // skip non scopes
+		if execution.ExecutionCount <= 0 {
+			continue // skip non scope
 		}
 
 		execution.State = engine.InstanceSuspended

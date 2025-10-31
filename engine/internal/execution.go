@@ -18,28 +18,14 @@ type executionContext struct {
 
 // continueExecutions continues each execution until a wait state is reached or no more outgoing sequence flows exist.
 func (ec executionContext) continueExecutions(ctx Context, executions []*ElementInstanceEntity) error {
-	graph := *ec.process.graph
-
 	i := 0
 	for i < len(executions) {
 		execution := executions[i]
 
-		node, ok := graph.nodes[execution.BpmnElementId]
-		if !ok {
-			return engine.Error{
-				Type:   engine.ErrorBug,
-				Title:  "failed to continue execution",
-				Detail: fmt.Sprintf("BPMN process %s has no element %s", graph.processElement.Id, execution.BpmnElementId),
-			}
-		}
-
 		i++
 
-		if execution.State == engine.InstanceCompleted {
-			continue // skip executions, that have been completed by the caller
-		}
-		if execution.ExecutionCount != 0 {
-			continue // skip scopes
+		if execution.ExecutionCount > 0 {
+			continue // skip scope
 		}
 
 		// find parent within executions
@@ -65,97 +51,32 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 			i++
 		}
 
-		scope := execution.parent
-		if scope.State == engine.InstanceQueued {
-			// end branch
-			execution.State = scope.State
-			continue
-		} else if execution.State == engine.InstanceStarted {
-			// continue branch
-			execution.State = engine.InstanceCompleted
-		} else if scope.State == engine.InstanceSuspended {
-			// end branch
-			execution.State = engine.InstanceSuspended
-			continue
-		} else {
-			// end branch, if execution is waiting for a job to be completed or a task to be executed
-			switch execution.BpmnElementType {
-			case
-				model.ElementBusinessRuleTask,
-				model.ElementMessageCatchEvent,
-				model.ElementScriptTask,
-				model.ElementSendTask,
-				model.ElementServiceTask,
-				model.ElementSignalCatchEvent,
-				model.ElementTimerCatchEvent:
-				execution.State = 0
-			case
-				model.ElementExclusiveGateway,
-				model.ElementInclusiveGateway:
-				if len(node.bpmnElement.Outgoing) > 1 {
-					execution.State = 0
-				} else {
-					execution.State = engine.InstanceCompleted
-				}
-			case model.ElementParallelGateway:
-				if len(node.bpmnElement.Incoming) > 1 {
-					execution.State = 0
-				} else {
-					execution.State = engine.InstanceCompleted
-				}
-			default:
-				// continue branch, if element has no behavior (pass through element)
-				execution.State = engine.InstanceCompleted
+		// continue execution
+		var err error
+		if executions, err = ec.process.graph.continueExecution(executions, execution); err != nil {
+			return engine.Error{
+				Type:   engine.ErrorProcessModel,
+				Title:  "failed to continue execution",
+				Detail: err.Error(),
 			}
 		}
 
 		switch execution.State {
 		case engine.InstanceStarted:
 			execution.StartedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
-		case engine.InstanceCompleted, engine.InstanceTerminated:
+		case engine.InstanceCompleted:
+			execution.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
+
+			if !execution.StartedAt.Valid {
+				execution.StartedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
+			}
+		case engine.InstanceTerminated:
 			execution.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
 		}
 
-		if execution.State == engine.InstanceCompleted {
-			outgoing := node.bpmnElement.Outgoing
-			for j := 0; j < len(outgoing); j++ {
-				target := outgoing[j].Target
-				targetNode := graph.nodes[target.Id]
-
-				// start branch
-				next := ElementInstanceEntity{
-					Partition: scope.Partition,
-
-					ElementId:         targetNode.id,
-					ProcessId:         scope.ProcessId,
-					ProcessInstanceId: scope.ProcessInstanceId,
-
-					BpmnElementId:   target.Id,
-					BpmnElementType: target.Type,
-
-					parent: scope,
-					prev:   execution,
-				}
-
-				executions = append(executions, &next)
-
-				scope.ExecutionCount = scope.ExecutionCount + 1
-			}
-
-			scope.ExecutionCount = scope.ExecutionCount - 1
-
-			if scope.ExecutionCount != 0 {
-				continue
-			}
-
-			if scope.ParentId.Valid {
-				executions = append(executions, scope)
-				continue
-			}
-
-			// complete process scope
+		scope := execution.parent
+		if scope.State == engine.InstanceCompleted && !scope.ParentId.Valid {
 			scope.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
-			scope.State = engine.InstanceCompleted
 
 			// complete process instance
 			ec.processInstance.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
@@ -172,12 +93,14 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 
 	// create jobs and tasks
 	for i, execution := range executions {
-		if execution.State != 0 {
+		switch execution.State {
+		case engine.InstanceQueued, engine.InstanceSuspended, engine.InstanceTerminated:
 			continue
 		}
 
-		execution.StartedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
-		execution.State = engine.InstanceStarted
+		if execution.ExecutionCount != 0 {
+			continue
+		}
 
 		var (
 			jobType      engine.JobType
@@ -185,31 +108,53 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 			taskInstance Task
 		)
 
-		switch execution.BpmnElementType {
-		case
-			model.ElementBusinessRuleTask,
-			model.ElementScriptTask,
-			model.ElementSendTask,
-			model.ElementServiceTask:
-			jobType = engine.JobExecute
-		case model.ElementExclusiveGateway:
-			jobType = engine.JobEvaluateExclusiveGateway
-		case model.ElementInclusiveGateway:
-			jobType = engine.JobEvaluateInclusiveGateway
-		case model.ElementMessageCatchEvent:
-			jobType = engine.JobSubscribeMessage
-		case model.ElementParallelGateway:
-			taskType = engine.TaskJoinParallelGateway
-			taskInstance = JoinParallelGatewayTask{}
-		case model.ElementSignalCatchEvent:
-			jobType = engine.JobSubscribeSignal
-		case model.ElementTimerCatchEvent:
-			jobType = engine.JobSetTimer
-		default:
-			return engine.Error{
-				Type:   engine.ErrorBug,
-				Title:  "failed to create job or task",
-				Detail: fmt.Sprintf("BPMN element type %s is not supported", execution.BpmnElementType),
+		if execution.State == engine.InstanceCreated {
+			if execution.Context.Valid {
+				continue // skip defined boundary event
+			}
+
+			switch execution.BpmnElementType {
+			case model.ElementMessageCatchEvent:
+				jobType = engine.JobSubscribeMessage
+			case model.ElementSignalCatchEvent:
+				jobType = engine.JobSubscribeSignal
+			case model.ElementTimerCatchEvent:
+				jobType = engine.JobSetTimer
+			case model.ElementErrorBoundaryEvent:
+				jobType = engine.JobSetErrorCode
+			default:
+				return engine.Error{
+					Type:   engine.ErrorBug,
+					Title:  "failed to define job or task for created execution",
+					Detail: fmt.Sprintf("BPMN element type %s is not supported", execution.BpmnElementType),
+				}
+			}
+		} else if execution.State == engine.InstanceStarted {
+			switch execution.BpmnElementType {
+			case
+				model.ElementBusinessRuleTask,
+				model.ElementScriptTask,
+				model.ElementSendTask,
+				model.ElementServiceTask:
+				jobType = engine.JobExecute
+			case model.ElementExclusiveGateway:
+				jobType = engine.JobEvaluateExclusiveGateway
+			case model.ElementInclusiveGateway:
+				jobType = engine.JobEvaluateInclusiveGateway
+			case model.ElementParallelGateway:
+				taskType = engine.TaskJoinParallelGateway
+				taskInstance = JoinParallelGatewayTask{}
+			case
+				model.ElementMessageCatchEvent,
+				model.ElementSignalCatchEvent,
+				model.ElementTimerCatchEvent:
+				// no job or task to create
+			default:
+				return engine.Error{
+					Type:   engine.ErrorBug,
+					Title:  "failed to define job or task for started execution",
+					Detail: fmt.Sprintf("BPMN element type %s is not supported", execution.BpmnElementType),
+				}
 			}
 		}
 
@@ -235,7 +180,7 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 
 			jobs = append(jobs, &job)
 			jobsIdx = append(jobsIdx, i)
-		} else {
+		} else if taskType != 0 {
 			task := TaskEntity{
 				Partition: execution.Partition,
 
@@ -262,30 +207,24 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 			execution.CreatedAt = ctx.Time()
 			execution.CreatedBy = ec.engineOrWorkerId
 
-			if execution.State == engine.InstanceCompleted { // pass through element
-				execution.StartedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
-			}
-
 			parent := execution.parent
 			if parent != nil {
 				execution.ParentId = pgtype.Int4{Int32: parent.Id, Valid: true}
+				execution.parent = nil
 			}
 
 			prev := execution.prev
 			if prev != nil {
 				execution.PrevElementId = pgtype.Int4{Int32: prev.ElementId, Valid: true}
 				execution.PrevId = pgtype.Int4{Int32: prev.Id, Valid: true}
+				execution.prev = nil
 			}
-
-			execution.parent = nil
-			execution.prev = nil
 
 			if err := ctx.ElementInstances().Insert(execution); err != nil {
 				return err
 			}
 		} else {
 			execution.parent = nil
-			execution.prev = nil
 
 			if err := ctx.ElementInstances().Update(execution); err != nil {
 				return err
@@ -388,7 +327,6 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 			targetId = outgoing.Target.Id
 		}
 
-		execution.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
 		execution.State = engine.InstanceCompleted
 
 		scope.ExecutionCount = scope.ExecutionCount - 1
@@ -442,7 +380,6 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 			}
 		}
 
-		execution.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
 		execution.State = engine.InstanceCompleted
 
 		scope.ExecutionCount = scope.ExecutionCount - 1
@@ -498,8 +435,6 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 		if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {
 			return err
 		}
-
-		return nil // do not continue execution
 	case engine.JobSubscribeMessage:
 		if jobCompletion == nil || jobCompletion.MessageName == "" || jobCompletion.MessageCorrelationKey == "" {
 			job.Error = pgtype.Text{String: "expected a message name and correlation key", Valid: true}
@@ -557,8 +492,6 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 				return err
 			}
 		}
-
-		return nil // do not continue execution
 	case engine.JobSubscribeSignal:
 		if jobCompletion == nil || jobCompletion.SignalName == "" {
 			job.Error = pgtype.Text{String: "expected a signal name", Valid: true}
@@ -581,8 +514,6 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 		if err := ctx.SignalSubscriptions().Insert(&signalSubscription); err != nil {
 			return err
 		}
-
-		return nil // do not continue execution
 	}
 
 	if err := ec.continueExecutions(ctx, executions); err != nil {

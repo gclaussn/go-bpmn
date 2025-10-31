@@ -18,12 +18,12 @@ func mustCreateGraph(t *testing.T, fileName string, bpmnProcessId string) graph 
 
 	defer bpmnFile.Close()
 
-	model, err := model.New(bpmnFile)
+	bpmnModel, err := model.New(bpmnFile)
 	if err != nil {
 		t.Fatalf("failed to parse BPMN XML: %v", err)
 	}
 
-	bpmnElements := model.ElementsByProcessId(bpmnProcessId)
+	bpmnElements := bpmnModel.ElementsByProcessId(bpmnProcessId)
 	if len(bpmnElements) == 0 {
 		t.Fatalf("failed to collect elements of BPMN process %s", bpmnProcessId)
 	}
@@ -41,7 +41,7 @@ func mustCreateGraph(t *testing.T, fileName string, bpmnProcessId string) graph 
 		elements[i] = &element
 	}
 
-	graph, err := newGraph(bpmnElements, elements)
+	graph, err := newGraph(bpmnModel, bpmnElements, elements)
 	if err != nil {
 		t.Fatalf("failed to create execution graph: %v", err)
 	}

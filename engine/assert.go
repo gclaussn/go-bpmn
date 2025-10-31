@@ -494,7 +494,7 @@ func (a *ProcessInstanceAssert) IsWaitingAt(bpmnElementId string) {
 		Partition:         a.partition,
 		ProcessInstanceId: a.processInstanceId,
 		BpmnElementId:     bpmnElementId,
-		States:            []InstanceState{InstanceStarted},
+		States:            []InstanceState{InstanceCreated, InstanceStarted},
 	})
 	if err != nil {
 		a.Fatalf("failed to query element instances: %v", err)

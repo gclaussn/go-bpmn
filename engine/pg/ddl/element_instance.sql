@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS element_instance (
 
 	bpmn_element_id VARCHAR NOT NULL,
 	bpmn_element_type VARCHAR NOT NULL,
+	context VARCHAR,
 	created_at TIMESTAMP(3) NOT NULL,
 	created_by VARCHAR NOT NULL,
 	ended_at TIMESTAMP(3),

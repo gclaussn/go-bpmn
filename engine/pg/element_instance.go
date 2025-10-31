@@ -33,6 +33,7 @@ INSERT INTO element_instance (
 
 	bpmn_element_id,
 	bpmn_element_type,
+	context,
 	created_at,
 	created_by,
 	ended_at,
@@ -60,7 +61,8 @@ INSERT INTO element_instance (
 	$14,
 	$15,
 	$16,
-	$17
+	$17,
+	$18
 ) RETURNING id
 `,
 		entity.Partition,
@@ -76,6 +78,7 @@ INSERT INTO element_instance (
 
 		entity.BpmnElementId,
 		entity.BpmnElementType.String(),
+		entity.Context,
 		entity.CreatedAt,
 		entity.CreatedBy,
 		entity.EndedAt,
@@ -105,6 +108,7 @@ SELECT
 
 	bpmn_element_id,
 	bpmn_element_type,
+	context,
 	created_at,
 	created_by,
 	ended_at,
@@ -134,6 +138,7 @@ WHERE
 
 		&entity.BpmnElementId,
 		&bpmnElementTypeValue,
+		&entity.Context,
 		&entity.CreatedAt,
 		&entity.CreatedBy,
 		&entity.EndedAt,
@@ -167,6 +172,7 @@ SELECT
 
 	bpmn_element_id,
 	bpmn_element_type,
+	context,
 	created_at,
 	created_by,
 	ended_at,
@@ -214,6 +220,7 @@ WHERE
 
 			&entity.BpmnElementId,
 			&bpmnElementTypeValue,
+			&entity.Context,
 			&entity.CreatedAt,
 			&entity.CreatedBy,
 			&entity.EndedAt,
@@ -247,6 +254,7 @@ SELECT
 
 	bpmn_element_id,
 	bpmn_element_type,
+	context,
 	created_at,
 	created_by,
 	ended_at,
@@ -288,6 +296,7 @@ WHERE
 
 			&entity.BpmnElementId,
 			&bpmnElementTypeValue,
+			&entity.Context,
 			&entity.CreatedAt,
 			&entity.CreatedBy,
 			&entity.EndedAt,
@@ -316,10 +325,11 @@ func (r elementInstanceRepository) Update(entity *internal.ElementInstanceEntity
 UPDATE
 	element_instance
 SET
-	ended_at = $3,
-	execution_count = $4,
-	started_at = $5,
-	state = $6,
+	context = $3,
+	ended_at = $4,
+	execution_count = $5,
+	started_at = $6,
+	state = $7
 WHERE
 	partition = $1 AND
 	id = $2
@@ -327,6 +337,7 @@ WHERE
 		entity.Partition,
 		entity.Id,
 
+		entity.Context,
 		entity.EndedAt,
 		entity.ExecutionCount,
 		entity.StartedAt,

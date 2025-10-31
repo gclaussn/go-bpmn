@@ -154,8 +154,8 @@ func (t StartProcessInstanceTask) Execute(ctx Context, task *TaskEntity) error {
 	}
 
 	for _, execution := range executions {
-		if execution.ExecutionCount == 0 {
-			continue // skip non scopes
+		if execution.ExecutionCount <= 0 {
+			continue // skip non scope
 		}
 
 		execution.StartedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}

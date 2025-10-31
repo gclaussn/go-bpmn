@@ -117,6 +117,54 @@ func TestValidateProcess(t *testing.T) {
 	})
 }
 
+func TestContinueExecution(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	scope := &ElementInstanceEntity{}
+
+	t.Run("start event", func(t *testing.T) {
+		// given
+		graph := mustCreateGraph(t, "start-end.bpmn", "startEndTest")
+
+		t.Run("scope QUEUED", func(t *testing.T) {
+			// given
+			scope.State = engine.InstanceQueued
+
+			execution := &ElementInstanceEntity{
+				BpmnElementId:   "startEvent",
+				BpmnElementType: model.ElementNoneStartEvent,
+
+				parent: scope,
+			}
+
+			// when
+			executions1, err := graph.continueExecution(nil, execution)
+
+			// then
+			require.NoError(err)
+			require.Len(executions1, 0)
+
+			assert.Equal(engine.InstanceQueued, execution.State)
+
+			// when
+			scope.State = engine.InstanceStarted
+
+			executions2, err := graph.continueExecution(nil, execution)
+
+			// then
+			require.NoError(err)
+			require.Len(executions2, 1)
+
+			assert.Equal(engine.InstanceCompleted, execution.State)
+
+			assert.Equal("endEvent", executions2[0].BpmnElementId)
+			assert.Equal(model.ElementNoneEndEvent, executions2[0].BpmnElementType)
+			assert.Equal(scope, executions2[0].parent)
+			assert.Nil(executions2[0].prev)
+		})
+	})
+}
+
 func TestCreateExecution(t *testing.T) {
 	assert := assert.New(t)
 

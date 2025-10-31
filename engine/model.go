@@ -14,6 +14,7 @@ type InstanceState int
 const (
 	InstanceCanceled InstanceState = iota + 1
 	InstanceCompleted
+	InstanceCreated
 	InstanceQueued
 	InstanceStarted
 	InstanceSuspended
@@ -26,6 +27,8 @@ func MapInstanceState(s string) InstanceState {
 		return InstanceCanceled
 	case "COMPLETED":
 		return InstanceCompleted
+	case "CREATED":
+		return InstanceCreated
 	case "QUEUED":
 		return InstanceQueued
 	case "STARTED":
@@ -53,6 +56,8 @@ func (v InstanceState) String() string {
 		return "CANCELED"
 	case InstanceCompleted:
 		return "COMPLETED"
+	case InstanceCreated:
+		return "CREATED"
 	case InstanceQueued:
 		return "QUEUED"
 	case InstanceStarted:
