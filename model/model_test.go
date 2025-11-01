@@ -184,6 +184,42 @@ func TestErrorBoundaryEvent(t *testing.T) {
 	require.NotNil(boundaryEvent.AttachedTo)
 	assert.Equal("serviceTask", boundaryEvent.AttachedTo.Id)
 	assert.Equal(ElementServiceTask, boundaryEvent.AttachedTo.Type)
+
+	assert.Equal("errorBoundaryEventDefinition", boundaryEvent.EventDefinition.Id)
+	assert.Nil(boundaryEvent.EventDefinition.Error)
+}
+
+func TestErrorBoundaryEventDefinition(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	// when
+	model := mustCreateModel(t, "event/error-boundary-event-definition.bpmn")
+
+	// then
+	processElement := model.ProcessById("errorBoundaryEventDefinitionTest")
+	require.NotNil(processElement)
+	assert.Len(processElement.Children, 5)
+
+	errorBoundaryEvent := processElement.ChildById("errorBoundaryEvent")
+	require.NotNil(errorBoundaryEvent)
+
+	assert.Equal(ElementErrorBoundaryEvent, errorBoundaryEvent.Type)
+
+	assert.Len(errorBoundaryEvent.Incoming, 0)
+	assert.Len(errorBoundaryEvent.Outgoing, 1)
+
+	boundaryEvent := errorBoundaryEvent.Model.(BoundaryEvent)
+	require.NotNil(boundaryEvent.AttachedTo)
+	assert.Equal("serviceTask", boundaryEvent.AttachedTo.Id)
+	assert.Equal(ElementServiceTask, boundaryEvent.AttachedTo.Type)
+
+	assert.Equal("errorBoundaryEventDefinition", boundaryEvent.EventDefinition.Id)
+	require.NotNil(boundaryEvent.EventDefinition.Error)
+
+	bpmnError := boundaryEvent.EventDefinition.Error
+	assert.Equal("testError", bpmnError.Id)
+	assert.Equal("testErrorName", bpmnError.Name)
+	assert.Equal("testErrorCode", bpmnError.Code)
 }
 
 func TestTimerCatchEvent(t *testing.T) {

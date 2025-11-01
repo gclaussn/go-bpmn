@@ -23,11 +23,12 @@ func TestBpmn(t *testing.T) {
 			errorEventTest := newErrorEventTest(t, e)
 
 			t.Run(engineTypes[i]+"boundary", errorEventTest.boundary)
-			t.Run(engineTypes[i]+"boundary with event definition", errorEventTest.boundaryWithEventDefinition)
-			t.Run(engineTypes[i]+"boundary with code", errorEventTest.boundaryWithoutCode)
+			t.Run(engineTypes[i]+"boundary with code", errorEventTest.boundaryWithCode)
+			t.Run(engineTypes[i]+"boundary without code", errorEventTest.boundaryWithoutCode)
 			t.Run(engineTypes[i]+"boundary terminated", errorEventTest.boundaryTerminated)
-			t.Run(engineTypes[i]+"boundary multiple", errorEventTest.boundaryMultiple)
 			t.Run(engineTypes[i]+"boundary not found", errorEventTest.boundaryNotFound)
+			t.Run(engineTypes[i]+"boundary multiple", errorEventTest.boundaryMultiple)
+			t.Run(engineTypes[i]+"boundary with event definition", errorEventTest.boundaryWithEventDefinition)
 		}
 	})
 

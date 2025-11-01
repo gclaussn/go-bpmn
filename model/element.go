@@ -60,6 +60,13 @@ func (e *Element) TargetById(targetId string) *Element {
 
 type BoundaryEvent struct {
 	AttachedTo      *Element
+	EventDefinition EventDefinition
+}
+
+type EventDefinition struct {
+	Id string
+
+	Error *Error
 }
 
 type ExclusiveGateway struct {

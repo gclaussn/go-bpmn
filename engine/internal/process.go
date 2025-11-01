@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 	"sync"
 	"time"
@@ -249,10 +250,23 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	}
 
 	// validate events
+	var (
+		errorCodes = make(map[string]string)
+	)
+
+	maps.Copy(errorCodes, cmd.ErrorCodes)
+
 	for _, bpmnElement := range bpmnElements {
-		errorCode := cmd.ErrorCodes[bpmnElement.Id]
-		if errorCode != "" {
-			if bpmnElement.Type != model.ElementErrorBoundaryEvent {
+		_, ok := errorCodes[bpmnElement.Id]
+		if bpmnElement.Type == model.ElementErrorBoundaryEvent {
+			if !ok {
+				boundaryEvent := bpmnElement.Model.(model.BoundaryEvent)
+				if bpmnError := boundaryEvent.EventDefinition.Error; bpmnError != nil {
+					errorCodes[bpmnElement.Id] = bpmnError.Code
+				}
+			}
+		} else {
+			if ok {
 				causes = append(causes, engine.ErrorCause{
 					Pointer: elementPointer(bpmnElement),
 					Type:    "error_event",
@@ -406,14 +420,14 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	}
 
 	eventDefinitions := make([]*EventDefinitionEntity, 0, 0+
-		len(cmd.ErrorCodes)+
+		len(errorCodes)+
 		len(cmd.MessageNames)+
 		len(cmd.SignalNames)+
 		len(cmd.Timers),
 	)
 
 	// prepare error event definitions
-	for bpmnElementId, errorCode := range cmd.ErrorCodes {
+	for bpmnElementId, errorCode := range errorCodes {
 		node, ok := graph.nodes[bpmnElementId]
 		if !ok {
 			causes = append(causes, engine.ErrorCause{

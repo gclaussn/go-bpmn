@@ -13,22 +13,24 @@ func newErrorEventTest(t *testing.T, e engine.Engine) errorEventTest {
 	return errorEventTest{
 		e: e,
 
-		boundaryTest:         mustCreateProcess(t, e, "event/error-boundary-event.bpmn", "errorBoundaryEventTest"),
-		boundaryMultipleTest: mustCreateProcess(t, e, "event/error-boundary-multiple-event.bpmn", "errorBoundaryMultipleEventTest"),
+		boundaryEventDefinitionProcess: mustCreateProcess(t, e, "event/error-boundary-event-definition.bpmn", "errorBoundaryEventDefinitionTest"),
+		boundaryProcess:                mustCreateProcess(t, e, "event/error-boundary-event.bpmn", "errorBoundaryEventTest"),
+		boundaryMultipleProcess:        mustCreateProcess(t, e, "event/error-boundary-multiple-event.bpmn", "errorBoundaryMultipleEventTest"),
 	}
 }
 
 type errorEventTest struct {
 	e engine.Engine
 
-	boundaryTest         engine.Process
-	boundaryMultipleTest engine.Process
+	boundaryEventDefinitionProcess engine.Process
+	boundaryProcess                engine.Process
+	boundaryMultipleProcess        engine.Process
 }
 
 func (x errorEventTest) boundary(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
-	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryTest)
+	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryProcess)
 
 	piAssert.IsWaitingAt("serviceTask")
 
@@ -63,8 +65,8 @@ func (x errorEventTest) boundary(t *testing.T) {
 	assert.Equal(engine.JobExecute, jobs[1].Type)
 }
 
-// boundaryWithEventDefinition tests that for an error boundary event with event definition, no SET_ERROR_CODE job is created.
-func (x errorEventTest) boundaryWithEventDefinition(t *testing.T) {
+// boundaryWithCode tests that for an error boundary event with error code, no SET_ERROR_CODE job is created.
+func (x errorEventTest) boundaryWithCode(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
 	bpmnXml := mustReadBpmnFile(t, "event/error-boundary-event.bpmn")
@@ -103,7 +105,7 @@ func (x errorEventTest) boundaryWithEventDefinition(t *testing.T) {
 
 // boundaryWithoutCode tests that an error boundary event without error code is found and executed.
 func (x errorEventTest) boundaryWithoutCode(t *testing.T) {
-	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryTest)
+	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryProcess)
 
 	piAssert.IsWaitingAt("serviceTask")
 
@@ -126,7 +128,7 @@ func (x errorEventTest) boundaryWithoutCode(t *testing.T) {
 func (x errorEventTest) boundaryTerminated(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
-	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryTest)
+	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryProcess)
 
 	piAssert.IsWaitingAt("serviceTask")
 
@@ -151,12 +153,32 @@ func (x errorEventTest) boundaryTerminated(t *testing.T) {
 	assert.Equal(engine.InstanceTerminated, elementInstances[3].State) // errorBoundaryEvent
 }
 
+func (x errorEventTest) boundaryNotFound(t *testing.T) {
+	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryProcess)
+
+	piAssert.IsWaitingAt("serviceTask")
+
+	piAssert.IsWaitingAt("errorBoundaryEvent")
+	piAssert.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			ErrorCode: "TEST_CODE",
+		},
+	})
+
+	piAssert.IsWaitingAt("serviceTask")
+	piAssert.CompleteJobWithError(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			ErrorCode: "not-existing",
+		},
+	})
+}
+
 // boundaryMultiple tests if the error boundary event with the concrete error code is executed,
 // when there is also an error boundary event with an empty error code.
 func (x errorEventTest) boundaryMultiple(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
-	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryMultipleTest)
+	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryMultipleProcess)
 
 	piAssert.IsWaitingAt("serviceTask")
 
@@ -196,22 +218,18 @@ func (x errorEventTest) boundaryMultiple(t *testing.T) {
 	assert.Equal(engine.JobExecute, jobs[2].Type)
 }
 
-func (x errorEventTest) boundaryNotFound(t *testing.T) {
-	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryTest)
+// boundaryWithEventDefinition tests that for an error boundary event with event definition, no SET_ERROR_CODE job is created.
+func (x errorEventTest) boundaryWithEventDefinition(t *testing.T) {
+	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryEventDefinitionProcess)
 
 	piAssert.IsWaitingAt("serviceTask")
-
-	piAssert.IsWaitingAt("errorBoundaryEvent")
 	piAssert.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
-			ErrorCode: "TEST_CODE",
+			ErrorCode: "testErrorCode",
 		},
 	})
 
-	piAssert.IsWaitingAt("serviceTask")
-	piAssert.CompleteJobWithError(engine.CompleteJobCmd{
-		Completion: &engine.JobCompletion{
-			ErrorCode: "not-existing",
-		},
-	})
+	piAssert.HasPassed("errorBoundaryEvent")
+	piAssert.HasPassed("endEventB")
+	piAssert.IsCompleted()
 }

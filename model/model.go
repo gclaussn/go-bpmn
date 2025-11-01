@@ -78,9 +78,26 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				definitionsParsed = true
 			case "endEvent":
 				addNewElement(ElementNoneEndEvent, t.Attr)
+			case "error":
+				bpmnErrorId := getAttrValue(t.Attr, "id")
+				bpmnError := definitions.errorById(bpmnErrorId)
+				bpmnError.Name = getAttrValue(t.Attr, "name")
+				bpmnError.Code = getAttrValue(t.Attr, "errorCode")
 			case "errorEventDefinition":
 				if element.Type == 0 {
 					element.Type = ElementErrorBoundaryEvent
+				}
+
+				eventDefinition := EventDefinition{Id: getAttrValue(t.Attr, "id")}
+
+				if bpmnErrorId := getAttrValue(t.Attr, "errorRef"); bpmnErrorId != "" {
+					eventDefinition.Error = definitions.errorById(bpmnErrorId)
+				}
+
+				switch model := element.Model.(type) {
+				case BoundaryEvent:
+					model.EventDefinition = eventDefinition
+					element.Model = model
 				}
 			case "exclusiveGateway":
 				addNewElement(ElementExclusiveGateway, t.Attr)
@@ -279,7 +296,26 @@ func (m *Model) ProcessById(id string) *Element {
 type Definitions struct {
 	Id string
 
+	Errors    []*Error
 	Processes []*Element
+}
+
+func (d *Definitions) errorById(id string) *Error {
+	for _, bpmnError := range d.Errors {
+		if bpmnError.Id == id {
+			return bpmnError
+		}
+	}
+
+	bpmnError := &Error{Id: id}
+	d.Errors = append(d.Errors, bpmnError)
+	return bpmnError
+}
+
+type Error struct {
+	Id   string
+	Name string
+	Code string
 }
 
 type SequenceFlow struct {
