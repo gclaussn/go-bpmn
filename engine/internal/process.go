@@ -428,12 +428,12 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 	// prepare error event definitions
 	for bpmnElementId, errorCode := range errorCodes {
-		node, ok := graph.nodes[bpmnElementId]
-		if !ok {
+		node, err := graph.node(bpmnElementId)
+		if err != nil {
 			causes = append(causes, engine.ErrorCause{
 				Pointer: elementPointer(graph.processElement),
 				Type:    "error_event",
-				Detail:  fmt.Sprintf("BPMN process %s has no element %s", processElement.Id, bpmnElementId),
+				Detail:  err.Error(),
 			})
 			continue
 		}
@@ -453,12 +453,12 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 	// prepare message event definitions
 	for bpmnElementId, messageName := range cmd.MessageNames {
-		node, ok := graph.nodes[bpmnElementId]
-		if !ok {
+		node, err := graph.node(bpmnElementId)
+		if err != nil {
 			causes = append(causes, engine.ErrorCause{
 				Pointer: elementPointer(graph.processElement),
 				Type:    "message_event",
-				Detail:  fmt.Sprintf("BPMN process %s has no element %s", processElement.Id, bpmnElementId),
+				Detail:  err.Error(),
 			})
 			continue
 		}
@@ -482,12 +482,12 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 	// prepare signal event definitions
 	for bpmnElementId, signalName := range cmd.SignalNames {
-		node, ok := graph.nodes[bpmnElementId]
-		if !ok {
+		node, err := graph.node(bpmnElementId)
+		if err != nil {
 			causes = append(causes, engine.ErrorCause{
 				Pointer: elementPointer(graph.processElement),
 				Type:    "signal_event",
-				Detail:  fmt.Sprintf("BPMN process %s has no element %s", processElement.Id, bpmnElementId),
+				Detail:  err.Error(),
 			})
 			continue
 		}
@@ -513,12 +513,12 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	triggerTimerEventTasks := make([]*TaskEntity, 0, len(cmd.Timers))
 
 	for bpmnElementId, timer := range cmd.Timers {
-		node, ok := graph.nodes[bpmnElementId]
-		if !ok {
+		node, err := graph.node(bpmnElementId)
+		if err != nil {
 			causes = append(causes, engine.ErrorCause{
 				Pointer: elementPointer(graph.processElement),
 				Type:    "timer_event",
-				Detail:  fmt.Sprintf("BPMN process %s has no element %s", processElement.Id, bpmnElementId),
+				Detail:  err.Error(),
 			})
 			continue
 		}

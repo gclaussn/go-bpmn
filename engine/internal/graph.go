@@ -155,53 +155,18 @@ type graph struct {
 	processElement *model.Element  // root element
 }
 
-func (g graph) createExecution(scope *ElementInstanceEntity) (ElementInstanceEntity, error) {
-	scopeNode, ok := g.nodes[scope.BpmnElementId]
-	if !ok {
-		return ElementInstanceEntity{}, fmt.Errorf("BPMN process %s has no element %s", g.processElement.Id, scope.BpmnElementId)
-	}
-
-	var noneStartEvents []*model.Element
-	switch scopeNode.bpmnElement.Type {
-	case model.ElementProcess:
-		noneStartEvents = scopeNode.bpmnElement.ChildrenByType(model.ElementNoneStartEvent)
-	}
-
-	if len(noneStartEvents) == 0 {
-		return ElementInstanceEntity{}, fmt.Errorf("BPMN scope %s has no none start event element", scope.BpmnElementId)
-	}
-
-	node := g.nodes[noneStartEvents[0].Id]
-
-	execution := ElementInstanceEntity{
-		Partition: scope.Partition,
-
-		ElementId:         node.id,
-		ProcessId:         scope.ProcessId,
-		ProcessInstanceId: scope.ProcessInstanceId,
-
-		BpmnElementId:   noneStartEvents[0].Id,
-		BpmnElementType: noneStartEvents[0].Type,
-
-		parent: scope,
-	}
-
-	scope.ExecutionCount = 1
-
-	return execution, nil
-}
-
 func (g graph) continueExecution(executions []*ElementInstanceEntity, execution *ElementInstanceEntity) ([]*ElementInstanceEntity, error) {
-	node, ok := g.nodes[execution.BpmnElementId]
-	if !ok {
-		return executions, fmt.Errorf("BPMN process %s has no element %s", g.processElement.Id, execution.BpmnElementId)
-	}
-
-	if execution.State == engine.InstanceCompleted || execution.State == engine.InstanceTerminated {
-		return executions, nil // skip
+	node, err := g.node(execution.BpmnElementId)
+	if err != nil {
+		return executions, err
 	}
 
 	scope := execution.parent
+
+	if execution.State == engine.InstanceCompleted || execution.State == engine.InstanceTerminated {
+		scope.ExecutionCount--
+		return executions, nil // skip already completed or terminated execution
+	}
 
 	if scope.State == engine.InstanceQueued {
 		// end branch
@@ -300,11 +265,10 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 			}
 
 			executions = append(executions, &next)
-
-			scope.ExecutionCount = scope.ExecutionCount + 1
+			scope.ExecutionCount++
 		}
 
-		scope.ExecutionCount = scope.ExecutionCount - 1
+		scope.ExecutionCount--
 
 		if scope.ExecutionCount == 0 {
 			if scope.ParentId.Valid {
@@ -331,7 +295,7 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 				attachedNode := g.nodes[attachment.Id]
 
 				// start branch
-				next := ElementInstanceEntity{
+				attached := ElementInstanceEntity{
 					Partition: scope.Partition,
 
 					ElementId:         attachedNode.id,
@@ -346,12 +310,13 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 				}
 
 				if attachedNode.eventDefinition != nil {
-					next.Context = pgtype.Text{String: attachedNode.eventContext(), Valid: true}
+					attached.Context = pgtype.Text{String: attachedNode.eventContext(), Valid: true}
 				} else {
 					executionCount--
 				}
 
-				executions = append(executions, &next)
+				executions = append(executions, &attached)
+				scope.ExecutionCount++
 			}
 
 			if executionCount == 0 {
@@ -365,15 +330,51 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 	return executions, nil
 }
 
-func (g graph) createExecutionAt(scope *ElementInstanceEntity, bpmnElementId string) (ElementInstanceEntity, error) {
-	scopeNode, ok := g.nodes[scope.BpmnElementId]
-	if !ok {
-		return ElementInstanceEntity{}, fmt.Errorf("BPMN process %s has no element %s", g.processElement.Id, scope.BpmnElementId)
+func (g graph) createExecution(scope *ElementInstanceEntity) (ElementInstanceEntity, error) {
+	scopeNode, err := g.node(scope.BpmnElementId)
+	if err != nil {
+		return ElementInstanceEntity{}, err
 	}
 
-	node, ok := g.nodes[bpmnElementId]
-	if !ok {
-		return ElementInstanceEntity{}, fmt.Errorf("BPMN process %s has no element %s", g.processElement.Id, bpmnElementId)
+	var noneStartEvents []*model.Element
+	switch scopeNode.bpmnElement.Type {
+	case model.ElementProcess:
+		noneStartEvents = scopeNode.bpmnElement.ChildrenByType(model.ElementNoneStartEvent)
+	}
+
+	if len(noneStartEvents) == 0 {
+		return ElementInstanceEntity{}, fmt.Errorf("BPMN scope %s has no none start event element", scope.BpmnElementId)
+	}
+
+	node := g.nodes[noneStartEvents[0].Id]
+
+	execution := ElementInstanceEntity{
+		Partition: scope.Partition,
+
+		ElementId:         node.id,
+		ProcessId:         scope.ProcessId,
+		ProcessInstanceId: scope.ProcessInstanceId,
+
+		BpmnElementId:   noneStartEvents[0].Id,
+		BpmnElementType: noneStartEvents[0].Type,
+
+		parent: scope,
+	}
+
+	scope.ExecutionCount++
+
+	return execution, nil
+}
+
+func (g graph) createExecutionAt(scope *ElementInstanceEntity, bpmnElementId string) (ElementInstanceEntity, error) {
+	scopeNode, err := g.node(scope.BpmnElementId)
+	if err != nil {
+		return ElementInstanceEntity{}, err
+	}
+
+	node, err := g.node(bpmnElementId)
+	if err != nil {
+		return ElementInstanceEntity{}, err
 	}
 
 	if node.bpmnElement.Parent != scopeNode.bpmnElement {
@@ -393,7 +394,7 @@ func (g graph) createExecutionAt(scope *ElementInstanceEntity, bpmnElementId str
 		parent: scope,
 	}
 
-	scope.ExecutionCount = scope.ExecutionCount + 1
+	scope.ExecutionCount++
 
 	return execution, nil
 }
@@ -417,10 +418,19 @@ func (g graph) createProcessScope(processInstance *ProcessInstanceEntity) Elemen
 	}
 }
 
+func (g graph) elementByElementId(elementId int32) *model.Element {
+	for _, node := range g.nodes {
+		if node.id == elementId {
+			return node.bpmnElement
+		}
+	}
+	return nil
+}
+
 func (g graph) ensureSequenceFlow(sourceId string, targetId string) error {
-	node, ok := g.nodes[sourceId]
-	if !ok {
-		return fmt.Errorf("BPMN process %s has no element %s", g.processElement.Id, sourceId)
+	node, err := g.node(sourceId)
+	if err != nil {
+		return err
 	}
 	if node.bpmnElement.TargetById(targetId) == nil {
 		return fmt.Errorf("BPMN element %s has no outgoing sequence flow to %s", sourceId, targetId)
@@ -433,9 +443,9 @@ func (g graph) joinParallelGateway(waiting []*ElementInstanceEntity) ([]*Element
 		return nil, nil
 	}
 
-	node, ok := g.nodes[waiting[0].BpmnElementId]
-	if !ok {
-		return nil, fmt.Errorf("BPMN process %s has no element %s", g.processElement.Id, waiting[0].BpmnElementId)
+	node, err := g.node(waiting[0].BpmnElementId)
+	if err != nil {
+		return nil, err
 	}
 
 	incoming := node.bpmnElement.Incoming
@@ -485,13 +495,12 @@ func (g graph) joinParallelGateway(waiting []*ElementInstanceEntity) ([]*Element
 	return nil, nil
 }
 
-func (g graph) elementByElementId(elementId int32) *model.Element {
-	for _, node := range g.nodes {
-		if node.id == elementId {
-			return node.bpmnElement
-		}
+func (g graph) node(bpmnElementId string) (node, error) {
+	if node, ok := g.nodes[bpmnElementId]; ok {
+		return node, nil
+	} else {
+		return node, fmt.Errorf("BPMN process %s has no element %s", g.processElement.Id, bpmnElementId)
 	}
-	return nil
 }
 
 // setEventDefinitions enriches graph nodes by adding event definitions.

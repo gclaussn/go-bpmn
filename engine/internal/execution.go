@@ -289,9 +289,9 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 
 	graph := ec.process.graph
 
-	node, ok := graph.nodes[execution.BpmnElementId]
-	if !ok {
-		job.Error = pgtype.Text{String: fmt.Sprintf("BPMN process %s has no element %s", graph.processElement.Id, execution.BpmnElementId), Valid: true}
+	node, err := graph.node(execution.BpmnElementId)
+	if err != nil {
+		job.Error = pgtype.Text{String: err.Error(), Valid: true}
 		return nil
 	}
 
@@ -325,15 +325,11 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 
 		execution.State = engine.InstanceCompleted
 
-		scope.ExecutionCount = scope.ExecutionCount - 1
-
 		next, err := graph.createExecutionAt(scope, targetId)
 		if err != nil {
 			job.Error = pgtype.Text{String: fmt.Sprintf("failed to create execution at %s: %v", targetId, err), Valid: true}
 			return nil
 		}
-
-		next.prev = execution
 
 		executions = append(executions, &next)
 	case engine.JobEvaluateInclusiveGateway:
@@ -378,16 +374,12 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 
 		execution.State = engine.InstanceCompleted
 
-		scope.ExecutionCount = scope.ExecutionCount - 1
-
 		for _, targetId := range targetIds {
 			next, err := graph.createExecutionAt(scope, targetId)
 			if err != nil {
 				job.Error = pgtype.Text{String: fmt.Sprintf("failed to create execution at %s: %v", targetId, err), Valid: true}
 				return nil
 			}
-
-			next.prev = execution
 
 			executions = append(executions, &next)
 		}
@@ -629,7 +621,6 @@ func (ec executionContext) handleParallelGateway(ctx Context, task *TaskEntity) 
 	for i, joinedExecution := range joined {
 		if i != 0 {
 			// end all, but first joined execution
-			joinedExecution.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
 			joinedExecution.State = engine.InstanceCompleted
 		}
 	}
@@ -638,8 +629,6 @@ func (ec executionContext) handleParallelGateway(ctx Context, task *TaskEntity) 
 	if err != nil {
 		return err
 	}
-
-	scope.ExecutionCount = scope.ExecutionCount - (len(joined) - 1)
 
 	joined = append(joined, scope)
 
