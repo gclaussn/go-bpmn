@@ -20,22 +20,20 @@ func TestConf(t *testing.T) {
 		conf := newConf()
 		conf.opts[optEncryptionKeys].defaultValue = encryptionKey
 		conf.opts[optEngineId].defaultValue = "engine-id"
-		conf.opts[optJobRetryCount].defaultValue = "3"
-		conf.opts[optJobRetryTimer].defaultValue = "PT1M"
 		conf.opts[optTaskExecutorEnabled].defaultValue = "true"
 		conf.opts[optTaskExecutorInterval].defaultValue = (30 * time.Second).String()
 		conf.opts[optTaskExecutorLimit].defaultValue = "100"
+		conf.opts[optTaskRetryLimit].defaultValue = "3"
 
 		var options engine.Options
 		conf.getEngineOptions(&options)
 
 		assert.NotEqual(engine.Encryption{}, options.Encryption)
 		assert.Equal("engine-id", options.EngineId)
-		assert.Equal(3, options.JobRetryCount)
-		assert.Equal("PT1M", options.JobRetryTimer.String())
 		assert.True(options.TaskExecutorEnabled)
 		assert.Equal("30s", options.TaskExecutorInterval.String())
 		assert.Equal(100, options.TaskExecutorLimit)
+		assert.Equal(3, options.TaskRetryLimit)
 
 		assert.Equal(0, listConfErrors(conf))
 	})
@@ -44,21 +42,19 @@ func TestConf(t *testing.T) {
 		conf := newConf()
 		conf.opts[optEncryptionKeys].defaultValue = "invalid-encryption-key"
 		conf.opts[optEngineId].defaultValue = ""
-		conf.opts[optJobRetryCount].defaultValue = "invalid-job-retry-count"
-		conf.opts[optJobRetryTimer].defaultValue = "invalid-job-retry-timer"
 		conf.opts[optTaskExecutorEnabled].defaultValue = "invalid-task-executor-enabled"
 		conf.opts[optTaskExecutorInterval].defaultValue = "invalid-task-executor-interval"
 		conf.opts[optTaskExecutorLimit].defaultValue = "invalid-task-executor-limit"
+		conf.opts[optTaskRetryLimit].defaultValue = "invalid-task-retry-limit"
 
 		conf.getEngineOptions(&engine.Options{})
 
 		assert.NotNil(conf.opts[optEncryptionKeys].err)
 		assert.NotNil(conf.opts[optEngineId].err)
-		assert.NotNil(conf.opts[optJobRetryCount].err)
-		assert.NotNil(conf.opts[optJobRetryTimer].err)
 		assert.NotNil(conf.opts[optTaskExecutorEnabled].err)
 		assert.NotNil(conf.opts[optTaskExecutorInterval].err)
 		assert.NotNil(conf.opts[optTaskExecutorLimit].err)
+		assert.NotNil(conf.opts[optTaskRetryLimit].err)
 
 		buffer := bytes.NewBufferString("")
 		log.SetOutput(buffer)
@@ -67,11 +63,10 @@ func TestConf(t *testing.T) {
 
 		assert.Contains(buffer.String(), "GO_BPMN_ENCRYPTION_KEYS=invalid-encryption-key: ")
 		assert.Contains(buffer.String(), "GO_BPMN_ENGINE_ID: ")
-		assert.Contains(buffer.String(), "GO_BPMN_JOB_RETRY_COUNT=invalid-job-retry-count: ")
-		assert.Contains(buffer.String(), "GO_BPMN_JOB_RETRY_TIMER=invalid-job-retry-timer: ")
 		assert.Contains(buffer.String(), "GO_BPMN_TASK_EXECUTOR_ENABLED=invalid-task-executor-enabled: ")
 		assert.Contains(buffer.String(), "GO_BPMN_TASK_EXECUTOR_INTERVAL=invalid-task-executor-interval: ")
 		assert.Contains(buffer.String(), "GO_BPMN_TASK_EXECUTOR_LIMIT=invalid-task-executor-limit: ")
+		assert.Contains(buffer.String(), "GO_BPMN_TASK_RETRY_LIMIT=invalid-task-retry-limit: ")
 	})
 
 	t.Run("get server options", func(t *testing.T) {

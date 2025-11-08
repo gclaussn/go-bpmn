@@ -159,8 +159,6 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 		}
 
 		if jobType != 0 {
-			retryTimer := ctx.Options().JobRetryTimer
-
 			job := JobEntity{
 				Partition: execution.Partition,
 
@@ -173,8 +171,6 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 				CreatedAt:      ctx.Time(),
 				CreatedBy:      ec.engineOrWorkerId,
 				DueAt:          ctx.Time(),
-				RetryCount:     ctx.Options().JobRetryCount,
-				RetryTimer:     pgtype.Text{String: retryTimer.String(), Valid: !retryTimer.IsZero()},
 				Type:           jobType,
 			}
 

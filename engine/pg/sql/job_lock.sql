@@ -51,5 +51,4 @@ RETURNING
 	job.locked_at,
 	job.locked_by,
 	job.retry_count,
-	job.retry_timer,
 	job.type

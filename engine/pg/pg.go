@@ -92,10 +92,10 @@ func NewOptions() Options {
 		Common: engine.Options{
 			DefaultQueryLimit:    1000,
 			EngineId:             engine.DefaultEngineId,
-			JobRetryCount:        1,
 			TaskExecutorEnabled:  true,
 			TaskExecutorInterval: 60 * time.Second,
 			TaskExecutorLimit:    10,
+			TaskRetryLimit:       0,
 		},
 
 		DropPartitionEnabled: true,

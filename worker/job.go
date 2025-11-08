@@ -8,18 +8,18 @@ import (
 	"github.com/gclaussn/go-bpmn/engine"
 )
 
-func NewJobError(err error, retryCount int) error {
+func NewJobError(err error, retryLimit int) error {
 	return jobError{
 		err:        err,
-		retryCount: retryCount,
+		retryLimit: retryLimit,
 		retryTimer: engine.ISO8601Duration(""),
 	}
 }
 
-func NewJobErrorWithTimer(err error, retryCount int, retryTimer engine.ISO8601Duration) error {
+func NewJobErrorWithTimer(err error, retryLimit int, retryTimer engine.ISO8601Duration) error {
 	return jobError{
 		err:        err,
-		retryCount: retryCount,
+		retryLimit: retryLimit,
 		retryTimer: retryTimer,
 	}
 }
@@ -264,7 +264,7 @@ func (jc JobContext) SetProcessVariables(processVariables Variables) {
 
 type jobError struct {
 	err        error
-	retryCount int
+	retryLimit int
 	retryTimer engine.ISO8601Duration
 }
 

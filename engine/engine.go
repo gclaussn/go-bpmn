@@ -49,6 +49,8 @@ type Engine interface {
 	LockJobs(context.Context, LockJobsCmd) ([]Job, error)
 
 	// ResolveIncident resolves a job or task related incident.
+	//
+	// When an incident is resolved, a retry job or task is created. The retry count is set to 0.
 	ResolveIncident(context.Context, ResolveIncidentCmd) error
 
 	// ResumeProcessInstance resumes a suspended process instance.
@@ -108,14 +110,13 @@ type Query interface {
 
 // Options are common configuration options that are shared between engine implementations.
 type Options struct {
-	DefaultQueryLimit    int             // Default limit for queries, executed without an explicit limit.
-	Encryption           Encryption      // Encryption is needed for the encryption and decryption of variable data.
-	EngineId             string          // ID of the engine.
-	JobRetryCount        int             // Optional retry count, used for job creation.
-	JobRetryTimer        ISO8601Duration // Optional retry timer, used for job creation.
-	TaskExecutorEnabled  bool            // Enables or disables the engine's task executor.
-	TaskExecutorInterval time.Duration   // Interval between execution of due tasks.
-	TaskExecutorLimit    int             // Maximum number of due tasks to lock and execute at once.
+	DefaultQueryLimit    int           // Default limit for queries, executed without an explicit limit.
+	Encryption           Encryption    // Encryption is needed for the encryption and decryption of variable data.
+	EngineId             string        // ID of the engine.
+	TaskExecutorEnabled  bool          // Enables or disables the engine's task executor.
+	TaskExecutorInterval time.Duration // Interval between execution of due tasks.
+	TaskExecutorLimit    int           // Maximum number of due tasks to lock and execute at once.
+	TaskRetryLimit       int           // Maximum number of task retries.
 
 	OnTaskExecutionFailure func(Task, error) // Called when the engine failed to execute a locked task.
 }
@@ -123,9 +124,6 @@ type Options struct {
 func (o Options) Validate() error {
 	if strings.TrimSpace(o.EngineId) == "" {
 		return errors.New("engine ID must not be empty or blank")
-	}
-	if o.JobRetryCount < 1 {
-		return errors.New("job retry count must be greater than or equal to 1")
 	}
 	if o.TaskExecutorInterval.Milliseconds() < 1000 {
 		return errors.New("task executor interval must be greater than or equal to 1000 ms")
@@ -135,6 +133,9 @@ func (o Options) Validate() error {
 	}
 	if o.TaskExecutorLimit > 1000 {
 		return errors.New("task executor limit must be must be less than or equal to 1000")
+	}
+	if o.TaskRetryLimit < 0 {
+		return errors.New("task retry limit must be greater than or equal to 0")
 	}
 
 	return nil

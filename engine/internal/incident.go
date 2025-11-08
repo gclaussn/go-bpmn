@@ -54,10 +54,6 @@ type IncidentRepository interface {
 }
 
 func ResolveIncident(ctx Context, cmd engine.ResolveIncidentCmd) error {
-	if cmd.RetryCount <= 0 {
-		cmd.RetryCount = 1
-	}
-
 	incident, err := ctx.Incidents().Select(time.Time(cmd.Partition), cmd.Id)
 	if err == pgx.ErrNoRows {
 		return engine.Error{
@@ -86,8 +82,6 @@ func ResolveIncident(ctx Context, cmd engine.ResolveIncidentCmd) error {
 
 	dueAt := cmd.RetryTimer.Calculate(ctx.Time())
 
-	retryTimer := pgtype.Text{String: cmd.RetryTimer.String(), Valid: !cmd.RetryTimer.IsZero()}
-
 	if incident.JobId.Valid {
 		job, err := ctx.Jobs().Select(incident.Partition, incident.JobId.Int32)
 		if err != nil {
@@ -107,8 +101,6 @@ func ResolveIncident(ctx Context, cmd engine.ResolveIncidentCmd) error {
 			CreatedAt:      ctx.Time(),
 			CreatedBy:      cmd.WorkerId,
 			DueAt:          dueAt,
-			RetryCount:     cmd.RetryCount,
-			RetryTimer:     retryTimer,
 			Type:           job.Type,
 		}
 
@@ -130,8 +122,6 @@ func ResolveIncident(ctx Context, cmd engine.ResolveIncidentCmd) error {
 			CreatedAt:      ctx.Time(),
 			CreatedBy:      cmd.WorkerId,
 			DueAt:          dueAt,
-			RetryCount:     cmd.RetryCount,
-			RetryTimer:     retryTimer,
 			SerializedTask: task.SerializedTask,
 			Type:           task.Type,
 

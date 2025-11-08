@@ -196,8 +196,7 @@ func TestCompleteJob(t *testing.T) {
 				Error:              "",
 				LockedAt:           lockedJobs[0].LockedAt,
 				LockedBy:           testWorkerId,
-				RetryCount:         1,
-				RetryTimer:         engine.ISO8601Duration(""),
+				RetryCount:         0,
 				Type:               engine.JobExecute,
 			}, completedJob)
 
@@ -230,8 +229,7 @@ func TestCompleteJob(t *testing.T) {
 				Error:              "",
 				LockedAt:           lockedJobs[0].LockedAt,
 				LockedBy:           testWorkerId,
-				RetryCount:         1,
-				RetryTimer:         engine.ISO8601Duration(""),
+				RetryCount:         0,
 				Type:               engine.JobExecute,
 			}, results[0])
 		})
@@ -258,7 +256,7 @@ func TestCompleteJob(t *testing.T) {
 				Partition:  job.Partition,
 				Id:         job.Id,
 				Error:      "test-error",
-				RetryCount: 2,
+				RetryLimit: 1,
 				RetryTimer: engine.ISO8601Duration("PT1M"),
 				WorkerId:   testWorkerId,
 			}
@@ -299,8 +297,7 @@ func TestCompleteJob(t *testing.T) {
 				Error:              "",
 				LockedAt:           nil,
 				LockedBy:           "",
-				RetryCount:         cmd.RetryCount,
-				RetryTimer:         cmd.RetryTimer,
+				RetryCount:         1,
 				Type:               engine.JobExecute,
 			}, results[0])
 		})

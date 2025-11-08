@@ -28,7 +28,6 @@ type JobEntity struct {
 	LockedAt       pgtype.Timestamp
 	LockedBy       pgtype.Text
 	RetryCount     int
-	RetryTimer     pgtype.Text
 	Type           engine.JobType
 }
 
@@ -52,7 +51,6 @@ func (e JobEntity) Job() engine.Job {
 		LockedAt:       timeOrNil(e.LockedAt),
 		LockedBy:       e.LockedBy.String,
 		RetryCount:     e.RetryCount,
-		RetryTimer:     engine.ISO8601Duration(e.RetryTimer.String),
 		Type:           e.Type,
 	}
 }
@@ -230,7 +228,7 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 		return job.Job(), nil
 	}
 
-	if cmd.RetryCount > 0 {
+	if cmd.RetryLimit > job.RetryCount {
 		retryTimer := engine.ISO8601Duration(cmd.RetryTimer)
 
 		retry := JobEntity{
@@ -246,8 +244,7 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 			CreatedAt:      ctx.Time(),
 			CreatedBy:      cmd.WorkerId,
 			DueAt:          retryTimer.Calculate(ctx.Time()),
-			RetryCount:     cmd.RetryCount,
-			RetryTimer:     pgtype.Text{String: cmd.RetryTimer.String(), Valid: !cmd.RetryTimer.IsZero()},
+			RetryCount:     job.RetryCount + 1,
 			Type:           job.Type,
 		}
 

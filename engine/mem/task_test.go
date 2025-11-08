@@ -69,7 +69,6 @@ func TestExecuteTask(t *testing.T) {
 			ProcessInstanceId: pgtype.Int4{Int32: 10, Valid: true},
 
 			RetryCount:     2,
-			RetryTimer:     pgtype.Text{String: "PT1H", Valid: true},
 			SerializedTask: pgtype.Text{String: "{...}", Valid: true},
 			Type:           engine.TaskStartProcessInstance,
 
@@ -78,14 +77,14 @@ func TestExecuteTask(t *testing.T) {
 
 		mustInsertEntities(t, e, []any{entity})
 
+		memEngine.ctx.options.Common.TaskRetryLimit = 3
+
 		// when
 		ctx := memEngine.wlock()
 		err := internal.ExecuteTask(ctx, entity)
 		memEngine.unlock()
 
 		// then
-		expectedDueAt := ctx.Time().Add(time.Hour)
-
 		assert.Nil(err)
 		assert.True(entity.Error.Valid)
 		assert.Equal("NOT_FOUND: dummy title: dummy detail", entity.Error.String)
@@ -103,9 +102,8 @@ func TestExecuteTask(t *testing.T) {
 
 		assert.NotEmpty(results[0].CreatedAt)
 		assert.Equal(engine.DefaultEngineId, results[0].CreatedBy)
-		assert.Equal(expectedDueAt, results[0].DueAt)
-		assert.Equal(1, results[0].RetryCount)
-		assert.Equal(entity.RetryTimer.String, results[0].RetryTimer.String())
+		assert.Equal(ctx.Time(), results[0].DueAt)
+		assert.Equal(3, results[0].RetryCount)
 		assert.Equal(entity.SerializedTask.String, results[0].SerializedTask)
 		assert.Equal(entity.Type, results[0].Type)
 	})

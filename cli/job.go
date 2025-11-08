@@ -107,7 +107,7 @@ func newJobCompleteCmd(cli *Cli) *cobra.Command {
 	c.Flags().StringToStringVar(&elementVariablesV, "element-variable", nil, "Variable to set or delete at element instance scope")
 	c.Flags().StringVar(&cmd.Error, "error", "", "Optional error string, used to fail a job due to a technical problem")
 	c.Flags().StringToStringVar(&processVariablesV, "process-variable", nil, "Variable to set or delete at process instance scope")
-	c.Flags().IntVar(&cmd.RetryCount, "retry-count", 0, "Number of retries left")
+	c.Flags().IntVar(&cmd.RetryLimit, "retry-limit", 0, "Maximum number of retries")
 	c.Flags().Var(&retryTimer, "retry-timer", "Duration until the retry job becomes due")
 
 	c.Flags().StringVar(&completion.ExclusiveGatewayDecision, "exclusive-gateway-decision", "", "Evaluated BPMN element ID to continue with after the exclusive gateway")

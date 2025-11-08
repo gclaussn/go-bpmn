@@ -33,7 +33,6 @@ INSERT INTO job (
 	created_by,
 	due_at,
 	retry_count,
-	retry_timer,
 	type
 ) VALUES (
 	$1,
@@ -50,8 +49,7 @@ INSERT INTO job (
 	$10,
 	$11,
 	$12,
-	$13,
-	$14
+	$13
 ) RETURNING id
 `,
 		entity.Partition,
@@ -68,7 +66,6 @@ INSERT INTO job (
 		entity.CreatedBy,
 		entity.DueAt,
 		entity.RetryCount,
-		entity.RetryTimer,
 		entity.Type.String(),
 	)
 
@@ -97,7 +94,6 @@ SELECT
 	locked_at,
 	locked_by,
 	retry_count,
-	retry_timer,
 	type
 FROM
 	job
@@ -126,7 +122,6 @@ WHERE
 		&entity.LockedAt,
 		&entity.LockedBy,
 		&entity.RetryCount,
-		&entity.RetryTimer,
 		&typeValue,
 	); err != nil {
 		return nil, fmt.Errorf("failed to select job %s/%d: %v", partition.Format(time.DateOnly), id, err)
@@ -204,7 +199,6 @@ func (r jobRepository) Query(criteria engine.JobCriteria, options engine.QueryOp
 			&entity.LockedAt,
 			&entity.LockedBy,
 			&entity.RetryCount,
-			&entity.RetryTimer,
 			&typeValue,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan job row: %v", err)
@@ -255,7 +249,6 @@ func (r jobRepository) Lock(cmd engine.LockJobsCmd, lockedAt time.Time) ([]*inte
 			&entity.LockedAt,
 			&entity.LockedBy,
 			&entity.RetryCount,
-			&entity.RetryTimer,
 			&typeValue,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan job lock row: %v", err)

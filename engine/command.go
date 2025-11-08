@@ -17,8 +17,8 @@ type CompleteJobCmd struct {
 	Error string `json:"error,omitempty"`
 	// Variables to set or delete at process instance scope.
 	ProcessVariables map[string]*Data `json:"processVariables,omitempty" validate:"dive,keys,variable_name,endkeys,omitnil,required"`
-	// Number of retries left. If `> 0`, a retry job is created. Otherwise, an incident is created.
-	RetryCount int `json:"retryCount,omitempty" validate:"gte=0"`
+	// Maximum number of retries. If the retry count is less than the retry limit, a retry job is created. Otherwise, an incident is created.
+	RetryLimit int `json:"retryLimit,omitempty" validate:"gte=0"`
 	// Duration until a retry job becomes due. At this point in time a retry job can be locked by a worker.
 	RetryTimer ISO8601Duration `json:"retryTimer" validate:"iso8601_duration"`
 	// ID of the worker that locked and completed the job.
@@ -135,15 +135,12 @@ type LockJobsCmd struct {
 }
 
 // ResolveIncidentCmd is a command for resolving a job or a task related incident.
-// When an incident is resolved, a retry job or task is created.
 type ResolveIncidentCmd struct {
 	// Incident partition.
 	Partition Partition `json:"-"`
 	// Incident ID.
 	Id int32 `json:"-"`
 
-	// Number of retries the newly created job or task has left.
-	RetryCount int `json:"retryCount,omitempty" validate:"gte=1"`
 	// Duration until the retry job or task becomes due.
 	RetryTimer ISO8601Duration `json:"retryTimer" validate:"iso8601_duration"`
 

@@ -47,7 +47,6 @@ type TaskEntity struct {
 	LockedAt       pgtype.Timestamp
 	LockedBy       pgtype.Text
 	RetryCount     int
-	RetryTimer     pgtype.Text
 	SerializedTask pgtype.Text
 	Type           engine.TaskType
 
@@ -72,7 +71,6 @@ func (e TaskEntity) Task() engine.Task {
 		LockedAt:       timeOrNil(e.LockedAt),
 		LockedBy:       e.LockedBy.String,
 		RetryCount:     e.RetryCount,
-		RetryTimer:     engine.ISO8601Duration(e.RetryTimer.String),
 		SerializedTask: e.SerializedTask.String,
 		Type:           e.Type,
 	}
@@ -121,7 +119,7 @@ type TaskRepository interface {
 //
 // If the execution fails, a retry task is created. When all retries are depleted an incident is created.
 func ExecuteTask(ctx Context, task *TaskEntity) error {
-	retryCount := task.RetryCount
+	isRetry := ctx.Options().TaskRetryLimit > task.RetryCount
 
 	if task.Instance != nil {
 		if err := task.Instance.Execute(ctx, task); err != nil {
@@ -140,7 +138,7 @@ func ExecuteTask(ctx Context, task *TaskEntity) error {
 		}
 
 		task.Error = pgtype.Text{String: err.Error(), Valid: true}
-		retryCount = 0
+		isRetry = false
 	}
 
 	task.CompletedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
@@ -153,9 +151,7 @@ func ExecuteTask(ctx Context, task *TaskEntity) error {
 		return nil
 	}
 
-	if retryCount > 0 {
-		retryTimer := engine.ISO8601Duration(task.RetryTimer.String)
-
+	if isRetry {
 		retry := TaskEntity{
 			Partition: task.Partition,
 
@@ -166,9 +162,8 @@ func ExecuteTask(ctx Context, task *TaskEntity) error {
 
 			CreatedAt:      ctx.Time(),
 			CreatedBy:      ctx.Options().EngineId,
-			DueAt:          retryTimer.Calculate(ctx.Time()),
-			RetryCount:     retryCount - 1,
-			RetryTimer:     task.RetryTimer,
+			DueAt:          ctx.Time(),
+			RetryCount:     task.RetryCount + 1,
 			SerializedTask: task.SerializedTask,
 			Type:           task.Type,
 

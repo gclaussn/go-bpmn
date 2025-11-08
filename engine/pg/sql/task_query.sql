@@ -15,7 +15,6 @@ SELECT
 	locked_at,
 	locked_by,
 	retry_count,
-	retry_timer,
 	serialized_task,
 	type
 FROM

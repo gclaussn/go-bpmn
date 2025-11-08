@@ -62,10 +62,9 @@ func TestResolveIncident(t *testing.T) {
 
 		// when
 		cmd := engine.ResolveIncidentCmd{
-			Id:         incident.Id,
-			Partition:  engine.Partition(date),
-			RetryCount: 1,
-			WorkerId:   "test-worker",
+			Id:        incident.Id,
+			Partition: engine.Partition(date),
+			WorkerId:  "test-worker",
 		}
 
 		if err := e.ResolveIncident(context.Background(), cmd); err != nil {
@@ -113,8 +112,7 @@ func TestResolveIncident(t *testing.T) {
 			CreatedAt:      retryJob.CreatedAt,
 			CreatedBy:      cmd.WorkerId,
 			DueAt:          retryJob.CreatedAt,
-			RetryCount:     cmd.RetryCount,
-			RetryTimer:     engine.ISO8601Duration(""),
+			RetryCount:     0,
 			Type:           job.Type,
 		}, retryJob)
 
@@ -144,7 +142,6 @@ func TestResolveIncident(t *testing.T) {
 		cmd := engine.ResolveIncidentCmd{
 			Id:         incident.Id,
 			Partition:  engine.Partition(incident.Partition),
-			RetryCount: 3,
 			RetryTimer: engine.ISO8601Duration("PT1H"),
 			WorkerId:   "test-worker",
 		}
@@ -175,8 +172,7 @@ func TestResolveIncident(t *testing.T) {
 			CreatedAt:      retryJob.CreatedAt,
 			CreatedBy:      cmd.WorkerId,
 			DueAt:          retryJob.CreatedAt.Add(1 * time.Hour),
-			RetryCount:     cmd.RetryCount,
-			RetryTimer:     cmd.RetryTimer,
+			RetryCount:     0,
 			Type:           job.Type,
 		}, retryJob)
 	})
@@ -193,10 +189,9 @@ func TestResolveIncident(t *testing.T) {
 
 		// when
 		cmd := engine.ResolveIncidentCmd{
-			Id:         incident.Id,
-			Partition:  engine.Partition(incident.Partition),
-			RetryCount: 1,
-			WorkerId:   "test-worker",
+			Id:        incident.Id,
+			Partition: engine.Partition(incident.Partition),
+			WorkerId:  "test-worker",
 		}
 
 		if err := e.ResolveIncident(context.Background(), cmd); err != nil {
@@ -242,7 +237,7 @@ func TestResolveIncident(t *testing.T) {
 			CreatedAt:      retryTask.CreatedAt,
 			CreatedBy:      cmd.WorkerId,
 			DueAt:          retryTask.CreatedAt,
-			RetryCount:     cmd.RetryCount,
+			RetryCount:     0,
 			SerializedTask: retryTask.SerializedTask,
 			Type:           task.Type,
 		}, retryTask)
@@ -262,7 +257,6 @@ func TestResolveIncident(t *testing.T) {
 		cmd := engine.ResolveIncidentCmd{
 			Id:         incident.Id,
 			Partition:  engine.Partition(incident.Partition),
-			RetryCount: 1,
 			RetryTimer: engine.ISO8601Duration("P1D"),
 			WorkerId:   "test-worker",
 		}
@@ -291,8 +285,7 @@ func TestResolveIncident(t *testing.T) {
 			CreatedAt:      retryTask.CreatedAt,
 			CreatedBy:      cmd.WorkerId,
 			DueAt:          retryTask.CreatedAt.Add(24 * time.Hour),
-			RetryCount:     cmd.RetryCount,
-			RetryTimer:     cmd.RetryTimer,
+			RetryCount:     0,
 			SerializedTask: retryTask.SerializedTask,
 			Type:           task.Type,
 		}, retryTask)

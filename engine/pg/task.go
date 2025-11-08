@@ -44,7 +44,6 @@ INSERT INTO task (
 	created_by,
 	due_at,
 	retry_count,
-	retry_timer,
 	serialized_task,
 	type
 ) VALUES (
@@ -61,8 +60,7 @@ INSERT INTO task (
 	$9,
 	$10,
 	$11,
-	$12,
-	$13
+	$12
 ) RETURNING id
 `,
 		entity.Partition,
@@ -77,7 +75,6 @@ INSERT INTO task (
 		entity.CreatedBy,
 		entity.DueAt,
 		entity.RetryCount,
-		entity.RetryTimer,
 		entity.SerializedTask,
 		entity.Type.String(),
 	)
@@ -122,7 +119,6 @@ INSERT INTO task (
 	created_by,
 	due_at,
 	retry_count,
-	retry_timer,
 	serialized_task,
 	type
 ) VALUES (
@@ -139,8 +135,7 @@ INSERT INTO task (
 	$9,
 	$10,
 	$11,
-	$12,
-	$13
+	$12
 ) RETURNING id
 `,
 			entity.Partition,
@@ -155,7 +150,6 @@ INSERT INTO task (
 			entity.CreatedBy,
 			entity.DueAt,
 			entity.RetryCount,
-			entity.RetryTimer,
 			entity.SerializedTask,
 			entity.Type.String(),
 		)
@@ -191,7 +185,6 @@ SELECT
 	locked_at,
 	locked_by,
 	retry_count,
-	retry_timer,
 	serialized_task,
 	type
 FROM
@@ -219,7 +212,6 @@ WHERE
 		&entity.LockedAt,
 		&entity.LockedBy,
 		&entity.RetryCount,
-		&entity.RetryTimer,
 		&entity.SerializedTask,
 		&typeValue,
 	); err != nil {
@@ -296,7 +288,6 @@ func (r taskRepository) Query(criteria engine.TaskCriteria, options engine.Query
 			&entity.LockedAt,
 			&entity.LockedBy,
 			&entity.RetryCount,
-			&entity.RetryTimer,
 			&entity.SerializedTask,
 			&typeValue,
 		); err != nil {
@@ -350,7 +341,6 @@ func (r taskRepository) Lock(cmd engine.ExecuteTasksCmd, lockedAt time.Time) ([]
 			&entity.LockedAt,
 			&entity.LockedBy,
 			&entity.RetryCount,
-			&entity.RetryTimer,
 			&entity.SerializedTask,
 			&typeValue,
 		); err != nil {

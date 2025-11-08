@@ -45,7 +45,6 @@ func newIncidentResolveCmd(cli *Cli) *cobra.Command {
 	c.Flags().Var(&partition, "partition", "Incident partition")
 	c.Flags().Int32Var(&cmd.Id, "id", 0, "Incident ID")
 
-	c.Flags().IntVar(&cmd.RetryCount, "retry-count", 0, "Number of retries the newly created job or task has left")
 	c.Flags().Var(&retryTimer, "retry-timer", "Duration until the retry job or task becomes due")
 
 	c.MarkFlagRequired("partition")

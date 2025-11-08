@@ -52,6 +52,5 @@ RETURNING
 	task.locked_at,
 	task.locked_by,
 	task.retry_count,
-	task.retry_timer,
   task.serialized_task,
 	task.type

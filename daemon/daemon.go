@@ -20,11 +20,10 @@ const (
 
 	optEncryptionKeys       = "ENCRYPTION_KEYS"
 	optEngineId             = "ENGINE_ID"
-	optJobRetryCount        = "JOB_RETRY_COUNT"
-	optJobRetryTimer        = "JOB_RETRY_TIMER"
 	optTaskExecutorEnabled  = "TASK_EXECUTOR_ENABLED"
 	optTaskExecutorInterval = "TASK_EXECUTOR_INTERVAL"
 	optTaskExecutorLimit    = "TASK_EXECUTOR_LIMIT"
+	optTaskRetryLimit       = "TASK_RETRY_LIMIT"
 
 	optHttpBindAddress  = "HTTP_BIND_ADDRESS"
 	optHttpReadTimeout  = "HTTP_READ_TIMEOUT"
@@ -81,30 +80,6 @@ func newConf() *conf {
 		},
 	)
 	conf.addEngineOption(
-		optJobRetryCount,
-		"retry count, used for job creation",
-		func(o engine.Options) string {
-			return strconv.Itoa(o.JobRetryCount)
-		},
-		func(o *engine.Options, co *confOpt) error {
-			jobRetryCount, err := strconv.ParseInt(co.value(), 10, 32)
-			o.JobRetryCount = int(jobRetryCount)
-			return err
-		},
-	)
-	conf.addEngineOption(
-		optJobRetryTimer,
-		"retry timer, used for job creation",
-		func(o engine.Options) string {
-			return o.JobRetryTimer.String()
-		},
-		func(o *engine.Options, co *confOpt) error {
-			jobRetryTimer, err := engine.NewISO8601Duration(co.value())
-			o.JobRetryTimer = jobRetryTimer
-			return err
-		},
-	)
-	conf.addEngineOption(
 		optTaskExecutorEnabled,
 		"enable or disable the engine's task executor",
 		func(o engine.Options) string {
@@ -137,6 +112,18 @@ func newConf() *conf {
 		func(o *engine.Options, co *confOpt) error {
 			taskExecutorLimit, err := strconv.ParseInt(co.value(), 10, 32)
 			o.TaskExecutorLimit = int(taskExecutorLimit)
+			return err
+		},
+	)
+	conf.addEngineOption(
+		optTaskRetryLimit,
+		"maximum number of task retries",
+		func(o engine.Options) string {
+			return strconv.Itoa(o.TaskRetryLimit)
+		},
+		func(o *engine.Options, co *confOpt) error {
+			taskRetryLimit, err := strconv.ParseInt(co.value(), 10, 32)
+			o.TaskRetryLimit = int(taskRetryLimit)
 			return err
 		},
 	)

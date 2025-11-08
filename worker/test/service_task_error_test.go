@@ -11,7 +11,6 @@ import (
 )
 
 type serviceTaskErrorDelegate struct {
-	count int
 }
 
 func (d serviceTaskErrorDelegate) CreateProcessCmd() (engine.CreateProcessCmd, error) {
@@ -32,13 +31,11 @@ func (d serviceTaskErrorDelegate) Delegate(delegator worker.Delegator) error {
 	return nil
 }
 
-func (d *serviceTaskErrorDelegate) executeServiceTask(jc worker.JobContext) error {
-	d.count++
-
-	if d.count != 3 {
+func (d serviceTaskErrorDelegate) executeServiceTask(jc worker.JobContext) error {
+	if jc.Job.RetryCount < 2 {
 		return worker.NewJobErrorWithTimer(
 			errors.New("test error"),
-			3-d.count,
+			2,
 			engine.ISO8601Duration("PT1H"),
 		)
 	}

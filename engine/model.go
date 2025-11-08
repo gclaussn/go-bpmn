@@ -420,15 +420,12 @@ type Job struct {
 	CorrelationKey     string     `json:"correlationKey,omitempty"`             // Correlation key of the process instance.
 	CreatedAt          time.Time  `json:"createdAt" validate:"required"`        // Creation time.
 	CreatedBy          string     `json:"createdBy" validate:"required"`        // ID of the worker or engine that created the job.
-	DueAt              time.Time  `json:"dueAt" validate:"required"`            // Due date.
+	DueAt              time.Time  `json:"dueAt" validate:"required"`            // Point in time when a job can be locked by a worker.
 	Error              string     `json:"error,omitempty"`                      // Error, indicating a technical problem.
 	LockedAt           *time.Time `json:"lockedAt,omitempty"`                   // Lock time.
 	LockedBy           string     `json:"lockedBy,omitempty"`                   // ID of the worker that locked the job.
-	RetryCount         int        `json:"retryCount" validate:"required,gte=0"` // Number of retries left. If `0` an incident is created. Otherwise, a retry job is created.
-	// Duration until a retry job becomes due.
-	// At this point in time a retry job can be locked by a worker.
-	RetryTimer ISO8601Duration `json:"retryTimer,omitempty"`
-	Type       JobType         `json:"type" validate:"required"` // Job type.
+	RetryCount         int        `json:"retryCount" validate:"required,gte=0"` // Retry indicator, which is increased for each failed attempt.
+	Type               JobType    `json:"type" validate:"required"`             // Job type.
 }
 
 func (v Job) HasError() bool {
@@ -576,19 +573,16 @@ type Task struct {
 	ProcessId         int32 `json:"processId,omitempty"`         // ID of the related process.
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // ID of the enclosing process instance.
 
-	CompletedAt *time.Time `json:"completedAt,omitempty"`                // Completion time.
-	CreatedAt   time.Time  `json:"createdAt" validate:"required"`        // Creation time.
-	CreatedBy   string     `json:"createdBy" validate:"required"`        // ID of the worker or engine that created the task.
-	DueAt       time.Time  `json:"dueAt" validate:"required"`            // Due date.
-	Error       string     `json:"error,omitempty"`                      // Error, indicating a technical problem.
-	LockedAt    *time.Time `json:"lockedAt,omitempty"`                   // Lock time.
-	LockedBy    string     `json:"lockedBy,omitempty"`                   // ID of the engine that locked the task.
-	RetryCount  int        `json:"retryCount" validate:"required,gte=0"` // Number of retries left. If `0` an incident is created. Otherwise, a retry task is created.
-	// Duration until a retry task becomes due.
-	// At this point in time a retry task can be locked by an engine.
-	RetryTimer     ISO8601Duration `json:"retryTimer,omitempty"`
-	SerializedTask string          `json:"serializedTask,omitempty"` // JSON serialized task.
-	Type           TaskType        `json:"type" validate:"required"` // Task type.
+	CompletedAt    *time.Time `json:"completedAt,omitempty"`                // Completion time.
+	CreatedAt      time.Time  `json:"createdAt" validate:"required"`        // Creation time.
+	CreatedBy      string     `json:"createdBy" validate:"required"`        // ID of the worker or engine that created the task.
+	DueAt          time.Time  `json:"dueAt" validate:"required"`            // Point in time when a task can be locked by an engine.
+	Error          string     `json:"error,omitempty"`                      // Error, indicating a technical problem.
+	LockedAt       *time.Time `json:"lockedAt,omitempty"`                   // Lock time.
+	LockedBy       string     `json:"lockedBy,omitempty"`                   // ID of the engine that locked the task.
+	RetryCount     int        `json:"retryCount" validate:"required,gte=0"` // Retry indicator, which is increased for each failed attempt.
+	SerializedTask string     `json:"serializedTask,omitempty"`             // JSON serialized task.
+	Type           TaskType   `json:"type" validate:"required"`             // Task type.
 }
 
 func (v Task) HasError() bool {

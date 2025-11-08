@@ -3,6 +3,9 @@ tags:
 summary: Resolve incident
 description: >
   Resolves a job or task related incident.
+
+
+  When an incident is resolved, a retry job or task is created. The retry count is set to `0`.
 requestBody:
   content:
     application/json:

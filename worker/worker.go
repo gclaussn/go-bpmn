@@ -198,8 +198,6 @@ func (w *Worker) ExecuteJob(ctx context.Context, job engine.Job) (engine.Job, er
 		Completion:       completion,
 		ElementVariables: elementVariables,
 		ProcessVariables: processVariables,
-		RetryCount:       job.RetryCount - 1,
-		RetryTimer:       job.RetryTimer,
 		WorkerId:         w.id,
 	}
 
@@ -212,7 +210,7 @@ func (w *Worker) ExecuteJob(ctx context.Context, job engine.Job) (engine.Job, er
 				cmd.Error = fmt.Sprintf("%T failed to execute job", process.delegate)
 			}
 
-			cmd.RetryCount = delegationErr.retryCount
+			cmd.RetryLimit = delegationErr.retryLimit
 			cmd.RetryTimer = delegationErr.retryTimer
 		case bpmnError:
 			cmd.Completion = &engine.JobCompletion{
