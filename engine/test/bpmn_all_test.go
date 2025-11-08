@@ -32,6 +32,15 @@ func TestBpmn(t *testing.T) {
 		}
 	})
 
+	t.Run("escalation event", func(t *testing.T) {
+		for i, e := range engines {
+			escalationEventTest := newEscalationEventTest(t, e)
+
+			t.Run(engineTypes[i]+"boundary", escalationEventTest.boundary)
+			t.Run(engineTypes[i]+"boundary non-interrupting", escalationEventTest.boundaryNonInterrupting)
+		}
+	})
+
 	t.Run("exclusive gateway", func(t *testing.T) {
 		for i, e := range engines {
 			exclusiveGatewayTest := newExclusiveGatewayTest(t, e)

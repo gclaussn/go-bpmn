@@ -114,6 +114,27 @@ func (d Delegator) SetErrorCode(bpmnElementId string, delegation func(jc JobCont
 	}
 }
 
+// SetEscalationCode delegates jobs of type [engine.JobSetEscalationCode].
+//
+// Applicable for BPMN element types:
+//   - escalation boundary event
+func (d Delegator) SetEscalationCode(bpmnElementId string, delegation func(jc JobContext) (string, error)) {
+	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
+		if jc.Job.Type != engine.JobSetEscalationCode {
+			return nil, fmt.Errorf("expected job type %s, but got %s", engine.JobSetEscalationCode, jc.Job.Type)
+		}
+
+		esclationCode, err := delegation(jc)
+		if err != nil {
+			return nil, err
+		}
+
+		return &engine.JobCompletion{
+			EscalationCode: esclationCode,
+		}, nil
+	}
+}
+
 // SetTimer delegates jobs of type [engine.JobSetTimer].
 //
 // Applicable for BPMN element types:

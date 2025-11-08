@@ -122,6 +122,8 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 				jobType = engine.JobSetTimer
 			case model.ElementErrorBoundaryEvent:
 				jobType = engine.JobSetErrorCode
+			case model.ElementEscalationBoundaryEvent:
+				jobType = engine.JobSetEscalationCode
 			default:
 				return engine.Error{
 					Type:   engine.ErrorBug,
@@ -274,7 +276,7 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 	return ctx.Messages().Update(message)
 }
 
-func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion *engine.JobCompletion) error {
+func (ec executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.CompleteJobCmd) error {
 	execution, err := ctx.ElementInstances().Select(job.Partition, job.ElementInstanceId)
 	if err != nil {
 		return err
@@ -294,6 +296,8 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 		job.Error = pgtype.Text{String: err.Error(), Valid: true}
 		return nil
 	}
+
+	jobCompletion := cmd.Completion
 
 	switch job.Type {
 	case engine.JobEvaluateExclusiveGateway:
@@ -389,6 +393,8 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 			return err
 		}
 
+		var targetId int32 // optional ID of a triggered boundary event
+
 		if jobCompletion != nil && jobCompletion.ErrorCode != "" {
 			errorCode := jobCompletion.ErrorCode
 
@@ -398,21 +404,12 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 				return nil
 			}
 
-			execution.State = engine.InstanceTerminated
-
-			for _, boundaryEvent := range boundaryEvents {
-				if boundaryEvent.Id == target.Id {
-					boundaryEvent.State = engine.InstanceStarted
-				} else {
-					boundaryEvent.State = engine.InstanceTerminated
-				}
-				executions = append(executions, boundaryEvent)
-			}
+			targetId = target.Id
 
 			event := EventEntity{
 				Partition: target.Partition,
 
-				ElementInstanceId: target.Id,
+				ElementInstanceId: targetId,
 
 				CreatedAt: ctx.Time(),
 				CreatedBy: ec.engineOrWorkerId,
@@ -422,20 +419,101 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 			if err := ctx.Events().Insert(&event); err != nil {
 				return err
 			}
-
-			break
 		}
 
 		if jobCompletion != nil && jobCompletion.EscalationCode != "" {
-			job.Error = pgtype.Text{String: "BPMN escalation code is not supported", Valid: true}
-			return nil
+			escalationCode := jobCompletion.EscalationCode
+
+			target := findEscalationBoundaryEvent(boundaryEvents, escalationCode)
+			if target == nil {
+				job.Error = pgtype.Text{String: fmt.Sprintf("failed to find boundary event for escalation code %s", escalationCode), Valid: true}
+				return nil
+			}
+
+			targetId = target.Id
+
+			targetNode, err := graph.node(target.BpmnElementId)
+			if err != nil {
+				job.Error = pgtype.Text{String: err.Error(), Valid: true}
+				return nil
+			}
+
+			event := EventEntity{
+				Partition: target.Partition,
+
+				ElementInstanceId: targetId,
+
+				CreatedAt:      ctx.Time(),
+				CreatedBy:      ec.engineOrWorkerId,
+				EscalationCode: pgtype.Text{String: escalationCode, Valid: true},
+			}
+
+			if err := ctx.Events().Insert(&event); err != nil {
+				return err
+			}
+
+			if !targetNode.bpmnElement.Model.(model.BoundaryEvent).CancelActivity { // non-interrupting
+				// start boundary event
+				target.State = engine.InstanceStarted
+
+				// attach new boundary event
+				attached, err := graph.createExecutionAt(scope, target.BpmnElementId)
+				if err != nil {
+					return err
+				}
+
+				attached.Context = target.Context
+				attached.State = engine.InstanceCreated
+
+				attached.prev = execution
+
+				// retry job
+				retryTimer := engine.ISO8601Duration(cmd.RetryTimer)
+
+				retry := JobEntity{
+					Partition: job.Partition,
+
+					ElementId:         job.ElementId,
+					ElementInstanceId: job.ElementInstanceId,
+					ProcessId:         job.ProcessId,
+					ProcessInstanceId: job.ProcessInstanceId,
+
+					BpmnElementId:  job.BpmnElementId,
+					CorrelationKey: job.CorrelationKey,
+					CreatedAt:      ctx.Time(),
+					CreatedBy:      ec.engineOrWorkerId,
+					DueAt:          retryTimer.Calculate(ctx.Time()),
+					RetryCount:     job.RetryCount,
+					Type:           job.Type,
+				}
+
+				if err := ctx.Jobs().Insert(&retry); err != nil {
+					return err
+				}
+
+				// overwrite executions to avoid completion of current execution
+				executions = []*ElementInstanceEntity{scope, &attached, target}
+				break
+			}
+		}
+
+		if targetId != 0 {
+			execution.State = engine.InstanceTerminated
 		}
 
 		for _, boundaryEvent := range boundaryEvents {
-			boundaryEvent.State = engine.InstanceTerminated
+			if boundaryEvent.State == engine.InstanceCompleted {
+				continue // skip already completed (non-interrupting)
+			}
+
+			if boundaryEvent.Id == targetId {
+				boundaryEvent.State = engine.InstanceStarted
+			} else {
+				boundaryEvent.State = engine.InstanceTerminated
+			}
 			executions = append(executions, boundaryEvent)
 		}
-	case engine.JobSetErrorCode:
+	case engine.JobSetErrorCode, engine.JobSetEscalationCode:
 		attachedTo, err := ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
 		if err != nil {
 			return fmt.Errorf("failed to select attached to element instance: %v", err)
@@ -445,12 +523,17 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, jobCompletion 
 			return nil // terminated or canceled
 		}
 
-		var errorCode string
+		var context string
 		if jobCompletion != nil {
-			errorCode = jobCompletion.ErrorCode
+			switch job.Type {
+			case engine.JobSetErrorCode:
+				context = jobCompletion.ErrorCode
+			case engine.JobSetEscalationCode:
+				context = jobCompletion.EscalationCode
+			}
 		}
 
-		execution.Context = pgtype.Text{String: errorCode, Valid: true}
+		execution.Context = pgtype.Text{String: context, Valid: true}
 
 		attachedTo.ExecutionCount = attachedTo.ExecutionCount + 1
 		executions = append(executions, attachedTo)

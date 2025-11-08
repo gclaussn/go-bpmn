@@ -275,6 +275,17 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			}
 		}
 
+		escalationCode := cmd.EscalationCodes[bpmnElement.Id]
+		if escalationCode != "" {
+			if bpmnElement.Type != model.ElementEscalationBoundaryEvent {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(bpmnElement),
+					Type:    "escalation_event",
+					Detail:  fmt.Sprintf("BPMN element %s is not an esclation boundary event", bpmnElement.Id),
+				})
+			}
+		}
+
 		messageName := cmd.MessageNames[bpmnElement.Id]
 		if messageName != "" {
 			if bpmnElement.Type != model.ElementMessageStartEvent {
@@ -421,6 +432,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 	eventDefinitions := make([]*EventDefinitionEntity, 0, 0+
 		len(errorCodes)+
+		len(cmd.EscalationCodes)+
 		len(cmd.MessageNames)+
 		len(cmd.SignalNames)+
 		len(cmd.Timers),
@@ -447,6 +459,31 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			BpmnElementType: node.bpmnElement.Type,
 			BpmnProcessId:   process.BpmnProcessId,
 			ErrorCode:       pgtype.Text{String: errorCode, Valid: true},
+			Version:         process.Version,
+		})
+	}
+
+	// prepare escalation event definitions
+	for bpmnElementId, escalationCode := range cmd.EscalationCodes {
+		node, err := graph.node(bpmnElementId)
+		if err != nil {
+			causes = append(causes, engine.ErrorCause{
+				Pointer: elementPointer(graph.processElement),
+				Type:    "escalation_event",
+				Detail:  err.Error(),
+			})
+			continue
+		}
+
+		eventDefinitions = append(eventDefinitions, &EventDefinitionEntity{
+			ElementId: node.id,
+
+			ProcessId: process.Id,
+
+			BpmnElementId:   bpmnElementId,
+			BpmnElementType: node.bpmnElement.Type,
+			BpmnProcessId:   process.BpmnProcessId,
+			EscalationCode:  pgtype.Text{String: escalationCode, Valid: true},
 			Version:         process.Version,
 		})
 	}

@@ -69,8 +69,13 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 		case xml.StartElement:
 			switch t.Name.Local {
 			case "boundaryEvent":
+				cancelActivity, _ := strconv.ParseBool(getAttrValueWithDefault(t.Attr, "cancelActivity", "true"))
+
 				element = newElement(0, t.Attr) // unknown type
-				element.Model = BoundaryEvent{AttachedTo: &Element{Id: getAttrValue(t.Attr, "attachedToRef")}}
+				element.Model = BoundaryEvent{
+					AttachedTo:     &Element{Id: getAttrValue(t.Attr, "attachedToRef")},
+					CancelActivity: cancelActivity,
+				}
 			case "businessRuleTask":
 				addNewElement(ElementBusinessRuleTask, t.Attr)
 			case "definitions":
@@ -98,6 +103,10 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				case BoundaryEvent:
 					model.EventDefinition = eventDefinition
 					element.Model = model
+				}
+			case "escalationEventDefinition":
+				if element.Type == 0 {
+					element.Type = ElementEscalationBoundaryEvent
 				}
 			case "exclusiveGateway":
 				addNewElement(ElementExclusiveGateway, t.Attr)
@@ -202,7 +211,9 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 
 	for _, element := range model.Elements {
 		switch element.Type {
-		case ElementErrorBoundaryEvent:
+		case
+			ElementErrorBoundaryEvent,
+			ElementEscalationBoundaryEvent:
 			// resolve "attached to" placeholder
 			boundaryEvent := element.Model.(BoundaryEvent)
 
@@ -337,6 +348,14 @@ func getAttrValue(attributes []xml.Attr, name string) string {
 		}
 	}
 	return ""
+}
+
+func getAttrValueWithDefault(attributes []xml.Attr, name string, defaultValue string) string {
+	if value := getAttrValue(attributes, name); value != "" {
+		return value
+	} else {
+		return defaultValue
+	}
 }
 
 func newElement(elementType ElementType, attributes []xml.Attr) *Element {

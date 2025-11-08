@@ -84,9 +84,10 @@ func (r *elementRepository) getEventDefinition(elementId int32) *engine.EventDef
 	return &engine.EventDefinition{
 		IsSuspended: entity.IsSuspended,
 
-		ErrorCode:   entity.ErrorCode.String,
-		MessageName: entity.MessageName.String,
-		SignalName:  entity.SignalName.String,
-		Timer:       timer,
+		ErrorCode:      entity.ErrorCode.String,
+		EscalationCode: entity.EscalationCode.String,
+		MessageName:    entity.MessageName.String,
+		SignalName:     entity.SignalName.String,
+		Timer:          timer,
 	}
 }

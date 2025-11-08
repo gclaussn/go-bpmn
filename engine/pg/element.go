@@ -136,12 +136,13 @@ func (r elementRepository) Query(criteria engine.ElementCriteria, options engine
 
 			isSuspended pgtype.Bool
 
-			errorCode    pgtype.Text
-			messageName  pgtype.Text
-			signalName   pgtype.Text
-			time         pgtype.Timestamp
-			timeCycle    pgtype.Text
-			timeDuration pgtype.Text
+			errorCode      pgtype.Text
+			escalationCode pgtype.Text
+			messageName    pgtype.Text
+			signalName     pgtype.Text
+			time           pgtype.Timestamp
+			timeCycle      pgtype.Text
+			timeDuration   pgtype.Text
 		)
 
 		if err := rows.Scan(
@@ -157,6 +158,7 @@ func (r elementRepository) Query(criteria engine.ElementCriteria, options engine
 			&isSuspended,
 
 			&errorCode,
+			&escalationCode,
 			&messageName,
 			&signalName,
 			&time,
@@ -183,10 +185,11 @@ func (r elementRepository) Query(criteria engine.ElementCriteria, options engine
 			result.EventDefinition = &engine.EventDefinition{
 				IsSuspended: isSuspended.Bool,
 
-				ErrorCode:   errorCode.String,
-				MessageName: messageName.String,
-				SignalName:  signalName.String,
-				Timer:       timer,
+				ErrorCode:      errorCode.String,
+				EscalationCode: escalationCode.String,
+				MessageName:    messageName.String,
+				SignalName:     signalName.String,
+				Timer:          timer,
 			}
 		}
 

@@ -110,8 +110,12 @@ func newJobCompleteCmd(cli *Cli) *cobra.Command {
 	c.Flags().IntVar(&cmd.RetryLimit, "retry-limit", 0, "Maximum number of retries")
 	c.Flags().Var(&retryTimer, "retry-timer", "Duration until the retry job becomes due")
 
+	c.Flags().StringVar(&completion.ErrorCode, "error-code", "", "Code of a BPMN error, used to specify or to trigger a BPMN error")
+	c.Flags().StringVar(&completion.EscalationCode, "escalation-code", "", "Code of a BPMN escalation, used to specify or to trigger a BPMN escalation")
 	c.Flags().StringVar(&completion.ExclusiveGatewayDecision, "exclusive-gateway-decision", "", "Evaluated BPMN element ID to continue with after the exclusive gateway")
 	c.Flags().StringSliceVar(&completion.InclusiveGatewayDecision, "inclusive-gateway-decision", nil, "Evaluated BPMN element ID to continue with after the inclusive gateway")
+	c.Flags().StringVar(&completion.MessageCorrelationKey, "message-correlation-key", "", "Key, used to correlate a message subscription with a message")
+	c.Flags().StringVar(&completion.MessageName, "message-name", "", "Name of the message to subscribe to")
 	c.Flags().StringVar(&completion.SignalName, "signal-name", "", "Name of the signal to subscribe to")
 	c.Flags().Var(&timeV, "time", "A point in time, when the timer event is triggered")
 	c.Flags().StringVar(&timeCycleV, "time-cycle", "", "CRON expression that specifies a cyclic trigger")

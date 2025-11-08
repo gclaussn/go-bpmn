@@ -46,6 +46,10 @@ func NewBpmnError(code string) error {
 	return bpmnError{code: code}
 }
 
+func NewBpmnEscalation(code string) error {
+	return bpmnEscalation{code: code}
+}
+
 func NewOptions() Options {
 	return Options{
 		Decoders: map[string]Decoder{
@@ -216,6 +220,10 @@ func (w *Worker) ExecuteJob(ctx context.Context, job engine.Job) (engine.Job, er
 			cmd.Completion = &engine.JobCompletion{
 				ErrorCode: delegationErr.code,
 			}
+		case bpmnEscalation:
+			cmd.Completion = &engine.JobCompletion{
+				EscalationCode: delegationErr.code,
+			}
 		default:
 			cmd.Error = delegationErr.Error()
 		}
@@ -330,6 +338,14 @@ type bpmnError struct {
 }
 
 func (e bpmnError) Error() string {
+	return e.code
+}
+
+type bpmnEscalation struct {
+	code string
+}
+
+func (e bpmnEscalation) Error() string {
 	return e.code
 }
 

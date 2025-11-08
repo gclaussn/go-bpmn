@@ -60,6 +60,7 @@ func (e *Element) TargetById(targetId string) *Element {
 
 type BoundaryEvent struct {
 	AttachedTo      *Element
+	CancelActivity  bool
 	EventDefinition EventDefinition
 }
 

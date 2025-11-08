@@ -201,7 +201,7 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 			processInstance:  processInstance,
 		}
 
-		if err := ec.handleJob(ctx, job, cmd.Completion); err != nil {
+		if err := ec.handleJob(ctx, job, cmd); err != nil {
 			return engine.Job{}, err
 		}
 	}

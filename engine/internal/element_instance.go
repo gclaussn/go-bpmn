@@ -95,3 +95,20 @@ func findErrorBoundaryEvent(boundaryEvents []*ElementInstanceEntity, errorCode s
 	}
 	return target
 }
+
+func findEscalationBoundaryEvent(boundaryEvents []*ElementInstanceEntity, escalationCode string) *ElementInstanceEntity {
+	var target *ElementInstanceEntity
+	for _, boundaryEvent := range boundaryEvents {
+		if boundaryEvent.BpmnElementType != model.ElementEscalationBoundaryEvent {
+			continue
+		}
+		if boundaryEvent.Context.String == "" && target == nil {
+			target = boundaryEvent
+			continue
+		}
+		if boundaryEvent.Context.String == escalationCode {
+			return boundaryEvent
+		}
+	}
+	return target
+}

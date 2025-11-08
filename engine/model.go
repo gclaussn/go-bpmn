@@ -94,6 +94,7 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 //   - [JobEvaluateInclusiveGateway]: forking inclusive gateway
 //   - [JobExecute]: business rule, script, send and service task
 //   - [JobSetErrorCode]: error boundary event
+//   - [JobSetEscalationCode]: escalation boundary event
 //   - [JobSetTimer]: timer catch event
 //   - [JobSubscribeMessage]: message catch event
 //   - [JobSubscribeSignal]: signal catch event
@@ -104,6 +105,7 @@ const (
 	JobEvaluateInclusiveGateway
 	JobExecute
 	JobSetErrorCode
+	JobSetEscalationCode
 	JobSetTimer
 	JobSubscribeMessage
 	JobSubscribeSignal
@@ -119,6 +121,8 @@ func MapJobType(s string) JobType {
 		return JobExecute
 	case "SET_ERROR_CODE":
 		return JobSetErrorCode
+	case "SET_ESCALATION_CODE":
+		return JobSetEscalationCode
 	case "SET_TIMER":
 		return JobSetTimer
 	case "SUBSCRIBE_MESSAGE":
@@ -148,6 +152,8 @@ func (v JobType) String() string {
 		return "EXECUTE"
 	case JobSetErrorCode:
 		return "SET_ERROR_CODE"
+	case JobSetEscalationCode:
+		return "SET_ESCALATION_CODE"
 	case JobSetTimer:
 		return "SET_TIMER"
 	case JobSubscribeMessage:
@@ -360,10 +366,11 @@ type ElementInstanceCriteria struct {
 type EventDefinition struct {
 	IsSuspended bool `json:"suspended"` // Determines if a start event definition is suspended.
 
-	ErrorCode   string `json:"errorCode,omitempty"`   // Code of a BPMN error - set in case of an error event.
-	MessageName string `json:"messageName,omitempty"` // Name of the message - set in case of a message event.
-	SignalName  string `json:"signalName,omitempty"`  // Name of the signal - set in case of a signal event.
-	Timer       *Timer `json:"timer,omitempty"`       // A timer definition - set in case of a timer event.
+	ErrorCode      string `json:"errorCode,omitempty"`      // Code of a BPMN error - set in case of an error event.
+	EscalationCode string `json:"escalationCode,omitempty"` // Code of a BPMN escalation - set in case of an escalation event.
+	MessageName    string `json:"messageName,omitempty"`    // Name of the message - set in case of a message event.
+	SignalName     string `json:"signalName,omitempty"`     // Name of the signal - set in case of a signal event.
+	Timer          *Timer `json:"timer,omitempty"`          // A timer definition - set in case of a timer event.
 }
 
 // Incident represents a failed job or task, which has no more retries left.

@@ -36,6 +36,8 @@ type CreateProcessCmd struct {
 	BpmnXml string `json:"bpmnXml" validate:"required"`
 	// Mapping between BPMN element ID and error code.
 	ErrorCodes map[string]string `json:"errorCodes,omitempty"`
+	// Mapping between BPMN element ID and escalation code.
+	EscalationCodes map[string]string `json:"escalationCodes,omitempty"`
 	// Mapping between BPMN element ID and message name.
 	MessageNames map[string]string `json:"messageNames,omitempty" validate:"dive,required"`
 	// Maximum number of parallel process instances being executed. If `0`, the number of parallel process instances is unlimited.
@@ -255,12 +257,12 @@ type UnlockTasksCmd struct {
 
 // A job completion is used to complete jobs of various types.
 type JobCompletion struct {
-	// Code of a BPMN error, used to specify or to trigger a BPMN error.
+	// Code of a BPMN error, used to specify or trigger a BPMN error.
 	// Applicable when job type is `SET_ERROR_CODE` or `EXECUTE`.
 	ErrorCode string `json:"errorCode,omitempty"`
-	// Code, used to trigger a BPMN escalation.
-	// Applicable when job type is `EXECUTE`.
-	EscalationCode string `json:"bpmnEscalationCode,omitempty"`
+	// Code of a BPMN escalation, used to specify or trigger a BPMN escalation.
+	// Applicable when job type is `SET_ESCALATION_CODE` or `EXECUTE`.
+	EscalationCode string `json:"escalationCode,omitempty"`
 	// Evaluated BPMN element ID to continue with after the exclusive gateway.
 	// Applicable when job type is `EVALUATE_EXCLUSIVE_GATEWAY`.
 	ExclusiveGatewayDecision string `json:"exclusiveGatewayDecision,omitempty"`

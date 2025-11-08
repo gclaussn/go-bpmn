@@ -81,7 +81,9 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 					Detail:  fmt.Sprintf("BPMN element %s is not supported: joining inclusive gateway", bpmnElement.Id),
 				})
 			}
-		case model.ElementErrorBoundaryEvent:
+		case
+			model.ElementErrorBoundaryEvent,
+			model.ElementEscalationBoundaryEvent:
 			boundaryEvent := bpmnElement.Model.(model.BoundaryEvent)
 			if boundaryEvent.AttachedTo == nil {
 				causes = append(causes, engine.ErrorCause{
@@ -220,7 +222,8 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 			model.ElementTimerCatchEvent:
 			execution.State = engine.InstanceCreated
 		case
-			model.ElementErrorBoundaryEvent:
+			model.ElementErrorBoundaryEvent,
+			model.ElementEscalationBoundaryEvent:
 			execution.State = engine.InstanceCreated
 		default:
 			// continue branch, if element has no behavior (pass through element)

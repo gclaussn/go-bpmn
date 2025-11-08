@@ -184,6 +184,7 @@ func TestErrorBoundaryEvent(t *testing.T) {
 	require.NotNil(boundaryEvent.AttachedTo)
 	assert.Equal("serviceTask", boundaryEvent.AttachedTo.Id)
 	assert.Equal(ElementServiceTask, boundaryEvent.AttachedTo.Type)
+	assert.True(boundaryEvent.CancelActivity)
 
 	assert.Equal("errorBoundaryEventDefinition", boundaryEvent.EventDefinition.Id)
 	assert.Nil(boundaryEvent.EventDefinition.Error)
@@ -220,6 +221,23 @@ func TestErrorBoundaryEventDefinition(t *testing.T) {
 	assert.Equal("testError", bpmnError.Id)
 	assert.Equal("testErrorName", bpmnError.Name)
 	assert.Equal("testErrorCode", bpmnError.Code)
+}
+
+func TestEscalationBoundaryEventNonInterrupting(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	// when
+	model := mustCreateModel(t, "event/escalation-boundary-non-interrupting.bpmn")
+
+	// then
+	processElement := model.ProcessById("escalationBoundaryNonInterruptingTest")
+	require.NotNil(processElement)
+
+	escalationBoundaryEvent := processElement.ChildById("escalationBoundaryEvent")
+	require.NotNil(escalationBoundaryEvent)
+
+	boundaryEvent := escalationBoundaryEvent.Model.(BoundaryEvent)
+	assert.False(boundaryEvent.CancelActivity)
 }
 
 func TestTimerCatchEvent(t *testing.T) {

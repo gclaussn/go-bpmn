@@ -116,12 +116,15 @@ type Error struct {
 	//   - `timer`: timer must specify a time, time cycle or time duration
 	//   - `variable_name`: key is not a valid variable name
 	//
-	// BPMN element related values:
+	// BPMN related values:
 	//   - `process` indicates an error on process level
 	//   - `element` indicates an error on element level
-	//   - `error_event`: invalid error event definition
-	//   - `message_event`: a missing or invalid message event definition
 	//   - `sequence_flow` indicates faulty sequence flow
+	//
+	// BPMN event related values:
+	//   - `error_event`: invalid error event definition
+	//   - `escalation_event`: invalid escalation event definition
+	//   - `message_event`: a missing or invalid message event definition
 	//   - `signal_event`: a missing or invalid signal event definition
 	//   - `timer_event`: a missing or invalid timer event definition
 	Type string `json:"type" validate:"required"`
