@@ -420,19 +420,17 @@ type Job struct {
 	ProcessId         int32 `json:"processId" validate:"required"`         // ID of the related process.
 	ProcessInstanceId int32 `json:"processInstanceId" validate:"required"` // ID of the enclosing process instance.
 
-	BpmnElementId      string     `json:"bpmnElementId" validate:"required"`    // Element ID within the BPMN XML.
-	BpmnErrorCode      string     `json:"bpmnErrorCode,omitempty"`              // Code, indicating a BPMN error.
-	BpmnEscalationCode string     `json:"bpmnEscalationCode,omitempty"`         // Code, indicating a BPMN escalation.
-	CompletedAt        *time.Time `json:"completedAt,omitempty"`                // Completion time.
-	CorrelationKey     string     `json:"correlationKey,omitempty"`             // Correlation key of the process instance.
-	CreatedAt          time.Time  `json:"createdAt" validate:"required"`        // Creation time.
-	CreatedBy          string     `json:"createdBy" validate:"required"`        // ID of the worker or engine that created the job.
-	DueAt              time.Time  `json:"dueAt" validate:"required"`            // Point in time when a job can be locked by a worker.
-	Error              string     `json:"error,omitempty"`                      // Error, indicating a technical problem.
-	LockedAt           *time.Time `json:"lockedAt,omitempty"`                   // Lock time.
-	LockedBy           string     `json:"lockedBy,omitempty"`                   // ID of the worker that locked the job.
-	RetryCount         int        `json:"retryCount" validate:"required,gte=0"` // Retry indicator, which is increased for each failed attempt.
-	Type               JobType    `json:"type" validate:"required"`             // Job type.
+	BpmnElementId  string     `json:"bpmnElementId" validate:"required"`    // Element ID within the BPMN XML.
+	CompletedAt    *time.Time `json:"completedAt,omitempty"`                // Completion time.
+	CorrelationKey string     `json:"correlationKey,omitempty"`             // Correlation key of the process instance.
+	CreatedAt      time.Time  `json:"createdAt" validate:"required"`        // Creation time.
+	CreatedBy      string     `json:"createdBy" validate:"required"`        // ID of the worker or engine that created the job.
+	DueAt          time.Time  `json:"dueAt" validate:"required"`            // Point in time when a job can be locked by a worker.
+	Error          string     `json:"error,omitempty"`                      // Error, indicating a technical problem.
+	LockedAt       *time.Time `json:"lockedAt,omitempty"`                   // Lock time.
+	LockedBy       string     `json:"lockedBy,omitempty"`                   // ID of the worker that locked the job.
+	RetryCount     int        `json:"retryCount" validate:"required,gte=0"` // Retry indicator, which is increased for each failed attempt.
+	Type           JobType    `json:"type" validate:"required"`             // Job type.
 }
 
 func (v Job) HasError() bool {
