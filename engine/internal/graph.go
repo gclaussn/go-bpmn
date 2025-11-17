@@ -535,6 +535,8 @@ func (n node) eventContext() string {
 	switch n.bpmnElement.Type {
 	case model.ElementErrorBoundaryEvent:
 		return n.eventDefinition.ErrorCode.String
+	case model.ElementEscalationBoundaryEvent:
+		return n.eventDefinition.EscalationCode.String
 	default:
 		return ""
 	}

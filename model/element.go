@@ -67,7 +67,8 @@ type BoundaryEvent struct {
 type EventDefinition struct {
 	Id string
 
-	Error *Error
+	Error      *Error
+	Escalation *Escalation
 }
 
 type ExclusiveGateway struct {

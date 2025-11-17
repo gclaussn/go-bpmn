@@ -1,0 +1,25 @@
+<definitions id="test">
+  <process id="escalationBoundaryDefinitionTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="serviceTask" />
+    <serviceTask id="serviceTask">
+      <incoming>f1</incoming>
+      <outgoing>f2</outgoing>
+    </serviceTask>
+    <sequenceFlow id="f2" sourceRef="serviceTask" targetRef="endEventA" />
+    <endEvent id="endEventA">
+      <incoming>f2</incoming>
+    </endEvent>
+    <boundaryEvent id="escalationBoundaryEvent" attachedToRef="serviceTask">
+      <outgoing>f3</outgoing>
+      <escalationEventDefinition id="escalationBoundaryEventDefinition" escalationRef="testEscalation" />
+    </boundaryEvent>
+    <sequenceFlow id="f3" sourceRef="escalationBoundaryEvent" targetRef="endEventB" />
+    <endEvent id="endEventB">
+      <incoming>f3</incoming>
+    </endEvent>
+  </process>
+  <escalation id="testEscalation" name="testEscalationName" escalationCode="testEscalationCode" />
+</definitions>

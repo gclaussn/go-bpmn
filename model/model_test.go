@@ -223,6 +223,30 @@ func TestErrorBoundaryEventDefinition(t *testing.T) {
 	assert.Equal("testErrorCode", bpmnError.Code)
 }
 
+func TestEscalationBoundaryEventDefinition(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	// when
+	model := mustCreateModel(t, "event/escalation-boundary-definition.bpmn")
+
+	// then
+	processElement := model.ProcessById("escalationBoundaryDefinitionTest")
+	require.NotNil(processElement)
+
+	escalationBoundaryEvent := processElement.ChildById("escalationBoundaryEvent")
+	require.NotNil(escalationBoundaryEvent)
+
+	boundaryEvent := escalationBoundaryEvent.Model.(BoundaryEvent)
+
+	assert.Equal("escalationBoundaryEventDefinition", boundaryEvent.EventDefinition.Id)
+	require.NotNil(boundaryEvent.EventDefinition.Escalation)
+
+	escalation := boundaryEvent.EventDefinition.Escalation
+	assert.Equal("testEscalation", escalation.Id)
+	assert.Equal("testEscalationName", escalation.Name)
+	assert.Equal("testEscalationCode", escalation.Code)
+}
+
 func TestEscalationBoundaryEventNonInterrupting(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 

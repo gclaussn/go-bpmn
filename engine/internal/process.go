@@ -251,22 +251,24 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 	// validate events
 	var (
-		errorCodes = make(map[string]string)
+		errorCodes      = make(map[string]string)
+		escalationCodes = make(map[string]string)
 	)
 
 	maps.Copy(errorCodes, cmd.ErrorCodes)
+	maps.Copy(escalationCodes, cmd.EscalationCodes)
 
 	for _, bpmnElement := range bpmnElements {
-		_, ok := errorCodes[bpmnElement.Id]
+		_, errorCodeSet := errorCodes[bpmnElement.Id]
 		if bpmnElement.Type == model.ElementErrorBoundaryEvent {
-			if !ok {
+			if !errorCodeSet {
 				boundaryEvent := bpmnElement.Model.(model.BoundaryEvent)
 				if bpmnError := boundaryEvent.EventDefinition.Error; bpmnError != nil {
 					errorCodes[bpmnElement.Id] = bpmnError.Code
 				}
 			}
 		} else {
-			if ok {
+			if errorCodeSet {
 				causes = append(causes, engine.ErrorCause{
 					Pointer: elementPointer(bpmnElement),
 					Type:    "error_event",
@@ -275,13 +277,20 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			}
 		}
 
-		escalationCode := cmd.EscalationCodes[bpmnElement.Id]
-		if escalationCode != "" {
-			if bpmnElement.Type != model.ElementEscalationBoundaryEvent {
+		_, escalationCodeSet := cmd.EscalationCodes[bpmnElement.Id]
+		if bpmnElement.Type == model.ElementEscalationBoundaryEvent {
+			if !escalationCodeSet {
+				boundaryEvent := bpmnElement.Model.(model.BoundaryEvent)
+				if escalation := boundaryEvent.EventDefinition.Escalation; escalation != nil {
+					escalationCodes[bpmnElement.Id] = escalation.Code
+				}
+			}
+		} else {
+			if escalationCodeSet {
 				causes = append(causes, engine.ErrorCause{
 					Pointer: elementPointer(bpmnElement),
 					Type:    "escalation_event",
-					Detail:  fmt.Sprintf("BPMN element %s is not an esclation boundary event", bpmnElement.Id),
+					Detail:  fmt.Sprintf("BPMN element %s is not an escalation boundary event", bpmnElement.Id),
 				})
 			}
 		}
@@ -464,7 +473,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	}
 
 	// prepare escalation event definitions
-	for bpmnElementId, escalationCode := range cmd.EscalationCodes {
+	for bpmnElementId, escalationCode := range escalationCodes {
 		node, err := graph.node(bpmnElementId)
 		if err != nil {
 			causes = append(causes, engine.ErrorCause{

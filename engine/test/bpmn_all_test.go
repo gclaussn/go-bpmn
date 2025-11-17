@@ -37,6 +37,7 @@ func TestBpmn(t *testing.T) {
 			escalationEventTest := newEscalationEventTest(t, e)
 
 			t.Run(engineTypes[i]+"boundary", escalationEventTest.boundary)
+			t.Run(engineTypes[i]+"boundary event definition", escalationEventTest.boundaryEventDefinition)
 			t.Run(engineTypes[i]+"boundary non-interrupting", escalationEventTest.boundaryNonInterrupting)
 		}
 	})

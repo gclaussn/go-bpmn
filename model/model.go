@@ -104,9 +104,26 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 					model.EventDefinition = eventDefinition
 					element.Model = model
 				}
+			case "escalation":
+				escalationId := getAttrValue(t.Attr, "id")
+				escalation := definitions.escalationById(escalationId)
+				escalation.Name = getAttrValue(t.Attr, "name")
+				escalation.Code = getAttrValue(t.Attr, "escalationCode")
 			case "escalationEventDefinition":
 				if element.Type == 0 {
 					element.Type = ElementEscalationBoundaryEvent
+				}
+
+				eventDefinition := EventDefinition{Id: getAttrValue(t.Attr, "id")}
+
+				if escalationId := getAttrValue(t.Attr, "escalationRef"); escalationId != "" {
+					eventDefinition.Escalation = definitions.escalationById(escalationId)
+				}
+
+				switch model := element.Model.(type) {
+				case BoundaryEvent:
+					model.EventDefinition = eventDefinition
+					element.Model = model
 				}
 			case "exclusiveGateway":
 				addNewElement(ElementExclusiveGateway, t.Attr)
@@ -307,8 +324,9 @@ func (m *Model) ProcessById(id string) *Element {
 type Definitions struct {
 	Id string
 
-	Errors    []*Error
-	Processes []*Element
+	Errors      []*Error
+	Escalations []*Escalation
+	Processes   []*Element
 }
 
 func (d *Definitions) errorById(id string) *Error {
@@ -323,7 +341,25 @@ func (d *Definitions) errorById(id string) *Error {
 	return bpmnError
 }
 
+func (d *Definitions) escalationById(id string) *Escalation {
+	for _, escalation := range d.Escalations {
+		if escalation.Id == id {
+			return escalation
+		}
+	}
+
+	escalation := &Escalation{Id: id}
+	d.Escalations = append(d.Escalations, escalation)
+	return escalation
+}
+
 type Error struct {
+	Id   string
+	Name string
+	Code string
+}
+
+type Escalation struct {
 	Id   string
 	Name string
 	Code string
