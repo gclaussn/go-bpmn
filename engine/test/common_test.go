@@ -45,7 +45,7 @@ func mustCreateEngines(t *testing.T) ([]engine.Engine, []string) {
 	engineTypes = append(engineTypes, "mem_")
 
 	databaseUrl := lookUpDatabaseUrl()
-	if testing.Short() || databaseUrl == "" {
+	if testing.Short() || databaseUrl != "" {
 		return engines, engineTypes
 	}
 

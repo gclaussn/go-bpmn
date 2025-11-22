@@ -95,7 +95,7 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 //   - [JobExecute]: business rule, script, send and service task
 //   - [JobSetErrorCode]: error boundary event
 //   - [JobSetEscalationCode]: escalation boundary event
-//   - [JobSetTimer]: timer catch event
+//   - [JobSetTimer]: timer catch and boundary event
 //   - [JobSubscribeMessage]: message catch event
 //   - [JobSubscribeSignal]: signal catch event
 type JobType int
@@ -619,14 +619,26 @@ type TaskCriteria struct {
 	Type TaskType `json:"type,omitempty"` // Task type.
 }
 
-// A timer defines when a timer start or catch event is triggered.
+// A timer defines a point in time using a time value, a CRON expression or a duration.
 type Timer struct {
-	// A point in time, when the timer event is triggered.
+	// A point in time.
 	Time time.Time `json:"time"`
-	// CRON expression that specifies a cyclic trigger.
+	// CRON expression that specifies a cyclic timer.
 	TimeCycle string `json:"timeCycle,omitempty" validate:"cron"`
-	// Duration until the timer event is triggered.
+	// Duration based timer that uses the engine's time to calculate a point in time.
 	TimeDuration ISO8601Duration `json:"timeDuration" validate:"iso8601_duration"`
+}
+
+func (t Timer) String() string {
+	if !t.Time.IsZero() {
+		return t.Time.String()
+	} else if t.TimeCycle != "" {
+		return t.TimeCycle
+	} else if !t.TimeDuration.IsZero() {
+		return t.TimeDuration.String()
+	} else {
+		return ""
+	}
 }
 
 // Variable is data, identified by a name, that exists in the scope of a process instance or element instance.

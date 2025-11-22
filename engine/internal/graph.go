@@ -83,7 +83,8 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 			}
 		case
 			model.ElementErrorBoundaryEvent,
-			model.ElementEscalationBoundaryEvent:
+			model.ElementEscalationBoundaryEvent,
+			model.ElementTimerBoundaryEvent:
 			boundaryEvent := bpmnElement.Model.(model.BoundaryEvent)
 			if boundaryEvent.AttachedTo == nil {
 				causes = append(causes, engine.ErrorCause{
@@ -223,7 +224,8 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 			execution.State = engine.InstanceCreated
 		case
 			model.ElementErrorBoundaryEvent,
-			model.ElementEscalationBoundaryEvent:
+			model.ElementEscalationBoundaryEvent,
+			model.ElementTimerBoundaryEvent:
 			execution.State = engine.InstanceCreated
 		default:
 			// continue branch, if element has no behavior (pass through element)

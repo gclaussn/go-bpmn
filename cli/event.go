@@ -79,7 +79,7 @@ func newEventSendMessageCmd(cli *Cli) *cobra.Command {
 
 	c.Flags().StringVar(&cmd.CorrelationKey, "correlation-key", "", "Key, used to correlate a message subscription with the message")
 	c.Flags().Var(&expirationTimeV, "expiration-time", "A point in time, when the message expires")
-	c.Flags().StringVar(&expirationTimeCycleV, "expiration-time-cycle", "", "CRON expression that specifies a cyclic after which the message expires")
+	c.Flags().StringVar(&expirationTimeCycleV, "expiration-time-cycle", "", "CRON expression that specifies a cycle after which the message expires")
 	c.Flags().Var(&expirationTimeDurationV, "expiration-time-duration", "Duration until the message expires")
 	c.Flags().StringVar(&cmd.Name, "name", "", "Message name")
 	c.Flags().StringVar(&cmd.UniqueKey, "unique-key", "", "Optional key that uniquely identifies the message")

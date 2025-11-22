@@ -157,16 +157,16 @@ func CreateProcessInstance(ctx Context, cmd engine.CreateProcessInstanceCmd) (en
 
 	ec := executionContext{
 		engineOrWorkerId: cmd.WorkerId,
+		executions:       []*ElementInstanceEntity{&scope, &execution},
 		process:          process,
 		processInstance:  &processInstance,
 	}
 
-	executions := []*ElementInstanceEntity{&scope, &execution}
-	if err := ec.continueExecutions(ctx, executions); err != nil {
+	if err := ec.continueExecutions(ctx); err != nil {
 		if _, ok := err.(engine.Error); ok {
 			return engine.ProcessInstance{}, err
 		} else {
-			return engine.ProcessInstance{}, fmt.Errorf("failed to continue executions %+v: %v", executions, err)
+			return engine.ProcessInstance{}, fmt.Errorf("failed to continue executions %+v: %v", ec.executions, err)
 		}
 	}
 
@@ -210,12 +210,6 @@ func ResumeProcessInstance(ctx Context, cmd engine.ResumeProcessInstanceCmd) err
 		return err
 	}
 
-	ec := executionContext{
-		engineOrWorkerId: cmd.WorkerId,
-		process:          process,
-		processInstance:  processInstance,
-	}
-
 	executions, err := ctx.ElementInstances().SelectByProcessInstanceAndState(processInstance)
 	if err != nil {
 		return err
@@ -231,7 +225,14 @@ func ResumeProcessInstance(ctx Context, cmd engine.ResumeProcessInstanceCmd) err
 
 	processInstance.State = engine.InstanceStarted
 
-	if err := ec.continueExecutions(ctx, executions); err != nil {
+	ec := executionContext{
+		engineOrWorkerId: cmd.WorkerId,
+		executions:       executions,
+		process:          process,
+		processInstance:  processInstance,
+	}
+
+	if err := ec.continueExecutions(ctx); err != nil {
 		if _, ok := err.(engine.Error); ok {
 			return err
 		} else {

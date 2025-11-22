@@ -250,48 +250,21 @@ func findMessageSubscriber(ctx Context, cmd engine.SendMessageCmd) (*MessageSubs
 	return nil, nil, nil
 }
 
-func triggerMessageCatchEvent(ctx Context, task *TaskEntity, messageId int64) error {
+func (ec *executionContext) triggerMessageCatchEvent(ctx Context, messageId int64) error {
+	execution := ec.executions[0]
+
 	message, err := ctx.Messages().Select(messageId)
 	if err != nil {
 		return err
 	}
 
-	processInstance, err := ctx.ProcessInstances().Select(task.Partition, task.ProcessInstanceId.Int32)
-	if err != nil {
-		return err
-	}
+	ec.engineOrWorkerId = message.CreatedBy
 
-	if processInstance.EndedAt.Valid {
-		message.ExpiresAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
-		return ctx.Messages().Update(message)
-	}
-
-	execution, err := ctx.ElementInstances().Select(task.Partition, task.ElementInstanceId.Int32)
-	if err != nil {
-		return err
-	}
-
-	if execution.EndedAt.Valid {
-		message.ExpiresAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
-		return ctx.Messages().Update(message)
-	}
-
-	process, err := ctx.ProcessCache().GetOrCacheById(ctx, task.ProcessId.Int32)
-	if err != nil {
-		return err
-	}
-
-	ec := executionContext{
-		engineOrWorkerId: message.CreatedBy,
-		process:          process,
-		processInstance:  processInstance,
-	}
-
-	if err := ec.continueExecutions(ctx, []*ElementInstanceEntity{execution}); err != nil {
+	if err := ec.continueExecutions(ctx); err != nil {
 		if _, ok := err.(engine.Error); ok {
 			return err
 		} else {
-			return fmt.Errorf("failed to continue execution %+v: %v", execution, err)
+			return fmt.Errorf("failed to continue executions %+v: %v", ec.executions, err)
 		}
 	}
 
@@ -303,8 +276,8 @@ func triggerMessageCatchEvent(ctx Context, task *TaskEntity, messageId int64) er
 	for _, variable := range messageVariables {
 		if !variable.Value.Valid {
 			if err := ctx.Variables().Delete(&VariableEntity{ // with fields, needed for deletion
-				Partition:         processInstance.Partition,
-				ProcessInstanceId: processInstance.Id,
+				Partition:         execution.Partition,
+				ProcessInstanceId: execution.ProcessInstanceId,
 				Name:              variable.Name,
 			}); err != nil {
 				return err
@@ -314,10 +287,10 @@ func triggerMessageCatchEvent(ctx Context, task *TaskEntity, messageId int64) er
 		}
 
 		if err := ctx.Variables().Insert(&VariableEntity{
-			Partition: processInstance.Partition,
+			Partition: execution.Partition,
 
-			ProcessId:         processInstance.ProcessId,
-			ProcessInstanceId: processInstance.Id,
+			ProcessId:         execution.ProcessId,
+			ProcessInstanceId: execution.ProcessInstanceId,
 
 			CreatedAt:   ctx.Time(),
 			CreatedBy:   message.CreatedBy,
@@ -351,21 +324,7 @@ func triggerMessageCatchEvent(ctx Context, task *TaskEntity, messageId int64) er
 	return ctx.Messages().Update(message)
 }
 
-func triggerMessageStartEvent(ctx Context, task *TaskEntity, messageId int64, expireMessage bool) error {
-	process, err := ctx.ProcessCache().GetOrCacheById(ctx, task.ProcessId.Int32)
-	if err != nil {
-		return err
-	}
-
-	startElement := process.graph.elementByElementId(task.ElementId.Int32)
-	if startElement == nil {
-		return engine.Error{
-			Type:   engine.ErrorBug,
-			Title:  "failed to find start node",
-			Detail: fmt.Sprintf("start node with ID %d could not be found", task.ElementId.Int32),
-		}
-	}
-
+func (ec *executionContext) triggerMessageStartEvent(ctx Context, task *TaskEntity, startElement *model.Element, messageId int64, expireMessage bool) error {
 	message, err := ctx.Messages().Select(messageId)
 	if err != nil {
 		return err
@@ -388,15 +347,15 @@ func triggerMessageStartEvent(ctx Context, task *TaskEntity, messageId int64, ex
 			Partition: task.Partition,
 
 			MessageId: pgtype.Int8{Int64: message.Id, Valid: true},
-			ProcessId: process.Id,
+			ProcessId: ec.process.Id,
 
-			BpmnProcessId:  process.BpmnProcessId,
+			BpmnProcessId:  ec.process.BpmnProcessId,
 			CorrelationKey: pgtype.Text{String: message.CorrelationKey, Valid: !expireMessage},
 			CreatedAt:      ctx.Time(),
 			CreatedBy:      message.CreatedBy,
 			StartedAt:      pgtype.Timestamp{Time: ctx.Time(), Valid: true},
 			State:          engine.InstanceStarted,
-			Version:        process.Version,
+			Version:        ec.process.Version,
 		}
 
 		if err := ctx.ProcessInstances().Insert(processInstance); err != nil {
@@ -411,9 +370,9 @@ func triggerMessageStartEvent(ctx Context, task *TaskEntity, messageId int64, ex
 		}
 	}
 
-	scope := process.graph.createProcessScope(processInstance)
+	scope := ec.process.graph.createProcessScope(processInstance)
 
-	execution, err := process.graph.createExecutionAt(&scope, startElement.Id)
+	execution, err := ec.process.graph.createExecutionAt(&scope, startElement.Id)
 	if err != nil {
 		return engine.Error{
 			Type:   engine.ErrorProcessModel,
@@ -422,18 +381,15 @@ func triggerMessageStartEvent(ctx Context, task *TaskEntity, messageId int64, ex
 		}
 	}
 
-	ec := executionContext{
-		engineOrWorkerId: ctx.Options().EngineId,
-		process:          process,
-		processInstance:  processInstance,
-	}
+	ec.processInstance = processInstance
+	ec.addExecution(&scope)
+	ec.addExecution(&execution)
 
-	executions := []*ElementInstanceEntity{&scope, &execution}
-	if err := ec.continueExecutions(ctx, executions); err != nil {
+	if err := ec.continueExecutions(ctx); err != nil {
 		if _, ok := err.(engine.Error); ok {
 			return err
 		} else {
-			return fmt.Errorf("failed to continue executions %+v: %v", executions, err)
+			return fmt.Errorf("failed to continue executions %+v: %v", ec.executions, err)
 		}
 	}
 
