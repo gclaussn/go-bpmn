@@ -7,24 +7,131 @@ import (
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func newTimerEventTest(t *testing.T, e engine.Engine) timerEventTest {
 	return timerEventTest{
 		e: e,
 
-		catchTest: mustCreateProcess(t, e, "event/timer-catch.bpmn", "timerCatchTest"),
+		boundaryProcess:                mustCreateProcess(t, e, "event/timer-boundary.bpmn", "timerBoundaryTest"),
+		boundaryNonInterruptingProcess: mustCreateProcess(t, e, "event/timer-boundary-non-interrupting.bpmn", "timerBoundaryNonInterruptingTest"),
+		catchProcess:                   mustCreateProcess(t, e, "event/timer-catch.bpmn", "timerCatchTest"),
 	}
 }
 
 type timerEventTest struct {
 	e engine.Engine
 
-	catchTest engine.Process
+	boundaryProcess                engine.Process
+	boundaryNonInterruptingProcess engine.Process
+	catchProcess                   engine.Process
+}
+
+func (x timerEventTest) boundary(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryProcess)
+
+	piAssert.IsWaitingAt("serviceTask")
+
+	triggerAt := time.Now().Add(time.Hour)
+
+	piAssert.IsWaitingAt("timerBoundaryEvent")
+	piAssert.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			Timer: &engine.Timer{
+				Time: triggerAt,
+			},
+		},
+	})
+
+	piAssert.IsWaitingAt("serviceTask")
+
+	if err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
+		Time: triggerAt,
+	}); err != nil {
+		t.Fatalf("failed to set time: %v", err)
+	}
+
+	piAssert.IsWaitingAt("timerBoundaryEvent")
+	piAssert.ExecuteTask()
+	piAssert.HasPassed("timerBoundaryEvent")
+	piAssert.HasPassed("endEventB")
+	piAssert.IsCompleted()
+
+	elementInstances := piAssert.ElementInstances()
+	require.Len(elementInstances, 5)
+
+	assert.Equal(engine.InstanceTerminated, elementInstances[2].State) // serviceTask
+	assert.Equal(engine.InstanceCompleted, elementInstances[3].State)  // timerBoundaryEvent
+
+	jobs := piAssert.Jobs()
+	require.Len(jobs, 2)
+
+	assert.Equal(engine.JobSetTimer, jobs[0].Type)
+	assert.Equal(engine.JobExecute, jobs[1].Type)
+}
+
+func (x timerEventTest) boundaryNonInterrupting(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryNonInterruptingProcess)
+
+	piAssert.IsWaitingAt("timerBoundaryEvent")
+	piAssert.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			Timer: &engine.Timer{
+				TimeDuration: engine.ISO8601Duration("PT1H"),
+			},
+		},
+	})
+
+	// #1
+	if err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
+		Time: time.Now().Add(time.Hour),
+	}); err != nil {
+		t.Fatalf("failed to set time: %v", err)
+	}
+
+	piAssert.IsWaitingAt("timerBoundaryEvent")
+	piAssert.ExecuteTask()
+
+	// #2
+	if err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
+		Time: time.Now().Add(time.Hour * 2),
+	}); err != nil {
+		t.Fatalf("failed to set time: %v", err)
+	}
+
+	piAssert.IsWaitingAt("timerBoundaryEvent")
+	piAssert.ExecuteTask()
+
+	piAssert.IsWaitingAt("serviceTask")
+	piAssert.CompleteJob()
+
+	piAssert.IsCompleted()
+
+	elementInstances := piAssert.ElementInstances()
+	require.Len(elementInstances, 9)
+
+	assert.Equal(engine.InstanceCompleted, elementInstances[2].State) // serviceTask
+	assert.Equal(engine.InstanceCompleted, elementInstances[3].State) // timerBoundaryEvent #1
+	assert.Equal(engine.InstanceCompleted, elementInstances[4].State) // timerBoundaryEvent #2
+	assert.Equal("endEventB", elementInstances[5].BpmnElementId)
+	assert.Equal(engine.InstanceTerminated, elementInstances[6].State) // timerBoundaryEvent #3
+	assert.Equal("endEventB", elementInstances[7].BpmnElementId)
+	assert.Equal("endEventA", elementInstances[8].BpmnElementId)
+
+	jobs := piAssert.Jobs()
+	require.Len(jobs, 2)
+
+	assert.Equal(engine.JobSetTimer, jobs[0].Type)
+	assert.Equal(engine.JobExecute, jobs[1].Type)
 }
 
 func (x timerEventTest) catch(t *testing.T) {
-	piAssert := mustCreateProcessInstance(t, x.e, x.catchTest)
+	piAssert := mustCreateProcessInstance(t, x.e, x.catchProcess)
 
 	triggerAt := time.Now().Add(time.Hour)
 

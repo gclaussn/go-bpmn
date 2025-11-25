@@ -44,6 +44,18 @@ func elementPointer(bpmnElement *model.Element) string {
 	return strings.Join(ids, "/")
 }
 
+func isTimerEvent(elementType model.ElementType) bool {
+	switch elementType {
+	case
+		model.ElementTimerBoundaryEvent,
+		model.ElementTimerCatchEvent,
+		model.ElementTimerStartEvent:
+		return true
+	default:
+		return false
+	}
+}
+
 func timeOrNil(v pgtype.Timestamp) *time.Time {
 	if !v.Valid {
 		return nil

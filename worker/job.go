@@ -138,6 +138,7 @@ func (d Delegator) SetEscalationCode(bpmnElementId string, delegation func(jc Jo
 // SetTimer delegates jobs of type [engine.JobSetTimer].
 //
 // Applicable for BPMN element types:
+//   - timer boundary event
 //   - timer catch event
 func (d Delegator) SetTimer(bpmnElementId string, delegation func(jc JobContext) (engine.Timer, error)) {
 	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {

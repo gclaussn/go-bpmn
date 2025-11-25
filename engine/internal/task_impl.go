@@ -180,7 +180,7 @@ func (t StartProcessInstanceTask) Execute(ctx Context, task *TaskEntity) error {
 // TriggerEventTask triggers start or catch events.
 //
 // In case of a start event, a new process instance is created.
-// In case of a catch event, an execution is continued.
+// In case of a boundary or catch event, an execution is continued.
 type TriggerEventTask struct {
 	MessageId int64         `json:",omitempty"`
 	SignalId  int64         `json:",omitempty"`
@@ -237,6 +237,13 @@ func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
 		}
 	}
 
+	var interrupting bool
+	switch bpmnElement.Type {
+	case
+		model.ElementTimerBoundaryEvent:
+		interrupting = bpmnElement.Model.(model.BoundaryEvent).CancelActivity
+	}
+
 	switch bpmnElement.Type {
 	case model.ElementMessageCatchEvent:
 		return ec.triggerMessageCatchEvent(ctx, t.MessageId)
@@ -247,6 +254,8 @@ func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
 		return ec.triggerSignalCatchEvent(ctx, t.SignalId)
 	case model.ElementSignalStartEvent:
 		return ec.triggerSignalStartEvent(ctx, task, bpmnElement, t.SignalId)
+	case model.ElementTimerBoundaryEvent:
+		return ec.triggerTimerBoundaryEvent(ctx, *t.Timer, interrupting)
 	case model.ElementTimerCatchEvent:
 		return ec.triggerTimerCatchEvent(ctx, *t.Timer)
 	case model.ElementTimerStartEvent:

@@ -135,7 +135,7 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			jobType = engine.JobSubscribeMessage
 		case model.ElementSignalCatchEvent:
 			jobType = engine.JobSubscribeSignal
-		case model.ElementTimerCatchEvent:
+		case model.ElementTimerBoundaryEvent, model.ElementTimerCatchEvent:
 			if node.eventDefinition == nil {
 				jobType = engine.JobSetTimer
 			} else {
@@ -192,7 +192,7 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 				Instance: taskInstance,
 			}
 
-			if node.bpmnElement.Type == model.ElementTimerCatchEvent {
+			if isTimerEvent(node.bpmnElement.Type) {
 				timer := *taskInstance.(TriggerEventTask).Timer
 
 				dueAt, err := evaluateTimer(timer, ctx.Time())
@@ -583,6 +583,20 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 		if err != nil {
 			job.Error = pgtype.Text{String: fmt.Sprintf("failed to evaluate timer: %v", err), Valid: true}
 			return nil
+		}
+
+		if node.bpmnElement.Type == model.ElementTimerBoundaryEvent {
+			attachedTo, err := ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
+			if err != nil {
+				return fmt.Errorf("failed to select attached to element instance: %v", err)
+			}
+
+			if attachedTo.EndedAt.Valid {
+				return nil // terminated or canceled
+			}
+
+			attachedTo.ExecutionCount++
+			ec.addExecution(attachedTo)
 		}
 
 		triggerEventTask := TaskEntity{

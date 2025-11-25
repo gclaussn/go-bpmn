@@ -25,6 +25,7 @@ const (
 	ElementSignalCatchEvent
 	ElementSignalStartEvent
 	ElementTask
+	ElementTimerBoundaryEvent
 	ElementTimerCatchEvent
 	ElementTimerStartEvent
 )
@@ -69,6 +70,8 @@ func MapElementType(s string) ElementType {
 		return ElementSignalStartEvent
 	case "TASK":
 		return ElementTask
+	case "TIMER_BOUNDARY_EVENT":
+		return ElementTimerBoundaryEvent
 	case "TIMER_CATCH_EVENT":
 		return ElementTimerCatchEvent
 	case "TIMER_START_EVENT":
@@ -126,6 +129,8 @@ func (v ElementType) String() string {
 		return "SIGNAL_START_EVENT"
 	case ElementTask:
 		return "TASK"
+	case ElementTimerBoundaryEvent:
+		return "TIMER_BOUNDARY_EVENT"
 	case ElementTimerCatchEvent:
 		return "TIMER_CATCH_EVENT"
 	case ElementTimerStartEvent:
