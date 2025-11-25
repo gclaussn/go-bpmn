@@ -12,15 +12,20 @@ import (
 
 type executionContext struct {
 	engineOrWorkerId string
+	executions       []*ElementInstanceEntity
 	process          *ProcessEntity
 	processInstance  *ProcessInstanceEntity
 }
 
+func (ec *executionContext) addExecution(execution *ElementInstanceEntity) {
+	ec.executions = append(ec.executions, execution)
+}
+
 // continueExecutions continues each execution until a wait state is reached or no more outgoing sequence flows exist.
-func (ec executionContext) continueExecutions(ctx Context, executions []*ElementInstanceEntity) error {
+func (ec *executionContext) continueExecutions(ctx Context) error {
 	i := 0
-	for i < len(executions) {
-		execution := executions[i]
+	for i < len(ec.executions) {
+		execution := ec.executions[i]
 
 		i++
 
@@ -28,38 +33,22 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 			continue // skip scope
 		}
 
-		// find parent within executions
-		if execution.parent == nil {
-			parentId := execution.ParentId.Int32
-			for j := range executions {
-				if executions[j].Id == parentId {
-					execution.parent = executions[j]
-					break
-				}
-			}
-		}
-
-		// find parent within repository
-		if execution.parent == nil {
-			parent, err := ctx.ElementInstances().Select(execution.Partition, execution.ParentId.Int32)
-			if err != nil {
-				return err
-			}
-
-			execution.parent = parent
-			executions = append(executions, parent)
-			i++
+		scope, err := ec.findParent(ctx, execution)
+		if err != nil {
+			return err
 		}
 
 		// continue execution
-		var err error
-		if executions, err = ec.process.graph.continueExecution(executions, execution); err != nil {
+		executions, err := ec.process.graph.continueExecution(ec.executions, execution)
+		if err != nil {
 			return engine.Error{
 				Type:   engine.ErrorProcessModel,
 				Title:  "failed to continue execution",
 				Detail: err.Error(),
 			}
 		}
+
+		ec.executions = executions
 
 		switch execution.State {
 		case engine.InstanceStarted:
@@ -74,7 +63,6 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 			execution.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
 		}
 
-		scope := execution.parent
 		if scope.State == engine.InstanceCompleted && !scope.ParentId.Valid {
 			scope.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
 
@@ -92,13 +80,16 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 	)
 
 	// create jobs and tasks
-	for i, execution := range executions {
-		switch execution.State {
-		case engine.InstanceQueued, engine.InstanceSuspended, engine.InstanceTerminated:
+	for i, execution := range ec.executions {
+		if execution.State != engine.InstanceCreated && execution.State != engine.InstanceStarted {
 			continue
 		}
 
 		if execution.ExecutionCount != 0 {
+			continue
+		}
+
+		if execution.Context.Valid {
 			continue
 		}
 
@@ -108,55 +99,62 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 			taskInstance Task
 		)
 
-		if execution.State == engine.InstanceCreated {
-			if execution.Context.Valid {
-				continue // skip defined boundary event
-			}
+		node, _ := ec.process.graph.node(execution.BpmnElementId)
 
-			switch execution.BpmnElementType {
-			case model.ElementMessageCatchEvent:
-				jobType = engine.JobSubscribeMessage
-			case model.ElementSignalCatchEvent:
-				jobType = engine.JobSubscribeSignal
-			case model.ElementTimerCatchEvent:
-				jobType = engine.JobSetTimer
-			case model.ElementErrorBoundaryEvent:
-				jobType = engine.JobSetErrorCode
-			case model.ElementEscalationBoundaryEvent:
-				jobType = engine.JobSetEscalationCode
-			default:
-				return engine.Error{
-					Type:   engine.ErrorBug,
-					Title:  "failed to define job or task for created execution",
-					Detail: fmt.Sprintf("BPMN element type %s is not supported", execution.BpmnElementType),
-				}
-			}
-		} else if execution.State == engine.InstanceStarted {
-			switch execution.BpmnElementType {
-			case
-				model.ElementBusinessRuleTask,
-				model.ElementScriptTask,
-				model.ElementSendTask,
-				model.ElementServiceTask:
+		switch execution.BpmnElementType {
+		case
+			model.ElementBusinessRuleTask,
+			model.ElementScriptTask,
+			model.ElementSendTask,
+			model.ElementServiceTask:
+			if execution.State == engine.InstanceStarted {
 				jobType = engine.JobExecute
-			case model.ElementExclusiveGateway:
-				jobType = engine.JobEvaluateExclusiveGateway
-			case model.ElementInclusiveGateway:
-				jobType = engine.JobEvaluateInclusiveGateway
-			case model.ElementParallelGateway:
-				taskType = engine.TaskJoinParallelGateway
-				taskInstance = JoinParallelGatewayTask{}
-			case
-				model.ElementMessageCatchEvent,
-				model.ElementSignalCatchEvent,
-				model.ElementTimerCatchEvent:
-				// no job or task to create
-			default:
-				return engine.Error{
-					Type:   engine.ErrorBug,
-					Title:  "failed to define job or task for started execution",
-					Detail: fmt.Sprintf("BPMN element type %s is not supported", execution.BpmnElementType),
+			}
+		// gateway
+		case model.ElementExclusiveGateway:
+			jobType = engine.JobEvaluateExclusiveGateway
+		case model.ElementInclusiveGateway:
+			jobType = engine.JobEvaluateInclusiveGateway
+		case model.ElementParallelGateway:
+			taskType = engine.TaskJoinParallelGateway
+			taskInstance = JoinParallelGatewayTask{}
+		// event
+		case model.ElementErrorBoundaryEvent:
+			if node.eventDefinition == nil {
+				jobType = engine.JobSetErrorCode
+			} else {
+				execution.Context = pgtype.Text{String: node.eventDefinition.ErrorCode.String, Valid: true}
+			}
+		case model.ElementEscalationBoundaryEvent:
+			if node.eventDefinition == nil {
+				jobType = engine.JobSetEscalationCode
+			} else {
+				execution.Context = pgtype.Text{String: node.eventDefinition.EscalationCode.String, Valid: true}
+			}
+		case model.ElementMessageCatchEvent:
+			jobType = engine.JobSubscribeMessage
+		case model.ElementSignalCatchEvent:
+			jobType = engine.JobSubscribeSignal
+		case model.ElementTimerCatchEvent:
+			if node.eventDefinition == nil {
+				jobType = engine.JobSetTimer
+			} else {
+				timer := engine.Timer{
+					Time:         node.eventDefinition.Time.Time,
+					TimeCycle:    node.eventDefinition.TimeCycle.String,
+					TimeDuration: engine.ISO8601Duration(node.eventDefinition.TimeDuration.String),
 				}
+
+				taskType = engine.TaskTriggerEvent
+				taskInstance = TriggerEventTask{Timer: &timer}
+
+				execution.Context = pgtype.Text{String: timer.String(), Valid: true}
+			}
+		default:
+			return engine.Error{
+				Type:   engine.ErrorBug,
+				Title:  "failed to define job or task",
+				Detail: fmt.Sprintf("BPMN element type %s is not supported", execution.BpmnElementType),
 			}
 		}
 
@@ -194,13 +192,24 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 				Instance: taskInstance,
 			}
 
+			if node.bpmnElement.Type == model.ElementTimerCatchEvent {
+				timer := *taskInstance.(TriggerEventTask).Timer
+
+				dueAt, err := evaluateTimer(timer, ctx.Time())
+				if err != nil {
+					return fmt.Errorf("failed to evaluate timer: %v", err)
+				}
+
+				task.DueAt = dueAt
+			}
+
 			tasks = append(tasks, &task)
 			tasksIdx = append(tasksIdx, i)
 		}
 	}
 
 	// insert or update executions
-	for _, execution := range executions {
+	for _, execution := range ec.executions {
 		if execution.Id == 0 {
 			execution.CreatedAt = ctx.Time()
 			execution.CreatedBy = ec.engineOrWorkerId
@@ -233,7 +242,7 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 	// insert jobs
 	for i, job := range jobs {
 		idx := jobsIdx[i]
-		job.ElementInstanceId = executions[idx].Id
+		job.ElementInstanceId = ec.executions[idx].Id
 
 		if err := ctx.Jobs().Insert(job); err != nil {
 			return err
@@ -243,7 +252,7 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 	// insert tasks
 	for i, task := range tasks {
 		idx := tasksIdx[i]
-		task.ElementInstanceId = pgtype.Int4{Int32: executions[idx].Id, Valid: true}
+		task.ElementInstanceId = pgtype.Int4{Int32: ec.executions[idx].Id, Valid: true}
 
 		if err := ctx.Tasks().Insert(task); err != nil {
 			return err
@@ -276,7 +285,34 @@ func (ec executionContext) continueExecutions(ctx Context, executions []*Element
 	return ctx.Messages().Update(message)
 }
 
-func (ec executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.CompleteJobCmd) error {
+// findParent finds and returns the parent execution.
+func (ec *executionContext) findParent(ctx Context, execution *ElementInstanceEntity) (*ElementInstanceEntity, error) {
+	if execution.parent != nil {
+		return execution.parent, nil
+	}
+
+	parentId := execution.ParentId.Int32
+
+	// find parent within executions
+	for _, parent := range ec.executions {
+		if parent.Id == parentId {
+			execution.parent = parent
+			return parent, nil
+		}
+	}
+
+	// find parent within repository
+	parent, err := ctx.ElementInstances().Select(execution.Partition, parentId)
+	if err != nil {
+		return nil, err
+	}
+
+	execution.parent = parent
+	ec.addExecution(parent)
+	return parent, nil
+}
+
+func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.CompleteJobCmd) error {
 	execution, err := ctx.ElementInstances().Select(job.Partition, job.ElementInstanceId)
 	if err != nil {
 		return err
@@ -287,7 +323,8 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Com
 		return err
 	}
 
-	executions := []*ElementInstanceEntity{scope, execution}
+	ec.addExecution(scope)
+	ec.addExecution(execution)
 
 	graph := ec.process.graph
 
@@ -335,7 +372,7 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Com
 			return nil
 		}
 
-		executions = append(executions, &next)
+		ec.addExecution(&next)
 	case engine.JobEvaluateInclusiveGateway:
 		bpmnElement := node.bpmnElement
 		if bpmnElement.Type != model.ElementInclusiveGateway {
@@ -385,7 +422,7 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Com
 				return nil
 			}
 
-			executions = append(executions, &next)
+			ec.addExecution(&next)
 		}
 	case engine.JobExecute:
 		boundaryEvents, err := ctx.ElementInstances().SelectBoundaryEvents(execution)
@@ -494,7 +531,7 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Com
 				}
 
 				// overwrite executions to avoid completion of current execution
-				executions = []*ElementInstanceEntity{scope, &attached, target}
+				ec.executions = []*ElementInstanceEntity{scope, &attached, target}
 				break
 			}
 		}
@@ -509,7 +546,8 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Com
 			} else {
 				boundaryEvent.State = engine.InstanceTerminated
 			}
-			executions = append(executions, boundaryEvent)
+
+			ec.addExecution(boundaryEvent)
 		}
 	case engine.JobSetErrorCode, engine.JobSetEscalationCode:
 		attachedTo, err := ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
@@ -520,6 +558,9 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Com
 		if attachedTo.EndedAt.Valid {
 			return nil // terminated or canceled
 		}
+
+		attachedTo.ExecutionCount++
+		ec.addExecution(attachedTo)
 
 		var context string
 		if jobCompletion != nil {
@@ -532,9 +573,6 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Com
 		}
 
 		execution.Context = pgtype.Text{String: context, Valid: true}
-
-		attachedTo.ExecutionCount = attachedTo.ExecutionCount + 1
-		executions = append(executions, attachedTo)
 	case engine.JobSetTimer:
 		if jobCompletion == nil || jobCompletion.Timer == nil {
 			job.Error = pgtype.Text{String: "expected a timer", Valid: true}
@@ -566,6 +604,8 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Com
 		if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {
 			return err
 		}
+
+		execution.Context = pgtype.Text{String: jobCompletion.Timer.String(), Valid: true}
 	case engine.JobSubscribeMessage:
 		if jobCompletion == nil || jobCompletion.MessageName == "" || jobCompletion.MessageCorrelationKey == "" {
 			job.Error = pgtype.Text{String: "expected a message name and correlation key", Valid: true}
@@ -623,6 +663,8 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Com
 				return err
 			}
 		}
+
+		execution.Context = pgtype.Text{String: jobCompletion.MessageName, Valid: true}
 	case engine.JobSubscribeSignal:
 		if jobCompletion == nil || jobCompletion.SignalName == "" {
 			job.Error = pgtype.Text{String: "expected a signal name", Valid: true}
@@ -645,20 +687,22 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Com
 		if err := ctx.SignalSubscriptions().Insert(&signalSubscription); err != nil {
 			return err
 		}
+
+		execution.Context = pgtype.Text{String: jobCompletion.SignalName, Valid: true}
 	}
 
-	if err := ec.continueExecutions(ctx, executions); err != nil {
+	if err := ec.continueExecutions(ctx); err != nil {
 		if _, ok := err.(engine.Error); ok {
 			job.Error = pgtype.Text{String: err.Error(), Valid: true}
 		} else {
-			return fmt.Errorf("failed to continue executions %+v: %v", executions, err)
+			return fmt.Errorf("failed to continue executions %+v: %v", ec.executions, err)
 		}
 	}
 
 	return nil
 }
 
-func (ec executionContext) handleParallelGateway(ctx Context, task *TaskEntity) error {
+func (ec *executionContext) handleParallelGateway(ctx Context, task *TaskEntity) error {
 	execution, err := ctx.ElementInstances().Select(task.Partition, task.ElementInstanceId.Int32)
 	if err != nil {
 		return err
@@ -711,13 +755,17 @@ func (ec executionContext) handleParallelGateway(ctx Context, task *TaskEntity) 
 		return err
 	}
 
-	joined = append(joined, scope)
+	ec.addExecution(scope)
 
-	if err := ec.continueExecutions(ctx, joined); err != nil {
+	for i := range joined {
+		ec.addExecution(joined[i])
+	}
+
+	if err := ec.continueExecutions(ctx); err != nil {
 		if _, ok := err.(engine.Error); ok {
 			return err
 		} else {
-			return fmt.Errorf("failed to continue executions %+v: %v", joined, err)
+			return fmt.Errorf("failed to continue executions %+v: %v", ec.executions, err)
 		}
 	}
 

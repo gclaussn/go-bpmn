@@ -7,41 +7,14 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func triggerTimerCatchEvent(ctx Context, task *TaskEntity, timer engine.Timer) error {
-	processInstance, err := ctx.ProcessInstances().Select(task.Partition, task.ProcessInstanceId.Int32)
-	if err != nil {
-		return err
-	}
+func (ec *executionContext) triggerTimerCatchEvent(ctx Context, timer engine.Timer) error {
+	execution := ec.executions[0]
 
-	if processInstance.EndedAt.Valid {
-		return nil
-	}
-
-	execution, err := ctx.ElementInstances().Select(task.Partition, task.ElementInstanceId.Int32)
-	if err != nil {
-		return err
-	}
-
-	if execution.EndedAt.Valid {
-		return nil
-	}
-
-	process, err := ctx.ProcessCache().GetOrCacheById(ctx, task.ProcessId.Int32)
-	if err != nil {
-		return err
-	}
-
-	ec := executionContext{
-		engineOrWorkerId: ctx.Options().EngineId,
-		process:          process,
-		processInstance:  processInstance,
-	}
-
-	if err := ec.continueExecutions(ctx, []*ElementInstanceEntity{execution}); err != nil {
+	if err := ec.continueExecutions(ctx); err != nil {
 		if _, ok := err.(engine.Error); ok {
 			return err
 		} else {
-			return fmt.Errorf("failed to continue execution %+v: %v", execution, err)
+			return fmt.Errorf("failed to continue executions %+v: %v", ec.executions, err)
 		}
 	}
 
@@ -64,7 +37,7 @@ func triggerTimerCatchEvent(ctx Context, task *TaskEntity, timer engine.Timer) e
 	return nil
 }
 
-func triggerTimerStartEvent(ctx Context, task *TaskEntity, timer engine.Timer) error {
+func (ec *executionContext) triggerTimerStartEvent(ctx Context, task *TaskEntity, timer engine.Timer) error {
 	eventDefinition, err := ctx.EventDefinitions().Select(task.ElementId.Int32)
 	if err != nil {
 		return err
@@ -72,11 +45,6 @@ func triggerTimerStartEvent(ctx Context, task *TaskEntity, timer engine.Timer) e
 
 	if eventDefinition.IsSuspended {
 		return nil
-	}
-
-	process, err := ctx.ProcessCache().GetOrCacheById(ctx, task.ProcessId.Int32)
-	if err != nil {
-		return err
 	}
 
 	var processInstance *ProcessInstanceEntity
@@ -95,14 +63,14 @@ func triggerTimerStartEvent(ctx Context, task *TaskEntity, timer engine.Timer) e
 		processInstance = &ProcessInstanceEntity{
 			Partition: task.Partition,
 
-			ProcessId: process.Id,
+			ProcessId: ec.process.Id,
 
-			BpmnProcessId: process.BpmnProcessId,
+			BpmnProcessId: ec.process.BpmnProcessId,
 			CreatedAt:     ctx.Time(),
 			CreatedBy:     ctx.Options().EngineId,
 			StartedAt:     pgtype.Timestamp{Time: ctx.Time(), Valid: true},
 			State:         engine.InstanceStarted,
-			Version:       process.Version,
+			Version:       ec.process.Version,
 		}
 
 		if err := ctx.ProcessInstances().Insert(processInstance); err != nil {
@@ -117,9 +85,9 @@ func triggerTimerStartEvent(ctx Context, task *TaskEntity, timer engine.Timer) e
 		}
 	}
 
-	scope := process.graph.createProcessScope(processInstance)
+	scope := ec.process.graph.createProcessScope(processInstance)
 
-	execution, err := process.graph.createExecutionAt(&scope, eventDefinition.BpmnElementId)
+	execution, err := ec.process.graph.createExecutionAt(&scope, eventDefinition.BpmnElementId)
 	if err != nil {
 		return engine.Error{
 			Type:   engine.ErrorProcessModel,
@@ -128,18 +96,15 @@ func triggerTimerStartEvent(ctx Context, task *TaskEntity, timer engine.Timer) e
 		}
 	}
 
-	ec := executionContext{
-		engineOrWorkerId: ctx.Options().EngineId,
-		process:          process,
-		processInstance:  processInstance,
-	}
+	ec.processInstance = processInstance
+	ec.addExecution(&scope)
+	ec.addExecution(&execution)
 
-	executions := []*ElementInstanceEntity{&scope, &execution}
-	if err := ec.continueExecutions(ctx, executions); err != nil {
+	if err := ec.continueExecutions(ctx); err != nil {
 		if _, ok := err.(engine.Error); ok {
 			return err
 		} else {
-			return fmt.Errorf("failed to continue executions %+v: %v", executions, err)
+			return fmt.Errorf("failed to continue executions %+v: %v", ec.executions, err)
 		}
 	}
 

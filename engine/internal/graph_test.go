@@ -289,8 +289,6 @@ func TestContinueExecution(t *testing.T) {
 
 			assert.Equal("errorBoundaryEvent", executions[0].BpmnElementId)
 			assert.Equal(model.ElementErrorBoundaryEvent, executions[0].BpmnElementType)
-			assert.Equal("TEST_CODE", executions[0].Context.String)
-			assert.True(executions[0].Context.Valid)
 		})
 	})
 
@@ -402,6 +400,56 @@ func TestContinueExecution(t *testing.T) {
 
 			assert.Equal(engine.InstanceStarted, execution.State)
 			assert.Equal(0, execution.ExecutionCount)
+		})
+	})
+
+	t.Run("timer catch event", func(t *testing.T) {
+		// given
+		graph := mustCreateGraph(t, "event/timer-catch.bpmn", "timerCatchTest")
+
+		t.Run("scope STARTED", func(t *testing.T) {
+			// given
+			scope.State = engine.InstanceStarted
+
+			execution := &ElementInstanceEntity{
+				BpmnElementId:   "startEvent",
+				BpmnElementType: model.ElementNoneStartEvent,
+
+				parent: scope,
+			}
+
+			// when
+			executions1, err := graph.continueExecution(nil, execution)
+
+			// then
+			require.NoError(err)
+			require.Len(executions1, 1)
+
+			timerCatchEvent := executions1[0]
+
+			assert.Equal("timerCatchEvent", timerCatchEvent.BpmnElementId)
+			assert.Equal(model.ElementTimerCatchEvent, timerCatchEvent.BpmnElementType)
+
+			// when
+			executions2, err := graph.continueExecution(nil, timerCatchEvent)
+
+			// then
+			require.NoError(err)
+			require.Len(executions2, 0)
+
+			assert.Equal(engine.InstanceCreated, timerCatchEvent.State)
+
+			// given
+			timerCatchEvent.Context = pgtype.Text{String: "", Valid: true}
+
+			// when
+			executions3, err := graph.continueExecution(nil, timerCatchEvent)
+
+			// then
+			require.NoError(err)
+			require.Len(executions3, 0)
+
+			assert.Equal(engine.InstanceStarted, timerCatchEvent.State)
 		})
 	})
 }

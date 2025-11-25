@@ -6,7 +6,6 @@ import (
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/model"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // validateProcess validates if the process and its elements can be executed.
@@ -183,12 +182,19 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 		// end branch
 		if execution.ExecutionCount < 0 { // task, sub process or call activity, but not all boundary events defined
 			execution.State = engine.InstanceCreated
-		} else if execution.Context.Valid { // defined boundary event
-			execution.State = engine.InstanceCreated
+		} else if execution.Context.Valid {
+			switch execution.BpmnElementType {
+			// defined boundary event
+			case
+				model.ElementErrorBoundaryEvent,
+				model.ElementEscalationBoundaryEvent:
+				execution.State = engine.InstanceCreated
+			default:
+				execution.State = engine.InstanceStarted
+			}
 		} else {
 			execution.State = engine.InstanceStarted
 		}
-		return executions, nil
 	} else {
 		// end branch, if BPMN element requires a job to be completed or a task to be executed
 		switch execution.BpmnElementType {
@@ -202,6 +208,7 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 			} else {
 				execution.State = engine.InstanceCreated
 			}
+		// gateway
 		case
 			model.ElementExclusiveGateway,
 			model.ElementInclusiveGateway:
@@ -216,11 +223,16 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 			} else {
 				execution.State = engine.InstanceCompleted
 			}
+		// event
 		case
 			model.ElementMessageCatchEvent,
 			model.ElementSignalCatchEvent,
 			model.ElementTimerCatchEvent:
-			execution.State = engine.InstanceCreated
+			if node.eventDefinition == nil {
+				execution.State = engine.InstanceCreated
+			} else {
+				execution.State = engine.InstanceStarted
+			}
 		case
 			model.ElementErrorBoundaryEvent,
 			model.ElementEscalationBoundaryEvent:
@@ -312,9 +324,7 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 					prev:   execution,
 				}
 
-				if attachedNode.eventDefinition != nil {
-					attached.Context = pgtype.Text{String: attachedNode.eventContext(), Valid: true}
-				} else {
+				if attachedNode.eventDefinition == nil {
 					executionCount--
 				}
 
@@ -524,20 +534,4 @@ type node struct {
 	id              int32 // ID of the related ElementEntity
 	bpmnElement     *model.Element
 	eventDefinition *EventDefinitionEntity
-}
-
-// eventContext returns the context value (an event name or code) to use when creating an event related execution.
-func (n node) eventContext() string {
-	if n.eventDefinition == nil {
-		return ""
-	}
-
-	switch n.bpmnElement.Type {
-	case model.ElementErrorBoundaryEvent:
-		return n.eventDefinition.ErrorCode.String
-	case model.ElementEscalationBoundaryEvent:
-		return n.eventDefinition.EscalationCode.String
-	default:
-		return ""
-	}
 }

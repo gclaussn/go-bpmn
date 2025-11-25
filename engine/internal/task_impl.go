@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
+	"github.com/gclaussn/go-bpmn/model"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -132,7 +133,6 @@ func (t StartProcessInstanceTask) Execute(ctx Context, task *TaskEntity) error {
 	if err != nil {
 		return err
 	}
-
 	if processInstance.State != engine.InstanceQueued {
 		return nil
 	}
@@ -140,12 +140,6 @@ func (t StartProcessInstanceTask) Execute(ctx Context, task *TaskEntity) error {
 	process, err := ctx.ProcessCache().GetOrCacheById(ctx, processInstance.ProcessId)
 	if err != nil {
 		return err
-	}
-
-	ec := executionContext{
-		engineOrWorkerId: ctx.Options().EngineId,
-		process:          process,
-		processInstance:  processInstance,
 	}
 
 	executions, err := ctx.ElementInstances().SelectByProcessInstanceAndState(processInstance)
@@ -165,11 +159,18 @@ func (t StartProcessInstanceTask) Execute(ctx Context, task *TaskEntity) error {
 	processInstance.StartedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
 	processInstance.State = engine.InstanceStarted
 
-	if err := ec.continueExecutions(ctx, executions); err != nil {
+	ec := executionContext{
+		engineOrWorkerId: ctx.Options().EngineId,
+		executions:       executions,
+		process:          process,
+		processInstance:  processInstance,
+	}
+
+	if err := ec.continueExecutions(ctx); err != nil {
 		if _, ok := err.(engine.Error); ok {
 			return err
 		} else {
-			return fmt.Errorf("failed to continue executions %+v: %v", executions, err)
+			return fmt.Errorf("failed to continue executions %+v: %v", ec.executions, err)
 		}
 	}
 
@@ -187,26 +188,69 @@ type TriggerEventTask struct {
 }
 
 func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
-	switch {
-	case t.MessageId != 0:
-		if task.ElementInstanceId.Valid {
-			return triggerMessageCatchEvent(ctx, task, t.MessageId)
-		} else {
-			expireMessage := t.Timer != nil
-			return triggerMessageStartEvent(ctx, task, t.MessageId, expireMessage)
+	process, err := ctx.ProcessCache().GetOrCacheById(ctx, task.ProcessId.Int32)
+	if err != nil {
+		return err
+	}
+
+	bpmnElement := process.graph.elementByElementId(task.ElementId.Int32)
+	if bpmnElement == nil {
+		return engine.Error{
+			Type:   engine.ErrorBug,
+			Title:  "failed to find BPMN element",
+			Detail: fmt.Sprintf("BPMN element with ID %d could not be found", task.ElementId.Int32),
 		}
-	case t.SignalId != 0:
-		if task.ElementInstanceId.Valid {
-			return triggerSignalCatchEvent(ctx, task, t.SignalId)
-		} else {
-			return triggerSignalStartEvent(ctx, task, t.SignalId)
+	}
+
+	var ec *executionContext
+	switch bpmnElement.Type {
+	case
+		model.ElementMessageStartEvent,
+		model.ElementSignalStartEvent,
+		model.ElementTimerStartEvent:
+		ec = &executionContext{
+			engineOrWorkerId: ctx.Options().EngineId,
+			process:          process,
 		}
-	case t.Timer != nil:
-		if task.ElementInstanceId.Valid {
-			return triggerTimerCatchEvent(ctx, task, *t.Timer)
-		} else {
-			return triggerTimerStartEvent(ctx, task, *t.Timer)
+	default:
+		processInstance, err := ctx.ProcessInstances().Select(task.Partition, task.ProcessInstanceId.Int32)
+		if err != nil {
+			return err
 		}
+		if processInstance.EndedAt.Valid {
+			return nil
+		}
+
+		execution, err := ctx.ElementInstances().Select(task.Partition, task.ElementInstanceId.Int32)
+		if err != nil {
+			return err
+		}
+		if execution.EndedAt.Valid {
+			return nil
+		}
+
+		ec = &executionContext{
+			engineOrWorkerId: ctx.Options().EngineId,
+			executions:       []*ElementInstanceEntity{execution},
+			process:          process,
+			processInstance:  processInstance,
+		}
+	}
+
+	switch bpmnElement.Type {
+	case model.ElementMessageCatchEvent:
+		return ec.triggerMessageCatchEvent(ctx, t.MessageId)
+	case model.ElementMessageStartEvent:
+		expireMessage := t.Timer != nil
+		return ec.triggerMessageStartEvent(ctx, task, bpmnElement, t.MessageId, expireMessage)
+	case model.ElementSignalCatchEvent:
+		return ec.triggerSignalCatchEvent(ctx, t.SignalId)
+	case model.ElementSignalStartEvent:
+		return ec.triggerSignalStartEvent(ctx, task, bpmnElement, t.SignalId)
+	case model.ElementTimerCatchEvent:
+		return ec.triggerTimerCatchEvent(ctx, *t.Timer)
+	case model.ElementTimerStartEvent:
+		return ec.triggerTimerStartEvent(ctx, task, *t.Timer)
 	default:
 		return engine.Error{
 			Type:   engine.ErrorBug,

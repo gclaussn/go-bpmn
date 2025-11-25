@@ -629,6 +629,18 @@ type Timer struct {
 	TimeDuration ISO8601Duration `json:"timeDuration" validate:"iso8601_duration"`
 }
 
+func (t Timer) String() string {
+	if !t.Time.IsZero() {
+		return t.Time.UTC().Truncate(time.Millisecond).Format(time.RFC3339Nano)
+	} else if t.TimeCycle != "" {
+		return t.TimeCycle
+	} else if !t.TimeDuration.IsZero() {
+		return t.TimeDuration.String()
+	} else {
+		return ""
+	}
+}
+
 // Variable is data, identified by a name, that exists in the scope of a process instance or element instance.
 type Variable struct {
 	Partition Partition `json:"partition" validate:"required"` // Variable partition.
