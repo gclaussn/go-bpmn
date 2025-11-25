@@ -462,10 +462,12 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Com
 					return err
 				}
 
+				attached.ParentId = target.ParentId
+				attached.PrevElementId = target.PrevElementId
+				attached.PrevId = target.PrevId
+
 				attached.Context = target.Context
 				attached.State = engine.InstanceCreated
-
-				attached.prev = execution
 
 				// retry job
 				retryTimer := engine.ISO8601Duration(cmd.RetryTimer)
@@ -502,10 +504,6 @@ func (ec executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Com
 		}
 
 		for _, boundaryEvent := range boundaryEvents {
-			if boundaryEvent.State == engine.InstanceCompleted {
-				continue // skip already completed (non-interrupting)
-			}
-
 			if boundaryEvent.Id == targetId {
 				boundaryEvent.State = engine.InstanceStarted
 			} else {

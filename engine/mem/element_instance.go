@@ -53,7 +53,7 @@ func (r *elementInstanceRepository) SelectBoundaryEvents(execution *internal.Ele
 
 	key := execution.Partition.Format(time.DateOnly)
 	for _, e := range r.partitions[key] {
-		if e.PrevId.Int32 == execution.Id {
+		if e.PrevId.Int32 == execution.Id && e.State == engine.InstanceCreated {
 			results = append(results, &e)
 		}
 	}

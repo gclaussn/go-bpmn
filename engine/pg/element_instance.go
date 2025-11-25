@@ -10,6 +10,7 @@ import (
 	"github.com/gclaussn/go-bpmn/engine/internal"
 	"github.com/gclaussn/go-bpmn/model"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type elementInstanceRepository struct {
@@ -248,6 +249,7 @@ SELECT
 	id,
 
 	parent_id,
+	prev_element_id,
 
 	element_id,
 	process_id,
@@ -262,12 +264,14 @@ FROM
 	element_instance
 WHERE
 	partition = $1 AND
-	prev_id = $2
+	prev_id = $2 AND
+	state = $3
 ORDER BY
 	id
 `,
 		execution.Partition,
 		execution.Id,
+		engine.InstanceCreated.String(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to select boundary event element instances: %v", err)
@@ -286,6 +290,7 @@ ORDER BY
 			&entity.Id,
 
 			&entity.ParentId,
+			&entity.PrevElementId,
 
 			&entity.ElementId,
 			&entity.ProcessId,
@@ -301,6 +306,7 @@ ORDER BY
 		}
 
 		entity.Partition = execution.Partition
+		entity.PrevId = pgtype.Int4{Int32: execution.Id, Valid: true}
 		entity.ProcessInstanceId = execution.ProcessInstanceId
 		entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
 		entity.State = engine.MapInstanceState(stateValue)
