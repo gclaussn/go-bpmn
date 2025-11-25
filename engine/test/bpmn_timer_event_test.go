@@ -73,6 +73,57 @@ func (x timerEventTest) boundary(t *testing.T) {
 	assert.Equal(engine.JobExecute, jobs[1].Type)
 }
 
+// boundaryWithTimer tests that for a timer boundary event with timer, no SET_TIMER job is created.
+func (x timerEventTest) boundaryWithTimer(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	bpmnXml := mustReadBpmnFile(t, "event/timer-boundary.bpmn")
+
+	triggerAt := time.Now().Add(time.Hour)
+
+	process, err := x.e.CreateProcess(context.Background(), engine.CreateProcessCmd{
+		BpmnProcessId: "timerBoundaryTest",
+		BpmnXml:       bpmnXml,
+		Timers: map[string]*engine.Timer{
+			"timerBoundaryEvent": {
+				Time: triggerAt,
+			},
+		},
+		Version:  t.Name(),
+		WorkerId: testWorkerId,
+	})
+	if err != nil {
+		t.Fatalf("failed to create process: %v", err)
+	}
+
+	piAssert := mustCreateProcessInstance(t, x.e, process)
+
+	piAssert.IsWaitingAt("serviceTask")
+
+	if err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
+		Time: triggerAt,
+	}); err != nil {
+		t.Fatalf("failed to set time: %v", err)
+	}
+
+	piAssert.IsWaitingAt("timerBoundaryEvent")
+	piAssert.ExecuteTask()
+	piAssert.HasPassed("timerBoundaryEvent")
+	piAssert.HasPassed("endEventB")
+	piAssert.IsCompleted()
+
+	elementInstances := piAssert.ElementInstances()
+	require.Len(elementInstances, 5)
+
+	assert.Equal(engine.InstanceTerminated, elementInstances[2].State) // serviceTask
+	assert.Equal(engine.InstanceCompleted, elementInstances[3].State)  // timerBoundaryEvent
+
+	jobs := piAssert.Jobs()
+	require.Len(jobs, 1)
+
+	assert.Equal(engine.JobExecute, jobs[0].Type)
+}
+
 func (x timerEventTest) boundaryNonInterrupting(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
@@ -143,6 +194,41 @@ func (x timerEventTest) catch(t *testing.T) {
 			},
 		},
 	})
+
+	if err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
+		Time: triggerAt,
+	}); err != nil {
+		t.Fatalf("failed to set time: %v", err)
+	}
+
+	piAssert.IsWaitingAt("timerCatchEvent")
+	piAssert.ExecuteTask()
+
+	piAssert.IsCompleted()
+}
+
+// catchWithTimer tests that for a timer catch event with timer, no SET_TIMER job is created.
+func (x timerEventTest) catchWithTimer(t *testing.T) {
+	bpmnXml := mustReadBpmnFile(t, "event/timer-catch.bpmn")
+
+	triggerAt := time.Now().Add(time.Hour)
+
+	process, err := x.e.CreateProcess(context.Background(), engine.CreateProcessCmd{
+		BpmnProcessId: "timerCatchTest",
+		BpmnXml:       bpmnXml,
+		Timers: map[string]*engine.Timer{
+			"timerCatchEvent": {
+				Time: triggerAt,
+			},
+		},
+		Version:  t.Name(),
+		WorkerId: testWorkerId,
+	})
+	if err != nil {
+		t.Fatalf("failed to create process: %v", err)
+	}
+
+	piAssert := mustCreateProcessInstance(t, x.e, process)
 
 	if err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
 		Time: triggerAt,

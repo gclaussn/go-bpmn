@@ -129,6 +129,19 @@ func TestBpmnTimerEvent(t *testing.T) {
 		}
 	})
 
+	t.Run("boundary with timer", func(t *testing.T) {
+		engines, engineTypes := mustCreateEngines(t)
+		for _, e := range engines {
+			defer e.Shutdown()
+		}
+
+		for i, e := range engines {
+			timerEventTest := newTimerEventTest(t, e)
+
+			t.Run(engineTypes[i]+"boundary", timerEventTest.boundaryWithTimer)
+		}
+	})
+
 	t.Run("boundary non-interrupting", func(t *testing.T) {
 		engines, engineTypes := mustCreateEngines(t)
 		for _, e := range engines {
@@ -152,6 +165,19 @@ func TestBpmnTimerEvent(t *testing.T) {
 			timerEventTest := newTimerEventTest(t, e)
 
 			t.Run(engineTypes[i]+"catch", timerEventTest.catch)
+		}
+	})
+
+	t.Run("catch with timer", func(t *testing.T) {
+		engines, engineTypes := mustCreateEngines(t)
+		for _, e := range engines {
+			defer e.Shutdown()
+		}
+
+		for i, e := range engines {
+			timerEventTest := newTimerEventTest(t, e)
+
+			t.Run(engineTypes[i]+"catch", timerEventTest.catchWithTimer)
 		}
 	})
 

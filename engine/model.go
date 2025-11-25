@@ -619,13 +619,13 @@ type TaskCriteria struct {
 	Type TaskType `json:"type,omitempty"` // Task type.
 }
 
-// A timer defines when a timer start or catch event is triggered.
+// A timer defines a point in time using a time value, a CRON expression or a duration.
 type Timer struct {
-	// A point in time, when the timer event is triggered.
+	// A point in time.
 	Time time.Time `json:"time"`
-	// CRON expression that specifies a cyclic trigger.
+	// CRON expression that specifies a cyclic timer.
 	TimeCycle string `json:"timeCycle,omitempty" validate:"cron"`
-	// Duration until the timer event is triggered.
+	// Duration based timer that uses the engine's time to calculate a point in time.
 	TimeDuration ISO8601Duration `json:"timeDuration" validate:"iso8601_duration"`
 }
 

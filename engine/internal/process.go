@@ -335,7 +335,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 		timer := cmd.Timers[bpmnElement.Id]
 		if timer != nil {
-			if bpmnElement.Type != model.ElementTimerStartEvent {
+			if !isTimerEvent(bpmnElement.Type) {
 				causes = append(causes, engine.ErrorCause{
 					Pointer: elementPointer(bpmnElement),
 					Type:    "timer_event",
@@ -586,6 +586,10 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			TimeDuration:    pgtype.Text{String: timer.TimeDuration.String(), Valid: !timer.TimeDuration.IsZero()},
 			Version:         process.Version,
 		})
+
+		if node.bpmnElement.Type != model.ElementTimerStartEvent {
+			continue
+		}
 
 		dueAt, err := evaluateTimer(*timer, ctx.Time())
 		if err != nil {
