@@ -94,6 +94,8 @@ func TestBpmn(t *testing.T) {
 		for i, e := range engines {
 			signalEventTest := newSignalEventTest(t, e)
 
+			t.Run(engineTypes[i]+"boundary", signalEventTest.boundary)
+			t.Run(engineTypes[i]+"boundary non-interrupting", signalEventTest.boundaryNonInterrupting)
 			t.Run(engineTypes[i]+"catch", signalEventTest.catch)
 			t.Run(engineTypes[i]+"start", signalEventTest.start)
 		}

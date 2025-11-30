@@ -169,10 +169,11 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 			case "serviceTask":
 				addNewElement(ElementServiceTask, t.Attr)
 			case "signalEventDefinition":
-				switch element.Type {
-				case ElementNoneStartEvent:
+				if isBoundaryEvent {
+					element.Type = ElementSignalBoundaryEvent
+				} else if element.Type == ElementNoneStartEvent {
 					element.Type = ElementSignalStartEvent
-				default:
+				} else {
 					element.Type = ElementSignalCatchEvent
 				}
 			case "startEvent":
@@ -180,12 +181,11 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 			case "task":
 				addNewElement(ElementTask, t.Attr)
 			case "timerEventDefinition":
-				switch {
-				case isBoundaryEvent:
+				if isBoundaryEvent {
 					element.Type = ElementTimerBoundaryEvent
-				case element.Type == ElementNoneStartEvent:
+				} else if element.Type == ElementNoneStartEvent {
 					element.Type = ElementTimerStartEvent
-				default:
+				} else {
 					element.Type = ElementTimerCatchEvent
 				}
 			default:
@@ -238,6 +238,7 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 		case
 			ElementErrorBoundaryEvent,
 			ElementEscalationBoundaryEvent,
+			ElementSignalBoundaryEvent,
 			ElementTimerBoundaryEvent:
 			// resolve "attached to" placeholder
 			boundaryEvent := element.Model.(BoundaryEvent)

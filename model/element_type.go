@@ -22,6 +22,7 @@ const (
 	ElementScriptTask
 	ElementSendTask
 	ElementServiceTask
+	ElementSignalBoundaryEvent
 	ElementSignalCatchEvent
 	ElementSignalStartEvent
 	ElementTask
@@ -64,6 +65,8 @@ func MapElementType(s string) ElementType {
 		return ElementSendTask
 	case "SERVICE_TASK":
 		return ElementServiceTask
+	case "SIGNAL_BOUNDARY_EVENT":
+		return ElementSignalBoundaryEvent
 	case "SIGNAL_CATCH_EVENT":
 		return ElementSignalCatchEvent
 	case "SIGNAL_START_EVENT":
@@ -123,6 +126,8 @@ func (v ElementType) String() string {
 		return "SEND_TASK"
 	case ElementServiceTask:
 		return "SERVICE_TASK"
+	case ElementSignalBoundaryEvent:
+		return "SIGNAL_BOUNDARY_EVENT"
 	case ElementSignalCatchEvent:
 		return "SIGNAL_CATCH_EVENT"
 	case ElementSignalStartEvent:

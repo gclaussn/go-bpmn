@@ -6,32 +6,126 @@ import (
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func newSignalEventTest(t *testing.T, e engine.Engine) signalEventTest {
 	return signalEventTest{
 		e: e,
 
-		catchTest: mustCreateProcess(t, e, "event/signal-catch.bpmn", "signalCatchTest"),
+		boundaryProcess:                mustCreateProcess(t, e, "event/signal-boundary.bpmn", "signalBoundaryTest"),
+		boundaryNonInterruptingProcess: mustCreateProcess(t, e, "event/signal-boundary-non-interrupting.bpmn", "signalBoundaryNonInterruptingTest"),
+		catchProcess:                   mustCreateProcess(t, e, "event/signal-catch.bpmn", "signalCatchTest"),
 	}
 }
 
 type signalEventTest struct {
 	e engine.Engine
 
-	catchTest engine.Process
+	boundaryProcess                engine.Process
+	boundaryNonInterruptingProcess engine.Process
+	catchProcess                   engine.Process
+}
+
+func (x signalEventTest) boundary(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryProcess)
+
+	piAssert.IsWaitingAt("serviceTask")
+
+	piAssert.IsWaitingAt("signalBoundaryEvent")
+	piAssert.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			SignalName: "boundary-signal",
+		},
+	})
+
+	piAssert.IsWaitingAt("serviceTask")
+
+	_, err := x.e.SendSignal(context.Background(), engine.SendSignalCmd{
+		Name:     "boundary-signal",
+		WorkerId: testWorkerId,
+	})
+	if err != nil {
+		t.Fatalf("failed to send signal: %v", err)
+	}
+
+	piAssert.IsWaitingAt("signalBoundaryEvent")
+	piAssert.ExecuteTask()
+	piAssert.HasPassed("signalBoundaryEvent")
+	piAssert.HasPassed("endEventB")
+	piAssert.IsCompleted()
+
+	elementInstances := piAssert.ElementInstances()
+	require.Len(elementInstances, 5)
+
+	assert.Equal(engine.InstanceTerminated, elementInstances[2].State) // serviceTask
+	assert.Equal(engine.InstanceCompleted, elementInstances[3].State)  // signalBoundaryEvent
+
+	jobs := piAssert.Jobs()
+	require.Len(jobs, 2)
+
+	assert.Equal(engine.JobSubscribeSignal, jobs[0].Type)
+	assert.Equal(engine.JobExecute, jobs[1].Type)
+}
+
+func (x signalEventTest) boundaryNonInterrupting(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryNonInterruptingProcess)
+
+	piAssert.IsWaitingAt("serviceTask")
+
+	piAssert.IsWaitingAt("signalBoundaryEvent")
+	piAssert.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			SignalName: "boundary-signal",
+		},
+	})
+
+	piAssert.IsWaitingAt("serviceTask")
+
+	_, err := x.e.SendSignal(context.Background(), engine.SendSignalCmd{
+		Name:     "boundary-signal",
+		WorkerId: testWorkerId,
+	})
+	if err != nil {
+		t.Fatalf("failed to send signal: %v", err)
+	}
+
+	piAssert.IsWaitingAt("signalBoundaryEvent")
+	piAssert.ExecuteTask()
+
+	piAssert.IsWaitingAt("serviceTask")
+	piAssert.CompleteJob()
+
+	piAssert.IsCompleted()
+
+	elementInstances := piAssert.ElementInstances()
+	require.Len(elementInstances, 7)
+
+	assert.Equal(engine.InstanceCompleted, elementInstances[2].State)  // serviceTask
+	assert.Equal(engine.InstanceCompleted, elementInstances[3].State)  // signalBoundaryEvent #1
+	assert.Equal(engine.InstanceTerminated, elementInstances[4].State) // signalBoundaryEvent #2
+
+	jobs := piAssert.Jobs()
+	require.Len(jobs, 2)
+
+	assert.Equal(engine.JobSubscribeSignal, jobs[0].Type)
+	assert.Equal(engine.JobExecute, jobs[1].Type)
 }
 
 func (x signalEventTest) catch(t *testing.T) {
 	assert := assert.New(t)
 
 	processInstance, err := x.e.CreateProcessInstance(context.Background(), engine.CreateProcessInstanceCmd{
-		BpmnProcessId: x.catchTest.BpmnProcessId,
+		BpmnProcessId: x.catchProcess.BpmnProcessId,
 		Variables: map[string]*engine.Data{
 			"a": {Encoding: "encoding-a", Value: "value-a"},
 			"b": {Encoding: "encoding-b", Value: "value-b"},
 		},
-		Version:  x.catchTest.Version,
+		Version:  x.catchProcess.Version,
 		WorkerId: testWorkerId,
 	})
 	if err != nil {

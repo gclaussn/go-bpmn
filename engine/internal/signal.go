@@ -182,6 +182,156 @@ func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.Signal, error) {
 	return signal.Signal(), nil
 }
 
+func (ec *executionContext) triggerSignalBoundaryEvent(ctx Context, signalId int64, interrupting bool) error {
+	execution := ec.executions[0]
+
+	signal, err := ctx.Signals().Select(signalId)
+	if err != nil {
+		return err
+	}
+
+	ec.engineOrWorkerId = signal.CreatedBy
+
+	scope, err := ctx.ElementInstances().Select(execution.Partition, execution.ParentId.Int32)
+	if err != nil {
+		return err
+	}
+
+	ec.addExecution(scope)
+
+	var newExecution *ElementInstanceEntity
+
+	// start boundary event
+	execution.State = engine.InstanceStarted
+
+	if interrupting {
+		// terminate attached to and all other boundary events
+		attachedTo, err := ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
+		if err != nil {
+			return err
+		}
+
+		attachedTo.State = engine.InstanceTerminated
+		ec.addExecution(attachedTo)
+
+		boundaryEvents, err := ctx.ElementInstances().SelectBoundaryEvents(attachedTo)
+		if err != nil {
+			return err
+		}
+
+		for _, boundaryEvent := range boundaryEvents {
+			if boundaryEvent.Id == execution.Id {
+				continue
+			}
+
+			boundaryEvent.State = engine.InstanceTerminated
+			ec.addExecution(boundaryEvent)
+		}
+	} else {
+		// attach new boundary event
+		attached, err := ec.process.graph.createExecutionAt(scope, execution.BpmnElementId)
+		if err != nil {
+			return err
+		}
+
+		attached.ParentId = execution.ParentId
+		attached.PrevElementId = execution.PrevElementId
+		attached.PrevId = execution.PrevId
+
+		attached.Context = execution.Context
+		attached.State = engine.InstanceCreated
+
+		newExecution = &attached
+		ec.addExecution(newExecution)
+	}
+
+	if err := ec.continueExecutions(ctx); err != nil {
+		if _, ok := err.(engine.Error); ok {
+			return err
+		} else {
+			return fmt.Errorf("failed to continue executions %+v: %v", ec.executions, err)
+		}
+	}
+
+	signalVariables, err := ctx.SignalVariables().SelectBySignalId(signalId)
+	if err != nil {
+		return err
+	}
+
+	for _, variable := range signalVariables {
+		if !variable.Value.Valid {
+			if err := ctx.Variables().Delete(&VariableEntity{ // with fields, needed for deletion
+				Partition:         execution.Partition,
+				ProcessInstanceId: execution.ProcessInstanceId,
+				Name:              variable.Name,
+			}); err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		if err := ctx.Variables().Insert(&VariableEntity{
+			Partition: execution.Partition,
+
+			ProcessId:         execution.ProcessId,
+			ProcessInstanceId: execution.ProcessInstanceId,
+
+			CreatedAt:   ctx.Time(),
+			CreatedBy:   signal.CreatedBy,
+			Encoding:    variable.Encoding.String,
+			IsEncrypted: variable.IsEncrypted.Bool,
+			Name:        variable.Name,
+			UpdatedAt:   ctx.Time(),
+			UpdatedBy:   signal.CreatedBy,
+			Value:       variable.Value.String,
+		}); err != nil {
+			return err
+		}
+	}
+
+	signal.ActiveSubscriberCount--
+
+	if err := ctx.Signals().Update(signal); err != nil {
+		return err
+	}
+
+	if newExecution != nil {
+		signalSubscription := SignalSubscriptionEntity{
+			Partition: newExecution.Partition,
+
+			ElementId:         newExecution.ElementId,
+			ElementInstanceId: newExecution.Id,
+			ProcessId:         newExecution.ProcessId,
+			ProcessInstanceId: newExecution.ProcessInstanceId,
+
+			CreatedAt: ctx.Time(),
+			CreatedBy: signal.CreatedBy,
+			Name:      signal.Name,
+		}
+
+		if err := ctx.SignalSubscriptions().Insert(&signalSubscription); err != nil {
+			return err
+		}
+	}
+
+	event := EventEntity{
+		Partition: execution.Partition,
+
+		ElementInstanceId: execution.Id,
+
+		CreatedAt:  ctx.Time(),
+		CreatedBy:  signal.CreatedBy,
+		SignalName: pgtype.Text{String: signal.Name, Valid: true},
+	}
+
+	if err := ctx.Events().Insert(&event); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (ec *executionContext) triggerSignalCatchEvent(ctx Context, signalId int64) error {
 	execution := ec.executions[0]
 

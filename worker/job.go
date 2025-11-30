@@ -184,6 +184,7 @@ func (d Delegator) SubscribeMessage(bpmnElementId string, delegation func(jc Job
 // SubscribeSignal delegates jobs of type [engine.JobSubscribeSignal].
 //
 // Applicable for BPMN element types:
+//   - signal boundary event
 //   - signal catch event
 func (d Delegator) SubscribeSignal(bpmnElementId string, delegation func(jc JobContext) (string, error)) {
 	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {

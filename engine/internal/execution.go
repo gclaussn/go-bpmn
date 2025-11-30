@@ -133,8 +133,29 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			}
 		case model.ElementMessageCatchEvent:
 			jobType = engine.JobSubscribeMessage
-		case model.ElementSignalCatchEvent:
-			jobType = engine.JobSubscribeSignal
+		case model.ElementSignalBoundaryEvent, model.ElementSignalCatchEvent:
+			if node.eventDefinition == nil {
+				jobType = engine.JobSubscribeSignal
+			} else {
+				signalSubscription := SignalSubscriptionEntity{
+					Partition: execution.Partition,
+
+					ElementId:         execution.ElementId,
+					ElementInstanceId: execution.Id,
+					ProcessId:         execution.ProcessId,
+					ProcessInstanceId: execution.ProcessInstanceId,
+
+					CreatedAt: ctx.Time(),
+					CreatedBy: ec.engineOrWorkerId,
+					Name:      node.eventDefinition.SignalName.String,
+				}
+
+				if err := ctx.SignalSubscriptions().Insert(&signalSubscription); err != nil {
+					return err
+				}
+
+				execution.Context = pgtype.Text{String: node.eventDefinition.SignalName.String, Valid: true}
+			}
 		case model.ElementTimerBoundaryEvent, model.ElementTimerCatchEvent:
 			if node.eventDefinition == nil {
 				jobType = engine.JobSetTimer
@@ -683,6 +704,20 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 		if jobCompletion == nil || jobCompletion.SignalName == "" {
 			job.Error = pgtype.Text{String: "expected a signal name", Valid: true}
 			return nil
+		}
+
+		if node.bpmnElement.Type == model.ElementSignalBoundaryEvent {
+			attachedTo, err := ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
+			if err != nil {
+				return fmt.Errorf("failed to select attached to element instance: %v", err)
+			}
+
+			if attachedTo.EndedAt.Valid {
+				return nil // terminated or canceled
+			}
+
+			attachedTo.ExecutionCount++
+			ec.addExecution(attachedTo)
 		}
 
 		signalSubscription := SignalSubscriptionEntity{
