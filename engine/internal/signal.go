@@ -91,12 +91,17 @@ func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.Signal, error) {
 		return engine.Signal{}, err
 	}
 
+	subscriberCount := len(signalSubscriptions)
+
 	eventDefinitions, err := ctx.EventDefinitions().SelectBySignalName(cmd.Name)
 	if err != nil {
 		return engine.Signal{}, err
 	}
-
-	subscriberCount := len(signalSubscriptions) + len(eventDefinitions)
+	for _, eventDefinition := range eventDefinitions {
+		if eventDefinition.BpmnElementType == model.ElementSignalStartEvent {
+			subscriberCount++
+		}
+	}
 
 	// insert signal
 	signal := SignalEntity{

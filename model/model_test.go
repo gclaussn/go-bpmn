@@ -264,6 +264,33 @@ func TestEscalationBoundaryEventNonInterrupting(t *testing.T) {
 	assert.False(boundaryEvent.CancelActivity)
 }
 
+func TestSignalCatchEventDefinition(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	// when
+	model := mustCreateModel(t, "event/signal-catch-definition.bpmn")
+
+	// then
+	processElement := model.ProcessById("signalCatchDefinitionTest")
+	require.NotNil(processElement)
+	assert.Len(processElement.Children, 3)
+
+	signalCatchEvent := processElement.ChildById("signalCatchEvent")
+	require.NotNil(signalCatchEvent)
+
+	assert.Equal(ElementSignalCatchEvent, signalCatchEvent.Type)
+
+	intermediateCatchEvent := signalCatchEvent.Model.(IntermediateCatchEvent)
+
+	eventDefinition := intermediateCatchEvent.EventDefinition
+	assert.Equal("signalCatchEventDefinition", eventDefinition.Id)
+	require.NotNil(eventDefinition.Signal)
+
+	signal := eventDefinition.Signal
+	assert.Equal("testSignal", signal.Id)
+	assert.Equal("testSignalName", signal.Name)
+}
+
 func TestTimerCatchEvent(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 

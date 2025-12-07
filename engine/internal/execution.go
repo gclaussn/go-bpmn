@@ -73,10 +73,8 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 	}
 
 	var (
-		jobs     []*JobEntity  // jobs to insert
-		jobsIdx  []int         // indices of job related executions
-		tasks    []*TaskEntity // tasks to insert
-		tasksIdx []int         // indices of task related executions
+		entities []any // entities to insert
+		idx      []int // indices of related executions
 	)
 
 	// create jobs and tasks
@@ -141,7 +139,6 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 					Partition: execution.Partition,
 
 					ElementId:         execution.ElementId,
-					ElementInstanceId: execution.Id,
 					ProcessId:         execution.ProcessId,
 					ProcessInstanceId: execution.ProcessInstanceId,
 
@@ -150,9 +147,8 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 					Name:      node.eventDefinition.SignalName.String,
 				}
 
-				if err := ctx.SignalSubscriptions().Insert(&signalSubscription); err != nil {
-					return err
-				}
+				entities = append(entities, &signalSubscription)
+				idx = append(idx, i)
 
 				execution.Context = pgtype.Text{String: node.eventDefinition.SignalName.String, Valid: true}
 			}
@@ -195,8 +191,8 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 				Type:           jobType,
 			}
 
-			jobs = append(jobs, &job)
-			jobsIdx = append(jobsIdx, i)
+			entities = append(entities, &job)
+			idx = append(idx, i)
 		} else if taskType != 0 {
 			task := TaskEntity{
 				Partition: execution.Partition,
@@ -224,8 +220,8 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 				task.DueAt = dueAt
 			}
 
-			tasks = append(tasks, &task)
-			tasksIdx = append(tasksIdx, i)
+			entities = append(entities, &task)
+			idx = append(idx, i)
 		}
 	}
 
@@ -260,23 +256,29 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 		}
 	}
 
-	// insert jobs
-	for i, job := range jobs {
-		idx := jobsIdx[i]
-		job.ElementInstanceId = ec.executions[idx].Id
+	// insert jobs, task and subscriptions
+	for i, entity := range entities {
+		execution := ec.executions[idx[i]]
 
-		if err := ctx.Jobs().Insert(job); err != nil {
-			return err
-		}
-	}
+		switch entity := entity.(type) {
+		case *JobEntity:
+			entity.ElementInstanceId = execution.Id
 
-	// insert tasks
-	for i, task := range tasks {
-		idx := tasksIdx[i]
-		task.ElementInstanceId = pgtype.Int4{Int32: ec.executions[idx].Id, Valid: true}
+			if err := ctx.Jobs().Insert(entity); err != nil {
+				return err
+			}
+		case *TaskEntity:
+			entity.ElementInstanceId = pgtype.Int4{Int32: execution.Id, Valid: true}
 
-		if err := ctx.Tasks().Insert(task); err != nil {
-			return err
+			if err := ctx.Tasks().Insert(entity); err != nil {
+				return err
+			}
+		case *SignalSubscriptionEntity:
+			entity.ElementInstanceId = execution.Id
+
+			if err := ctx.SignalSubscriptions().Insert(entity); err != nil {
+				return err
+			}
 		}
 	}
 

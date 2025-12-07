@@ -93,7 +93,7 @@ func newProcessCreateCmd(cli *Cli) *cobra.Command {
 	c.Flags().StringToStringVar(&cmd.EscalationCodes, "escalation-code", nil, "Mapping between BPMN element ID and escalation code")
 	c.Flags().StringToStringVar(&cmd.MessageNames, "message-name", nil, "Message name that triggers the message start event")
 	c.Flags().IntVar(&cmd.Parallelism, "parallelism", 0, "Maximum number of parallel process instances being executed")
-	c.Flags().StringToStringVar(&cmd.SignalNames, "signal-name", nil, "Signal name that triggers the signal start event")
+	c.Flags().StringToStringVar(&cmd.SignalNames, "signal-name", nil, "Mapping between BPMN element ID and signal name")
 	c.Flags().StringToStringVar(&cmd.Tags, "tag", nil, "Tag, consisting of name and value")
 	c.Flags().StringToStringVar(&timeV, "time", nil, "A point in time, when the timer event is triggered")
 	c.Flags().StringToStringVar(&timeCycleV, "time-cycle", nil, "CRON expression that specifies a cyclic timer")

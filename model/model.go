@@ -139,6 +139,7 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				isIncoming = true
 			case "intermediateCatchEvent":
 				element = newElement(0, t.Attr) // unknown type
+				element.Model = IntermediateCatchEvent{}
 			case "intermediateThrowEvent":
 				addNewElement(ElementNoneThrowEvent, t.Attr)
 			case "manualTask":
@@ -168,6 +169,10 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				addNewElement(ElementSendTask, t.Attr)
 			case "serviceTask":
 				addNewElement(ElementServiceTask, t.Attr)
+			case "signal":
+				signalId := getAttrValue(t.Attr, "id")
+				signal := definitions.signalById(signalId)
+				signal.Name = getAttrValue(t.Attr, "name")
 			case "signalEventDefinition":
 				if isBoundaryEvent {
 					element.Type = ElementSignalBoundaryEvent
@@ -176,8 +181,27 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				} else {
 					element.Type = ElementSignalCatchEvent
 				}
+
+				eventDefinition := EventDefinition{Id: getAttrValue(t.Attr, "id")}
+
+				if signalId := getAttrValue(t.Attr, "signalRef"); signalId != "" {
+					eventDefinition.Signal = definitions.signalById(signalId)
+				}
+
+				switch model := element.Model.(type) {
+				case BoundaryEvent:
+					model.EventDefinition = eventDefinition
+					element.Model = model
+				case IntermediateCatchEvent:
+					model.EventDefinition = eventDefinition
+					element.Model = model
+				case StartEvent:
+					model.EventDefinition = eventDefinition
+					element.Model = model
+				}
 			case "startEvent":
 				addNewElement(ElementNoneStartEvent, t.Attr)
+				element.Model = StartEvent{}
 			case "task":
 				addNewElement(ElementTask, t.Attr)
 			case "timerEventDefinition":
@@ -336,6 +360,7 @@ type Definitions struct {
 	Errors      []*Error
 	Escalations []*Escalation
 	Processes   []*Element
+	Signals     []*Signal
 }
 
 func (d *Definitions) errorById(id string) *Error {
@@ -362,6 +387,18 @@ func (d *Definitions) escalationById(id string) *Escalation {
 	return escalation
 }
 
+func (d *Definitions) signalById(id string) *Signal {
+	for _, signal := range d.Signals {
+		if signal.Id == id {
+			return signal
+		}
+	}
+
+	signal := &Signal{Id: id}
+	d.Signals = append(d.Signals, signal)
+	return signal
+}
+
 type Error struct {
 	Id   string
 	Name string
@@ -374,10 +411,9 @@ type Escalation struct {
 	Code string
 }
 
-type SequenceFlow struct {
-	Id     string
-	Source *Element
-	Target *Element
+type Signal struct {
+	Id   string
+	Name string
 }
 
 // attachment represent an attached to relation between a boundary event and a task, sub process or call activity.

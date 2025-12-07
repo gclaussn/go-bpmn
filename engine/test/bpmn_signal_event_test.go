@@ -16,6 +16,8 @@ func newSignalEventTest(t *testing.T, e engine.Engine) signalEventTest {
 		boundaryProcess:                mustCreateProcess(t, e, "event/signal-boundary.bpmn", "signalBoundaryTest"),
 		boundaryNonInterruptingProcess: mustCreateProcess(t, e, "event/signal-boundary-non-interrupting.bpmn", "signalBoundaryNonInterruptingTest"),
 		catchProcess:                   mustCreateProcess(t, e, "event/signal-catch.bpmn", "signalCatchTest"),
+		catchDefinitionProcess:         mustCreateProcess(t, e, "event/signal-catch-definition.bpmn", "signalCatchDefinitionTest"),
+		startDefinitionProcess:         mustCreateProcess(t, e, "event/signal-start-definition.bpmn", "signalStartDefinitionTest"),
 	}
 }
 
@@ -25,6 +27,8 @@ type signalEventTest struct {
 	boundaryProcess                engine.Process
 	boundaryNonInterruptingProcess engine.Process
 	catchProcess                   engine.Process
+	catchDefinitionProcess         engine.Process
+	startDefinitionProcess         engine.Process
 }
 
 func (x signalEventTest) boundary(t *testing.T) {
@@ -189,6 +193,34 @@ func (x signalEventTest) catch(t *testing.T) {
 	piAssert.HasNoProcessVariable("c")
 }
 
+func (x signalEventTest) catchDefinition(t *testing.T) {
+	assert := assert.New(t)
+
+	piAssert := mustCreateProcessInstance(t, x.e, x.catchDefinitionProcess)
+
+	// when signal sent
+	signal, err := x.e.SendSignal(context.Background(), engine.SendSignalCmd{
+		Name:     "testSignalName",
+		WorkerId: testWorkerId,
+	})
+	if err != nil {
+		t.Fatalf("failed to send signal: %v", err)
+	}
+
+	// then
+	assert.NotEmpty(signal.Id)
+
+	assert.NotEmpty(signal.CreatedAt)
+	assert.Equal(testWorkerId, signal.CreatedBy)
+	assert.Equal("testSignalName", signal.Name)
+	assert.Equal(2, signal.SubscriberCount) // +1 for signal-start-definition.bpmn
+
+	piAssert.IsWaitingAt("signalCatchEvent")
+	piAssert.ExecuteTask()
+
+	piAssert.IsCompleted()
+}
+
 func (x signalEventTest) start(t *testing.T) {
 	bpmnXml := mustReadBpmnFile(t, "event/signal-start.bpmn")
 
@@ -228,4 +260,13 @@ func (x signalEventTest) start(t *testing.T) {
 
 	assert := assert.New(t)
 	assert.NotEqual(piAssert1.ProcessInstance().String(), piAssert2.ProcessInstance().String())
+}
+
+func (x signalEventTest) startEventDefinition(t *testing.T) {
+	piAssert1 := engine.AssertSignalStart(t, x.e, x.startDefinitionProcess.Id, engine.SendSignalCmd{
+		Name:     "testSignalName",
+		WorkerId: testWorkerId,
+	})
+
+	piAssert1.IsCompleted()
 }

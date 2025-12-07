@@ -97,7 +97,9 @@ func TestBpmn(t *testing.T) {
 			t.Run(engineTypes[i]+"boundary", signalEventTest.boundary)
 			t.Run(engineTypes[i]+"boundary non-interrupting", signalEventTest.boundaryNonInterrupting)
 			t.Run(engineTypes[i]+"catch", signalEventTest.catch)
+			t.Run(engineTypes[i]+"catch event definition", signalEventTest.catchDefinition)
 			t.Run(engineTypes[i]+"start", signalEventTest.start)
+			t.Run(engineTypes[i]+"start event definition", signalEventTest.startEventDefinition)
 		}
 	})
 

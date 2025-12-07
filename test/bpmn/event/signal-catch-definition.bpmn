@@ -1,0 +1,18 @@
+<definitions id="test">
+  <process id="signalCatchDefinitionTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="signalCatchEvent" />
+    <intermediateCatchEvent id="signalCatchEvent">
+      <incoming>f1</incoming>
+      <outgoing>f2</outgoing>
+      <signalEventDefinition id="signalCatchEventDefinition" signalRef="testSignal" />
+    </intermediateCatchEvent>
+    <sequenceFlow id="f2" sourceRef="signalCatchEvent" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f2</incoming>
+    </endEvent>
+  </process>
+  <signal id="testSignal" name="testSignalName" />
+</definitions>

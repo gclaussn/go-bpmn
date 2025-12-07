@@ -56,6 +56,12 @@ func (e *Element) TargetById(targetId string) *Element {
 	return nil
 }
 
+type SequenceFlow struct {
+	Id     string
+	Source *Element
+	Target *Element
+}
+
 // element specific models
 
 type BoundaryEvent struct {
@@ -69,6 +75,7 @@ type EventDefinition struct {
 
 	Error      *Error
 	Escalation *Escalation
+	Signal     *Signal
 }
 
 type ExclusiveGateway struct {
@@ -79,6 +86,14 @@ type InclusiveGateway struct {
 	Default string // Optional ID of a default sequence flow.
 }
 
+type IntermediateCatchEvent struct {
+	EventDefinition EventDefinition
+}
+
 type Process struct {
 	IsExecutable bool
+}
+
+type StartEvent struct {
+	EventDefinition EventDefinition
 }

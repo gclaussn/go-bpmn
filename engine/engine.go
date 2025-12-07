@@ -67,7 +67,7 @@ type Engine interface {
 	//
 	// A subscriber can be a signal start or catch event.
 	// In case of a signal start event, a new process instance is created.
-	// In case of a signal catch event, an existing process instance is continued.
+	// In case of a signal boundary or catch event, an existing process instance is continued.
 	SendSignal(context.Context, SendSignalCmd) (Signal, error)
 
 	// SetElementVariables sets or deletes variables of an active element instance.

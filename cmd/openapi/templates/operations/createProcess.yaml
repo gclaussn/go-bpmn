@@ -97,7 +97,7 @@ responses:
                   detail: no timer defined for BPMN element timerStartEvent
                 - pointer: example/endEvent
                   type: timer_event
-                  detail: BPMN element endEvent is not a timer start event
+                  detail: BPMN element endEvent is not a timer event
                 - pointer: example
                   type: timer_event
                   detail: BPMN process example has no element timerStart

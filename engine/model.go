@@ -364,7 +364,7 @@ type ElementInstanceCriteria struct {
 
 // EventDefinition is a generic definition of a BPMN event, while a BPMN element has exactly one type.
 type EventDefinition struct {
-	IsSuspended bool `json:"suspended"` // Determines if a start event definition is suspended.
+	IsSuspended bool `json:"suspended"` // Determines if an event definition is suspended.
 
 	ErrorCode      string `json:"errorCode,omitempty"`      // Code of a BPMN error - set in case of an error event.
 	EscalationCode string `json:"escalationCode,omitempty"` // Code of a BPMN escalation - set in case of an escalation event.

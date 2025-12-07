@@ -253,10 +253,12 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	var (
 		errorCodes      = make(map[string]string)
 		escalationCodes = make(map[string]string)
+		signalNames     = make(map[string]string)
 	)
 
 	maps.Copy(errorCodes, cmd.ErrorCodes)
 	maps.Copy(escalationCodes, cmd.EscalationCodes)
+	maps.Copy(signalNames, cmd.SignalNames)
 
 	for _, bpmnElement := range bpmnElements {
 		_, errorCodeSet := errorCodes[bpmnElement.Id]
@@ -314,21 +316,49 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			}
 		}
 
-		signalName := cmd.SignalNames[bpmnElement.Id]
-		if signalName != "" {
-			if bpmnElement.Type != model.ElementSignalStartEvent {
-				causes = append(causes, engine.ErrorCause{
-					Pointer: elementPointer(bpmnElement),
-					Type:    "signal_event",
-					Detail:  fmt.Sprintf("BPMN element %s is not a signal start event", bpmnElement.Id),
-				})
+		signalName, signalNameSet := signalNames[bpmnElement.Id]
+		if signalNameSet && signalName == "" {
+			causes = append(causes, engine.ErrorCause{
+				Pointer: elementPointer(bpmnElement),
+				Type:    "signal_event",
+				Detail:  "signal name is empty",
+			})
+		}
+
+		switch bpmnElement.Type {
+		case model.ElementSignalBoundaryEvent:
+			if !signalNameSet {
+				boundaryEvent := bpmnElement.Model.(model.BoundaryEvent)
+				if signal := boundaryEvent.EventDefinition.Signal; signal != nil {
+					signalNames[bpmnElement.Id] = signal.Name
+				}
 			}
-		} else {
-			if bpmnElement.Type == model.ElementSignalStartEvent {
+		case model.ElementSignalCatchEvent:
+			if !signalNameSet {
+				intermediateCatchEvent := bpmnElement.Model.(model.IntermediateCatchEvent)
+				if signal := intermediateCatchEvent.EventDefinition.Signal; signal != nil {
+					signalNames[bpmnElement.Id] = signal.Name
+				}
+			}
+		case model.ElementSignalStartEvent:
+			if !signalNameSet {
+				startEvent := bpmnElement.Model.(model.StartEvent)
+				if signal := startEvent.EventDefinition.Signal; signal != nil {
+					signalNames[bpmnElement.Id] = signal.Name
+				} else {
+					causes = append(causes, engine.ErrorCause{
+						Pointer: elementPointer(bpmnElement),
+						Type:    "signal_event",
+						Detail:  fmt.Sprintf("no signal name defined for BPMN element %s", bpmnElement.Id),
+					})
+				}
+			}
+		default:
+			if signalNameSet {
 				causes = append(causes, engine.ErrorCause{
 					Pointer: elementPointer(bpmnElement),
 					Type:    "signal_event",
-					Detail:  fmt.Sprintf("no signal name defined for BPMN element %s", bpmnElement.Id),
+					Detail:  fmt.Sprintf("BPMN element %s is not a signal event", bpmnElement.Id),
 				})
 			}
 		}
@@ -339,7 +369,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 				causes = append(causes, engine.ErrorCause{
 					Pointer: elementPointer(bpmnElement),
 					Type:    "timer_event",
-					Detail:  fmt.Sprintf("BPMN element %s is not a timer start event", bpmnElement.Id),
+					Detail:  fmt.Sprintf("BPMN element %s is not a timer event", bpmnElement.Id),
 				})
 			}
 		} else {
@@ -527,7 +557,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	}
 
 	// prepare signal event definitions
-	for bpmnElementId, signalName := range cmd.SignalNames {
+	for bpmnElementId, signalName := range signalNames {
 		node, err := graph.node(bpmnElementId)
 		if err != nil {
 			causes = append(causes, engine.ErrorCause{
@@ -535,10 +565,6 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 				Type:    "signal_event",
 				Detail:  err.Error(),
 			})
-			continue
-		}
-
-		if signalName == "" {
 			continue
 		}
 
