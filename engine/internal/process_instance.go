@@ -3,6 +3,8 @@ package internal
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
@@ -32,9 +34,20 @@ type ProcessInstanceEntity struct {
 }
 
 func (e ProcessInstanceEntity) ProcessInstance() engine.ProcessInstance {
-	var tags map[string]string
+	var tags []engine.Tag
 	if e.Tags.Valid {
-		_ = json.Unmarshal([]byte(e.Tags.String), &tags)
+		var tagMap map[string]string
+		_ = json.Unmarshal([]byte(e.Tags.String), &tagMap)
+
+		tagNames := slices.Sorted(maps.Keys(tagMap))
+
+		tags = make([]engine.Tag, len(tagNames))
+		for i, tagName := range tagNames {
+			tags[i] = engine.Tag{
+				Name:  tagName,
+				Value: tagMap[tagName],
+			}
+		}
 	}
 
 	return engine.ProcessInstance{
@@ -83,10 +96,16 @@ func CreateProcessInstance(ctx Context, cmd engine.CreateProcessInstanceCmd) (en
 
 	var tags string
 	if len(cmd.Tags) != 0 {
-		b, err := json.Marshal(cmd.Tags)
+		tagMap := make(map[string]string, len(cmd.Tags))
+		for _, tag := range cmd.Tags {
+			tagMap[tag.Name] = tag.Value
+		}
+
+		b, err := json.Marshal(tagMap)
 		if err != nil {
 			return engine.ProcessInstance{}, fmt.Errorf("failed to marshal tags: %v", err)
 		}
+
 		tags = string(b)
 	}
 
@@ -112,13 +131,21 @@ func CreateProcessInstance(ctx Context, cmd engine.CreateProcessInstanceCmd) (en
 	encryption := ctx.Options().Encryption
 
 	variables := make([]*VariableEntity, 0, len(cmd.Variables))
-	for variableName, data := range cmd.Variables {
+	variableNames := make(map[string]bool, len(cmd.Variables))
+	for _, variable := range cmd.Variables {
+		if _, ok := variableNames[variable.Name]; ok {
+			continue // skip already processed variable
+		}
+
+		variableNames[variable.Name] = true
+
+		data := variable.Data
 		if data == nil {
 			continue
 		}
 
 		if err := encryption.EncryptData(data); err != nil {
-			return engine.ProcessInstance{}, fmt.Errorf("failed to encrypt variable: %v", err)
+			return engine.ProcessInstance{}, fmt.Errorf("failed to encrypt variable %s: %v", variable.Name, err)
 		}
 
 		variable := VariableEntity{
@@ -131,7 +158,7 @@ func CreateProcessInstance(ctx Context, cmd engine.CreateProcessInstanceCmd) (en
 			CreatedBy:   processInstance.CreatedBy,
 			Encoding:    data.Encoding,
 			IsEncrypted: data.IsEncrypted,
-			Name:        variableName,
+			Name:        variable.Name,
 			UpdatedAt:   processInstance.CreatedAt,
 			UpdatedBy:   processInstance.CreatedBy,
 			Value:       data.Value,

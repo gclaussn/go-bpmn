@@ -27,9 +27,9 @@ func (x messageEventTest) catch(t *testing.T) {
 
 	processInstance, err := x.e.CreateProcessInstance(context.Background(), engine.CreateProcessInstanceCmd{
 		BpmnProcessId: x.catchTest.BpmnProcessId,
-		Variables: map[string]*engine.Data{
-			"a": {Encoding: "encoding-a", Value: "value-a"},
-			"b": {Encoding: "encoding-b", Value: "value-b"},
+		Variables: []engine.VariableData{
+			{Name: "a", Data: &engine.Data{Encoding: "encoding-a", Value: "value-a"}},
+			{Name: "b", Data: &engine.Data{Encoding: "encoding-b", Value: "value-b"}},
 		},
 		Version:  x.catchTest.Version,
 		WorkerId: testWorkerId,
@@ -52,10 +52,10 @@ func (x messageEventTest) catch(t *testing.T) {
 	message, err := x.e.SendMessage(context.Background(), engine.SendMessageCmd{
 		CorrelationKey: "catch-message-ck",
 		Name:           "catch-message",
-		Variables: map[string]*engine.Data{
-			"a": {Encoding: "encoding-a", Value: "value-a"},
-			"b": nil,
-			"c": nil,
+		Variables: []engine.VariableData{
+			{Name: "a", Data: &engine.Data{Encoding: "encoding-a", Value: "value-a"}},
+			{Name: "b", Data: nil},
+			{Name: "c", Data: nil},
 		},
 		WorkerId: testWorkerId,
 	})
@@ -238,8 +238,8 @@ func (x messageEventTest) start(t *testing.T) {
 	process, err := x.e.CreateProcess(context.Background(), engine.CreateProcessCmd{
 		BpmnProcessId: "messageStartTest",
 		BpmnXml:       bpmnXml,
-		MessageNames: map[string]string{
-			"messageStartEvent": "start-message",
+		Messages: []engine.MessageDefinition{
+			{BpmnElementId: "messageStartEvent", MessageName: "start-message"},
 		},
 		Version:  "1",
 		WorkerId: testWorkerId,
@@ -251,10 +251,10 @@ func (x messageEventTest) start(t *testing.T) {
 	piAssert1 := engine.AssertMessageStart(t, x.e, process.Id, engine.SendMessageCmd{
 		CorrelationKey: "start-message-ck",
 		Name:           "start-message",
-		Variables: map[string]*engine.Data{
-			"a": {Encoding: "encoding-a", Value: "value-a"},
-			"b": {Encoding: "encoding-b", Value: "value-b"},
-			"c": nil,
+		Variables: []engine.VariableData{
+			{Name: "a", Data: &engine.Data{Encoding: "encoding-a", Value: "value-a"}},
+			{Name: "b", Data: &engine.Data{Encoding: "encoding-b", Value: "value-b"}},
+			{Name: "c", Data: nil},
 		},
 		WorkerId: testWorkerId,
 	})
@@ -296,8 +296,8 @@ func (x messageEventTest) startSingleton(t *testing.T) {
 	process, err := x.e.CreateProcess(context.Background(), engine.CreateProcessCmd{
 		BpmnProcessId: "messageStartTest",
 		BpmnXml:       bpmnXml,
-		MessageNames: map[string]string{
-			"messageStartEvent": "start-message-singleton",
+		Messages: []engine.MessageDefinition{
+			{BpmnElementId: "messageStartEvent", MessageName: "start-message-singleton"},
 		},
 		Version:  "2",
 		WorkerId: testWorkerId,

@@ -232,12 +232,12 @@ func (jc JobContext) ElementVariables(names ...string) (Variables, error) {
 		return variables, err
 	}
 
-	for variableName, data := range elementVariables {
+	for _, variable := range elementVariables {
 		variables.SetVariable(Variable{
-			Encoding:    data.Encoding,
-			IsEncrypted: data.IsEncrypted,
-			Name:        variableName,
-			Value:       data.Value,
+			Encoding:    variable.Data.Encoding,
+			IsEncrypted: variable.Data.IsEncrypted,
+			Name:        variable.Name,
+			Value:       variable.Data.Value,
 		})
 	}
 
@@ -261,12 +261,12 @@ func (jc JobContext) ProcessVariables(names ...string) (Variables, error) {
 		return variables, err
 	}
 
-	for variableName, data := range processVariables {
+	for _, variable := range processVariables {
 		variables.SetVariable(Variable{
-			Encoding:    data.Encoding,
-			IsEncrypted: data.IsEncrypted,
-			Name:        variableName,
-			Value:       data.Value,
+			Encoding:    variable.Data.Encoding,
+			IsEncrypted: variable.Data.IsEncrypted,
+			Name:        variable.Name,
+			Value:       variable.Data.Value,
 		})
 	}
 

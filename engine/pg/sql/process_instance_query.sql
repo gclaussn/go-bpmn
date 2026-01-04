@@ -31,8 +31,8 @@ WHERE
 	AND process_id = {{.c.ProcessId}}
 {{end}}
 
-{{range $name, $value := .c.Tags}}
-	AND tags->>{{$name | quoteString}} = {{$value | quoteString}}
+{{range $tag := .c.Tags}}
+	AND tags->>{{$tag.Name | quoteString}} = {{$tag.Value | quoteString}}
 {{end}}
 
 ORDER BY

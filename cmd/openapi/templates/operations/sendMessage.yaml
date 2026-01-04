@@ -19,10 +19,11 @@ requestBody:
           timeDuration: PT1H
         name: example-message
         variables:
-          a:
-            encoding: "json"
-            encrypted: true
-            value: "{...}"
+          - name: a
+            data:
+              encoding: "json"
+              encrypted: true
+              value: "{...}"
         workerId: go-bpmn
 responses:
   "200":

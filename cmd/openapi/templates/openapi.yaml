@@ -102,18 +102,6 @@ components:
         {{- if $property.Format}}
           format: {{$property.Format}}
         {{- end}}
-        {{- if $property.PropertyNamesPattern}}
-          propertyNames:
-            pattern: "{{$property.PropertyNamesPattern}}"
-        {{- end}}
-        {{- if $property.AdditionalPropertiesType}}
-          additionalProperties:
-            type: {{$property.AdditionalPropertiesType}}
-        {{- end}}
-        {{- if $property.AdditionalPropertiesTypeReference}}
-          additionalProperties:
-            $ref: "#/components/schemas/{{$property.AdditionalPropertiesTypeReference | stripPackage}}"
-        {{- end}}
         {{- if $property.Items}}
           items:
           {{- if not $property.Items.TypeReference}}

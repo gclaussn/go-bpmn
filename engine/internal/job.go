@@ -114,12 +114,21 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 	encryption := ctx.Options().Encryption
 
 	variables := make([]*VariableEntity, 0, len(cmd.ProcessVariables)+len(cmd.ElementVariables))
-	for variableName, data := range cmd.ProcessVariables {
+
+	processVariableNames := make(map[string]bool, len(cmd.ProcessVariables))
+	for _, variable := range cmd.ProcessVariables {
+		if _, ok := processVariableNames[variable.Name]; ok {
+			continue // skip already processed variable
+		}
+
+		processVariableNames[variable.Name] = true
+
+		data := variable.Data
 		if data == nil {
 			variable := VariableEntity{ // with fields, needed for deletion
 				Partition:         job.Partition,
 				ProcessInstanceId: job.ProcessInstanceId,
-				Name:              variableName,
+				Name:              variable.Name,
 			}
 
 			variables = append(variables, &variable)
@@ -127,7 +136,7 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 		}
 
 		if err := encryption.EncryptData(data); err != nil {
-			return engine.Job{}, fmt.Errorf("failed to encrypt process variable %s: %v", variableName, err)
+			return engine.Job{}, fmt.Errorf("failed to encrypt process variable %s: %v", variable.Name, err)
 		}
 
 		variable := VariableEntity{
@@ -140,7 +149,7 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 			CreatedBy:   job.LockedBy.String,
 			Encoding:    data.Encoding,
 			IsEncrypted: data.IsEncrypted,
-			Name:        variableName,
+			Name:        variable.Name,
 			UpdatedAt:   ctx.Time(),
 			UpdatedBy:   job.LockedBy.String,
 			Value:       data.Value,
@@ -148,12 +157,21 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 
 		variables = append(variables, &variable)
 	}
-	for variableName, data := range cmd.ElementVariables {
+
+	elementVariableNames := make(map[string]bool, len(cmd.ElementVariables))
+	for _, variable := range cmd.ElementVariables {
+		if _, ok := elementVariableNames[variable.Name]; ok {
+			continue // skip already processed variable
+		}
+
+		elementVariableNames[variable.Name] = true
+
+		data := variable.Data
 		if data == nil {
 			variable := VariableEntity{ // with fields, needed for deletion
 				Partition:         job.Partition,
 				ElementInstanceId: pgtype.Int4{Int32: job.ElementInstanceId, Valid: true},
-				Name:              variableName,
+				Name:              variable.Name,
 			}
 
 			variables = append(variables, &variable)
@@ -161,7 +179,7 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 		}
 
 		if err := encryption.EncryptData(data); err != nil {
-			return engine.Job{}, fmt.Errorf("failed to encrypt element variable %s: %v", variableName, err)
+			return engine.Job{}, fmt.Errorf("failed to encrypt element variable %s: %v", variable.Name, err)
 		}
 
 		variable := VariableEntity{
@@ -176,7 +194,7 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 			CreatedBy:   job.LockedBy.String,
 			Encoding:    data.Encoding,
 			IsEncrypted: data.IsEncrypted,
-			Name:        variableName,
+			Name:        variable.Name,
 			UpdatedAt:   ctx.Time(),
 			UpdatedBy:   job.LockedBy.String,
 			Value:       data.Value,

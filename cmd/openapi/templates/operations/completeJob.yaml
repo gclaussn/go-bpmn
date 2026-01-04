@@ -13,17 +13,19 @@ requestBody:
           summary: EXECUTE
           value:
             processVariables:
-              a:
-                encoding: json
-                value: "{...}"
+              - name: a
+                data:
+                  encoding: json
+                  value: "{...}"
             workerId: go-bpmn
         execute_with_error_no_retries:
           summary: EXECUTE with error and no retries
           value:
             elementVariables:
-              b:
-                encoding: json
-                value: "{...}"
+              - name: b
+                data:
+                  encoding: json
+                  value: "{...}"
             error: an error occurred
             workerId: go-bpmn
         set_error_code:
@@ -82,14 +84,14 @@ responses:
           title: invalid request body
           detail: failed to validate request body
           errors:
-            - pointer: "#/processVariables/,"
+            - pointer: "#/processVariables/0/name"
               type: variable_name
               detail: must match regex ^[a-zA-Z0-9_-]+$
               value: ","
-            - pointer: "#/processVariables/,/encoding"
+            - pointer: "#/processVariables/1/data/encoding"
               type: required
               detail: is required
-            - pointer: "#/processVariables/,/value"
+            - pointer: "#/processVariables/1/data/value"
               type: required
               detail: is required
             - pointer: "#/retryCount"

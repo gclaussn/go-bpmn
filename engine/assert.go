@@ -510,7 +510,7 @@ func (a *ProcessInstanceAssert) IsWaitingAt(bpmnElementId string) {
 }
 
 func (a *ProcessInstanceAssert) HasNoProcessVariable(name string) {
-	processVariables, err := a.e.GetProcessVariables(context.Background(), GetProcessVariablesCmd{
+	variables, err := a.e.GetProcessVariables(context.Background(), GetProcessVariablesCmd{
 		Partition:         a.partition,
 		ProcessInstanceId: a.processInstanceId,
 		Names:             []string{name},
@@ -519,13 +519,15 @@ func (a *ProcessInstanceAssert) HasNoProcessVariable(name string) {
 		a.Fatalf("failed to get process variable %s: %v", name, err)
 	}
 
-	if _, ok := processVariables[name]; ok {
-		a.Fatalf("expected process instance to have no variable %s, but has", name)
+	for _, variable := range variables {
+		if variable.Name == name {
+			a.Fatalf("expected process instance to have no variable %s, but has", name)
+		}
 	}
 }
 
 func (a *ProcessInstanceAssert) HasProcessVariable(name string) {
-	processVariables, err := a.e.GetProcessVariables(context.Background(), GetProcessVariablesCmd{
+	variables, err := a.e.GetProcessVariables(context.Background(), GetProcessVariablesCmd{
 		Partition:         a.partition,
 		ProcessInstanceId: a.processInstanceId,
 		Names:             []string{name},
@@ -534,9 +536,13 @@ func (a *ProcessInstanceAssert) HasProcessVariable(name string) {
 		a.Fatalf("failed to get process variable %s: %v", name, err)
 	}
 
-	if _, ok := processVariables[name]; !ok {
-		a.Fatalf("expected process instance to have variable %s, but has not", name)
+	for _, variable := range variables {
+		if variable.Name == name {
+			return
+		}
 	}
+
+	a.Fatalf("expected process instance to have variable %s, but has not", name)
 }
 
 func (a *ProcessInstanceAssert) Job() Job {

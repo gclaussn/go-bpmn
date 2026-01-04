@@ -23,7 +23,7 @@ func TestSendMessage(t *testing.T) {
 		"messageStartTest",
 		"--version",
 		"1",
-		"--message-name",
+		"--message",
 		"messageStartEvent=start-message",
 	})
 
@@ -56,7 +56,7 @@ func TestSendSignal(t *testing.T) {
 		"signalStartTest",
 		"--version",
 		"1",
-		"--signal-name",
+		"--signal",
 		"signalStartEvent=start-signal",
 	})
 

@@ -23,7 +23,7 @@ func TestCreateProcessWithError(t *testing.T) {
 		"errorBoundaryEventTest",
 		"--version",
 		"1",
-		"--error-code",
+		"--error",
 		"errorBoundaryEvent=TEST_CODE",
 	})
 }
@@ -41,7 +41,7 @@ func TestCreateProcessWithSignal(t *testing.T) {
 		"signalStartTest",
 		"--version",
 		"1",
-		"--signal-name",
+		"--signal",
 		"signalStartEvent=start-signal",
 	})
 }

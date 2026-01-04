@@ -2,8 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -29,14 +27,22 @@ func newJobCmd(cli *Cli) *cobra.Command {
 
 func newJobCompleteCmd(cli *Cli) *cobra.Command {
 	var (
-		partition         partitionValue
-		completion        engine.JobCompletion
-		elementVariablesV map[string]string
-		processVariablesV map[string]string
-		retryTimer        iso8601DurationValue
-		timeV             timeValue
-		timeCycleV        string
-		timeDurationV     iso8601DurationValue
+		partition    partitionValue
+		completion   engine.JobCompletion
+		retryTimer   iso8601DurationValue
+		timeV        timeValue
+		timeCycle    string
+		timeDuration iso8601DurationValue
+
+		// element variables
+		elementEncodingMap  map[string]string
+		elementEncryptedMap map[string]string
+		elementValueMap     map[string]string
+
+		// process variables
+		processEncodingMap  map[string]string
+		processEncryptedMap map[string]string
+		processValueMap     map[string]string
 
 		cmd engine.CompleteJobCmd
 	)
@@ -45,38 +51,20 @@ func newJobCompleteCmd(cli *Cli) *cobra.Command {
 		Use:   "complete",
 		Short: "Complete a job",
 		RunE: func(c *cobra.Command, _ []string) error {
-			elementVariables := make(map[string]*engine.Data)
-			for variableName, dataJson := range elementVariablesV {
-				if dataJson == "" || dataJson == "null" {
-					elementVariables[variableName] = nil
-					continue
-				}
-
-				var data engine.Data
-				if err := json.Unmarshal([]byte(dataJson), &data); err != nil {
-					return fmt.Errorf("failed to unmarshal element variable %s: %v", variableName, err)
-				}
-				elementVariables[variableName] = &data
+			elementVariables, err := mapVariables(elementEncodingMap, elementEncryptedMap, elementValueMap)
+			if err != nil {
+				return err
 			}
 
-			processVariables := make(map[string]*engine.Data)
-			for variableName, dataJson := range processVariablesV {
-				if dataJson == "" || dataJson == "null" {
-					processVariables[variableName] = nil
-					continue
-				}
-
-				var data engine.Data
-				if err := json.Unmarshal([]byte(dataJson), &data); err != nil {
-					return fmt.Errorf("failed to unmarshal process variable %s: %v", variableName, err)
-				}
-				processVariables[variableName] = &data
+			processVariables, err := mapVariables(processEncodingMap, processEncryptedMap, processValueMap)
+			if err != nil {
+				return err
 			}
 
 			timer := engine.Timer{
 				Time:         time.Time(timeV),
-				TimeCycle:    timeCycleV,
-				TimeDuration: engine.ISO8601Duration(timeDurationV),
+				TimeCycle:    timeCycle,
+				TimeDuration: engine.ISO8601Duration(timeDuration),
 			}
 
 			if !timer.Time.IsZero() || timer.TimeCycle != "" || !timer.TimeDuration.IsZero() {
@@ -104,9 +92,13 @@ func newJobCompleteCmd(cli *Cli) *cobra.Command {
 	c.Flags().Var(&partition, "partition", "Job partition")
 	c.Flags().Int32Var(&cmd.Id, "id", 0, "Job ID")
 
-	c.Flags().StringToStringVar(&elementVariablesV, "element-variable", nil, "Variable to set or delete at element instance scope")
+	c.Flags().StringToStringVar(&elementEncodingMap, "element-variable-encoding", nil, "Variable to set or delete at element instance scope\nEncoding of the value - e.g. `json`")
+	c.Flags().StringToStringVar(&elementEncryptedMap, "element-variable-encrypted", nil, "Variable to set or delete at element instance scope\nDetermines if a value is encrypted before it is stored.")
+	c.Flags().StringToStringVar(&elementValueMap, "element-variable-value", nil, "Variable to set or delete at element instance scope\nData value, encoded as a string")
 	c.Flags().StringVar(&cmd.Error, "error", "", "Optional error string, used to fail a job due to a technical problem")
-	c.Flags().StringToStringVar(&processVariablesV, "process-variable", nil, "Variable to set or delete at process instance scope")
+	c.Flags().StringToStringVar(&processEncodingMap, "process-variable-encoding", nil, "Variable to set or delete at process instance scope\nEncoding of the value - e.g. `json`")
+	c.Flags().StringToStringVar(&processEncryptedMap, "process-variable-encrypted", nil, "Variable to set or delete at process instance scope\nDetermines if a value is encrypted before it is stored.")
+	c.Flags().StringToStringVar(&processValueMap, "process-variable-value", nil, "Variable to set or delete at process instance scope\nData value, encoded as a string")
 	c.Flags().IntVar(&cmd.RetryLimit, "retry-limit", 0, "Maximum number of retries")
 	c.Flags().Var(&retryTimer, "retry-timer", "Duration until the retry job becomes due")
 
@@ -118,8 +110,8 @@ func newJobCompleteCmd(cli *Cli) *cobra.Command {
 	c.Flags().StringVar(&completion.MessageName, "message-name", "", "Name of the message to subscribe to")
 	c.Flags().StringVar(&completion.SignalName, "signal-name", "", "Name of the signal to subscribe to")
 	c.Flags().Var(&timeV, "time", "A point in time, when the timer event is triggered")
-	c.Flags().StringVar(&timeCycleV, "time-cycle", "", "CRON expression that specifies a cyclic trigger")
-	c.Flags().Var(&timeDurationV, "time-duration", "Duration until the timer event is triggered")
+	c.Flags().StringVar(&timeCycle, "time-cycle", "", "CRON expression that specifies a cyclic trigger")
+	c.Flags().Var(&timeDuration, "time-duration", "Duration until the timer event is triggered")
 
 	c.MarkFlagRequired("partition")
 	c.MarkFlagRequired("id")

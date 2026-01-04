@@ -145,7 +145,7 @@ func (a *ProcessInstanceAssert) GetElementVariable(bpmnElementId string, name st
 		return int(b.Id - a.Id)
 	})
 
-	elementVariables, err := a.w.e.GetElementVariables(context.Background(), engine.GetElementVariablesCmd{
+	variables, err := a.w.e.GetElementVariables(context.Background(), engine.GetElementVariablesCmd{
 		Partition:         processInstance.Partition,
 		ElementInstanceId: elementInstances[0].Id,
 		Names:             []string{name},
@@ -154,9 +154,14 @@ func (a *ProcessInstanceAssert) GetElementVariable(bpmnElementId string, name st
 		a.a.Fatalf("failed to get element variable %s: %v", name, err)
 	}
 
-	data, ok := elementVariables[name]
-	if !ok {
-		a.a.Fatalf("expected element variable %s to exist, but is not", name)
+	var data *engine.Data
+	for _, variable := range variables {
+		if variable.Name == name {
+			data = variable.Data
+		}
+	}
+	if data == nil {
+		a.a.Fatalf("expected element instance %s to have variable %s, but has not", elementInstances[0], name)
 	}
 
 	decoder := a.w.Decoder(data.Encoding)
@@ -164,13 +169,15 @@ func (a *ProcessInstanceAssert) GetElementVariable(bpmnElementId string, name st
 		a.a.Fatalf("no decoder for encoding %s registered", data.Encoding)
 	}
 
-	decoder.Decode(data.Value, &value)
+	if err := decoder.Decode(data.Value, &value); err != nil {
+		a.a.Fatalf("failed to decode variable: %v", err)
+	}
 }
 
 func (a *ProcessInstanceAssert) GetProcessVariable(name string, value any) {
 	processInstance := a.a.ProcessInstance()
 
-	processVariables, err := a.w.e.GetProcessVariables(context.Background(), engine.GetProcessVariablesCmd{
+	variables, err := a.w.e.GetProcessVariables(context.Background(), engine.GetProcessVariablesCmd{
 		Partition:         processInstance.Partition,
 		ProcessInstanceId: processInstance.Id,
 		Names:             []string{name},
@@ -179,9 +186,14 @@ func (a *ProcessInstanceAssert) GetProcessVariable(name string, value any) {
 		a.a.Fatalf("failed to get process variable %s: %v", name, err)
 	}
 
-	data, ok := processVariables[name]
-	if !ok {
-		a.a.Fatalf("expected process variable %s to exist, but is not", name)
+	var data *engine.Data
+	for _, variable := range variables {
+		if variable.Name == name {
+			data = variable.Data
+		}
+	}
+	if data == nil {
+		a.a.Fatalf("expected process instance to have variable %s, but has not", name)
 	}
 
 	decoder := a.w.Decoder(data.Encoding)
@@ -189,13 +201,15 @@ func (a *ProcessInstanceAssert) GetProcessVariable(name string, value any) {
 		a.a.Fatalf("no decoder for encoding %s registered", data.Encoding)
 	}
 
-	decoder.Decode(data.Value, &value)
+	if err := decoder.Decode(data.Value, &value); err != nil {
+		a.a.Fatalf("failed to decode variable: %v", err)
+	}
 }
 
 func (a *ProcessInstanceAssert) HasNoProcessVariable(name string) {
 	processInstance := a.a.ProcessInstance()
 
-	processVariables, err := a.w.e.GetProcessVariables(context.Background(), engine.GetProcessVariablesCmd{
+	variables, err := a.w.e.GetProcessVariables(context.Background(), engine.GetProcessVariablesCmd{
 		Partition:         processInstance.Partition,
 		ProcessInstanceId: processInstance.Id,
 		Names:             []string{name},
@@ -204,8 +218,10 @@ func (a *ProcessInstanceAssert) HasNoProcessVariable(name string) {
 		a.a.Fatalf("failed to get process variable %s: %v", name, err)
 	}
 
-	if _, ok := processVariables[name]; ok {
-		a.a.Fatalf("expected process instance to have no variable %s, but has", name)
+	for _, variable := range variables {
+		if variable.Name == name {
+			a.a.Fatalf("expected process instance to have no variable %s, but has", name)
+		}
 	}
 }
 

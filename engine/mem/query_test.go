@@ -426,7 +426,9 @@ func TestQuery(t *testing.T) {
 			},
 			{
 				"by tags",
-				engine.ProcessCriteria{Tags: map[string]string{"a": "b"}},
+				engine.ProcessCriteria{Tags: []engine.Tag{
+					{Name: "a", Value: "b"},
+				}},
 				func(assert *assert.Assertions, results []any) {
 					assert.Len(results, 2)
 					assert.Equal(int32(1), results[0].(engine.Process).Id)
@@ -435,14 +437,19 @@ func TestQuery(t *testing.T) {
 			},
 			{
 				"by tags not matching",
-				engine.ProcessCriteria{Tags: map[string]string{"c": "y"}},
+				engine.ProcessCriteria{Tags: []engine.Tag{
+					{Name: "c", Value: "y"},
+				}},
 				func(assert *assert.Assertions, results []any) {
 					assert.Len(results, 0)
 				},
 			},
 			{
 				"by multiple tags",
-				engine.ProcessCriteria{Tags: map[string]string{"a": "b", "x": "y"}},
+				engine.ProcessCriteria{Tags: []engine.Tag{
+					{Name: "a", Value: "b"},
+					{Name: "x", Value: "y"},
+				}},
 				func(assert *assert.Assertions, results []any) {
 					assert.Len(results, 1)
 					assert.Equal(int32(5), results[0].(engine.Process).Id)
@@ -486,33 +493,44 @@ func TestQuery(t *testing.T) {
 			},
 			{
 				"by tags",
-				engine.ProcessInstanceCriteria{Tags: map[string]string{"a": "b"}},
+				engine.ProcessInstanceCriteria{Tags: []engine.Tag{
+					{Name: "a", Value: "b"},
+				}},
 				func(assert *assert.Assertions, results []any) {
 					assert.Len(results, 2)
 					assert.Equal(engine.Partition(date), results[0].(engine.ProcessInstance).Partition)
 					assert.Equal(int32(1), results[0].(engine.ProcessInstance).Id)
-					assert.Equal("b", results[0].(engine.ProcessInstance).Tags["a"])
+					assert.Equal("a", results[0].(engine.ProcessInstance).Tags[0].Name)
+					assert.Equal("b", results[0].(engine.ProcessInstance).Tags[0].Value)
 					assert.Equal(engine.Partition(datePlus1), results[1].(engine.ProcessInstance).Partition)
 					assert.Equal(int32(2), results[1].(engine.ProcessInstance).Id)
-					assert.Equal("b", results[1].(engine.ProcessInstance).Tags["a"])
+					assert.Equal("a", results[1].(engine.ProcessInstance).Tags[0].Name)
+					assert.Equal("b", results[1].(engine.ProcessInstance).Tags[0].Value)
 				},
 			},
 			{
 				"by tags not matching",
-				engine.ProcessInstanceCriteria{Tags: map[string]string{"c": "y"}},
+				engine.ProcessInstanceCriteria{Tags: []engine.Tag{
+					{Name: "c", Value: "y"},
+				}},
 				func(assert *assert.Assertions, results []any) {
 					assert.Len(results, 0)
 				},
 			},
 			{
 				"by multiple tags",
-				engine.ProcessInstanceCriteria{Tags: map[string]string{"a": "b", "x": "y"}},
+				engine.ProcessInstanceCriteria{Tags: []engine.Tag{
+					{Name: "a", Value: "b"},
+					{Name: "x", Value: "y"},
+				}},
 				func(assert *assert.Assertions, results []any) {
 					assert.Len(results, 1)
 					assert.Equal(engine.Partition(datePlus1), results[0].(engine.ProcessInstance).Partition)
 					assert.Equal(int32(2), results[0].(engine.ProcessInstance).Id)
-					assert.Equal("b", results[0].(engine.ProcessInstance).Tags["a"])
-					assert.Equal("y", results[0].(engine.ProcessInstance).Tags["x"])
+					assert.Equal("a", results[0].(engine.ProcessInstance).Tags[0].Name)
+					assert.Equal("b", results[0].(engine.ProcessInstance).Tags[0].Value)
+					assert.Equal("x", results[0].(engine.ProcessInstance).Tags[1].Name)
+					assert.Equal("y", results[0].(engine.ProcessInstance).Tags[1].Value)
 				},
 			},
 		})

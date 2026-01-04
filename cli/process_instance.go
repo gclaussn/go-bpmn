@@ -2,9 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -32,7 +29,12 @@ func newProcessInstanceCmd(cli *Cli) *cobra.Command {
 
 func newProcessInstanceCreateCmd(cli *Cli) *cobra.Command {
 	var (
-		variablesV map[string]string
+		tagsV map[string]string
+
+		// variables
+		encodingMap  map[string]string
+		encryptedMap map[string]string
+		valueMap     map[string]string
 
 		cmd engine.CreateProcessInstanceCmd
 	)
@@ -41,15 +43,20 @@ func newProcessInstanceCreateCmd(cli *Cli) *cobra.Command {
 		Use:   "create",
 		Short: "Create a process instance",
 		RunE: func(c *cobra.Command, _ []string) error {
-			variables := make(map[string]*engine.Data)
-			for variableName, dataJson := range variablesV {
-				var data engine.Data
-				if err := json.Unmarshal([]byte(dataJson), &data); err != nil {
-					return fmt.Errorf("failed to unmarshal variable %s: %v", variableName, err)
-				}
-				variables[variableName] = &data
+			tags := make([]engine.Tag, 0, len(tagsV))
+			for name, value := range tagsV {
+				tags = append(tags, engine.Tag{
+					Name:  name,
+					Value: value,
+				})
 			}
 
+			variables, err := mapVariables(encodingMap, encryptedMap, valueMap)
+			if err != nil {
+				return err
+			}
+
+			cmd.Tags = tags
 			cmd.Variables = variables
 			cmd.WorkerId = cli.workerId
 
@@ -65,8 +72,10 @@ func newProcessInstanceCreateCmd(cli *Cli) *cobra.Command {
 
 	c.Flags().StringVar(&cmd.BpmnProcessId, "bpmn-process-id", "", "BPMN ID of an existing process")
 	c.Flags().StringVar(&cmd.CorrelationKey, "correlation-key", "", "Optional key, used to correlate a process instance with a business entity")
-	c.Flags().StringToStringVar(&cmd.Tags, "tag", nil, "Tag, consisting of name and value")
-	c.Flags().StringToStringVar(&variablesV, "variable", nil, "Variable to set at process instance scope")
+	c.Flags().StringToStringVar(&tagsV, "tag", nil, "Tag, consisting of name and value")
+	c.Flags().StringToStringVar(&encodingMap, "variable-encoding", nil, "Variable to set at process instance scope\nEncoding of the value - e.g. `json`")
+	c.Flags().StringToStringVar(&encryptedMap, "variable-encrypted", nil, "Variable to set at process instance scope\nDetermines if a value is encrypted before it is stored.")
+	c.Flags().StringToStringVar(&valueMap, "variable-value", nil, "Variable to set at process instance scope\nData value, encoded as a string")
 	c.Flags().StringVar(&cmd.Version, "version", "", "Version of an existing process")
 
 	c.MarkFlagRequired("bpmn-process-id")
@@ -93,27 +102,19 @@ func newProcessInstanceGetVariablesCmd(cli *Cli) *cobra.Command {
 				return err
 			}
 
-			keys := make([]string, 0, len(variables))
-			for key := range variables {
-				keys = append(keys, key)
-			}
-			sort.Strings(keys)
-
 			var sb strings.Builder
-			for i := range keys {
-				data := variables[keys[i]]
-
+			for i, variable := range variables {
 				if i != 0 {
 					sb.WriteRune('\n')
 				}
 
-				sb.WriteString(keys[i])
+				sb.WriteString(variable.Name)
 				sb.WriteString(" (encoding: ")
-				sb.WriteString(data.Encoding)
+				sb.WriteString(variable.Data.Encoding)
 				sb.WriteString(", encrypted: ")
-				sb.WriteString(strconv.FormatBool(data.IsEncrypted))
+				sb.WriteString(strconv.FormatBool(variable.Data.IsEncrypted))
 				sb.WriteString(")\n")
-				sb.WriteString(data.Value)
+				sb.WriteString(variable.Data.Value)
 				sb.WriteRune('\n')
 			}
 
@@ -162,8 +163,12 @@ func newProcessInstanceResumeCmd(cli *Cli) *cobra.Command {
 
 func newProcessInstanceSetVariablesCmd(cli *Cli) *cobra.Command {
 	var (
-		partition  partitionValue
-		variablesV map[string]string
+		partition partitionValue
+
+		// variables
+		encodingMap  map[string]string
+		encryptedMap map[string]string
+		valueMap     map[string]string
 
 		cmd engine.SetProcessVariablesCmd
 	)
@@ -172,18 +177,9 @@ func newProcessInstanceSetVariablesCmd(cli *Cli) *cobra.Command {
 		Use:   "set-variables",
 		Short: "Get process variables",
 		RunE: func(c *cobra.Command, args []string) error {
-			variables := make(map[string]*engine.Data)
-			for variableName, dataJson := range variablesV {
-				if dataJson == "" || dataJson == "null" {
-					variables[variableName] = nil
-					continue
-				}
-
-				var data engine.Data
-				if err := json.Unmarshal([]byte(dataJson), &data); err != nil {
-					return fmt.Errorf("failed to unmarshal variable %s: %v", variableName, err)
-				}
-				variables[variableName] = &data
+			variables, err := mapVariables(encodingMap, encryptedMap, valueMap)
+			if err != nil {
+				return err
 			}
 
 			cmd.Partition = engine.Partition(partition)
@@ -197,7 +193,9 @@ func newProcessInstanceSetVariablesCmd(cli *Cli) *cobra.Command {
 	c.Flags().Var(&partition, "partition", "Process instance partition")
 	c.Flags().Int32Var(&cmd.ProcessInstanceId, "id", 0, "Process instance ID")
 
-	c.Flags().StringToStringVar(&variablesV, "variable", nil, "Variable to set or delete")
+	c.Flags().StringToStringVar(&encodingMap, "variable-encoding", nil, "Variable to set or delete\nEncoding of the value - e.g. `json`")
+	c.Flags().StringToStringVar(&encryptedMap, "variable-encrypted", nil, "Variable to set or delete\nDetermines if a value is encrypted before it is stored.")
+	c.Flags().StringToStringVar(&valueMap, "variable-value", nil, "Variable to set or delete\nData value, encoded as a string")
 
 	c.MarkFlagRequired("partition")
 	c.MarkFlagRequired("id")
@@ -235,6 +233,7 @@ func newProcessInstanceSuspendCmd(cli *Cli) *cobra.Command {
 func newProcessInstanceQueryCmd(cli *Cli) *cobra.Command {
 	var (
 		partition partitionValue
+		tagsV     map[string]string
 
 		criteria engine.ProcessInstanceCriteria
 		options  engine.QueryOptions
@@ -244,7 +243,16 @@ func newProcessInstanceQueryCmd(cli *Cli) *cobra.Command {
 		Use:   "query",
 		Short: "Query processes",
 		RunE: func(c *cobra.Command, _ []string) error {
+			tags := make([]engine.Tag, 0, len(tagsV))
+			for name, value := range tagsV {
+				tags = append(tags, engine.Tag{
+					Name:  name,
+					Value: value,
+				})
+			}
+
 			criteria.Partition = engine.Partition(partition)
+			criteria.Tags = tags
 
 			q := cli.e.CreateQuery()
 			q.SetOptions(options)
@@ -285,7 +293,7 @@ func newProcessInstanceQueryCmd(cli *Cli) *cobra.Command {
 	c.Flags().Int32Var(&criteria.Id, "id", 0, "Process instance ID")
 
 	c.Flags().Int32Var(&criteria.ProcessId, "process-id", 0, "Process ID")
-	c.Flags().StringToStringVar(&criteria.Tags, "tag", nil, "Tag, consisting of name and value")
+	c.Flags().StringToStringVar(&tagsV, "tag", nil, "Tag, consisting of name and value")
 
 	flagQueryOptions(&c, &options)
 

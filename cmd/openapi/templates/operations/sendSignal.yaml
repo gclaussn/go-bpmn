@@ -16,10 +16,11 @@ requestBody:
       example:
         name: example-signal
         variables:
-          a:
-            encoding: "json"
-            encrypted: true
-            value: "{...}"
+          - name: a
+            data:
+              encoding: "json"
+              encrypted: true
+              value: "{...}"
         workerId: go-bpmn
 responses:
   "200":

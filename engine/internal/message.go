@@ -97,12 +97,12 @@ func SendMessage(ctx Context, cmd engine.SendMessageCmd) (engine.Message, error)
 	// encrypt variables
 	encryption := ctx.Options().Encryption
 
-	for variableName, data := range cmd.Variables {
-		if data == nil {
+	for _, variable := range cmd.Variables {
+		if variable.Data == nil {
 			continue
 		}
-		if err := encryption.EncryptData(data); err != nil {
-			return engine.Message{}, fmt.Errorf("failed to encrypt variable %s: %v", variableName, err)
+		if err := encryption.EncryptData(variable.Data); err != nil {
+			return engine.Message{}, fmt.Errorf("failed to encrypt variable %s: %v", variable.Name, err)
 		}
 	}
 
@@ -141,23 +141,33 @@ func SendMessage(ctx Context, cmd engine.SendMessageCmd) (engine.Message, error)
 
 	// insert message variables
 	messageVariables := make([]*MessageVariableEntity, 0, len(cmd.Variables))
-	for variableName, data := range cmd.Variables {
-		if data != nil {
-			messageVariables = append(messageVariables, &MessageVariableEntity{
-				MessageId: message.Id,
-
-				Encoding:    pgtype.Text{String: data.Encoding, Valid: true},
-				IsEncrypted: pgtype.Bool{Bool: data.IsEncrypted, Valid: true},
-				Name:        variableName,
-				Value:       pgtype.Text{String: data.Value, Valid: true},
-			})
-		} else {
-			messageVariables = append(messageVariables, &MessageVariableEntity{
-				MessageId: message.Id,
-
-				Name: variableName,
-			})
+	messageVariableNames := make(map[string]bool, len(cmd.Variables))
+	for _, variable := range cmd.Variables {
+		if _, ok := messageVariableNames[variable.Name]; ok {
+			continue // skip already processed variable
 		}
+
+		messageVariableNames[variable.Name] = true
+
+		data := variable.Data
+		if data == nil {
+			messageVariables = append(messageVariables, &MessageVariableEntity{
+				MessageId: message.Id,
+
+				Name: variable.Name,
+			})
+
+			continue
+		}
+
+		messageVariables = append(messageVariables, &MessageVariableEntity{
+			MessageId: message.Id,
+
+			Encoding:    pgtype.Text{String: data.Encoding, Valid: true},
+			IsEncrypted: pgtype.Bool{Bool: data.IsEncrypted, Valid: true},
+			Name:        variable.Name,
+			Value:       pgtype.Text{String: data.Value, Valid: true},
+		})
 	}
 
 	if err := ctx.MessageVariables().InsertBatch(messageVariables); err != nil {

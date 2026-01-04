@@ -14,13 +14,15 @@ responses:
         example:
           count: 2
           variables:
-            a:
-              encoding: json
-              encrypted: true
-              value: "{...}"
-            b:
-              encoding: text
-              value: any text
+            - name: a
+              data:
+                encoding: json
+                encrypted: true
+                value: "{...}"
+            - name: b
+              data:
+                encoding: text
+                value: any text
   "404":
     description: Not found
     content:

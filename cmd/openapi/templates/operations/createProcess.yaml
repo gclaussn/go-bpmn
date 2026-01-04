@@ -21,7 +21,8 @@ requestBody:
             bpmnXml: "<...>"
             parallelism: 5
             tags:
-              x: y
+              - name: x
+                value: y
             version: "1"
             workerId: go-bpmn
         timers:
@@ -48,7 +49,8 @@ responses:
           createdBy: go-bpmn
           parallelism: 5
           tags:
-            x: y
+            - name: x
+              value: y
           version: "1"
   "400":
     description: Bad request
@@ -69,7 +71,7 @@ responses:
                   type: gte
                   detail: must be greater than or equal to 0
                   value: "-1"
-                - pointer: "#/tags/,"
+                - pointer: "#/tags/0/name"
                   type: tag_name
                   detail: must match regex ^[a-zA-Z0-9_-]+$
                   value: ","

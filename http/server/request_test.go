@@ -22,27 +22,27 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		"vlte": 100,
 		"vmax": [1, 2, 3],
 		"vrequired": "a string",
-		"vtags": {
-			"a": "v",
-			"z": "v",
-			"A": "v",
-			"Z": "v",
-			"0": "v",
-			"9": "v",
-			"_": "v",
-			"-": "v"
-		},
+		"vtags": [
+			{"name": "a", "value": "v"},
+			{"name": "z", "value": "v"},
+			{"name": "A", "value": "v"},
+			{"name": "Z", "value": "v"},
+			{"name": "0", "value": "v"},
+			{"name": "9", "value": "v"},
+			{"name": "_", "value": "v"},
+			{"name": "-", "value": "v"}
+		],
 		"vunique": [1, 2, 3],
-		"vvariables": {
-			"a": {"encoding": "text", "value": "a text"},
-			"z": {"encoding": "text", "value": "a text"},
-			"A": {"encoding": "text", "value": "a text"},
-			"Z": {"encoding": "text", "value": "a text"},
-			"0": {"encoding": "text", "value": "a text"},
-			"9": {"encoding": "text", "value": "a text"},
-			"_": {"encoding": "text", "value": "a text"},
-			"-": {"encoding": "text", "value": "a text"}
-		}
+		"vvariables": [
+			{"name": "a", "data": {"encoding": "text", "value": "a text"}},
+			{"name": "z", "data": {"encoding": "text", "value": "a text"}},
+			{"name": "A", "data": {"encoding": "text", "value": "a text"}},
+			{"name": "Z", "data": {"encoding": "text", "value": "a text"}},
+			{"name": "0", "data": {"encoding": "text", "value": "a text"}},
+			{"name": "9", "data": {"encoding": "text", "value": "a text"}},
+			{"name": "_", "data": {"encoding": "text", "value": "a text"}},
+			{"name": "-", "data": {"encoding": "text", "value": "a text"}}
+		]
 	}
 	`
 
@@ -53,29 +53,28 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		"vlte": 101,
 		"vmax": [1, 2, 3, 4],
 		"vrequired": "",
-		"vtags": {
-			"": "v",
-			" ": "v",
-			".": "v",
-			"a": ""
-		},
+		"vtags": [
+			{"name": "", "value": "v"},
+			{"name": " ", "value": "v"},
+			{"name": ".", "value": "v"},
+			{"name": "a", "value": ""}
+		],
 		"vunique": [1, 1, 2, 2, 3],
-		"vvariables": {
-			"": null,
-			" ": {"encoding": "text", "value": "a text"},
-			".": {"encoding": "text", "value": "a text"},
-			"a": {"value": "a text"}
-		}
+		"vvariables": [
+			{"name": "", "data": null},
+			{"name": " ", "data": {"encoding": "text", "value": "a text"}},
+			{"name": ".", "data": {"encoding": "text", "value": "a text"}},
+			{"name": "a", "data": {"value": "123"}}
+		]
 	}
 	`
-
-	body := DecodeTest{}
 
 	t.Run("unsupported media type", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest("", "/", strings.NewReader(validJson))
 		r.Header.Add(common.HeaderContentType, "text/plain")
 
+		var body DecodeTest
 		err := decodeJSONRequestBody(w, r, &body)
 		assertProblem(t, err, common.ProblemHttpMediaType, http.StatusUnsupportedMediaType)
 		assert.Contains(err.Error(), "text/plain")
@@ -85,6 +84,7 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest("", "/", strings.NewReader(""))
 
+		var body DecodeTest
 		err := decodeJSONRequestBody(w, r, &body)
 		assertProblem(t, err, common.ProblemHttpRequestBody, http.StatusBadRequest)
 		assert.Contains(err.Error(), "request body is empty")
@@ -101,6 +101,7 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest("", "/", bytes.NewReader(b))
 
+		var body DecodeTest
 		err := decodeJSONRequestBody(w, r, &body)
 		assertProblem(t, err, common.ProblemHttpRequestBody, http.StatusBadRequest)
 		assert.Contains(err.Error(), "1MB")
@@ -110,6 +111,7 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest("", "/", strings.NewReader("{_}"))
 
+		var body DecodeTest
 		err := decodeJSONRequestBody(w, r, &body)
 		assertProblem(t, err, common.ProblemHttpRequestBody, http.StatusBadRequest)
 		assert.Contains(err.Error(), "at position 2")
@@ -119,6 +121,7 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest("", "/", strings.NewReader("{"))
 
+		var body DecodeTest
 		err := decodeJSONRequestBody(w, r, &body)
 		assertProblem(t, err, common.ProblemHttpRequestBody, http.StatusBadRequest)
 		assert.Contains(err.Error(), "unexpected end of JSON")
@@ -128,6 +131,7 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest("", "/", strings.NewReader(`{"vrequired":1}`))
 
+		var body DecodeTest
 		err := decodeJSONRequestBody(w, r, &body)
 		assertProblem(t, err, common.ProblemHttpRequestBody, http.StatusBadRequest)
 		assert.Contains(err.Error(), "JSON field vrequired has an invalid value at position 14")
@@ -137,6 +141,7 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest("", "/", strings.NewReader(`{"vunknown":-1}`))
 
+		var body DecodeTest
 		err := decodeJSONRequestBody(w, r, &body)
 		assertProblem(t, err, common.ProblemHttpRequestBody, http.StatusBadRequest)
 		assert.Contains(err.Error(), `unknown JSON field "vunknown"`)
@@ -146,6 +151,7 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest("", "/", strings.NewReader(validJson))
 
+		var body DecodeTest
 		err := decodeJSONRequestBody(w, r, &body)
 		assert.Nil(err)
 
@@ -161,6 +167,7 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest("", "/", strings.NewReader(invalidJson))
 
+		var body DecodeTest
 		err := decodeJSONRequestBody(w, r, &body)
 		assertProblem(t, err, common.ProblemHttpRequestBody, http.StatusBadRequest)
 
@@ -210,32 +217,36 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		assert.Equal("[1 1 2 2 3]", e.Value)
 
 		// tag_name
-		e = findError("#/vtags/")
-		assert.Equal("tag_name", e.Type)
+		e = findError("#/vtags/0/name")
+		assert.Equal("required", e.Type)
 		assert.NotEmpty(e.Detail)
 		assert.Equal("", e.Value)
 
-		e = findError("#/vtags/ ")
+		e = findError("#/vtags/1/name")
+		assert.Equal("tag_name", e.Type)
 		assert.Equal(" ", e.Value)
-		e = findError("#/vtags/.")
+		e = findError("#/vtags/2/name")
+		assert.Equal("tag_name", e.Type)
 		assert.Equal(".", e.Value)
 
-		e = findError("#/vtags/a")
+		e = findError("#/vtags/3/value")
 		assert.Equal("required", e.Type)
 		assert.Empty(e.Value)
 
 		// variable_name
-		e = findError("#/vvariables/")
-		assert.Equal("variable_name", e.Type)
+		e = findError("#/vvariables/0/name")
+		assert.Equal("required", e.Type)
 		assert.NotEmpty(e.Detail)
 		assert.Equal("", e.Value)
 
-		e = findError("#/vvariables/ ")
+		e = findError("#/vvariables/1/name")
+		assert.Equal("variable_name", e.Type)
 		assert.Equal(" ", e.Value)
-		e = findError("#/vvariables/.")
+		e = findError("#/vvariables/2/name")
+		assert.Equal("variable_name", e.Type)
 		assert.Equal(".", e.Value)
 
-		e = findError("#/vvariables/a/encoding")
+		e = findError("#/vvariables/3/data/encoding")
 		assert.Equal("required", e.Type)
 		assert.Empty(e.Value)
 	})
@@ -443,14 +454,14 @@ func assertProblem(t *testing.T, err error, expectedType common.ProblemType, exp
 }
 
 type DecodeTest struct {
-	VGte             int                     `json:"vgte" validate:"gte=1"`
-	VISO8601Duration engine.ISO8601Duration  `json:"viso8601Duration" validate:"iso8601_duration"`
-	VLte             int                     `json:"vlte" validate:"lte=100"`
-	VMax             []int                   `json:"vmax" validate:"max=3"`
-	VRequired        string                  `json:"vrequired" validate:"required"`
-	VTags            map[string]string       `json:"vtags" validate:"dive,keys,tag_name,endkeys,required"`
-	VUnique          []int                   `json:"vunique" validate:"unique"`
-	VVariables       map[string]*engine.Data `json:"vvariables" validate:"dive,keys,variable_name,endkeys,omitnil,required"`
+	VGte             int                    `json:"vgte" validate:"gte=1"`
+	VISO8601Duration engine.ISO8601Duration `json:"viso8601Duration" validate:"iso8601_duration"`
+	VLte             int                    `json:"vlte" validate:"lte=100"`
+	VMax             []int                  `json:"vmax" validate:"max=3"`
+	VRequired        string                 `json:"vrequired" validate:"required"`
+	VTags            []engine.Tag           `json:"vtags" validate:"dive"`
+	VUnique          []int                  `json:"vunique" validate:"unique"`
+	VVariables       []*engine.VariableData `json:"vvariables" validate:"dive"`
 }
 
 type DecodeTimerTest struct {

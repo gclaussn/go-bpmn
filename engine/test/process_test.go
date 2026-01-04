@@ -24,9 +24,9 @@ func TestCreateProcess(t *testing.T) {
 	cmd := engine.CreateProcessCmd{
 		BpmnProcessId: "serviceTest",
 		BpmnXml:       bpmnXml,
-		Tags: map[string]string{
-			"a": "b",
-			"x": "y",
+		Tags: []engine.Tag{
+			{Name: "a", Value: "b"},
+			{Name: "x", Value: "y"},
 		},
 		Version:  t.Name(),
 		WorkerId: testWorkerId,
@@ -49,9 +49,9 @@ func TestCreateProcess(t *testing.T) {
 					CreatedAt:     process.CreatedAt,
 					CreatedBy:     cmd.WorkerId,
 					Parallelism:   0,
-					Tags: map[string]string{
-						"a": "b",
-						"x": "y",
+					Tags: []engine.Tag{
+						{Name: "a", Value: "b"},
+						{Name: "x", Value: "y"},
 					},
 					Version: cmd.Version,
 				}, process)
@@ -221,9 +221,9 @@ func TestCreateProcessWithErrorCode(t *testing.T) {
 				cmd := engine.CreateProcessCmd{
 					BpmnProcessId: "errorBoundaryEventTest",
 					BpmnXml:       bpmnXml,
-					ErrorCodes: map[string]string{
-						"errorBoundaryEvent": "TEST_CODE",
-						"endEvent":           "TEST_CODE",
+					Errors: []engine.ErrorDefinition{
+						{BpmnElementId: "errorBoundaryEvent", ErrorCode: "TEST_CODE"},
+						{BpmnElementId: "endEvent", ErrorCode: "TEST_CODE"},
 					},
 					Version:  t.Name(),
 					WorkerId: testWorkerId,
@@ -249,9 +249,9 @@ func TestCreateProcessWithErrorCode(t *testing.T) {
 				cmd := engine.CreateProcessCmd{
 					BpmnProcessId: "errorBoundaryEventTest",
 					BpmnXml:       bpmnXml,
-					ErrorCodes: map[string]string{
-						"errorBoundaryEvent": "TEST_CODE",
-						"not-existing":       "TEST_CODE",
+					Errors: []engine.ErrorDefinition{
+						{BpmnElementId: "errorBoundaryEvent", ErrorCode: "TEST_CODE"},
+						{BpmnElementId: "not-existing", ErrorCode: "TEST_CODE"},
 					},
 					Version:  t.Name(),
 					WorkerId: testWorkerId,
@@ -277,8 +277,8 @@ func TestCreateProcessWithErrorCode(t *testing.T) {
 				cmd := engine.CreateProcessCmd{
 					BpmnProcessId: "errorBoundaryEventTest",
 					BpmnXml:       bpmnXml,
-					ErrorCodes: map[string]string{
-						"errorBoundaryEvent": "TEST_CODE",
+					Errors: []engine.ErrorDefinition{
+						{BpmnElementId: "errorBoundaryEvent", ErrorCode: "TEST_CODE"},
 					},
 					Version:  t.Name(),
 					WorkerId: testWorkerId,
@@ -348,9 +348,9 @@ func TestCreateProcessWithMessage(t *testing.T) {
 				cmd := engine.CreateProcessCmd{
 					BpmnProcessId: "messageStartTest",
 					BpmnXml:       bpmnXml1,
-					MessageNames: map[string]string{
-						"messageStartEvent": "start-message",
-						"endEvent":          "error",
+					Messages: []engine.MessageDefinition{
+						{BpmnElementId: "messageStartEvent", MessageName: "start-message"},
+						{BpmnElementId: "endEvent", MessageName: "error"},
 					},
 					Version:  "2",
 					WorkerId: testWorkerId,
@@ -376,9 +376,9 @@ func TestCreateProcessWithMessage(t *testing.T) {
 				cmd := engine.CreateProcessCmd{
 					BpmnProcessId: "messageStartTest",
 					BpmnXml:       bpmnXml1,
-					MessageNames: map[string]string{
-						"messageStartEvent": "start-message",
-						"not-existing":      "error",
+					Messages: []engine.MessageDefinition{
+						{BpmnElementId: "messageStartEvent", MessageName: "start-message"},
+						{BpmnElementId: "not-existing", MessageName: "error"},
 					},
 					Version:  "3",
 					WorkerId: testWorkerId,
@@ -404,8 +404,8 @@ func TestCreateProcessWithMessage(t *testing.T) {
 				cmd1 := engine.CreateProcessCmd{
 					BpmnProcessId: "messageStartTest",
 					BpmnXml:       bpmnXml1,
-					MessageNames: map[string]string{
-						"messageStartEvent": "start-message",
+					Messages: []engine.MessageDefinition{
+						{BpmnElementId: "messageStartEvent", MessageName: "start-message"},
 					},
 					Version:  "4",
 					WorkerId: testWorkerId,
@@ -433,8 +433,8 @@ func TestCreateProcessWithMessage(t *testing.T) {
 				cmd2 := engine.CreateProcessCmd{
 					BpmnProcessId: "messageStartTest",
 					BpmnXml:       bpmnXml2,
-					MessageNames: map[string]string{
-						"messageStartEvent": "start-message*",
+					Messages: []engine.MessageDefinition{
+						{BpmnElementId: "messageStartEvent", MessageName: "start-message*"},
 					},
 					Version:  "5",
 					WorkerId: testWorkerId,
@@ -518,9 +518,9 @@ func TestCreateProcessWithTimer(t *testing.T) {
 				cmd := engine.CreateProcessCmd{
 					BpmnProcessId: "timerStartTest",
 					BpmnXml:       bpmnXml1,
-					Timers: map[string]*engine.Timer{
-						"timerStartEvent": {},
-						"endEvent":        {},
+					Timers: []engine.TimerDefinition{
+						{BpmnElementId: "timerStartEvent", Timer: &engine.Timer{}},
+						{BpmnElementId: "endEvent", Timer: &engine.Timer{}},
 					},
 					Version:  "2",
 					WorkerId: testWorkerId,
@@ -546,9 +546,9 @@ func TestCreateProcessWithTimer(t *testing.T) {
 				cmd := engine.CreateProcessCmd{
 					BpmnProcessId: "timerStartTest",
 					BpmnXml:       bpmnXml1,
-					Timers: map[string]*engine.Timer{
-						"timerStartEvent": {},
-						"not-existing":    {},
+					Timers: []engine.TimerDefinition{
+						{BpmnElementId: "timerStartEvent", Timer: &engine.Timer{}},
+						{BpmnElementId: "not-existing", Timer: &engine.Timer{}},
 					},
 					Version:  "3",
 					WorkerId: testWorkerId,
@@ -574,8 +574,8 @@ func TestCreateProcessWithTimer(t *testing.T) {
 				cmd1 := engine.CreateProcessCmd{
 					BpmnProcessId: "timerStartTest",
 					BpmnXml:       bpmnXml1,
-					Timers: map[string]*engine.Timer{
-						"timerStartEvent": {TimeCycle: "0 * * * *"},
+					Timers: []engine.TimerDefinition{
+						{BpmnElementId: "timerStartEvent", Timer: &engine.Timer{TimeCycle: "0 * * * *"}},
 					},
 					Version:  "4",
 					WorkerId: testWorkerId,
@@ -610,9 +610,9 @@ func TestCreateProcessWithTimer(t *testing.T) {
 				cmd2 := engine.CreateProcessCmd{
 					BpmnProcessId: "timerStartTest",
 					BpmnXml:       bpmnXml2,
-					Timers: map[string]*engine.Timer{
-						"timerStartEvent1": {TimeCycle: "0 * * * *"},
-						"timerStartEvent2": {TimeCycle: "0 * * * *"},
+					Timers: []engine.TimerDefinition{
+						{BpmnElementId: "timerStartEvent1", Timer: &engine.Timer{TimeCycle: "0 * * * *"}},
+						{BpmnElementId: "timerStartEvent2", Timer: &engine.Timer{TimeCycle: "0 * * * *"}},
 					},
 					Version:  "5",
 					WorkerId: testWorkerId,

@@ -289,7 +289,7 @@ func (v *TaskType) UnmarshalJSON(data []byte) error {
 type Data struct {
 	Encoding    string `json:"encoding" validate:"required"` // Encoding of the value - e.g. `json`.
 	IsEncrypted bool   `json:"encrypted,omitempty"`          // Determines if a value is encrypted before it is stored.
-	Value       string `json:"value" validate:"required"`    // Data value, encoded as a string.
+	Value       string `json:"value" validate:"required"`    // Value, encoded as a string.
 }
 
 // Element represents a BPMN element of a process.
@@ -488,12 +488,12 @@ type MessageCriteria struct {
 type Process struct {
 	Id int32 `json:"id" validate:"required"` // Process ID.
 
-	BpmnProcessId string            `json:"bpmnProcessId" validate:"required"`      // ID of the process element within the BPMN XML.
-	CreatedAt     time.Time         `json:"createdAt" validate:"required"`          // Creation time.
-	CreatedBy     string            `json:"createdBy" validate:"required"`          // ID of the worker that created the process.
-	Parallelism   int               `json:"parallelism,omitempty" validate:"gte=0"` // Maximum number of parallel process instances being executed.
-	Tags          map[string]string `json:"tags,omitempty"`                         // Tags, consisting of name and value pairs.
-	Version       string            `json:"version" validate:"required"`            // Process version.
+	BpmnProcessId string    `json:"bpmnProcessId" validate:"required"`      // ID of the process element within the BPMN XML.
+	CreatedAt     time.Time `json:"createdAt" validate:"required"`          // Creation time.
+	CreatedBy     string    `json:"createdBy" validate:"required"`          // ID of the worker that created the process.
+	Parallelism   int       `json:"parallelism,omitempty" validate:"gte=0"` // Maximum number of parallel process instances being executed.
+	Tags          []Tag     `json:"tags,omitempty" validate:"max=100"`      // Tags.
+	Version       string    `json:"version" validate:"required"`            // Process version.
 }
 
 func (v Process) String() string {
@@ -504,7 +504,7 @@ func (v Process) String() string {
 type ProcessCriteria struct {
 	Id int32 `json:"id,omitempty"` // Process filter.
 
-	Tags map[string]string `json:"tags,omitempty"` // Tags, a process must have, to be included.
+	Tags []Tag `json:"tags,omitempty" validate:"max=100,dive"` // Tags, a process must have, to be included.
 }
 
 // Process instance is an instance of a BPMN process.
@@ -517,15 +517,15 @@ type ProcessInstance struct {
 
 	ProcessId int32 `json:"processId"` // ID of the related process.
 
-	BpmnProcessId  string            `json:"bpmnProcessId" validate:"required"` // ID of the process element within the BPMN XML.
-	CorrelationKey string            `json:"correlationKey,omitempty"`          // Key, used to correlate a process instance with a business entity.
-	CreatedAt      time.Time         `json:"createdAt" validate:"required"`     // Creation time.
-	CreatedBy      string            `json:"createdBy" validate:"required"`     // ID of the worker or engine that created the process instance.
-	EndedAt        *time.Time        `json:"endedAt,omitempty"`                 // End time.
-	StartedAt      *time.Time        `json:"startedAt,omitempty"`               // Start time.
-	State          InstanceState     `json:"state" validate:"required"`         // Current state.
-	Tags           map[string]string `json:"tags,omitempty"`                    // Tags, consisting of name and value pairs.
-	Version        string            `json:"version" validate:"required"`       // Process version.
+	BpmnProcessId  string        `json:"bpmnProcessId" validate:"required"` // ID of the process element within the BPMN XML.
+	CorrelationKey string        `json:"correlationKey,omitempty"`          // Key, used to correlate a process instance with a business entity.
+	CreatedAt      time.Time     `json:"createdAt" validate:"required"`     // Creation time.
+	CreatedBy      string        `json:"createdBy" validate:"required"`     // ID of the worker or engine that created the process instance.
+	EndedAt        *time.Time    `json:"endedAt,omitempty"`                 // End time.
+	StartedAt      *time.Time    `json:"startedAt,omitempty"`               // Start time.
+	State          InstanceState `json:"state" validate:"required"`         // Current state.
+	Tags           []Tag         `json:"tags,omitempty" validate:"max=100"` // Tags.
+	Version        string        `json:"version" validate:"required"`       // Process version.
 }
 
 func (v ProcessInstance) HasParent() bool {
@@ -551,7 +551,7 @@ type ProcessInstanceCriteria struct {
 
 	ProcessId int32 `json:"processId,omitempty"` // Process filter.
 
-	Tags map[string]string `json:"tags,omitempty"` // Tags, a process instance must have, to be included.
+	Tags []Tag `json:"tags,omitempty" validate:"max=100,dive"` // Tags, a process instance must have, to be included.
 }
 
 // Signal represents a notification of signal subscribers (signal start or catch events).
@@ -566,6 +566,16 @@ type Signal struct {
 
 func (v Signal) String() string {
 	return strconv.FormatInt(v.Id, 10)
+}
+
+// Tag is used to tag entities like process or process instance.
+type Tag struct {
+	Name  string `json:"name" validate:"required,tag_name"` // Tag name.
+	Value string `json:"value" validate:"required"`         // Tag value.
+}
+
+func (v Tag) String() string {
+	return v.Name
 }
 
 // Task is a unit of work, which must be locked, executed and completed by an engine.
@@ -672,4 +682,14 @@ type VariableCriteria struct {
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // Process instance filter.
 
 	Names []string `json:"names,omitempty"` // Names of variables to include.
+}
+
+// VariableData represents a named variable, including data.
+type VariableData struct {
+	Name string `json:"name" validate:"required,variable_name"` // Variable name.
+	Data *Data  `json:"data,omitempty"`                         // Variable data.
+}
+
+func (v VariableData) String() string {
+	return v.Name
 }

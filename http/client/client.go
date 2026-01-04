@@ -171,7 +171,7 @@ func (c *client) GetBpmnXml(ctx context.Context, cmd engine.GetBpmnXmlCmd) (stri
 	return string(b), nil
 }
 
-func (c *client) GetElementVariables(ctx context.Context, cmd engine.GetElementVariablesCmd) (map[string]engine.Data, error) {
+func (c *client) GetElementVariables(ctx context.Context, cmd engine.GetElementVariablesCmd) ([]engine.VariableData, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
 
@@ -189,7 +189,7 @@ func (c *client) GetElementVariables(ctx context.Context, cmd engine.GetElementV
 	return resBody.Variables, nil
 }
 
-func (c *client) GetProcessVariables(ctx context.Context, cmd engine.GetProcessVariablesCmd) (map[string]engine.Data, error) {
+func (c *client) GetProcessVariables(ctx context.Context, cmd engine.GetProcessVariablesCmd) ([]engine.VariableData, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
 

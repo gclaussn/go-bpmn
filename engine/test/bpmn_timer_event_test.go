@@ -84,10 +84,8 @@ func (x timerEventTest) boundaryWithTimer(t *testing.T) {
 	process, err := x.e.CreateProcess(context.Background(), engine.CreateProcessCmd{
 		BpmnProcessId: "timerBoundaryTest",
 		BpmnXml:       bpmnXml,
-		Timers: map[string]*engine.Timer{
-			"timerBoundaryEvent": {
-				Time: triggerAt,
-			},
+		Timers: []engine.TimerDefinition{
+			{BpmnElementId: "timerBoundaryEvent", Timer: &engine.Timer{Time: triggerAt}},
 		},
 		Version:  t.Name(),
 		WorkerId: testWorkerId,
@@ -216,10 +214,8 @@ func (x timerEventTest) catchWithTimer(t *testing.T) {
 	process, err := x.e.CreateProcess(context.Background(), engine.CreateProcessCmd{
 		BpmnProcessId: "timerCatchTest",
 		BpmnXml:       bpmnXml,
-		Timers: map[string]*engine.Timer{
-			"timerCatchEvent": {
-				Time: triggerAt,
-			},
+		Timers: []engine.TimerDefinition{
+			{BpmnElementId: "timerCatchEvent", Timer: &engine.Timer{Time: triggerAt}},
 		},
 		Version:  t.Name(),
 		WorkerId: testWorkerId,
@@ -248,10 +244,8 @@ func (x timerEventTest) start(t *testing.T) {
 	process, err := x.e.CreateProcess(context.Background(), engine.CreateProcessCmd{
 		BpmnProcessId: "timerStartTest",
 		BpmnXml:       bpmnXml,
-		Timers: map[string]*engine.Timer{
-			"timerStartEvent": {
-				TimeCycle: "0 * * * *",
-			},
+		Timers: []engine.TimerDefinition{
+			{BpmnElementId: "timerStartEvent", Timer: &engine.Timer{TimeCycle: "0 * * * *"}},
 		},
 		Version:  "1",
 		WorkerId: testWorkerId,

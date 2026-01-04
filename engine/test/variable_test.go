@@ -28,21 +28,21 @@ func TestVariables(t *testing.T) {
 				Partition:         processInstance.Partition,
 				ProcessInstanceId: processInstance.Id,
 
-				Variables: map[string]*engine.Data{
-					"a": {
+				Variables: []engine.VariableData{
+					{Name: "a", Data: &engine.Data{
 						Encoding: "encoding-pa",
 						Value:    "value-pa",
-					},
-					"b": {
+					}},
+					{Name: "b", Data: &engine.Data{
 						Encoding:    "encoding-pb",
 						IsEncrypted: true,
 						Value:       "value-pb",
-					},
-					"c": {
+					}},
+					{Name: "c", Data: &engine.Data{
 						Encoding: "encoding-pc",
 						Value:    "value-pc",
-					},
-					"d": nil,
+					}},
+					{Name: "d", Data: nil},
 				},
 				WorkerId: testWorkerId,
 			}); err != nil {
@@ -60,21 +60,21 @@ func TestVariables(t *testing.T) {
 				Partition:         elementInstance.Partition,
 				ElementInstanceId: elementInstance.Id,
 
-				Variables: map[string]*engine.Data{
-					"a": {
+				Variables: []engine.VariableData{
+					{Name: "a", Data: &engine.Data{
 						Encoding: "encoding-ea",
 						Value:    "value-ea",
-					},
-					"b": {
+					}},
+					{Name: "b", Data: &engine.Data{
 						Encoding:    "encoding-eb",
 						IsEncrypted: true,
 						Value:       "value-eb",
-					},
-					"c": {
+					}},
+					{Name: "c", Data: &engine.Data{
 						Encoding: "encoding-ec",
 						Value:    "value-ec",
-					},
-					"d": nil,
+					}},
+					{Name: "d", Data: nil},
 				},
 				WorkerId: "test",
 			}); err != nil {
@@ -138,21 +138,20 @@ func TestVariables(t *testing.T) {
 			// then
 			assert.Len(variables, 3)
 
-			assert.Contains(variables, "a")
-			assert.Contains(variables, "b")
-			assert.Contains(variables, "c")
+			assert.Equal(variables[0].Name, "a")
+			assert.Equal(variables[0].Data.Encoding, "encoding-pa")
+			assert.False(variables[0].Data.IsEncrypted)
+			assert.Equal(variables[0].Data.Value, "value-pa")
 
-			assert.Equal(variables["a"].Encoding, "encoding-pa")
-			assert.False(variables["a"].IsEncrypted)
-			assert.Equal(variables["a"].Value, "value-pa")
+			assert.Equal(variables[1].Name, "b")
+			assert.Equal(variables[1].Data.Encoding, "encoding-pb")
+			assert.True(variables[1].Data.IsEncrypted)
+			assert.Equal(variables[1].Data.Value, "value-pb")
 
-			assert.Equal(variables["b"].Encoding, "encoding-pb")
-			assert.True(variables["b"].IsEncrypted)
-			assert.Equal(variables["b"].Value, "value-pb")
-
-			assert.Equal(variables["c"].Encoding, "encoding-pc")
-			assert.False(variables["c"].IsEncrypted)
-			assert.Equal(variables["c"].Value, "value-pc")
+			assert.Equal(variables[2].Name, "c")
+			assert.Equal(variables[2].Data.Encoding, "encoding-pc")
+			assert.False(variables[2].Data.IsEncrypted)
+			assert.Equal(variables[2].Data.Value, "value-pc")
 		})
 
 		t.Run(engineTypes[i]+"get process variables by names", func(t *testing.T) {
@@ -170,8 +169,8 @@ func TestVariables(t *testing.T) {
 			// then
 			assert.Len(variables, 2)
 
-			assert.Contains(variables, "a")
-			assert.Contains(variables, "c")
+			assert.Equal("a", variables[0].Name)
+			assert.Equal("c", variables[1].Name)
 		})
 
 		t.Run(engineTypes[i]+"get process variables returns error when process instance not exists", func(t *testing.T) {
@@ -202,21 +201,20 @@ func TestVariables(t *testing.T) {
 			// then
 			assert.Len(variables, 3)
 
-			assert.Contains(variables, "a")
-			assert.Contains(variables, "b")
-			assert.Contains(variables, "c")
+			assert.Equal(variables[0].Name, "a")
+			assert.Equal(variables[0].Data.Encoding, "encoding-ea")
+			assert.False(variables[0].Data.IsEncrypted)
+			assert.Equal(variables[0].Data.Value, "value-ea")
 
-			assert.Equal(variables["a"].Encoding, "encoding-ea")
-			assert.False(variables["a"].IsEncrypted)
-			assert.Equal(variables["a"].Value, "value-ea")
+			assert.Equal(variables[1].Name, "b")
+			assert.Equal(variables[1].Data.Encoding, "encoding-eb")
+			assert.True(variables[1].Data.IsEncrypted)
+			assert.Equal(variables[1].Data.Value, "value-eb")
 
-			assert.Equal(variables["b"].Encoding, "encoding-eb")
-			assert.True(variables["b"].IsEncrypted)
-			assert.Equal(variables["b"].Value, "value-eb")
-
-			assert.Equal(variables["c"].Encoding, "encoding-ec")
-			assert.False(variables["c"].IsEncrypted)
-			assert.Equal(variables["c"].Value, "value-ec")
+			assert.Equal(variables[2].Name, "c")
+			assert.Equal(variables[2].Data.Encoding, "encoding-ec")
+			assert.False(variables[2].Data.IsEncrypted)
+			assert.Equal(variables[2].Data.Value, "value-ec")
 		})
 
 		t.Run(engineTypes[i]+"get element variables by names", func(t *testing.T) {
@@ -234,8 +232,8 @@ func TestVariables(t *testing.T) {
 			// then
 			assert.Len(variables, 2)
 
-			assert.Contains(variables, "a")
-			assert.Contains(variables, "c")
+			assert.Equal("a", variables[0].Name)
+			assert.Equal("c", variables[1].Name)
 		})
 
 		t.Run(engineTypes[i]+"get element variables returns error when element instance not exists", func(t *testing.T) {
@@ -259,13 +257,13 @@ func TestVariables(t *testing.T) {
 				Partition:         processInstance.Partition,
 				ProcessInstanceId: processInstance.Id,
 
-				Variables: map[string]*engine.Data{
-					"a": {
+				Variables: []engine.VariableData{
+					{Name: "a", Data: &engine.Data{
 						Encoding:    "encoding-pa*",
 						IsEncrypted: true,
 						Value:       "value-pa*",
-					},
-					"b": nil,
+					}},
+					{Name: "b", Data: nil},
 				},
 				WorkerId: "test",
 			}); err != nil {
@@ -283,12 +281,12 @@ func TestVariables(t *testing.T) {
 
 			assert.Len(variables, 2)
 
-			assert.Contains(variables, "a")
-			assert.Contains(variables, "c")
+			assert.Equal(variables[0].Name, "a")
+			assert.Equal(variables[0].Data.Encoding, "encoding-pa*")
+			assert.True(variables[0].Data.IsEncrypted)
+			assert.Equal(variables[0].Data.Value, "value-pa*")
 
-			assert.Equal(variables["a"].Encoding, "encoding-pa*")
-			assert.True(variables["a"].IsEncrypted)
-			assert.Equal(variables["a"].Value, "value-pa*")
+			assert.Equal(variables[1].Name, "c")
 		})
 
 		t.Run(engineTypes[i]+"update and delete element variables", func(t *testing.T) {
@@ -297,13 +295,13 @@ func TestVariables(t *testing.T) {
 				Partition:         elementInstance.Partition,
 				ElementInstanceId: elementInstance.Id,
 
-				Variables: map[string]*engine.Data{
-					"a": {
+				Variables: []engine.VariableData{
+					{Name: "a", Data: &engine.Data{
 						Encoding:    "encoding-ea*",
 						IsEncrypted: true,
 						Value:       "value-ea*",
-					},
-					"c": nil,
+					}},
+					{Name: "c", Data: nil},
 				},
 				WorkerId: "test",
 			}); err != nil {
@@ -321,12 +319,12 @@ func TestVariables(t *testing.T) {
 
 			assert.Len(variables, 2)
 
-			assert.Contains(variables, "a")
-			assert.Contains(variables, "b")
+			assert.Equal(variables[0].Name, "a")
+			assert.Equal(variables[0].Data.Encoding, "encoding-ea*")
+			assert.True(variables[0].Data.IsEncrypted)
+			assert.Equal(variables[0].Data.Value, "value-ea*")
 
-			assert.Equal(variables["a"].Encoding, "encoding-ea*")
-			assert.True(variables["a"].IsEncrypted)
-			assert.Equal(variables["a"].Value, "value-ea*")
+			assert.Equal(variables[1].Name, "b")
 		})
 
 		// given

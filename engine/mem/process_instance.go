@@ -132,15 +132,15 @@ func (r *processInstanceRepository) Query(c engine.ProcessInstanceCriteria, o en
 					continue
 				}
 
-				var tags map[string]string
+				var tagMap map[string]string
 				if e.Tags.Valid {
-					_ = json.Unmarshal([]byte(e.Tags.String), &tags)
+					_ = json.Unmarshal([]byte(e.Tags.String), &tagMap)
 				}
 
 				matches := true
-				for name, value := range c.Tags {
-					v, ok := tags[name]
-					matches = matches && ok && v == value
+				for _, tag := range c.Tags {
+					value, ok := tagMap[tag.Name]
+					matches = matches && ok && value == tag.Value
 				}
 
 				if !matches {

@@ -14,10 +14,11 @@ requestBody:
         tags:
           x: y
         variables:
-          a:
-            encoding: "json"
-            encrypted: true
-            value: "{...}"
+          - name: a
+            data:
+              encoding: "json"
+              encrypted: true
+              value: "{...}"
         version: "1"
         workerId: go-bpmn
 responses:
@@ -38,7 +39,8 @@ responses:
           startedAt: "2025-05-01T17:44:19.997Z"
           state: STARTED
           tags:
-            x: y
+            - name: x
+              value: y
           version: "1"
   "400":
     description: Bad request
@@ -52,18 +54,18 @@ responses:
           title: invalid request body
           detail: failed to validate request body
           errors:
-            - pointer: "#/tags/,"
+            - pointer: "#/tags/0/name"
               type: tag_name
               detail: must match regex ^[a-zA-Z0-9_-]+$
               value: ","
-            - pointer: "#/variables/ "
+            - pointer: "#/variables/0/name"
               type: variable_name
               detail: must match regex ^[a-zA-Z0-9_-]+$
               value: " "
-            - pointer: "#/variables/a/encoding"
+            - pointer: "#/variables/1/data/encoding"
               type: required
               detail: is required
-            - pointer: "#/variables/a/value"
+            - pointer: "#/variables/1/data/value"
               type: required
               detail: is required
   "404":

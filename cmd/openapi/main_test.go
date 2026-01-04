@@ -97,38 +97,6 @@ func TestExtractType(t *testing.T) {
 		assert.Equal("JobCompletion", typeName)
 	})
 
-	t.Run("map type", func(t *testing.T) {
-		ast.Inspect(file, func(n ast.Node) bool {
-			switch n := n.(type) {
-			case *ast.TypeSpec:
-				return n.Name.Name == "CreateProcessInstanceCmd"
-			case *ast.Field:
-				if n.Names[0].Name == "Tags" {
-					typeName = extractType(n.Type)
-					return false
-				}
-			}
-			return true
-		})
-
-		assert.Equal("string:string", typeName)
-
-		ast.Inspect(file, func(n ast.Node) bool {
-			switch n := n.(type) {
-			case *ast.TypeSpec:
-				return n.Name.Name == "CreateProcessInstanceCmd"
-			case *ast.Field:
-				if n.Names[0].Name == "Variables" {
-					typeName = extractType(n.Type)
-					return false
-				}
-			}
-			return true
-		})
-
-		assert.Equal("string:Data", typeName)
-	})
-
 	t.Run("slice type", func(t *testing.T) {
 		ast.Inspect(file, func(n ast.Node) bool {
 			switch n := n.(type) {
@@ -170,20 +138,4 @@ func TestParseStructFieldTags(t *testing.T) {
 	json, validate = parseStructFieldTags("`json:\"y,omitempty\" validate:\"gte=1,lte=100\"`")
 	assert.Equal([]string{"y", "omitempty"}, json)
 	assert.Equal([]string{"gte=1", "lte=100"}, validate)
-}
-
-func TestSetPropertyType(t *testing.T) {
-	assert := assert.New(t)
-
-	property := Property{}
-	setPropertyType(&property, "string:string", nil)
-	assert.Equal("object", property.Type)
-	assert.Equal("string", property.AdditionalPropertiesType)
-	assert.NotEmpty(property.PropertyNamesPattern)
-
-	property = Property{}
-	setPropertyType(&property, "string:X", nil)
-	assert.Equal("object", property.Type)
-	assert.Equal("X", property.AdditionalPropertiesTypeReference)
-	assert.NotEmpty(property.PropertyNamesPattern)
 }

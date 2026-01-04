@@ -19,8 +19,8 @@ type ExecuteTasksRes struct {
 
 // Process instance or element instance variable response.
 type GetVariablesRes struct {
-	Count     int                    `json:"count" validate:"required,gte=0"` // Number of variables.
-	Variables map[string]engine.Data `json:"variables" validate:"required"`   // Variable map, using variable names as keys.
+	Count     int                   `json:"count" validate:"required,gte=0"` // Number of variables.
+	Variables []engine.VariableData `json:"variables" validate:"required"`   // Variables, including data.
 }
 
 // Response of a job locking.

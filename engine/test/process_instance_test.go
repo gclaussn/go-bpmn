@@ -42,9 +42,9 @@ func TestCreateProcessInstance(t *testing.T) {
 				cmd := engine.CreateProcessInstanceCmd{
 					BpmnProcessId:  process.BpmnProcessId,
 					CorrelationKey: "test-key",
-					Tags: map[string]string{
-						"a": "b",
-						"x": "y",
+					Tags: []engine.Tag{
+						{Name: "a", Value: "b"},
+						{Name: "x", Value: "y"},
 					},
 					Version:  process.Version,
 					WorkerId: testWorkerId,

@@ -294,15 +294,17 @@ func (w *Worker) Stop() {
 	}
 }
 
-func (w *Worker) encodeVariables(variables Variables) (map[string]*engine.Data, error) {
+func (w *Worker) encodeVariables(variables Variables) ([]engine.VariableData, error) {
 	if len(variables) == 0 {
 		return nil, nil
 	}
 
-	encodedVariables := make(map[string]*engine.Data, len(variables))
-	for _, variable := range variables {
+	encodedVariables := make([]engine.VariableData, 0, len(variables))
+	for variableName, variable := range variables {
 		if variable.IsDeleted() {
-			encodedVariables[variable.Name] = nil
+			encodedVariables = append(encodedVariables, engine.VariableData{
+				Name: variableName,
+			})
 			continue
 		}
 
@@ -318,16 +320,17 @@ func (w *Worker) encodeVariables(variables Variables) (map[string]*engine.Data, 
 
 		value, err := encoder.Encode(variable.Value)
 		if err != nil {
-			return nil, fmt.Errorf("failed to encode variable %s: %v", variable.Name, err)
+			return nil, fmt.Errorf("failed to encode variable %s: %v", variableName, err)
 		}
 
-		data := engine.Data{
-			Encoding:    encoding,
-			IsEncrypted: variable.IsEncrypted,
-			Value:       value,
-		}
-
-		encodedVariables[variable.Name] = &data
+		encodedVariables = append(encodedVariables, engine.VariableData{
+			Name: variableName,
+			Data: &engine.Data{
+				Encoding:    encoding,
+				IsEncrypted: variable.IsEncrypted,
+				Value:       value,
+			},
+		})
 	}
 
 	return encodedVariables, nil

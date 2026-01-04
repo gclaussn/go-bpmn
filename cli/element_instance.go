@@ -2,9 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -45,27 +42,19 @@ func newElementInstanceGetVariablesCmd(cli *Cli) *cobra.Command {
 				return err
 			}
 
-			keys := make([]string, 0, len(variables))
-			for key := range variables {
-				keys = append(keys, key)
-			}
-			sort.Strings(keys)
-
 			var sb strings.Builder
-			for i := range keys {
-				data := variables[keys[i]]
-
+			for i, variable := range variables {
 				if i != 0 {
 					sb.WriteRune('\n')
 				}
 
-				sb.WriteString(keys[i])
+				sb.WriteString(variable.Name)
 				sb.WriteString(" (encoding: ")
-				sb.WriteString(data.Encoding)
+				sb.WriteString(variable.Data.Encoding)
 				sb.WriteString(", encrypted: ")
-				sb.WriteString(strconv.FormatBool(data.IsEncrypted))
+				sb.WriteString(strconv.FormatBool(variable.Data.IsEncrypted))
 				sb.WriteString(")\n")
-				sb.WriteString(data.Value)
+				sb.WriteString(variable.Data.Value)
 				sb.WriteRune('\n')
 			}
 
@@ -87,8 +76,12 @@ func newElementInstanceGetVariablesCmd(cli *Cli) *cobra.Command {
 
 func newElementInstanceSetVariablesCmd(cli *Cli) *cobra.Command {
 	var (
-		partition  partitionValue
-		variablesV map[string]string
+		partition partitionValue
+
+		// variables
+		encodingMap  map[string]string
+		encryptedMap map[string]string
+		valueMap     map[string]string
 
 		cmd engine.SetElementVariablesCmd
 	)
@@ -97,18 +90,9 @@ func newElementInstanceSetVariablesCmd(cli *Cli) *cobra.Command {
 		Use:   "set-variables",
 		Short: "Set element variables",
 		RunE: func(c *cobra.Command, args []string) error {
-			variables := make(map[string]*engine.Data)
-			for variableName, dataJson := range variablesV {
-				if dataJson == "" || dataJson == "null" {
-					variables[variableName] = nil
-					continue
-				}
-
-				var data engine.Data
-				if err := json.Unmarshal([]byte(dataJson), &data); err != nil {
-					return fmt.Errorf("failed to unmarshal variable %s: %v", variableName, err)
-				}
-				variables[variableName] = &data
+			variables, err := mapVariables(encodingMap, encryptedMap, valueMap)
+			if err != nil {
+				return err
 			}
 
 			cmd.Partition = engine.Partition(partition)
@@ -122,7 +106,9 @@ func newElementInstanceSetVariablesCmd(cli *Cli) *cobra.Command {
 	c.Flags().Var(&partition, "partition", "Element instance partition")
 	c.Flags().Int32Var(&cmd.ElementInstanceId, "id", 0, "Element instance ID")
 
-	c.Flags().StringToStringVar(&variablesV, "variable", nil, "Variable to set or delete")
+	c.Flags().StringToStringVar(&encodingMap, "variable-encoding", nil, "Variable to set or delete\nEncoding of the value - e.g. `json`")
+	c.Flags().StringToStringVar(&encryptedMap, "variable-encrypted", nil, "Variable to set or delete\nDetermines if a value is encrypted before it is stored.")
+	c.Flags().StringToStringVar(&valueMap, "variable-value", nil, "Variable to set or delete\nData value, encoded as a string")
 
 	c.MarkFlagRequired("partition")
 	c.MarkFlagRequired("id")

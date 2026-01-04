@@ -76,12 +76,12 @@ func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.Signal, error) {
 	// encrypt variables
 	encryption := ctx.Options().Encryption
 
-	for variableName, data := range cmd.Variables {
-		if data == nil {
+	for _, variable := range cmd.Variables {
+		if variable.Data == nil {
 			continue
 		}
-		if err := encryption.EncryptData(data); err != nil {
-			return engine.Signal{}, fmt.Errorf("failed to encrypt variable %s: %v", variableName, err)
+		if err := encryption.EncryptData(variable.Data); err != nil {
+			return engine.Signal{}, fmt.Errorf("failed to encrypt variable %s: %v", variable.Name, err)
 		}
 	}
 
@@ -118,23 +118,32 @@ func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.Signal, error) {
 
 	// insert signal variables
 	signalVariables := make([]*SignalVariableEntity, 0, len(cmd.Variables))
-	for variableName, data := range cmd.Variables {
-		if data != nil {
-			signalVariables = append(signalVariables, &SignalVariableEntity{
-				SignalId: signal.Id,
-
-				Encoding:    pgtype.Text{String: data.Encoding, Valid: true},
-				IsEncrypted: pgtype.Bool{Bool: data.IsEncrypted, Valid: true},
-				Name:        variableName,
-				Value:       pgtype.Text{String: data.Value, Valid: true},
-			})
-		} else {
-			signalVariables = append(signalVariables, &SignalVariableEntity{
-				SignalId: signal.Id,
-
-				Name: variableName,
-			})
+	signalVariableNames := make(map[string]bool, len(cmd.Variables))
+	for _, variable := range cmd.Variables {
+		if _, ok := signalVariableNames[variable.Name]; ok {
+			continue // skip already processed variable
 		}
+
+		signalVariableNames[variable.Name] = true
+
+		data := variable.Data
+		if data == nil {
+			signalVariables = append(signalVariables, &SignalVariableEntity{
+				SignalId: signal.Id,
+
+				Name: variable.Name,
+			})
+			continue
+		}
+
+		signalVariables = append(signalVariables, &SignalVariableEntity{
+			SignalId: signal.Id,
+
+			Encoding:    pgtype.Text{String: data.Encoding, Valid: true},
+			IsEncrypted: pgtype.Bool{Bool: data.IsEncrypted, Valid: true},
+			Name:        variable.Name,
+			Value:       pgtype.Text{String: data.Value, Valid: true},
+		})
 	}
 
 	if err := ctx.SignalVariables().InsertBatch(signalVariables); err != nil {

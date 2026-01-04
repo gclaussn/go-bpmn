@@ -28,7 +28,6 @@ import (
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/http/common"
-	"github.com/gclaussn/go-bpmn/http/server"
 	"github.com/gclaussn/go-bpmn/model"
 )
 
@@ -495,10 +494,6 @@ func extractType(expr ast.Expr) string {
 		return "[]" + extractType(expr.Elt)
 	case *ast.Ident:
 		return expr.Name
-	case *ast.MapType:
-		key := extractType(expr.Key)
-		value := extractType(expr.Value)
-		return fmt.Sprintf("%s:%s", key, value)
 	case *ast.SelectorExpr:
 		packageName := extractType(expr.X)
 		typeName := extractType(expr.Sel)
@@ -603,21 +598,6 @@ func setPropertyType(property *Property, typeName string, schemas map[string]*Sc
 		return
 	}
 
-	if strings.ContainsRune(typeName, ':') { // map type
-		property.Type = "object"
-
-		valueTypeName := strings.SplitN(typeName, ":", 2)[1]
-		switch valueTypeName {
-		case "string":
-			property.AdditionalPropertiesType = "string"
-			property.PropertyNamesPattern = server.RegexpTagName.String()
-		default:
-			property.AdditionalPropertiesTypeReference = valueTypeName
-			property.PropertyNamesPattern = server.RegexpVariableName.String()
-		}
-		return
-	}
-
 	if strings.HasPrefix(typeName, "[]") {
 		property.Type = "array"
 		property.Items = &Property{}
@@ -649,10 +629,6 @@ type Property struct {
 	Format        string
 	Type          string
 	TypeReference string
-
-	AdditionalPropertiesType          string
-	AdditionalPropertiesTypeReference string
-	PropertyNamesPattern              string
 
 	Items *Property
 

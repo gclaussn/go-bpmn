@@ -74,8 +74,8 @@ func (x errorEventTest) boundaryWithCode(t *testing.T) {
 	process, err := x.e.CreateProcess(context.Background(), engine.CreateProcessCmd{
 		BpmnProcessId: "errorBoundaryEventTest",
 		BpmnXml:       bpmnXml,
-		ErrorCodes: map[string]string{
-			"errorBoundaryEvent": "TEST_CODE",
+		Errors: []engine.ErrorDefinition{
+			{BpmnElementId: "errorBoundaryEvent", ErrorCode: "TEST_CODE"},
 		},
 		Version:  t.Name(),
 		WorkerId: testWorkerId,

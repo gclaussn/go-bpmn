@@ -52,9 +52,9 @@ func TestClientServer(t *testing.T) {
 		BpmnProcessId: "serviceTest",
 		BpmnXml:       mustReadBpmnFile(t, "task/service.bpmn"),
 		Version:       "1",
-		Tags: map[string]string{
-			"a": "b",
-			"x": "y",
+		Tags: []engine.Tag{
+			{Name: "a", Value: "b"},
+			{Name: "x", Value: "y"},
 		},
 		WorkerId: "test",
 	}
@@ -73,9 +73,9 @@ func TestClientServer(t *testing.T) {
 			BpmnProcessId: createProcessCmd.BpmnProcessId,
 			CreatedAt:     process.CreatedAt,
 			CreatedBy:     createProcessCmd.WorkerId,
-			Tags: map[string]string{
-				"a": "b",
-				"x": "y",
+			Tags: []engine.Tag{
+				{Name: "a", Value: "b"},
+				{Name: "x", Value: "y"},
 			},
 			Version: createProcessCmd.Version,
 		}, process)

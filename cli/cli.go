@@ -198,11 +198,6 @@ func newVersionCmd(cli *Cli) *cobra.Command {
 	return &c
 }
 
-func flagQueryOptions(c *cobra.Command, options *engine.QueryOptions) {
-	c.Flags().IntVar(&options.Limit, "limit", 100, "")
-	c.Flags().IntVar(&options.Offset, "offset", 0, "")
-}
-
 func debugRequest(req *http.Request) error {
 	log.Printf("%s %s", req.Method, req.URL)
 

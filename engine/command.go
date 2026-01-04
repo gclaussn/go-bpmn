@@ -1,6 +1,8 @@
 package engine
 
-import "time"
+import (
+	"time"
+)
 
 // CompleteJobCmd provides data for the completion of a locked job.
 type CompleteJobCmd struct {
@@ -11,12 +13,12 @@ type CompleteJobCmd struct {
 
 	// Optional completion, used to succeed a job.
 	Completion *JobCompletion `json:"completion,omitempty"`
-	// Variables to set or delete at element instance scope.
-	ElementVariables map[string]*Data `json:"elementVariables,omitempty" validate:"dive,keys,variable_name,endkeys,omitnil,required"`
+	// Variables to set or delete at element instance scope. For a variable deletion, no data must be provided.
+	ElementVariables []VariableData `json:"elementVariables,omitempty" validate:"max=100,dive"`
 	// Optional error, used to fail a job due to a technical problem.
 	Error string `json:"error,omitempty"`
-	// Variables to set or delete at process instance scope.
-	ProcessVariables map[string]*Data `json:"processVariables,omitempty" validate:"dive,keys,variable_name,endkeys,omitnil,required"`
+	// Variables to set or delete at process instance scope. For a variable deletion, no data must be provided.
+	ProcessVariables []VariableData `json:"processVariables,omitempty" validate:"max=100,dive"`
 	// Maximum number of retries. If the retry count is less than the retry limit, a retry job is created. Otherwise, an incident is created.
 	RetryLimit int `json:"retryLimit,omitempty" validate:"gte=0"`
 	// Duration until a retry job becomes due. At this point in time a retry job can be locked by a worker.
@@ -34,20 +36,20 @@ type CreateProcessCmd struct {
 	BpmnProcessId string `json:"bpmnProcessId" validate:"required"`
 	// Model of the BPMN process as XML.
 	BpmnXml string `json:"bpmnXml" validate:"required"`
-	// Mapping between BPMN element ID and error code.
-	ErrorCodes map[string]string `json:"errorCodes,omitempty"`
-	// Mapping between BPMN element ID and escalation code.
-	EscalationCodes map[string]string `json:"escalationCodes,omitempty"`
-	// Mapping between BPMN element ID and message name.
-	MessageNames map[string]string `json:"messageNames,omitempty" validate:"dive,required"`
+	// Error event definitions.
+	Errors []ErrorDefinition `json:"errors,omitempty" validate:"max=100,dive"`
+	// Escalation event definitions.
+	Escalations []EscalationDefinition `json:"escalations,omitempty" validate:"max=100,dive"`
+	// Message event definitions.
+	Messages []MessageDefinition `json:"messages,omitempty" validate:"max=100,dive"`
 	// Maximum number of parallel process instances being executed. If `0`, the number of parallel process instances is unlimited.
 	Parallelism int `json:"parallelism,omitempty" validate:"gte=0"`
-	// Mapping between BPMN element ID and signal name.
-	SignalNames map[string]string `json:"signalNames,omitempty" validate:"dive,required"`
-	// Optional tags, consisting of name and value pairs.
-	Tags map[string]string `json:"tags,omitempty" validate:"max=100,dive,keys,tag_name,endkeys,required"`
-	// Mapping between BPMN element ID and timer definition.
-	Timers map[string]*Timer `json:"timers,omitempty" validate:"dive,timer"`
+	// Signal event definitions.
+	Signals []SignalDefinition `json:"signals,omitempty" validate:"max=100,dive"`
+	// Tags.
+	Tags []Tag `json:"tags,omitempty" validate:"max=100,dive"`
+	// Timer event definitions.
+	Timers []TimerDefinition `json:"timers,omitempty" validate:"max=100,dive"`
 	// Any process version.
 	Version string `json:"version" validate:"required"`
 	// ID of the worker that created the process.
@@ -60,10 +62,10 @@ type CreateProcessInstanceCmd struct {
 	BpmnProcessId string `json:"bpmnProcessId" validate:"required"`
 	// Optional key, used to correlate a process instance with a business entity.
 	CorrelationKey string `json:"correlationKey,omitempty"`
-	// Optional tags, consisting of name and value pairs.
-	Tags map[string]string `json:"tags,omitempty" validate:"max=100,dive,keys,tag_name,endkeys,required"`
+	// Tags.
+	Tags []Tag `json:"tags,omitempty" validate:"max=100,dive"`
 	// Variables to set at process instance scope.
-	Variables map[string]*Data `json:"variables,omitempty" validate:"dive,keys,variable_name,endkeys,omitnil,required"`
+	Variables []VariableData `json:"variables,omitempty" validate:"max=100,dive"`
 	// Version of an existing process.
 	Version string `json:"version" validate:"required"`
 	// ID of the worker that created the process instance.
@@ -172,8 +174,8 @@ type SendMessageCmd struct {
 	// Optional key that uniquely identifies the message.
 	// If a message with the same name, correlation key and unique key already exists, the message is discarded.
 	UniqueKey string `json:"uniqueKey,omitempty"`
-	// Variables to set or delete at process instance scope. For a variable deletion, no value must be provided.
-	Variables map[string]*Data `json:"variables,omitempty" validate:"dive,keys,variable_name,endkeys,omitnil,required"`
+	// Variables to set or delete at process instance scope. For a variable deletion, no data must be provided.
+	Variables []VariableData `json:"variables,omitempty" validate:"max=100,dive"`
 	// ID of the worker that sent the message.
 	WorkerId string `json:"workerId" validate:"required"`
 }
@@ -182,8 +184,8 @@ type SendMessageCmd struct {
 type SendSignalCmd struct {
 	// Signal name.
 	Name string `json:"name" validate:"required"`
-	// Variables to set or delete at process instance scope. For a variable deletion, no value must be provided.
-	Variables map[string]*Data `json:"variables,omitempty" validate:"dive,keys,variable_name,endkeys,omitnil,required"`
+	// Variables to set or delete at process instance scope. For a variable deletion, no data must be provided.
+	Variables []VariableData `json:"variables,omitempty" validate:"max=100,dive"`
 	// ID of the worker that sent the signal.
 	WorkerId string `json:"workerId" validate:"required"`
 }
@@ -195,8 +197,8 @@ type SetElementVariablesCmd struct {
 	// Element instance ID.
 	ElementInstanceId int32 `json:"-"`
 
-	// Variables to set or delete. For a variable deletion, no value must be provided.
-	Variables map[string]*Data `json:"variables,omitempty" validate:"dive,keys,variable_name,endkeys,omitnil,required"`
+	// Variables to set or delete. For a variable deletion, no data must be provided.
+	Variables []VariableData `json:"variables,omitempty" validate:"max=100,dive"`
 	// ID of the worker that set the variables.
 	WorkerId string `json:"workerId" validate:"required"`
 }
@@ -208,8 +210,8 @@ type SetProcessVariablesCmd struct {
 	// Process instance ID.
 	ProcessInstanceId int32 `json:"-"`
 
-	// Variables to set or delete. For a variable deletion, no value must be provided.
-	Variables map[string]*Data `json:"variables,omitempty" validate:"dive,keys,variable_name,endkeys,omitnil,required"`
+	// Variables to set or delete. For a variable deletion, no data must be provided.
+	Variables []VariableData `json:"variables,omitempty" validate:"max=100,dive"`
 	// ID of the worker that set the variables.
 	WorkerId string `json:"workerId" validate:"required"`
 }
@@ -281,4 +283,34 @@ type JobCompletion struct {
 	// A timer definition.
 	// Applicable when job type is `SET_TIMER`.
 	Timer *Timer `json:"timer,omitempty"`
+}
+
+// ErrorDefinition is used to define an error event.
+type ErrorDefinition struct {
+	BpmnElementId string `json:"bpmnElementId" validate:"required"` // Element ID of the error event within the BPMN XML.
+	ErrorCode     string `json:"errorCode,omitempty"`               // Code of a BPMN error.
+}
+
+// EscalationDefinition is used to define an escalation event.
+type EscalationDefinition struct {
+	BpmnElementId  string `json:"bpmnElementId" validate:"required"` // Element ID of the escalation event within the BPMN XML.
+	EscalationCode string `json:"escalationCode,omitempty"`          // Code of a BPMN escalation.
+}
+
+// MessageDefinition is used to define a message event.
+type MessageDefinition struct {
+	BpmnElementId string `json:"bpmnElementId" validate:"required"` // Element ID of the message event within the BPMN XML.
+	MessageName   string `json:"messageName" validate:"required"`   // Name of a BPMN message.
+}
+
+// SignalDefinition is used to define a signal event.
+type SignalDefinition struct {
+	BpmnElementId string `json:"bpmnElementId" validate:"required"` // Element ID of the signal event within the BPMN XML.
+	SignalName    string `json:"signalName" validate:"required"`    // Name of a BPMN signal.
+}
+
+// TimerDefinition is used to define a timer event.
+type TimerDefinition struct {
+	BpmnElementId string `json:"bpmnElementId" validate:"required"` // Element ID of the timer event within the BPMN XML.
+	Timer         *Timer `json:"timer" validate:"timer"`            // Timer that defines a point in time.
 }

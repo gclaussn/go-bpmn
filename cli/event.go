@@ -2,8 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -28,10 +26,14 @@ func newEventCmd(cli *Cli) *cobra.Command {
 
 func newEventSendMessageCmd(cli *Cli) *cobra.Command {
 	var (
-		expirationTimeV         timeValue
-		expirationTimeCycleV    string
-		expirationTimeDurationV iso8601DurationValue
-		variablesV              map[string]string
+		expirationTime         timeValue
+		expirationTimeCycle    string
+		expirationTimeDuration iso8601DurationValue
+
+		// variables
+		encodingMap  map[string]string
+		encryptedMap map[string]string
+		valueMap     map[string]string
 
 		cmd engine.SendMessageCmd
 	)
@@ -41,27 +43,18 @@ func newEventSendMessageCmd(cli *Cli) *cobra.Command {
 		Short: "Send a message",
 		RunE: func(c *cobra.Command, _ []string) error {
 			expirationTimer := engine.Timer{
-				Time:         time.Time(expirationTimeV),
-				TimeCycle:    expirationTimeCycleV,
-				TimeDuration: engine.ISO8601Duration(expirationTimeDurationV),
+				Time:         time.Time(expirationTime),
+				TimeCycle:    expirationTimeCycle,
+				TimeDuration: engine.ISO8601Duration(expirationTimeDuration),
 			}
 
 			if !expirationTimer.Time.IsZero() || expirationTimer.TimeCycle != "" || !expirationTimer.TimeDuration.IsZero() {
 				cmd.ExpirationTimer = &expirationTimer
 			}
 
-			variables := make(map[string]*engine.Data)
-			for variableName, dataJson := range variablesV {
-				if dataJson == "" || dataJson == "null" {
-					variables[variableName] = nil
-					continue
-				}
-
-				var data engine.Data
-				if err := json.Unmarshal([]byte(dataJson), &data); err != nil {
-					return fmt.Errorf("failed to unmarshal variable %s: %v", variableName, err)
-				}
-				variables[variableName] = &data
+			variables, err := mapVariables(encodingMap, encryptedMap, valueMap)
+			if err != nil {
+				return err
 			}
 
 			cmd.Variables = variables
@@ -78,12 +71,14 @@ func newEventSendMessageCmd(cli *Cli) *cobra.Command {
 	}
 
 	c.Flags().StringVar(&cmd.CorrelationKey, "correlation-key", "", "Key, used to correlate a message subscription with the message")
-	c.Flags().Var(&expirationTimeV, "expiration-time", "A point in time, when the message expires")
-	c.Flags().StringVar(&expirationTimeCycleV, "expiration-time-cycle", "", "CRON expression that specifies a cycle after which the message expires")
-	c.Flags().Var(&expirationTimeDurationV, "expiration-time-duration", "Duration until the message expires")
+	c.Flags().Var(&expirationTime, "expiration-time", "A point in time, when the message expires")
+	c.Flags().StringVar(&expirationTimeCycle, "expiration-time-cycle", "", "CRON expression that specifies a cycle after which the message expires")
+	c.Flags().Var(&expirationTimeDuration, "expiration-time-duration", "Duration until the message expires")
 	c.Flags().StringVar(&cmd.Name, "name", "", "Message name")
 	c.Flags().StringVar(&cmd.UniqueKey, "unique-key", "", "Optional key that uniquely identifies the message")
-	c.Flags().StringToStringVar(&variablesV, "variable", nil, "Variable to set or delete at process instance scope")
+	c.Flags().StringToStringVar(&encodingMap, "variable-encoding", nil, "Variable to set or delete at process instance scope\nEncoding of the value - e.g. `json`")
+	c.Flags().StringToStringVar(&encryptedMap, "variable-encrypted", nil, "Variable to set or delete at process instance scope\nDetermines if a value is encrypted before it is stored.")
+	c.Flags().StringToStringVar(&valueMap, "variable-value", nil, "Variable to set or delete at process instance scope\nData value, encoded as a string")
 
 	c.MarkFlagRequired("correlation-key")
 	c.MarkFlagRequired("name")
@@ -93,7 +88,10 @@ func newEventSendMessageCmd(cli *Cli) *cobra.Command {
 
 func newEventSendSignalCmd(cli *Cli) *cobra.Command {
 	var (
-		variablesV map[string]string
+		// variables
+		encodingMapV  map[string]string
+		encryptedMapV map[string]string
+		valueMapV     map[string]string
 
 		cmd engine.SendSignalCmd
 	)
@@ -102,18 +100,9 @@ func newEventSendSignalCmd(cli *Cli) *cobra.Command {
 		Use:   "send-signal",
 		Short: "Send a signal",
 		RunE: func(c *cobra.Command, _ []string) error {
-			variables := make(map[string]*engine.Data)
-			for variableName, dataJson := range variablesV {
-				if dataJson == "" || dataJson == "null" {
-					variables[variableName] = nil
-					continue
-				}
-
-				var data engine.Data
-				if err := json.Unmarshal([]byte(dataJson), &data); err != nil {
-					return fmt.Errorf("failed to unmarshal variable %s: %v", variableName, err)
-				}
-				variables[variableName] = &data
+			variables, err := mapVariables(encodingMapV, encryptedMapV, valueMapV)
+			if err != nil {
+				return err
 			}
 
 			cmd.Variables = variables
@@ -130,7 +119,9 @@ func newEventSendSignalCmd(cli *Cli) *cobra.Command {
 	}
 
 	c.Flags().StringVar(&cmd.Name, "name", "", "Signal name")
-	c.Flags().StringToStringVar(&variablesV, "variable", nil, "Variable to set or delete at process instance scope")
+	c.Flags().StringToStringVar(&encodingMapV, "variable-encoding", nil, "Variable to set or delete at process instance scope\nEncoding of the value - e.g. `json`")
+	c.Flags().StringToStringVar(&encryptedMapV, "variable-encrypted", nil, "Variable to set or delete at process instance scope\nDetermines if a value is encrypted before it is stored.")
+	c.Flags().StringToStringVar(&valueMapV, "variable-value", nil, "Variable to set or delete at process instance scope\nData value, encoded as a string")
 
 	c.MarkFlagRequired("name")
 

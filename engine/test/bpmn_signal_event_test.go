@@ -125,9 +125,9 @@ func (x signalEventTest) catch(t *testing.T) {
 
 	processInstance, err := x.e.CreateProcessInstance(context.Background(), engine.CreateProcessInstanceCmd{
 		BpmnProcessId: x.catchProcess.BpmnProcessId,
-		Variables: map[string]*engine.Data{
-			"a": {Encoding: "encoding-a", Value: "value-a"},
-			"b": {Encoding: "encoding-b", Value: "value-b"},
+		Variables: []engine.VariableData{
+			{Name: "a", Data: &engine.Data{Encoding: "encoding-a", Value: "value-a"}},
+			{Name: "b", Data: &engine.Data{Encoding: "encoding-b", Value: "value-b"}},
 		},
 		Version:  x.catchProcess.Version,
 		WorkerId: testWorkerId,
@@ -148,10 +148,10 @@ func (x signalEventTest) catch(t *testing.T) {
 	// when signal sent
 	signal, err := x.e.SendSignal(context.Background(), engine.SendSignalCmd{
 		Name: "catch-signal",
-		Variables: map[string]*engine.Data{
-			"a": {Encoding: "encoding-a", Value: "value-a"},
-			"b": nil,
-			"c": nil,
+		Variables: []engine.VariableData{
+			{Name: "a", Data: &engine.Data{Encoding: "encoding-a", Value: "value-a"}},
+			{Name: "b", Data: nil},
+			{Name: "c", Data: nil},
 		},
 		WorkerId: testWorkerId,
 	})
@@ -227,8 +227,8 @@ func (x signalEventTest) start(t *testing.T) {
 	process, err := x.e.CreateProcess(context.Background(), engine.CreateProcessCmd{
 		BpmnProcessId: "signalStartTest",
 		BpmnXml:       bpmnXml,
-		SignalNames: map[string]string{
-			"signalStartEvent": "start-signal",
+		Signals: []engine.SignalDefinition{
+			{BpmnElementId: "signalStartEvent", SignalName: "start-signal"},
 		},
 		Version:  "1",
 		WorkerId: testWorkerId,
@@ -239,10 +239,10 @@ func (x signalEventTest) start(t *testing.T) {
 
 	piAssert1 := engine.AssertSignalStart(t, x.e, process.Id, engine.SendSignalCmd{
 		Name: "start-signal",
-		Variables: map[string]*engine.Data{
-			"a": {Encoding: "encoding-a", Value: "value-a"},
-			"b": {Encoding: "encoding-b", Value: "value-b"},
-			"c": nil,
+		Variables: []engine.VariableData{
+			{Name: "a", Data: &engine.Data{Encoding: "encoding-a", Value: "value-a"}},
+			{Name: "b", Data: &engine.Data{Encoding: "encoding-b", Value: "value-b"}},
+			{Name: "c", Data: nil},
 		},
 		WorkerId: testWorkerId,
 	})

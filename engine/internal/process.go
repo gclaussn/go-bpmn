@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -169,9 +170,20 @@ type ProcessEntity struct {
 }
 
 func (e ProcessEntity) Process() engine.Process {
-	var tags map[string]string
+	var tags []engine.Tag
 	if e.Tags.Valid {
-		_ = json.Unmarshal([]byte(e.Tags.String), &tags)
+		var tagMap map[string]string
+		_ = json.Unmarshal([]byte(e.Tags.String), &tagMap)
+
+		tagNames := slices.Sorted(maps.Keys(tagMap))
+
+		tags = make([]engine.Tag, len(tagNames))
+		for i, tagName := range tagNames {
+			tags[i] = engine.Tag{
+				Name:  tagName,
+				Value: tagMap[tagName],
+			}
+		}
 	}
 
 	return engine.Process{
@@ -251,14 +263,28 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 	// validate events
 	var (
-		errorCodes      = make(map[string]string)
-		escalationCodes = make(map[string]string)
-		signalNames     = make(map[string]string)
+		errorCodes      = make(map[string]string, len(cmd.Errors))
+		escalationCodes = make(map[string]string, len(cmd.Escalations))
+		messageNames    = make(map[string]string, len(cmd.Messages))
+		signalNames     = make(map[string]string, len(cmd.Signals))
+		timers          = make(map[string]*engine.Timer, len(cmd.Timers))
 	)
 
-	maps.Copy(errorCodes, cmd.ErrorCodes)
-	maps.Copy(escalationCodes, cmd.EscalationCodes)
-	maps.Copy(signalNames, cmd.SignalNames)
+	for _, errorDefinition := range cmd.Errors {
+		errorCodes[errorDefinition.BpmnElementId] = errorDefinition.ErrorCode
+	}
+	for _, escalationDefinition := range cmd.Escalations {
+		escalationCodes[escalationDefinition.BpmnElementId] = escalationDefinition.EscalationCode
+	}
+	for _, messageDefinition := range cmd.Messages {
+		messageNames[messageDefinition.BpmnElementId] = messageDefinition.MessageName
+	}
+	for _, signalDefinition := range cmd.Signals {
+		signalNames[signalDefinition.BpmnElementId] = signalDefinition.SignalName
+	}
+	for _, timerDefinition := range cmd.Timers {
+		timers[timerDefinition.BpmnElementId] = timerDefinition.Timer
+	}
 
 	for _, bpmnElement := range bpmnElements {
 		_, errorCodeSet := errorCodes[bpmnElement.Id]
@@ -279,7 +305,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			}
 		}
 
-		_, escalationCodeSet := cmd.EscalationCodes[bpmnElement.Id]
+		_, escalationCodeSet := escalationCodes[bpmnElement.Id]
 		if bpmnElement.Type == model.ElementEscalationBoundaryEvent {
 			if !escalationCodeSet {
 				boundaryEvent := bpmnElement.Model.(model.BoundaryEvent)
@@ -297,7 +323,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			}
 		}
 
-		messageName := cmd.MessageNames[bpmnElement.Id]
+		messageName := messageNames[bpmnElement.Id]
 		if messageName != "" {
 			if bpmnElement.Type != model.ElementMessageStartEvent {
 				causes = append(causes, engine.ErrorCause{
@@ -363,7 +389,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			}
 		}
 
-		timer := cmd.Timers[bpmnElement.Id]
+		timer := timers[bpmnElement.Id]
 		if timer != nil {
 			if !isTimerEvent(bpmnElement.Type) {
 				causes = append(causes, engine.ErrorCause{
@@ -395,10 +421,16 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	// insert process
 	var tags string
 	if len(cmd.Tags) != 0 {
-		b, err := json.Marshal(cmd.Tags)
+		tagMap := make(map[string]string, len(cmd.Tags))
+		for _, tag := range cmd.Tags {
+			tagMap[tag.Name] = tag.Value
+		}
+
+		b, err := json.Marshal(tagMap)
 		if err != nil {
 			return engine.Process{}, fmt.Errorf("failed to marshal tags: %v", err)
 		}
+
 		tags = string(b)
 	}
 
@@ -471,10 +503,10 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 	eventDefinitions := make([]*EventDefinitionEntity, 0, 0+
 		len(errorCodes)+
-		len(cmd.EscalationCodes)+
-		len(cmd.MessageNames)+
-		len(cmd.SignalNames)+
-		len(cmd.Timers),
+		len(escalationCodes)+
+		len(messageNames)+
+		len(signalNames)+
+		len(timers),
 	)
 
 	// prepare error event definitions
@@ -528,7 +560,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	}
 
 	// prepare message event definitions
-	for bpmnElementId, messageName := range cmd.MessageNames {
+	for bpmnElementId, messageName := range messageNames {
 		node, err := graph.node(bpmnElementId)
 		if err != nil {
 			causes = append(causes, engine.ErrorCause{
@@ -582,9 +614,9 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	}
 
 	// prepare timer event definitions and trigger timer event tasks
-	triggerTimerEventTasks := make([]*TaskEntity, 0, len(cmd.Timers))
+	triggerTimerEventTasks := make([]*TaskEntity, 0, len(timers))
 
-	for bpmnElementId, timer := range cmd.Timers {
+	for bpmnElementId, timer := range timers {
 		node, err := graph.node(bpmnElementId)
 		if err != nil {
 			causes = append(causes, engine.ErrorCause{
