@@ -3,6 +3,9 @@ tags:
 summary: Query incidents
 description: >
   Performs an incident query.
+parameters:
+  - $ref: "#/components/parameters/offset"
+  - $ref: "#/components/parameters/limit"
 requestBody:
   content:
     application/json:

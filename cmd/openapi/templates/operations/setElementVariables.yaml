@@ -4,6 +4,22 @@ tags:
 summary: Set element variables
 description: >
   Sets or deletes variables of an active element instance.
+parameters:
+  - in: path
+    name: partition
+    description: Element instance partition.
+    required: true
+    schema:
+      type: string
+      format: date
+  - in: path
+    name: id
+    description: Element instance ID.
+    required: true
+    schema:
+      type: integer
+      format: int32
+      min: 1
 requestBody:
   content:
     application/json:

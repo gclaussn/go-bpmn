@@ -1,8 +1,0 @@
-in: query
-description: >
-  Maximum number of results to return.
-  If limit is `0`, all results are returned.
-schema:
-  type: integer
-  format: int32
-  min: 0

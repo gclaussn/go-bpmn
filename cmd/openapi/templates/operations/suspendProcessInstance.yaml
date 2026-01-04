@@ -3,6 +3,22 @@ tags:
 summary: Suspend process instance
 description: >
   Suspends a started process instance.
+parameters:
+  - in: path
+    name: partition
+    description: Process instance partition.
+    required: true
+    schema:
+      type: string
+      format: date
+  - in: path
+    name: id
+    description: Process instance ID.
+    required: true
+    schema:
+      type: integer
+      format: int32
+      min: 1
 requestBody:
   content:
     application/json:

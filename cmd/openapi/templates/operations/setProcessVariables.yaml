@@ -4,6 +4,22 @@ tags:
 summary: Set process variables
 description: >
   Sets or deletes variables of an active process instance.
+parameters:
+  - in: path
+    name: partition
+    description: Process instance partition.
+    required: true
+    schema:
+      type: string
+      format: date
+  - in: path
+    name: id
+    description: Process instance ID.
+    required: true
+    schema:
+      type: integer
+      format: int32
+      min: 1
 requestBody:
   content:
     application/json:

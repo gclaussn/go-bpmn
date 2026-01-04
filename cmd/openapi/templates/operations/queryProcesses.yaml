@@ -3,6 +3,9 @@ tags:
 summary: Query processes
 description: >
   Performs a process query.
+parameters:
+  - $ref: "#/components/parameters/offset"
+  - $ref: "#/components/parameters/limit"
 requestBody:
   content:
     application/json:

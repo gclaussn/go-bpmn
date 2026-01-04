@@ -3,6 +3,15 @@ tags:
 summary: Get BPMN XML
 description: >
   Gets the BPMN XML of an existing process.
+parameters:
+  - in: path
+    name: id
+    description: Process ID.
+    required: true
+    schema:
+      type: integer
+      format: int32
+      min: 1
 responses:
   "200":
     description: OK

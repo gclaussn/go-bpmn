@@ -194,7 +194,7 @@ func (r *taskRepository) Unlock(cmd engine.UnlockTasksCmd) (int, error) {
 	}
 	sort.Strings(keys)
 
-	for i := 0; i < len(keys); i++ {
+	for i := range keys {
 		if partitionKey != "" && partitionKey != keys[i] {
 			continue
 		}

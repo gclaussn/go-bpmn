@@ -47,7 +47,7 @@ func newValidate() *validator.Validate {
 	validate.RegisterValidation("timer", func(fl validator.FieldLevel) bool {
 		timer, ok := fl.Field().Interface().(engine.Timer)
 		if !ok {
-			return false
+			return true
 		}
 		return !timer.Time.IsZero() || timer.TimeCycle != "" || !timer.TimeDuration.IsZero()
 	}, true)
