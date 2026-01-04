@@ -131,61 +131,65 @@ func (g *generator) generateOperations() {
 	}
 
 	var (
-		newFuncDecl *ast.FuncDecl
-		startPos    int
-		endPos      int
+		funcDecls []*ast.FuncDecl
+		startPos  []int
+		endPos    []int
 	)
 
+	funcNames := []string{"New", "NewMux"}
 	for _, d := range f.Decls {
 		switch d := d.(type) {
 		case *ast.FuncDecl:
-			if d.Name.Name == "New" {
-				newFuncDecl = d
+			funcName := d.Name.Name
+			if slices.Contains(funcNames, funcName) {
+				funcDecls = append(funcDecls, d)
 				break
 			}
 		}
 	}
-	if newFuncDecl == nil {
-		log.Fatal("failed to find New function")
+	if len(funcDecls) != len(funcNames) {
+		log.Fatal("failed to find function declarations")
 	}
 
-	// find relevant range within New function
+	// find relevant ranges within functions
 	for _, commentGroup := range f.Comments {
 		for _, comment := range commentGroup.List {
-			if startPos == 0 && comment.Text == "// operations:start" {
-				startPos = int(comment.Slash)
+			if comment.Text == "// operations:start" {
+				startPos = append(startPos, int(comment.Slash))
 			}
-			if endPos == 0 && comment.Text == "// operations:end" {
-				endPos = int(comment.Slash)
+			if comment.Text == "// operations:end" {
+				endPos = append(endPos, int(comment.Slash))
 			}
 		}
 	}
 
-	if startPos == 0 || endPos == 0 {
-		log.Fatal("failed to find start or end position of operations")
+	if len(startPos) != len(funcNames) || len(endPos) != len(funcNames) {
+		log.Fatal("failed to find start or end positions of operations")
 	}
 
 	var tokens []string
-	for _, statement := range newFuncDecl.Body.List {
-		if int(statement.Pos()) < startPos || int(statement.End()) > endPos {
-			continue
-		}
-
-		ast.Inspect(statement, func(n ast.Node) bool {
-			switch n := n.(type) {
-			case *ast.BasicLit:
-				tokens = append(tokens, n.Value)
-			case *ast.Ident:
-				tokens = append(tokens, n.Name)
+	for i, funcDecl := range funcDecls {
+		for _, statement := range funcDecl.Body.List {
+			if int(statement.Pos()) < startPos[i] || int(statement.End()) > endPos[i] {
+				continue
 			}
-			return true
-		})
+
+			ast.Inspect(statement, func(n ast.Node) bool {
+				switch n := n.(type) {
+				case *ast.BasicLit:
+					tokens = append(tokens, n.Value)
+				case *ast.Ident:
+					tokens = append(tokens, n.Name)
+				}
+				return true
+			})
+		}
 	}
 
 	pathConsts := g.getPathConsts()
 
 	for i := 0; i < len(tokens); i += 7 {
-		// e.g. ["mux", "HandleFunc", "\"POST \"", "common", "PathElementsQuery", "server", "queryElements"]
+		// e.g. ["mux", "HandleFunc", "\"POST \"", "common", "PathElementsQuery", "h", "queryElements"]
 
 		method := strings.ToLower(tokens[i+2][1 : len(tokens[i+2])-2]) // e.g. `"POST "` -> "post"
 		pathConst := tokens[i+4]                                       // e.g. "PathElementsQuery"

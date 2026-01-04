@@ -115,7 +115,7 @@ func RunMem(args []string) int {
 
 	defer e.Shutdown()
 
-	server, err := server.New(e, func(o *server.Options) {
+	s, err := server.New(e, func(o *server.Options) {
 		*o = serverOptions
 	})
 	if err != nil {
@@ -123,14 +123,17 @@ func RunMem(args []string) int {
 		return 1
 	}
 
-	server.ListenAndServe()
+	s.ListenAndServe()
 
 	signalC := make(chan os.Signal, 1)
 	signal.Notify(signalC, os.Interrupt, syscall.SIGTERM)
 
 	<-signalC
 
-	server.Shutdown()
+	s.Shutdown()
+	log.Println("server shut down")
+	e.Shutdown()
+	log.Println("engine shut down")
 
 	return 0
 }

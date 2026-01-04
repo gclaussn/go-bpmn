@@ -25,7 +25,7 @@ func New(e engine.Engine, customizers ...func(*Options)) (*Server, error) {
 		return nil, err
 	}
 
-	mux := http.NewServeMux()
+	mux := NewMux(e, options.SetTimeEnabled)
 
 	var handler http.Handler
 	if options.ApiKeyManager != nil {
@@ -59,8 +59,7 @@ func New(e engine.Engine, customizers ...func(*Options)) (*Server, error) {
 		options.Configure(&httpServer)
 	}
 
-	server := Server{
-		e:                e,
+	s := Server{
 		httpServer:       &httpServer,
 		httpServerCtx:    httpServerCtx,
 		httpServerCancel: httpServerCanel,
@@ -68,50 +67,64 @@ func New(e engine.Engine, customizers ...func(*Options)) (*Server, error) {
 	}
 
 	// operations:start
-	mux.HandleFunc("POST "+common.PathElementsQuery, server.queryElements)
+	mux.HandleFunc("GET "+common.PathReadiness, s.checkReadiness)
+	// operations:end
 
-	mux.HandleFunc("POST "+common.PathElementInstancesQuery, server.queryElementInstances)
-	mux.HandleFunc("GET "+common.PathElementInstancesVariables, server.getElementVariables)
-	mux.HandleFunc("PUT "+common.PathElementInstancesVariables, server.setElementVariables)
+	return &s, nil
+}
 
-	mux.HandleFunc("POST "+common.PathEventsMessages, server.sendMessage)
-	mux.HandleFunc("POST "+common.PathEventsMessagesQuery, server.queryMessages)
-	mux.HandleFunc("POST "+common.PathEventsSignals, server.sendSignal)
+// NewMux creates a HTTP request multiplexer for an engine.
+//
+// If setTimeEnabled is false, the "setTime" operation will respond with HTTP 403 Forbidden.
+func NewMux(e engine.Engine, setTimeEnabled bool) *http.ServeMux {
+	h := handler{e: e, setTimeEnabled: setTimeEnabled}
 
-	mux.HandleFunc("POST "+common.PathIncidentsQuery, server.queryIncidents)
-	mux.HandleFunc("PATCH "+common.PathIncidentsResolve, server.resolveIncident)
+	mux := http.NewServeMux()
 
-	mux.HandleFunc("PATCH "+common.PathJobsComplete, server.completeJob)
-	mux.HandleFunc("POST "+common.PathJobsLock, server.lockJobs)
-	mux.HandleFunc("POST "+common.PathJobsQuery, server.queryJobs)
-	mux.HandleFunc("POST "+common.PathJobsUnlock, server.unlockJobs)
+	// operations:start
+	mux.HandleFunc("POST "+common.PathElementsQuery, h.queryElements)
 
-	mux.HandleFunc("POST "+common.PathProcesses, server.createProcess)
-	mux.HandleFunc("GET "+common.PathProcessesBpmnXml, server.getBpmnXml)
-	mux.HandleFunc("POST "+common.PathProcessesQuery, server.queryProcesses)
+	mux.HandleFunc("POST "+common.PathElementInstancesQuery, h.queryElementInstances)
+	mux.HandleFunc("GET "+common.PathElementInstancesVariables, h.getElementVariables)
+	mux.HandleFunc("PUT "+common.PathElementInstancesVariables, h.setElementVariables)
 
-	mux.HandleFunc("POST "+common.PathProcessInstances, server.createProcessInstance)
-	mux.HandleFunc("POST "+common.PathProcessInstancesQuery, server.queryProcessInstances)
-	mux.HandleFunc("PATCH "+common.PathProcessInstancesResume, server.resumeProcessInstance)
-	mux.HandleFunc("PATCH "+common.PathProcessInstancesSuspend, server.suspendProcessInstance)
-	mux.HandleFunc("GET "+common.PathProcessInstancesVariables, server.getProcessVariables)
-	mux.HandleFunc("PUT "+common.PathProcessInstancesVariables, server.setProcessVariables)
+	mux.HandleFunc("POST "+common.PathEventsMessages, h.sendMessage)
+	mux.HandleFunc("POST "+common.PathEventsMessagesQuery, h.queryMessages)
+	mux.HandleFunc("POST "+common.PathEventsSignals, h.sendSignal)
 
-	mux.HandleFunc("POST "+common.PathTasksExecute, server.executeTasks)
-	mux.HandleFunc("POST "+common.PathTasksQuery, server.queryTasks)
-	mux.HandleFunc("POST "+common.PathTasksUnlock, server.unlockTasks)
+	mux.HandleFunc("POST "+common.PathIncidentsQuery, h.queryIncidents)
+	mux.HandleFunc("PATCH "+common.PathIncidentsResolve, h.resolveIncident)
 
-	mux.HandleFunc("POST "+common.PathVariablesQuery, server.queryVariables)
+	mux.HandleFunc("PATCH "+common.PathJobsComplete, h.completeJob)
+	mux.HandleFunc("POST "+common.PathJobsLock, h.lockJobs)
+	mux.HandleFunc("POST "+common.PathJobsQuery, h.queryJobs)
+	mux.HandleFunc("POST "+common.PathJobsUnlock, h.unlockJobs)
 
-	mux.HandleFunc("GET "+common.PathReadiness, server.checkReadiness)
-	mux.HandleFunc("PATCH "+common.PathTime, server.setTime)
+	mux.HandleFunc("POST "+common.PathProcesses, h.createProcess)
+	mux.HandleFunc("GET "+common.PathProcessesBpmnXml, h.getBpmnXml)
+	mux.HandleFunc("POST "+common.PathProcessesQuery, h.queryProcesses)
+
+	mux.HandleFunc("POST "+common.PathProcessInstances, h.createProcessInstance)
+	mux.HandleFunc("POST "+common.PathProcessInstancesQuery, h.queryProcessInstances)
+	mux.HandleFunc("PATCH "+common.PathProcessInstancesResume, h.resumeProcessInstance)
+	mux.HandleFunc("PATCH "+common.PathProcessInstancesSuspend, h.suspendProcessInstance)
+	mux.HandleFunc("GET "+common.PathProcessInstancesVariables, h.getProcessVariables)
+	mux.HandleFunc("PUT "+common.PathProcessInstancesVariables, h.setProcessVariables)
+
+	mux.HandleFunc("POST "+common.PathTasksExecute, h.executeTasks)
+	mux.HandleFunc("POST "+common.PathTasksQuery, h.queryTasks)
+	mux.HandleFunc("POST "+common.PathTasksUnlock, h.unlockTasks)
+
+	mux.HandleFunc("POST "+common.PathVariablesQuery, h.queryVariables)
+
+	mux.HandleFunc("PATCH "+common.PathTime, h.setTime)
 	// operations:end
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	})
 
-	return &server, nil
+	return mux
 }
 
 func NewOptions() Options {
@@ -133,7 +146,7 @@ type Options struct {
 	BindAddress string // TCP address for the server to listen on.
 
 	HandlerTimeout time.Duration // Time limit for HTTP handler - when reached, the handler responds with HTTP 503.
-	IdleTimeout    time.Duration // Maximum amount of time to wait for the next request, when keep-alives are enabled - - see http.Server#ReadTimeout
+	IdleTimeout    time.Duration // Maximum amount of time to wait for the next request, when keep-alives are enabled - see http.Server#ReadTimeout
 	ReadTimeout    time.Duration // Maximum duration for reading the entire request - see http.Server#ReadTimeout
 	WriteTimeout   time.Duration // Maximum duration before timing out writing the response - see http.Server#WriteTimeout
 
@@ -159,7 +172,6 @@ func (o Options) Validate() error {
 }
 
 type Server struct {
-	e                engine.Engine
 	httpServer       *http.Server
 	httpServerCtx    context.Context    // server-wide base context for incoming requests
 	httpServerCancel context.CancelFunc // invoked after server shutdown to cancel to ongoing requests
@@ -192,14 +204,24 @@ func (s *Server) Shutdown() {
 		log.Printf("failed to shutdown HTTP server: %v", err)
 		time.Sleep(s.options.ShutdownForcePeriod)
 	}
+}
 
-	s.e.Shutdown()
-	log.Println("server shut down")
+func (s *Server) checkReadiness(w http.ResponseWriter, r *http.Request) {
+	if s.isShuttingDown.Load() {
+		http.Error(w, "server is shutting down", http.StatusServiceUnavailable)
+		return
+	}
+	w.Write([]byte("ready"))
+}
+
+type handler struct {
+	e              engine.Engine
+	setTimeEnabled bool
 }
 
 // command handler
 
-func (s *Server) completeJob(w http.ResponseWriter, r *http.Request) {
+func (h handler) completeJob(w http.ResponseWriter, r *http.Request) {
 	partition, id, err := parsePartitionId(r)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
@@ -215,7 +237,7 @@ func (s *Server) completeJob(w http.ResponseWriter, r *http.Request) {
 	cmd.Partition = partition
 	cmd.Id = id
 
-	job, err := s.e.CompleteJob(r.Context(), cmd)
+	job, err := h.e.CompleteJob(r.Context(), cmd)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
@@ -224,14 +246,14 @@ func (s *Server) completeJob(w http.ResponseWriter, r *http.Request) {
 	encodeJSONResponseBody(w, r, job, http.StatusOK)
 }
 
-func (s *Server) createProcess(w http.ResponseWriter, r *http.Request) {
+func (h handler) createProcess(w http.ResponseWriter, r *http.Request) {
 	var cmd engine.CreateProcessCmd
 	if err := decodeJSONRequestBody(w, r, &cmd); err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
 
-	process, err := s.e.CreateProcess(r.Context(), cmd)
+	process, err := h.e.CreateProcess(r.Context(), cmd)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
@@ -240,14 +262,14 @@ func (s *Server) createProcess(w http.ResponseWriter, r *http.Request) {
 	encodeJSONResponseBody(w, r, process, http.StatusCreated)
 }
 
-func (s *Server) createProcessInstance(w http.ResponseWriter, r *http.Request) {
+func (h handler) createProcessInstance(w http.ResponseWriter, r *http.Request) {
 	var cmd engine.CreateProcessInstanceCmd
 	if err := decodeJSONRequestBody(w, r, &cmd); err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
 
-	processInstance, err := s.e.CreateProcessInstance(r.Context(), cmd)
+	processInstance, err := h.e.CreateProcessInstance(r.Context(), cmd)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
@@ -256,14 +278,14 @@ func (s *Server) createProcessInstance(w http.ResponseWriter, r *http.Request) {
 	encodeJSONResponseBody(w, r, processInstance, http.StatusCreated)
 }
 
-func (s *Server) executeTasks(w http.ResponseWriter, r *http.Request) {
+func (h handler) executeTasks(w http.ResponseWriter, r *http.Request) {
 	var cmd engine.ExecuteTasksCmd
 	if err := decodeJSONRequestBody(w, r, &cmd); err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
 
-	completedTasks, failedTasks, err := s.e.ExecuteTasks(r.Context(), cmd)
+	completedTasks, failedTasks, err := h.e.ExecuteTasks(r.Context(), cmd)
 	if err != nil && completedTasks == nil && failedTasks == nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
@@ -281,14 +303,14 @@ func (s *Server) executeTasks(w http.ResponseWriter, r *http.Request) {
 	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
 }
 
-func (s *Server) getBpmnXml(w http.ResponseWriter, r *http.Request) {
+func (h handler) getBpmnXml(w http.ResponseWriter, r *http.Request) {
 	id, err := parseId(r)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
 
-	bpmnXml, err := s.e.GetBpmnXml(r.Context(), engine.GetBpmnXmlCmd{ProcessId: id})
+	bpmnXml, err := h.e.GetBpmnXml(r.Context(), engine.GetBpmnXmlCmd{ProcessId: id})
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
@@ -298,7 +320,7 @@ func (s *Server) getBpmnXml(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(bpmnXml))
 }
 
-func (s *Server) getElementVariables(w http.ResponseWriter, r *http.Request) {
+func (h handler) getElementVariables(w http.ResponseWriter, r *http.Request) {
 	partition, id, err := parsePartitionId(r)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
@@ -312,7 +334,7 @@ func (s *Server) getElementVariables(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	variables, err := s.e.GetElementVariables(r.Context(), engine.GetElementVariablesCmd{
+	variables, err := h.e.GetElementVariables(r.Context(), engine.GetElementVariablesCmd{
 		Partition:         partition,
 		ElementInstanceId: id,
 
@@ -331,7 +353,7 @@ func (s *Server) getElementVariables(w http.ResponseWriter, r *http.Request) {
 	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
 }
 
-func (s *Server) getProcessVariables(w http.ResponseWriter, r *http.Request) {
+func (h handler) getProcessVariables(w http.ResponseWriter, r *http.Request) {
 	partition, id, err := parsePartitionId(r)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
@@ -345,7 +367,7 @@ func (s *Server) getProcessVariables(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	variables, err := s.e.GetProcessVariables(r.Context(), engine.GetProcessVariablesCmd{
+	variables, err := h.e.GetProcessVariables(r.Context(), engine.GetProcessVariablesCmd{
 		Partition:         partition,
 		ProcessInstanceId: id,
 
@@ -364,14 +386,14 @@ func (s *Server) getProcessVariables(w http.ResponseWriter, r *http.Request) {
 	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
 }
 
-func (s *Server) lockJobs(w http.ResponseWriter, r *http.Request) {
+func (h handler) lockJobs(w http.ResponseWriter, r *http.Request) {
 	var cmd engine.LockJobsCmd
 	if err := decodeJSONRequestBody(w, r, &cmd); err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
 
-	jobs, err := s.e.LockJobs(r.Context(), cmd)
+	jobs, err := h.e.LockJobs(r.Context(), cmd)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
@@ -385,7 +407,7 @@ func (s *Server) lockJobs(w http.ResponseWriter, r *http.Request) {
 	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
 }
 
-func (s *Server) resolveIncident(w http.ResponseWriter, r *http.Request) {
+func (h handler) resolveIncident(w http.ResponseWriter, r *http.Request) {
 	partition, id, err := parsePartitionId(r)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
@@ -401,7 +423,7 @@ func (s *Server) resolveIncident(w http.ResponseWriter, r *http.Request) {
 	cmd.Partition = partition
 	cmd.Id = id
 
-	if err := s.e.ResolveIncident(r.Context(), cmd); err != nil {
+	if err := h.e.ResolveIncident(r.Context(), cmd); err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
@@ -409,7 +431,7 @@ func (s *Server) resolveIncident(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *Server) resumeProcessInstance(w http.ResponseWriter, r *http.Request) {
+func (h handler) resumeProcessInstance(w http.ResponseWriter, r *http.Request) {
 	partition, id, err := parsePartitionId(r)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
@@ -425,7 +447,7 @@ func (s *Server) resumeProcessInstance(w http.ResponseWriter, r *http.Request) {
 	cmd.Partition = partition
 	cmd.Id = id
 
-	if err := s.e.ResumeProcessInstance(r.Context(), cmd); err != nil {
+	if err := h.e.ResumeProcessInstance(r.Context(), cmd); err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
@@ -433,14 +455,14 @@ func (s *Server) resumeProcessInstance(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *Server) sendMessage(w http.ResponseWriter, r *http.Request) {
+func (h handler) sendMessage(w http.ResponseWriter, r *http.Request) {
 	var cmd engine.SendMessageCmd
 	if err := decodeJSONRequestBody(w, r, &cmd); err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
 
-	messageCorrelation, err := s.e.SendMessage(r.Context(), cmd)
+	messageCorrelation, err := h.e.SendMessage(r.Context(), cmd)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
@@ -449,14 +471,14 @@ func (s *Server) sendMessage(w http.ResponseWriter, r *http.Request) {
 	encodeJSONResponseBody(w, r, messageCorrelation, http.StatusOK)
 }
 
-func (s *Server) sendSignal(w http.ResponseWriter, r *http.Request) {
+func (h handler) sendSignal(w http.ResponseWriter, r *http.Request) {
 	var cmd engine.SendSignalCmd
 	if err := decodeJSONRequestBody(w, r, &cmd); err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
 
-	signal, err := s.e.SendSignal(r.Context(), cmd)
+	signal, err := h.e.SendSignal(r.Context(), cmd)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
@@ -465,7 +487,7 @@ func (s *Server) sendSignal(w http.ResponseWriter, r *http.Request) {
 	encodeJSONResponseBody(w, r, signal, http.StatusOK)
 }
 
-func (s *Server) setElementVariables(w http.ResponseWriter, r *http.Request) {
+func (h handler) setElementVariables(w http.ResponseWriter, r *http.Request) {
 	partition, id, err := parsePartitionId(r)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
@@ -481,7 +503,7 @@ func (s *Server) setElementVariables(w http.ResponseWriter, r *http.Request) {
 	cmd.Partition = partition
 	cmd.ElementInstanceId = id
 
-	if err := s.e.SetElementVariables(r.Context(), cmd); err != nil {
+	if err := h.e.SetElementVariables(r.Context(), cmd); err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
@@ -489,7 +511,7 @@ func (s *Server) setElementVariables(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *Server) setProcessVariables(w http.ResponseWriter, r *http.Request) {
+func (h handler) setProcessVariables(w http.ResponseWriter, r *http.Request) {
 	partition, id, err := parsePartitionId(r)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
@@ -505,7 +527,7 @@ func (s *Server) setProcessVariables(w http.ResponseWriter, r *http.Request) {
 	cmd.Partition = partition
 	cmd.ProcessInstanceId = id
 
-	if err := s.e.SetProcessVariables(r.Context(), cmd); err != nil {
+	if err := h.e.SetProcessVariables(r.Context(), cmd); err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
@@ -513,8 +535,8 @@ func (s *Server) setProcessVariables(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *Server) setTime(w http.ResponseWriter, r *http.Request) {
-	if !s.options.SetTimeEnabled {
+func (h handler) setTime(w http.ResponseWriter, r *http.Request) {
+	if !h.setTimeEnabled {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
@@ -525,7 +547,7 @@ func (s *Server) setTime(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.e.SetTime(r.Context(), cmd); err != nil {
+	if err := h.e.SetTime(r.Context(), cmd); err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
@@ -533,7 +555,7 @@ func (s *Server) setTime(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *Server) suspendProcessInstance(w http.ResponseWriter, r *http.Request) {
+func (h handler) suspendProcessInstance(w http.ResponseWriter, r *http.Request) {
 	partition, id, err := parsePartitionId(r)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
@@ -549,7 +571,7 @@ func (s *Server) suspendProcessInstance(w http.ResponseWriter, r *http.Request) 
 	cmd.Partition = partition
 	cmd.Id = id
 
-	if err := s.e.SuspendProcessInstance(r.Context(), cmd); err != nil {
+	if err := h.e.SuspendProcessInstance(r.Context(), cmd); err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
@@ -557,14 +579,14 @@ func (s *Server) suspendProcessInstance(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *Server) unlockJobs(w http.ResponseWriter, r *http.Request) {
+func (h handler) unlockJobs(w http.ResponseWriter, r *http.Request) {
 	var cmd engine.UnlockJobsCmd
 	if err := decodeJSONRequestBody(w, r, &cmd); err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
 
-	count, err := s.e.UnlockJobs(r.Context(), cmd)
+	count, err := h.e.UnlockJobs(r.Context(), cmd)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
@@ -573,14 +595,14 @@ func (s *Server) unlockJobs(w http.ResponseWriter, r *http.Request) {
 	encodeJSONResponseBody(w, r, common.CountRes{Count: count}, http.StatusOK)
 }
 
-func (s *Server) unlockTasks(w http.ResponseWriter, r *http.Request) {
+func (h handler) unlockTasks(w http.ResponseWriter, r *http.Request) {
 	var cmd engine.UnlockTasksCmd
 	if err := decodeJSONRequestBody(w, r, &cmd); err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
 
-	count, err := s.e.UnlockTasks(r.Context(), cmd)
+	count, err := h.e.UnlockTasks(r.Context(), cmd)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
@@ -591,7 +613,7 @@ func (s *Server) unlockTasks(w http.ResponseWriter, r *http.Request) {
 
 // query handler
 
-func (s *Server) queryElements(w http.ResponseWriter, r *http.Request) {
+func (h handler) queryElements(w http.ResponseWriter, r *http.Request) {
 	options, err := parseQueryOptions(r)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
@@ -604,7 +626,7 @@ func (s *Server) queryElements(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := s.e.CreateQuery()
+	q := h.e.CreateQuery()
 	q.SetOptions(options)
 
 	results, err := q.QueryElements(r.Context(), criteria)
@@ -621,7 +643,7 @@ func (s *Server) queryElements(w http.ResponseWriter, r *http.Request) {
 	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
 }
 
-func (s *Server) queryElementInstances(w http.ResponseWriter, r *http.Request) {
+func (h handler) queryElementInstances(w http.ResponseWriter, r *http.Request) {
 	options, err := parseQueryOptions(r)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
@@ -634,7 +656,7 @@ func (s *Server) queryElementInstances(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := s.e.CreateQuery()
+	q := h.e.CreateQuery()
 	q.SetOptions(options)
 
 	results, err := q.QueryElementInstances(r.Context(), criteria)
@@ -651,7 +673,7 @@ func (s *Server) queryElementInstances(w http.ResponseWriter, r *http.Request) {
 	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
 }
 
-func (s *Server) queryIncidents(w http.ResponseWriter, r *http.Request) {
+func (h handler) queryIncidents(w http.ResponseWriter, r *http.Request) {
 	options, err := parseQueryOptions(r)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
@@ -664,7 +686,7 @@ func (s *Server) queryIncidents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := s.e.CreateQuery()
+	q := h.e.CreateQuery()
 	q.SetOptions(options)
 
 	results, err := q.QueryIncidents(r.Context(), criteria)
@@ -681,7 +703,7 @@ func (s *Server) queryIncidents(w http.ResponseWriter, r *http.Request) {
 	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
 }
 
-func (s *Server) queryJobs(w http.ResponseWriter, r *http.Request) {
+func (h handler) queryJobs(w http.ResponseWriter, r *http.Request) {
 	options, err := parseQueryOptions(r)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
@@ -694,7 +716,7 @@ func (s *Server) queryJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := s.e.CreateQuery()
+	q := h.e.CreateQuery()
 	q.SetOptions(options)
 
 	results, err := q.QueryJobs(r.Context(), criteria)
@@ -711,7 +733,7 @@ func (s *Server) queryJobs(w http.ResponseWriter, r *http.Request) {
 	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
 }
 
-func (s *Server) queryMessages(w http.ResponseWriter, r *http.Request) {
+func (h handler) queryMessages(w http.ResponseWriter, r *http.Request) {
 	options, err := parseQueryOptions(r)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
@@ -724,7 +746,7 @@ func (s *Server) queryMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := s.e.CreateQuery()
+	q := h.e.CreateQuery()
 	q.SetOptions(options)
 
 	results, err := q.QueryMessages(r.Context(), criteria)
@@ -741,7 +763,7 @@ func (s *Server) queryMessages(w http.ResponseWriter, r *http.Request) {
 	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
 }
 
-func (s *Server) queryProcesses(w http.ResponseWriter, r *http.Request) {
+func (h handler) queryProcesses(w http.ResponseWriter, r *http.Request) {
 	options, err := parseQueryOptions(r)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
@@ -754,7 +776,7 @@ func (s *Server) queryProcesses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := s.e.CreateQuery()
+	q := h.e.CreateQuery()
 	q.SetOptions(options)
 
 	results, err := q.QueryProcesses(r.Context(), criteria)
@@ -771,7 +793,7 @@ func (s *Server) queryProcesses(w http.ResponseWriter, r *http.Request) {
 	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
 }
 
-func (s *Server) queryProcessInstances(w http.ResponseWriter, r *http.Request) {
+func (h handler) queryProcessInstances(w http.ResponseWriter, r *http.Request) {
 	options, err := parseQueryOptions(r)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
@@ -784,7 +806,7 @@ func (s *Server) queryProcessInstances(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := s.e.CreateQuery()
+	q := h.e.CreateQuery()
 	q.SetOptions(options)
 
 	results, err := q.QueryProcessInstances(r.Context(), criteria)
@@ -801,7 +823,7 @@ func (s *Server) queryProcessInstances(w http.ResponseWriter, r *http.Request) {
 	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
 }
 
-func (s *Server) queryTasks(w http.ResponseWriter, r *http.Request) {
+func (h handler) queryTasks(w http.ResponseWriter, r *http.Request) {
 	options, err := parseQueryOptions(r)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
@@ -814,7 +836,7 @@ func (s *Server) queryTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := s.e.CreateQuery()
+	q := h.e.CreateQuery()
 	q.SetOptions(options)
 
 	results, err := q.QueryTasks(r.Context(), criteria)
@@ -831,7 +853,7 @@ func (s *Server) queryTasks(w http.ResponseWriter, r *http.Request) {
 	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
 }
 
-func (s *Server) queryVariables(w http.ResponseWriter, r *http.Request) {
+func (h handler) queryVariables(w http.ResponseWriter, r *http.Request) {
 	options, err := parseQueryOptions(r)
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
@@ -844,7 +866,7 @@ func (s *Server) queryVariables(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := s.e.CreateQuery()
+	q := h.e.CreateQuery()
 	q.SetOptions(options)
 
 	results, err := q.QueryVariables(r.Context(), criteria)
@@ -859,14 +881,4 @@ func (s *Server) queryVariables(w http.ResponseWriter, r *http.Request) {
 	}
 
 	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
-}
-
-// management
-
-func (s *Server) checkReadiness(w http.ResponseWriter, r *http.Request) {
-	if s.isShuttingDown.Load() {
-		http.Error(w, "server is shutting down", http.StatusServiceUnavailable)
-		return
-	}
-	w.Write([]byte("ready"))
 }
