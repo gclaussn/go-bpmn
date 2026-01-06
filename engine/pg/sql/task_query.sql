@@ -7,6 +7,7 @@ SELECT
 	process_id,
 	process_instance_id,
 
+	bpmn_element_id,
 	completed_at,
 	created_at,
 	created_by,

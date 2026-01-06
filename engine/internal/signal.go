@@ -46,9 +46,10 @@ type SignalSubscriptionEntity struct {
 	ProcessId         int32
 	ProcessInstanceId int32
 
-	CreatedAt time.Time
-	CreatedBy string
-	Name      string
+	BpmnElementId string
+	CreatedAt     time.Time
+	CreatedBy     string
+	Name          string
 }
 
 type SignalSubscriptionRepository interface {
@@ -161,10 +162,11 @@ func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.Signal, error) {
 			ProcessId:         pgtype.Int4{Int32: signalSubscription.ProcessId, Valid: true},
 			ProcessInstanceId: pgtype.Int4{Int32: signalSubscription.ProcessInstanceId, Valid: true},
 
-			CreatedAt: signal.CreatedAt,
-			CreatedBy: signal.CreatedBy,
-			DueAt:     signal.CreatedAt,
-			Type:      engine.TaskTriggerEvent,
+			BpmnElementId: pgtype.Text{String: signalSubscription.BpmnElementId, Valid: true},
+			CreatedAt:     signal.CreatedAt,
+			CreatedBy:     signal.CreatedBy,
+			DueAt:         signal.CreatedAt,
+			Type:          engine.TaskTriggerEvent,
 
 			Instance: TriggerEventTask{SignalId: signal.Id},
 		})
@@ -180,10 +182,11 @@ func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.Signal, error) {
 			ElementId: pgtype.Int4{Int32: eventDefinition.ElementId, Valid: true},
 			ProcessId: pgtype.Int4{Int32: eventDefinition.ProcessId, Valid: true},
 
-			CreatedAt: signal.CreatedAt,
-			CreatedBy: signal.CreatedBy,
-			DueAt:     signal.CreatedAt,
-			Type:      engine.TaskTriggerEvent,
+			BpmnElementId: pgtype.Text{String: eventDefinition.BpmnElementId, Valid: true},
+			CreatedAt:     signal.CreatedAt,
+			CreatedBy:     signal.CreatedBy,
+			DueAt:         signal.CreatedAt,
+			Type:          engine.TaskTriggerEvent,
 
 			Instance: TriggerEventTask{SignalId: signal.Id},
 		})
@@ -319,9 +322,10 @@ func (ec *executionContext) triggerSignalBoundaryEvent(ctx Context, signalId int
 			ProcessId:         newExecution.ProcessId,
 			ProcessInstanceId: newExecution.ProcessInstanceId,
 
-			CreatedAt: ctx.Time(),
-			CreatedBy: signal.CreatedBy,
-			Name:      signal.Name,
+			BpmnElementId: newExecution.BpmnElementId,
+			CreatedAt:     ctx.Time(),
+			CreatedBy:     signal.CreatedBy,
+			Name:          signal.Name,
 		}
 
 		if err := ctx.SignalSubscriptions().Insert(&signalSubscription); err != nil {

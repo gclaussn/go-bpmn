@@ -44,6 +44,7 @@ func TestResolveIncident(t *testing.T) {
 		ProcessId:         pgtype.Int4{Int32: 100, Valid: true},
 		ProcessInstanceId: pgtype.Int4{Int32: 1000, Valid: true},
 
+		BpmnElementId:  pgtype.Text{String: "test-element", Valid: true},
 		SerializedTask: pgtype.Text{String: `{"test":true}`, Valid: true},
 		Type:           engine.TaskJoinParallelGateway,
 	}
@@ -234,6 +235,7 @@ func TestResolveIncident(t *testing.T) {
 			ProcessId:         task.ProcessId.Int32,
 			ProcessInstanceId: task.ProcessInstanceId.Int32,
 
+			BpmnElementId:  task.BpmnElementId.String,
 			CreatedAt:      retryTask.CreatedAt,
 			CreatedBy:      cmd.WorkerId,
 			DueAt:          retryTask.CreatedAt,
@@ -282,6 +284,7 @@ func TestResolveIncident(t *testing.T) {
 			ProcessId:         task.ProcessId.Int32,
 			ProcessInstanceId: task.ProcessInstanceId.Int32,
 
+			BpmnElementId:  task.BpmnElementId.String,
 			CreatedAt:      retryTask.CreatedAt,
 			CreatedBy:      cmd.WorkerId,
 			DueAt:          retryTask.CreatedAt.Add(24 * time.Hour),

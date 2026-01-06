@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS signal_subscription (
 	process_id INTEGER NOT NULL,
 	process_instance_id INTEGER NOT NULL,
 
+	bpmn_element_id VARCHAR NOT NULL,
 	created_at TIMESTAMP(3) NOT NULL,
 	created_by VARCHAR NOT NULL,
 	name VARCHAR NOT NULL

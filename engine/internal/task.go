@@ -39,6 +39,7 @@ type TaskEntity struct {
 	ProcessId         pgtype.Int4
 	ProcessInstanceId pgtype.Int4
 
+	BpmnElementId  pgtype.Text
 	CompletedAt    pgtype.Timestamp
 	CreatedAt      time.Time
 	CreatedBy      string
@@ -63,6 +64,7 @@ func (e TaskEntity) Task() engine.Task {
 		ProcessId:         e.ProcessId.Int32,
 		ProcessInstanceId: e.ProcessInstanceId.Int32,
 
+		BpmnElementId:  e.BpmnElementId.String,
 		CompletedAt:    timeOrNil(e.CompletedAt),
 		CreatedAt:      e.CreatedAt,
 		CreatedBy:      e.CreatedBy,
@@ -160,6 +162,7 @@ func ExecuteTask(ctx Context, task *TaskEntity) error {
 			ProcessId:         task.ProcessId,
 			ProcessInstanceId: task.ProcessInstanceId,
 
+			BpmnElementId:  task.BpmnElementId,
 			CreatedAt:      ctx.Time(),
 			CreatedBy:      ctx.Options().EngineId,
 			DueAt:          ctx.Time(),

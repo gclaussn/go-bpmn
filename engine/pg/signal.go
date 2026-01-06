@@ -118,6 +118,7 @@ RETURNING
 	process_id,
 	process_instance_id,
 
+	bpmn_element_id,
 	created_at,
 	created_by
 `, name)
@@ -141,6 +142,7 @@ RETURNING
 			&entity.ProcessId,
 			&entity.ProcessInstanceId,
 
+			&entity.BpmnElementId,
 			&entity.CreatedAt,
 			&entity.CreatedBy,
 		); err != nil {
@@ -165,6 +167,7 @@ INSERT INTO signal_subscription (
 	process_id,
 	process_instance_id,
 
+	bpmn_element_id,
 	created_at,
 	created_by,
 	name
@@ -178,7 +181,8 @@ INSERT INTO signal_subscription (
 
 	$6,
 	$7,
-	$8
+	$8,
+	$9
 ) RETURNING id
 `,
 		entity.Partition,
@@ -188,6 +192,7 @@ INSERT INTO signal_subscription (
 		entity.ProcessId,
 		entity.ProcessInstanceId,
 
+		entity.BpmnElementId,
 		entity.CreatedAt,
 		entity.CreatedBy,
 		entity.Name,

@@ -599,6 +599,7 @@ func TestCreateProcessWithTimer(t *testing.T) {
 					ProcessId:         process1.Id,
 					ProcessInstanceId: int32(0),
 
+					BpmnElementId:  "timerStartEvent",
 					CreatedAt:      tasks[0].CreatedAt,
 					CreatedBy:      testWorkerId,
 					DueAt:          tasks[0].DueAt,

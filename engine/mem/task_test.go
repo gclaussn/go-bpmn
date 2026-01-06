@@ -68,6 +68,7 @@ func TestExecuteTask(t *testing.T) {
 			ProcessId:         pgtype.Int4{Int32: 1, Valid: true},
 			ProcessInstanceId: pgtype.Int4{Int32: 10, Valid: true},
 
+			BpmnElementId:  pgtype.Text{String: "test-element", Valid: true},
 			RetryCount:     2,
 			SerializedTask: pgtype.Text{String: "{...}", Valid: true},
 			Type:           engine.TaskStartProcessInstance,
@@ -100,6 +101,7 @@ func TestExecuteTask(t *testing.T) {
 		assert.Equal(entity.ProcessId.Int32, results[0].ProcessId)
 		assert.Equal(entity.ProcessInstanceId.Int32, results[0].ProcessInstanceId)
 
+		assert.Equal(entity.BpmnElementId.String, results[0].BpmnElementId)
 		assert.NotEmpty(results[0].CreatedAt)
 		assert.Equal(engine.DefaultEngineId, results[0].CreatedBy)
 		assert.Equal(ctx.Time(), results[0].DueAt)

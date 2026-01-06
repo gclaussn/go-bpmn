@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS task (
 	process_id INTEGER,
 	process_instance_id INTEGER,
 
+	bpmn_element_id VARCHAR,
 	completed_at TIMESTAMP(3),
 	created_at TIMESTAMP(3) NOT NULL,
 	created_by VARCHAR NOT NULL,

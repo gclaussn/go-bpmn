@@ -12,10 +12,10 @@ export GO_BPMN_TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5432/te
 
 ```sh
 # run tests, which do not rely on a database
-go test -v ./... -short
+go test ./... -short
 
 # run all tests
-go test -v ./...
+go test ./...
 
 # create coverage report
 go test -v -coverpkg=./... -coverprofile coverage.out ./...

@@ -193,14 +193,16 @@ func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
 		return err
 	}
 
-	bpmnElement := process.graph.elementByElementId(task.ElementId.Int32)
-	if bpmnElement == nil {
+	node, err := process.graph.node(task.BpmnElementId.String)
+	if err != nil {
 		return engine.Error{
 			Type:   engine.ErrorBug,
 			Title:  "failed to find BPMN element",
-			Detail: fmt.Sprintf("BPMN element with ID %d could not be found", task.ElementId.Int32),
+			Detail: err.Error(),
 		}
 	}
+
+	bpmnElement := node.bpmnElement
 
 	var ec *executionContext
 	switch bpmnElement.Type {

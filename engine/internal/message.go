@@ -61,6 +61,7 @@ type MessageSubscriptionEntity struct {
 	ProcessId         int32
 	ProcessInstanceId int32
 
+	BpmnElementId  string
 	CorrelationKey string
 	CreatedAt      time.Time
 	CreatedBy      string
@@ -195,10 +196,11 @@ func SendMessage(ctx Context, cmd engine.SendMessageCmd) (engine.Message, error)
 			ProcessId:         pgtype.Int4{Int32: messageSubscription.ProcessId, Valid: true},
 			ProcessInstanceId: pgtype.Int4{Int32: messageSubscription.ProcessInstanceId, Valid: true},
 
-			CreatedAt: message.CreatedAt,
-			CreatedBy: message.CreatedBy,
-			DueAt:     message.CreatedAt,
-			Type:      engine.TaskTriggerEvent,
+			BpmnElementId: pgtype.Text{String: messageSubscription.BpmnElementId, Valid: true},
+			CreatedAt:     message.CreatedAt,
+			CreatedBy:     message.CreatedBy,
+			DueAt:         message.CreatedAt,
+			Type:          engine.TaskTriggerEvent,
 
 			Instance: TriggerEventTask{MessageId: message.Id},
 		}
@@ -214,10 +216,11 @@ func SendMessage(ctx Context, cmd engine.SendMessageCmd) (engine.Message, error)
 			ElementId: pgtype.Int4{Int32: eventDefinition.ElementId, Valid: true},
 			ProcessId: pgtype.Int4{Int32: eventDefinition.ProcessId, Valid: true},
 
-			CreatedAt: message.CreatedAt,
-			CreatedBy: message.CreatedBy,
-			DueAt:     message.CreatedAt,
-			Type:      engine.TaskTriggerEvent,
+			BpmnElementId: pgtype.Text{String: eventDefinition.BpmnElementId, Valid: true},
+			CreatedAt:     message.CreatedAt,
+			CreatedBy:     message.CreatedBy,
+			DueAt:         message.CreatedAt,
+			Type:          engine.TaskTriggerEvent,
 
 			Instance: TriggerEventTask{MessageId: message.Id, Timer: cmd.ExpirationTimer},
 		}

@@ -142,9 +142,10 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 					ProcessId:         execution.ProcessId,
 					ProcessInstanceId: execution.ProcessInstanceId,
 
-					CreatedAt: ctx.Time(),
-					CreatedBy: ec.engineOrWorkerId,
-					Name:      node.eventDefinition.SignalName.String,
+					BpmnElementId: execution.BpmnElementId,
+					CreatedAt:     ctx.Time(),
+					CreatedBy:     ec.engineOrWorkerId,
+					Name:          node.eventDefinition.SignalName.String,
 				}
 
 				entities = append(entities, &signalSubscription)
@@ -201,10 +202,11 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 				ProcessId:         pgtype.Int4{Int32: execution.ProcessId, Valid: true},
 				ProcessInstanceId: pgtype.Int4{Int32: execution.ProcessInstanceId, Valid: true},
 
-				CreatedAt: ctx.Time(),
-				CreatedBy: ec.engineOrWorkerId,
-				DueAt:     ctx.Time(),
-				Type:      taskType,
+				BpmnElementId: pgtype.Text{String: execution.BpmnElementId, Valid: true},
+				CreatedAt:     ctx.Time(),
+				CreatedBy:     ec.engineOrWorkerId,
+				DueAt:         ctx.Time(),
+				Type:          taskType,
 
 				Instance: taskInstance,
 			}
@@ -630,10 +632,11 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 			ProcessId:         pgtype.Int4{Int32: execution.ProcessId, Valid: true},
 			ProcessInstanceId: pgtype.Int4{Int32: execution.ProcessInstanceId, Valid: true},
 
-			CreatedAt: ctx.Time(),
-			CreatedBy: ec.engineOrWorkerId,
-			DueAt:     dueAt,
-			Type:      engine.TaskTriggerEvent,
+			BpmnElementId: pgtype.Text{String: execution.BpmnElementId, Valid: true},
+			CreatedAt:     ctx.Time(),
+			CreatedBy:     ec.engineOrWorkerId,
+			DueAt:         dueAt,
+			Type:          engine.TaskTriggerEvent,
 
 			Instance: TriggerEventTask{Timer: jobCompletion.Timer},
 		}
@@ -663,10 +666,11 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 				ProcessId:         pgtype.Int4{Int32: execution.ProcessId, Valid: true},
 				ProcessInstanceId: pgtype.Int4{Int32: execution.ProcessInstanceId, Valid: true},
 
-				CreatedAt: ctx.Time(),
-				CreatedBy: ec.engineOrWorkerId,
-				DueAt:     ctx.Time(),
-				Type:      engine.TaskTriggerEvent,
+				BpmnElementId: pgtype.Text{String: execution.BpmnElementId, Valid: true},
+				CreatedAt:     ctx.Time(),
+				CreatedBy:     ec.engineOrWorkerId,
+				DueAt:         ctx.Time(),
+				Type:          engine.TaskTriggerEvent,
 
 				Instance: TriggerEventTask{MessageId: bufferedMessage.Id},
 			}
@@ -690,6 +694,7 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 				ProcessId:         execution.ProcessId,
 				ProcessInstanceId: execution.ProcessInstanceId,
 
+				BpmnElementId:  execution.BpmnElementId,
 				CorrelationKey: jobCompletion.MessageCorrelationKey,
 				CreatedAt:      ctx.Time(),
 				CreatedBy:      ec.engineOrWorkerId,
@@ -730,9 +735,10 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 			ProcessId:         execution.ProcessId,
 			ProcessInstanceId: execution.ProcessInstanceId,
 
-			CreatedAt: ctx.Time(),
-			CreatedBy: ec.engineOrWorkerId,
-			Name:      jobCompletion.SignalName,
+			BpmnElementId: execution.BpmnElementId,
+			CreatedAt:     ctx.Time(),
+			CreatedBy:     ec.engineOrWorkerId,
+			Name:          jobCompletion.SignalName,
 		}
 
 		if err := ctx.SignalSubscriptions().Insert(&signalSubscription); err != nil {

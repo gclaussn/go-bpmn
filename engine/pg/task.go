@@ -40,6 +40,7 @@ INSERT INTO task (
 	process_id,
 	process_instance_id,
 
+	bpmn_element_id,
 	created_at,
 	created_by,
 	due_at,
@@ -60,7 +61,8 @@ INSERT INTO task (
 	$9,
 	$10,
 	$11,
-	$12
+	$12,
+	$13
 ) RETURNING id
 `,
 		entity.Partition,
@@ -71,6 +73,7 @@ INSERT INTO task (
 		entity.ProcessId,
 		entity.ProcessInstanceId,
 
+		entity.BpmnElementId,
 		entity.CreatedAt,
 		entity.CreatedBy,
 		entity.DueAt,
@@ -115,6 +118,7 @@ INSERT INTO task (
 	process_id,
 	process_instance_id,
 
+	bpmn_element_id,
 	created_at,
 	created_by,
 	due_at,
@@ -135,7 +139,8 @@ INSERT INTO task (
 	$9,
 	$10,
 	$11,
-	$12
+	$12,
+	$13
 ) RETURNING id
 `,
 			entity.Partition,
@@ -146,6 +151,7 @@ INSERT INTO task (
 			entity.ProcessId,
 			entity.ProcessInstanceId,
 
+			entity.BpmnElementId,
 			entity.CreatedAt,
 			entity.CreatedBy,
 			entity.DueAt,
@@ -177,6 +183,7 @@ SELECT
 	process_id,
 	process_instance_id,
 
+	bpmn_element_id,
 	completed_at,
 	created_at,
 	created_by,
@@ -204,6 +211,7 @@ WHERE
 		&entity.ProcessId,
 		&entity.ProcessInstanceId,
 
+		&entity.BpmnElementId,
 		&entity.CompletedAt,
 		&entity.CreatedAt,
 		&entity.CreatedBy,
@@ -280,6 +288,7 @@ func (r taskRepository) Query(criteria engine.TaskCriteria, options engine.Query
 			&entity.ProcessId,
 			&entity.ProcessInstanceId,
 
+			&entity.BpmnElementId,
 			&entity.CompletedAt,
 			&entity.CreatedAt,
 			&entity.CreatedBy,
@@ -335,6 +344,7 @@ func (r taskRepository) Lock(cmd engine.ExecuteTasksCmd, lockedAt time.Time) ([]
 			&entity.ProcessId,
 			&entity.ProcessInstanceId,
 
+			&entity.BpmnElementId,
 			&entity.CreatedAt,
 			&entity.CreatedBy,
 			&entity.DueAt,
