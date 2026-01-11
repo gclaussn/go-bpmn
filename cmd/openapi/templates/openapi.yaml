@@ -46,15 +46,9 @@ paths:
   {{- range $method, $operation := $methods}}
     {{$method}}:
       operationId: {{$operation.Id}}
-    {{- if ne $operation.Id "checkReadiness" }}
+    {{- if ne $operation.Id "checkReadiness"}}
       security:
         - ApiKeyAuth: []
-    {{- end }}
-    {{- if $operation.Parameters}}
-      parameters:
-      {{- range $parameterName := $operation.Parameters }}
-        - $ref: "#/components/parameters/{{$parameterName}}"
-      {{- end }}
     {{- end}}
       {{- includeOperation $operation.Id | indent 6}}
   {{- end}}
@@ -66,12 +60,30 @@ components:
       type: apiKey
       in: header
       name: Authorization
+
   parameters:
-{{- range $parameterName, $_ := .parameters}}
-    {{$parameterName}}:
-      name: {{$parameterName}}
-      {{- includeParameter $parameterName | indent 6}}
-{{end}}
+    limit:
+      in: query
+      name: limit
+      description: >
+        Maximum number of results to return.
+        If limit is `0`, all results are returned.
+      schema:
+        type: integer
+        format: int32
+        min: 0
+
+    offset:
+      in: query
+      name: offset
+      description: >
+        The number of results to skip, before returning any result.
+        If offset is `0`, no results are skipped.
+      schema:
+        type: integer
+        format: int32
+        min: 0
+
   schemas:
 {{- range $schemaName, $schema := .schemas}}
     {{ $schemaName }}:

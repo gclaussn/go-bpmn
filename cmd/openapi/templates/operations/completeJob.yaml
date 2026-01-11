@@ -3,6 +3,22 @@ tags:
 summary: Complete job
 description: >
   Completes a locked job.
+parameters:
+  - in: path
+    name: partition
+    description: Job partition.
+    required: true
+    schema:
+      type: string
+      format: date
+  - in: path
+    name: id
+    description: Job ID.
+    required: true
+    schema:
+      type: integer
+      format: int32
+      min: 1
 requestBody:
   content:
     application/json:

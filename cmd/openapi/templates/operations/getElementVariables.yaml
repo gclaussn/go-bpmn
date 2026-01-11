@@ -4,6 +4,30 @@ tags:
 summary: Get element variables
 description: >
   Gets variables of an active or ended element instance.
+parameters:
+  - in: path
+    name: partition
+    description: Element instance partition.
+    required: true
+    schema:
+      type: string
+      format: date
+  - in: path
+    name: id
+    description: Element instance ID.
+    required: true
+    schema:
+      type: integer
+      format: int32
+      min: 1
+  - in: query
+    name: names
+    description: >
+      Comma separated list of variables to include.
+    schema:
+      type: string
+      examples:
+        - a,b,c
 responses:
   "200":
     description: OK

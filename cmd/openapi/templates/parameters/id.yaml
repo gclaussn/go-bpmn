@@ -1,7 +1,0 @@
-in: path
-description: Entity ID.
-required: true
-schema:
-  type: integer
-  format: int32
-  min: 1

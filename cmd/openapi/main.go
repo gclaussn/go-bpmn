@@ -206,34 +206,8 @@ func (g *generator) generateOperations() {
 			g.paths[path] = methods
 		}
 
-		var parameters []string
-
-		// extract path parameters
-		var j int
-		for i, r := range path {
-			switch r {
-			case '{':
-				j = i
-			case '}':
-				parameters = append(parameters, path[j+1:i])
-			}
-		}
-
-		// set query parameters
-		if strings.HasPrefix(operationId, "query") {
-			parameters = append(parameters, common.QueryOffset)
-			parameters = append(parameters, common.QueryLimit)
-		}
-
-		if path == common.PathElementInstancesVariables || path == common.PathProcessInstancesVariables {
-			if method == "get" {
-				parameters = append(parameters, common.QueryNames)
-			}
-		}
-
 		methods[method] = &Operation{
-			Id:         operationId,
-			Parameters: parameters,
+			Id: operationId,
 		}
 	}
 }
@@ -342,14 +316,6 @@ func (g *generator) generateYaml(version string) string {
 			}
 			return string(b)
 		},
-		"includeParameter": func(parameterName string) string {
-			name := fmt.Sprintf("templates/parameters/%s.yaml", parameterName)
-			b, err := resources.ReadFile(name)
-			if err != nil {
-				log.Fatalf("failed to include parameter %s: %v", parameterName, err)
-			}
-			return string(b)
-		},
 		"indent": func(i int, content string) string {
 			indent := strings.Repeat(" ", i)
 
@@ -377,16 +343,6 @@ func (g *generator) generateYaml(version string) string {
 	t, err := template.New("openapi.yaml").Funcs(funcs).ParseFS(resources, "templates/openapi.yaml")
 	if err != nil {
 		log.Fatalf("failed to parse template: %v", err)
-	}
-
-	// get unique parameters
-	parameters := make(map[string]bool)
-	for _, methods := range g.paths {
-		for _, operation := range methods {
-			for i := range operation.Parameters {
-				parameters[operation.Parameters[i]] = true
-			}
-		}
 	}
 
 	schemas := make(map[string]*Schema)
@@ -440,10 +396,9 @@ func (g *generator) generateYaml(version string) string {
 
 	var yaml bytes.Buffer
 	if err := t.Execute(&yaml, map[string]any{
-		"parameters": parameters,
-		"paths":      g.paths,
-		"schemas":    schemas,
-		"version":    version,
+		"paths":   g.paths,
+		"schemas": schemas,
+		"version": version,
 	}); err != nil {
 		log.Fatalf("failed to execute OpenAPI template: %v", err)
 	}
@@ -623,8 +578,7 @@ func setPropertyType(property *Property, typeName string, schemas map[string]*Sc
 }
 
 type Operation struct {
-	Id         string
-	Parameters []string
+	Id string
 }
 
 type Property struct {
