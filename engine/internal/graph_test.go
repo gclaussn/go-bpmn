@@ -265,7 +265,7 @@ func TestContinueExecution(t *testing.T) {
 		t.Run("with event definition", func(t *testing.T) {
 			// given
 			graph.setEventDefinitions([]*EventDefinitionEntity{
-				{ElementId: graph.nodes["errorBoundaryEvent"].id, ErrorCode: pgtype.Text{String: "TEST_CODE"}},
+				{BpmnElementId: "errorBoundaryEvent", ErrorCode: pgtype.Text{String: "TEST_CODE"}},
 			})
 
 			scope.State = engine.InstanceStarted

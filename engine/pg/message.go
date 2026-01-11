@@ -245,6 +245,7 @@ INSERT INTO message_subscription (
 	process_id,
 	process_instance_id,
 
+	bpmn_element_id,
 	correlation_key,
 	created_at,
 	created_by,
@@ -260,7 +261,8 @@ INSERT INTO message_subscription (
 	$6,
 	$7,
 	$8,
-	$9
+	$9,
+	$10
 ) RETURNING id
 `,
 		entity.Partition,
@@ -270,6 +272,7 @@ INSERT INTO message_subscription (
 		entity.ProcessId,
 		entity.ProcessInstanceId,
 
+		entity.BpmnElementId,
 		entity.CorrelationKey,
 		entity.CreatedAt,
 		entity.CreatedBy,
@@ -295,6 +298,7 @@ SELECT
 	process_id,
 	process_instance_id,
 
+	bpmn_element_id,
 	created_at,
 	created_by
 FROM
@@ -320,6 +324,7 @@ FOR UPDATE SKIP LOCKED
 		&entity.ProcessId,
 		&entity.ProcessInstanceId,
 
+		&entity.BpmnElementId,
 		&entity.CreatedAt,
 		&entity.CreatedBy,
 	); err != nil {

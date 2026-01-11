@@ -437,15 +437,6 @@ func (g graph) createProcessScope(processInstance *ProcessInstanceEntity) Elemen
 	}
 }
 
-func (g graph) elementByElementId(elementId int32) *model.Element {
-	for _, node := range g.nodes {
-		if node.id == elementId {
-			return node.bpmnElement
-		}
-	}
-	return nil
-}
-
 func (g graph) ensureSequenceFlow(sourceId string, targetId string) error {
 	node, err := g.node(sourceId)
 	if err != nil {
@@ -525,14 +516,13 @@ func (g graph) node(bpmnElementId string) (node, error) {
 // setEventDefinitions enriches graph nodes by adding event definitions.
 func (g graph) setEventDefinitions(eventDefinitions []*EventDefinitionEntity) {
 	for _, eventeventDefinition := range eventDefinitions {
-		bpmnElement := g.elementByElementId(eventeventDefinition.ElementId)
-		if bpmnElement == nil {
+		node, ok := g.nodes[eventeventDefinition.BpmnElementId]
+		if !ok {
 			continue
 		}
 
-		node := g.nodes[bpmnElement.Id]
 		node.eventDefinition = eventeventDefinition
-		g.nodes[bpmnElement.Id] = node
+		g.nodes[eventeventDefinition.BpmnElementId] = node
 	}
 }
 

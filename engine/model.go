@@ -588,6 +588,7 @@ type Task struct {
 	ProcessId         int32 `json:"processId,omitempty"`         // ID of the related process.
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // ID of the enclosing process instance.
 
+	BpmnElementId  string     `json:"bpmnElementId,omitempty"`              // Element ID within the BPMN XML - set if task is element specific.
 	CompletedAt    *time.Time `json:"completedAt,omitempty"`                // Completion time.
 	CreatedAt      time.Time  `json:"createdAt" validate:"required"`        // Creation time.
 	CreatedBy      string     `json:"createdBy" validate:"required"`        // ID of the worker or engine that created the task.

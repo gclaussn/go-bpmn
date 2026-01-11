@@ -119,6 +119,7 @@ func ResolveIncident(ctx Context, cmd engine.ResolveIncidentCmd) error {
 			ProcessId:         task.ProcessId,
 			ProcessInstanceId: task.ProcessInstanceId,
 
+			BpmnElementId:  task.BpmnElementId,
 			CreatedAt:      ctx.Time(),
 			CreatedBy:      cmd.WorkerId,
 			DueAt:          dueAt,

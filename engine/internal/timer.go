@@ -85,10 +85,11 @@ func (ec *executionContext) triggerTimerBoundaryEvent(ctx Context, timer engine.
 			ProcessId:         pgtype.Int4{Int32: newExecution.ProcessId, Valid: true},
 			ProcessInstanceId: pgtype.Int4{Int32: newExecution.ProcessInstanceId, Valid: true},
 
-			CreatedAt: ctx.Time(),
-			CreatedBy: ec.engineOrWorkerId,
-			DueAt:     dueAt,
-			Type:      engine.TaskTriggerEvent,
+			BpmnElementId: pgtype.Text{String: newExecution.BpmnElementId, Valid: true},
+			CreatedAt:     ctx.Time(),
+			CreatedBy:     ec.engineOrWorkerId,
+			DueAt:         dueAt,
+			Type:          engine.TaskTriggerEvent,
 
 			Instance: TriggerEventTask{Timer: &timer},
 		}
@@ -251,10 +252,11 @@ func (ec *executionContext) triggerTimerStartEvent(ctx Context, task *TaskEntity
 		ElementId: task.ElementId,
 		ProcessId: task.ProcessId,
 
-		CreatedAt: ctx.Time(),
-		CreatedBy: ctx.Options().EngineId,
-		DueAt:     dueAt,
-		Type:      engine.TaskTriggerEvent,
+		BpmnElementId: task.BpmnElementId,
+		CreatedAt:     ctx.Time(),
+		CreatedBy:     ctx.Options().EngineId,
+		DueAt:         dueAt,
+		Type:          engine.TaskTriggerEvent,
 
 		Instance: TriggerEventTask{Timer: &timer},
 	}

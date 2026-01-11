@@ -46,6 +46,7 @@ RETURNING
 	task.process_id,
 	task.process_instance_id,
 
+	task.bpmn_element_id,
 	task.created_at,
 	task.created_by,
 	task.due_at,
