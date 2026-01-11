@@ -73,10 +73,7 @@ func (r elementRepository) SelectByProcessId(processId int32) ([]*internal.Eleme
 SELECT
 	id,
 
-	bpmn_element_id,
-	bpmn_element_name,
-	bpmn_element_type,
-	is_multi_instance
+	bpmn_element_id
 FROM
 	element
 WHERE
@@ -92,21 +89,13 @@ WHERE
 	for rows.Next() {
 		var entity internal.ElementEntity
 
-		var bpmnElementTypeValue string
-
 		if err := rows.Scan(
 			&entity.Id,
 
 			&entity.BpmnElementId,
-			&entity.BpmnElementName,
-			&bpmnElementTypeValue,
-			&entity.IsMultiInstance,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan element row: %v", err)
 		}
-
-		entity.ProcessId = processId
-		entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
 
 		entities = append(entities, &entity)
 	}

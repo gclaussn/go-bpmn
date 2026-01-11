@@ -174,7 +174,7 @@ func (r *jobRepository) Unlock(cmd engine.UnlockJobsCmd) (int, error) {
 	}
 	sort.Strings(keys)
 
-	for i := 0; i < len(keys); i++ {
+	for i := range keys {
 		if partitionKey != "" && partitionKey != keys[i] {
 			continue
 		}

@@ -127,8 +127,8 @@ func newGraph(bpmnModel *model.Model, bpmnElements []*model.Element, elements []
 	}
 
 	ids := make(map[string]int32, len(elements))
-	for i := range elements {
-		ids[elements[i].BpmnElementId] = elements[i].Id
+	for _, element := range elements {
+		ids[element.BpmnElementId] = element.Id
 	}
 
 	processElement := bpmnElements[0]

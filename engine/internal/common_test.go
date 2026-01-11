@@ -6,6 +6,7 @@ import (
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/model"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func mustCreateGraph(t *testing.T, fileName string, bpmnProcessId string) graph {
@@ -34,7 +35,7 @@ func mustCreateGraph(t *testing.T, fileName string, bpmnProcessId string) graph 
 			Id: int32(i + 1),
 
 			BpmnElementId:   bpmnElement.Id,
-			BpmnElementName: bpmnElement.Name,
+			BpmnElementName: pgtype.Text{String: bpmnElement.Name, Valid: bpmnElement.Name != ""},
 			BpmnElementType: bpmnElement.Type,
 		}
 

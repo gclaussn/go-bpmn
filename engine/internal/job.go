@@ -301,9 +301,9 @@ func LockJobs(ctx Context, cmd engine.LockJobsCmd) ([]engine.Job, error) {
 		return nil, err
 	}
 
-	var jobs []engine.Job
-	for _, lockedJob := range lockedJobs {
-		jobs = append(jobs, lockedJob.Job())
+	jobs := make([]engine.Job, len(lockedJobs))
+	for i, lockedJob := range lockedJobs {
+		jobs[i] = lockedJob.Job()
 	}
 
 	return jobs, nil
