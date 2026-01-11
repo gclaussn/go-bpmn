@@ -312,5 +312,5 @@ type SignalDefinition struct {
 // TimerDefinition is used to define a timer event.
 type TimerDefinition struct {
 	BpmnElementId string `json:"bpmnElementId" validate:"required"` // Element ID of the timer event within the BPMN XML.
-	Timer         *Timer `json:"timer" validate:"timer"`            // Timer that defines a point in time.
+	Timer         *Timer `json:"timer" validate:"required,timer"`   // Timer that defines a point in time.
 }
