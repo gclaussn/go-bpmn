@@ -3,6 +3,7 @@ package internal
 import (
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/model"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type ElementEntity struct {
@@ -10,10 +11,11 @@ type ElementEntity struct {
 
 	ProcessId int32
 
-	BpmnElementId   string
-	BpmnElementName string
-	BpmnElementType model.ElementType
-	IsMultiInstance bool
+	BpmnElementId       string
+	BpmnElementName     string
+	BpmnElementType     model.ElementType
+	IsMultiInstance     bool
+	ParentBpmnElementId pgtype.Text
 }
 
 func (e ElementEntity) Element() engine.Element {
@@ -22,10 +24,11 @@ func (e ElementEntity) Element() engine.Element {
 
 		ProcessId: e.ProcessId,
 
-		BpmnElementId:   e.BpmnElementId,
-		BpmnElementName: e.BpmnElementName,
-		BpmnElementType: e.BpmnElementType,
-		IsMultiInstance: e.IsMultiInstance,
+		BpmnElementId:       e.BpmnElementId,
+		BpmnElementName:     e.BpmnElementName,
+		BpmnElementType:     e.BpmnElementType,
+		IsMultiInstance:     e.IsMultiInstance,
+		ParentBpmnElementId: e.ParentBpmnElementId.String,
 	}
 }
 

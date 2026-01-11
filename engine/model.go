@@ -298,10 +298,11 @@ type Element struct {
 
 	ProcessId int32 `json:"processId" validate:"required"` // ID of the enclosing process.
 
-	BpmnElementId   string            `json:"bpmnElementId" validate:"required"`   // Element ID within the BPMN XML.
-	BpmnElementName string            `json:"bpmnElementName,omitempty"`           // Element name within the BPMN XML.
-	BpmnElementType model.ElementType `json:"bpmnElementType" validate:"required"` // BPMN element type.
-	IsMultiInstance bool              `json:"multiInstance,omitempty"`             // Determines if the element is a multi instance.
+	BpmnElementId       string            `json:"bpmnElementId" validate:"required"`   // Element ID within the BPMN XML.
+	BpmnElementName     string            `json:"bpmnElementName,omitempty"`           // Element name within the BPMN XML.
+	BpmnElementType     model.ElementType `json:"bpmnElementType" validate:"required"` // BPMN element type.
+	IsMultiInstance     bool              `json:"multiInstance,omitempty"`             // Determines if the element is a multi instance.
+	ParentBpmnElementId string            `json:"parentBpmnElementId,omitempty"`       // ID of the parent BPMN element, the enclosing scope.
 
 	EventDefinition *EventDefinition `json:"eventDefinition,omitempty"` // Definition, in case of a BPMN event.
 }

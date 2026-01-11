@@ -32,14 +32,16 @@ INSERT INTO element (
 	bpmn_element_id,
 	bpmn_element_name,
 	bpmn_element_type,
-	is_multi_instance
+	is_multi_instance,
+	parent_bpmn_element_id
 ) VALUES (
 	$1,
 
 	$2,
 	$3,
 	$4,
-	$5
+	$5,
+	$6
 ) RETURNING id
 `,
 			entity.ProcessId,
@@ -48,6 +50,7 @@ INSERT INTO element (
 			entity.BpmnElementName,
 			entity.BpmnElementType.String(),
 			entity.IsMultiInstance,
+			entity.ParentBpmnElementId,
 		)
 	}
 
@@ -154,6 +157,7 @@ func (r elementRepository) Query(criteria engine.ElementCriteria, options engine
 			&entity.BpmnElementName,
 			&bpmnElementTypeValue,
 			&entity.IsMultiInstance,
+			&entity.ParentBpmnElementId,
 
 			&isSuspended,
 

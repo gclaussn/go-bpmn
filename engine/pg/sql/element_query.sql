@@ -7,6 +7,7 @@ SELECT
 	element.bpmn_element_name,
 	element.bpmn_element_type,
 	element.is_multi_instance,
+	element.parent_bpmn_element_id,
 
 	event_definition.is_suspended,
 

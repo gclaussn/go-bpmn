@@ -476,12 +476,18 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	// insert elements
 	elements := make([]*ElementEntity, len(bpmnElements))
 	for i, bpmnElement := range bpmnElements {
+		var parentBpmnElementId pgtype.Text
+		if bpmnElement.Parent != nil {
+			parentBpmnElementId = pgtype.Text{String: bpmnElement.Parent.Id, Valid: true}
+		}
+
 		element := ElementEntity{
 			ProcessId: process.Id,
 
-			BpmnElementId:   bpmnElement.Id,
-			BpmnElementName: bpmnElement.Name,
-			BpmnElementType: bpmnElement.Type,
+			BpmnElementId:       bpmnElement.Id,
+			BpmnElementName:     bpmnElement.Name,
+			BpmnElementType:     bpmnElement.Type,
+			ParentBpmnElementId: parentBpmnElementId,
 		}
 
 		elements[i] = &element
