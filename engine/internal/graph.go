@@ -230,8 +230,9 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 				execution.State = engine.InstanceCompleted
 			}
 		// event
+		case model.ElementMessageCatchEvent:
+			execution.State = engine.InstanceCreated
 		case
-			model.ElementMessageCatchEvent,
 			model.ElementSignalCatchEvent,
 			model.ElementTimerCatchEvent:
 			if node.eventDefinition == nil {
@@ -333,7 +334,7 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 					prev:   execution,
 				}
 
-				if attachedNode.eventDefinition == nil {
+				if attachedNode.eventDefinition == nil || attachment.Type == model.ElementMessageBoundaryEvent {
 					executionCount--
 				}
 

@@ -135,6 +135,28 @@ func (d Delegator) SetEscalationCode(bpmnElementId string, delegation func(jc Jo
 	}
 }
 
+// SetMessageCorrelationKey delegates jobs of type [engine.JobSetMessageCorrelationKey].
+//
+// Applicable for BPMN element types:
+//   - message boundary event
+//   - message catch event
+func (d Delegator) SetMessageCorrelationKey(bpmnElementId string, delegation func(jc JobContext) (string, error)) {
+	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
+		if jc.Job.Type != engine.JobSetMessageCorrelationKey {
+			return nil, fmt.Errorf("expected job type %s, but got %s", engine.JobSetMessageCorrelationKey, jc.Job.Type)
+		}
+
+		messageCorrelationKey, err := delegation(jc)
+		if err != nil {
+			return nil, err
+		}
+
+		return &engine.JobCompletion{
+			MessageCorrelationKey: messageCorrelationKey,
+		}, nil
+	}
+}
+
 // SetTimer delegates jobs of type [engine.JobSetTimer].
 //
 // Applicable for BPMN element types:

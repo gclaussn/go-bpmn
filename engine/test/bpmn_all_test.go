@@ -80,8 +80,10 @@ func TestBpmn(t *testing.T) {
 			t.Run(engineTypes[i]+"boundary non-interrupting with message sent before", messageEventTest.boundaryNonInterruptingMessageSentBefore)
 			t.Run(engineTypes[i]+"catch", messageEventTest.catch)
 			t.Run(engineTypes[i]+"catchMessageSentBefore", messageEventTest.catchMessageSentBefore)
+			t.Run(engineTypes[i]+"catch event definition", messageEventTest.catchDefinition)
 			t.Run(engineTypes[i]+"start", messageEventTest.start)
 			t.Run(engineTypes[i]+"startSingleton", messageEventTest.startSingleton)
+			t.Run(engineTypes[i]+"start event definition", messageEventTest.startDefinition)
 		}
 	})
 

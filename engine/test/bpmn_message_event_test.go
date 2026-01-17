@@ -16,6 +16,8 @@ func newMessageEventTest(t *testing.T, e engine.Engine) messageEventTest {
 		boundaryProcess:                mustCreateProcess(t, e, "event/message-boundary.bpmn", "messageBoundaryTest"),
 		boundaryNonInterruptingProcess: mustCreateProcess(t, e, "event/message-boundary-non-interrupting.bpmn", "messageBoundaryNonInterruptingTest"),
 		catchProcess:                   mustCreateProcess(t, e, "event/message-catch.bpmn", "messageCatchTest"),
+		catchDefinitionProcess:         mustCreateProcess(t, e, "event/message-catch-definition.bpmn", "messageCatchDefinitionTest"),
+		startDefinitionProcess:         mustCreateProcess(t, e, "event/message-start-definition.bpmn", "messageStartDefinitionTest"),
 	}
 }
 
@@ -25,6 +27,8 @@ type messageEventTest struct {
 	boundaryProcess                engine.Process
 	boundaryNonInterruptingProcess engine.Process
 	catchProcess                   engine.Process
+	catchDefinitionProcess         engine.Process
+	startDefinitionProcess         engine.Process
 }
 
 func (x messageEventTest) boundary(t *testing.T) {
@@ -285,6 +289,67 @@ func (x messageEventTest) catch(t *testing.T) {
 	piAssert.HasProcessVariable("a")
 	piAssert.HasNoProcessVariable("b")
 	piAssert.HasNoProcessVariable("c")
+
+	messages, err := x.e.CreateQuery().QueryMessages(context.Background(), engine.MessageCriteria{Id: message.Id})
+	if err != nil {
+		t.Fatalf("failed to query messages: %v", err)
+	}
+
+	assert.Len(messages, 1)
+	assert.NotNil(messages[0].ExpiresAt)
+	assert.True(messages[0].IsCorrelated)
+}
+
+func (x messageEventTest) catchDefinition(t *testing.T) {
+	assert := assert.New(t)
+
+	processInstance, err := x.e.CreateProcessInstance(context.Background(), engine.CreateProcessInstanceCmd{
+		BpmnProcessId: x.catchDefinitionProcess.BpmnProcessId,
+		Version:       x.catchProcess.Version,
+		WorkerId:      testWorkerId,
+	})
+	if err != nil {
+		t.Fatalf("failed to create process instance: %v", err)
+	}
+
+	piAssert := engine.Assert(t, x.e, processInstance)
+
+	piAssert.IsWaitingAt("messageCatchEvent")
+	piAssert.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			MessageCorrelationKey: "catchMessageCk",
+		},
+	})
+
+	// when message sent
+	message, err := x.e.SendMessage(context.Background(), engine.SendMessageCmd{
+		CorrelationKey: "catchMessageCk",
+		Name:           "catchMessageName",
+		WorkerId:       testWorkerId,
+	})
+	if err != nil {
+		t.Fatalf("failed to send message: %v", err)
+	}
+
+	// then
+	assert.Equal(engine.Message{
+		Id: message.Id,
+
+		CorrelationKey: "catchMessageCk",
+		CreatedAt:      message.CreatedAt,
+		CreatedBy:      testWorkerId,
+		ExpiresAt:      nil,
+		IsCorrelated:   true,
+		Name:           "catchMessageName",
+		UniqueKey:      "",
+	}, message)
+
+	// when
+	piAssert.IsWaitingAt("messageCatchEvent")
+	piAssert.ExecuteTask()
+
+	// then
+	piAssert.IsCompleted()
 
 	messages, err := x.e.CreateQuery().QueryMessages(context.Background(), engine.MessageCriteria{Id: message.Id})
 	if err != nil {
@@ -562,4 +627,14 @@ func (x messageEventTest) startSingleton(t *testing.T) {
 	}
 
 	assert.NotNil(messages[0].ExpiresAt)
+}
+
+func (x messageEventTest) startDefinition(t *testing.T) {
+	piAssert := engine.AssertMessageStart(t, x.e, x.startDefinitionProcess.Id, engine.SendMessageCmd{
+		CorrelationKey: "startMessageCk",
+		Name:           "startMessageName",
+		WorkerId:       testWorkerId,
+	})
+
+	piAssert.IsCompleted()
 }

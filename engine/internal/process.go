@@ -323,21 +323,49 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			}
 		}
 
-		messageName := messageNames[bpmnElement.Id]
-		if messageName != "" {
-			if bpmnElement.Type != model.ElementMessageStartEvent {
-				causes = append(causes, engine.ErrorCause{
-					Pointer: elementPointer(bpmnElement),
-					Type:    "message_event",
-					Detail:  fmt.Sprintf("BPMN element %s is not a message start event", bpmnElement.Id),
-				})
+		messageName, messageNameSet := messageNames[bpmnElement.Id]
+		if messageNameSet && messageName == "" {
+			causes = append(causes, engine.ErrorCause{
+				Pointer: elementPointer(bpmnElement),
+				Type:    "message_event",
+				Detail:  "message name is empty",
+			})
+		}
+
+		switch bpmnElement.Type {
+		case model.ElementMessageBoundaryEvent:
+			if !messageNameSet {
+				boundaryEvent := bpmnElement.Model.(model.BoundaryEvent)
+				if message := boundaryEvent.EventDefinition.Message; message != nil {
+					messageNames[bpmnElement.Id] = message.Name
+				}
 			}
-		} else {
-			if bpmnElement.Type == model.ElementMessageStartEvent {
+		case model.ElementMessageCatchEvent:
+			if !messageNameSet {
+				intermediateCatchEvent := bpmnElement.Model.(model.IntermediateCatchEvent)
+				if message := intermediateCatchEvent.EventDefinition.Message; message != nil {
+					messageNames[bpmnElement.Id] = message.Name
+				}
+			}
+		case model.ElementMessageStartEvent:
+			if !messageNameSet {
+				startEvent := bpmnElement.Model.(model.StartEvent)
+				if message := startEvent.EventDefinition.Message; message != nil {
+					messageNames[bpmnElement.Id] = message.Name
+				} else {
+					causes = append(causes, engine.ErrorCause{
+						Pointer: elementPointer(bpmnElement),
+						Type:    "message_event",
+						Detail:  fmt.Sprintf("no message name defined for BPMN element %s", bpmnElement.Id),
+					})
+				}
+			}
+		default:
+			if messageNameSet {
 				causes = append(causes, engine.ErrorCause{
 					Pointer: elementPointer(bpmnElement),
 					Type:    "message_event",
-					Detail:  fmt.Sprintf("no message name defined for BPMN element %s", bpmnElement.Id),
+					Detail:  fmt.Sprintf("BPMN element %s is not a message event", bpmnElement.Id),
 				})
 			}
 		}
@@ -579,10 +607,6 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 				Type:    "message_event",
 				Detail:  err.Error(),
 			})
-			continue
-		}
-
-		if messageName == "" {
 			continue
 		}
 

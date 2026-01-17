@@ -130,7 +130,11 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 				execution.Context = pgtype.Text{String: node.eventDefinition.EscalationCode.String, Valid: true}
 			}
 		case model.ElementMessageBoundaryEvent, model.ElementMessageCatchEvent:
-			jobType = engine.JobSubscribeMessage
+			if node.eventDefinition == nil {
+				jobType = engine.JobSubscribeMessage
+			} else {
+				jobType = engine.JobSetMessageCorrelationKey
+			}
 		case model.ElementSignalBoundaryEvent, model.ElementSignalCatchEvent:
 			if node.eventDefinition == nil {
 				jobType = engine.JobSubscribeSignal
@@ -646,10 +650,19 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 		}
 
 		execution.Context = pgtype.Text{String: jobCompletion.Timer.String(), Valid: true}
-	case engine.JobSubscribeMessage:
-		if jobCompletion == nil || jobCompletion.MessageName == "" || jobCompletion.MessageCorrelationKey == "" {
-			job.Error = pgtype.Text{String: "expected a message name and correlation key", Valid: true}
-			return nil
+	case engine.JobSubscribeMessage, engine.JobSetMessageCorrelationKey:
+		if job.Type == engine.JobSubscribeMessage {
+			if jobCompletion == nil || jobCompletion.MessageName == "" || jobCompletion.MessageCorrelationKey == "" {
+				job.Error = pgtype.Text{String: "expected a message name and correlation key", Valid: true}
+				return nil
+			}
+		} else {
+			if jobCompletion == nil || jobCompletion.MessageCorrelationKey == "" {
+				job.Error = pgtype.Text{String: "expected a message correlation key", Valid: true}
+				return nil
+			}
+
+			jobCompletion.MessageName = node.eventDefinition.MessageName.String
 		}
 
 		var (

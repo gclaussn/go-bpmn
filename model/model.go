@@ -144,6 +144,10 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				addNewElement(ElementNoneThrowEvent, t.Attr)
 			case "manualTask":
 				addNewElement(ElementManualTask, t.Attr)
+			case "message":
+				messageId := getAttrValue(t.Attr, "id")
+				message := definitions.messageById(messageId)
+				message.Name = getAttrValue(t.Attr, "name")
 			case "messageEventDefinition":
 				if isBoundaryEvent {
 					element.Type = ElementMessageBoundaryEvent
@@ -151,6 +155,24 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 					element.Type = ElementMessageStartEvent
 				} else {
 					element.Type = ElementMessageCatchEvent
+				}
+
+				eventDefinition := EventDefinition{Id: getAttrValue(t.Attr, "id")}
+
+				if messageId := getAttrValue(t.Attr, "messageRef"); messageId != "" {
+					eventDefinition.Message = definitions.messageById(messageId)
+				}
+
+				switch model := element.Model.(type) {
+				case BoundaryEvent:
+					model.EventDefinition = eventDefinition
+					element.Model = model
+				case IntermediateCatchEvent:
+					model.EventDefinition = eventDefinition
+					element.Model = model
+				case StartEvent:
+					model.EventDefinition = eventDefinition
+					element.Model = model
 				}
 			case "outgoing":
 				isOutgoing = true
@@ -361,6 +383,7 @@ type Definitions struct {
 
 	Errors      []*Error
 	Escalations []*Escalation
+	Messages    []*Message
 	Processes   []*Element
 	Signals     []*Signal
 }
@@ -389,6 +412,18 @@ func (d *Definitions) escalationById(id string) *Escalation {
 	return escalation
 }
 
+func (d *Definitions) messageById(id string) *Message {
+	for _, message := range d.Messages {
+		if message.Id == id {
+			return message
+		}
+	}
+
+	message := &Message{Id: id}
+	d.Messages = append(d.Messages, message)
+	return message
+}
+
 func (d *Definitions) signalById(id string) *Signal {
 	for _, signal := range d.Signals {
 		if signal.Id == id {
@@ -411,6 +446,11 @@ type Escalation struct {
 	Id   string
 	Name string
 	Code string
+}
+
+type Message struct {
+	Id   string
+	Name string
 }
 
 type Signal struct {
