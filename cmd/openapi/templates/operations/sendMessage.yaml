@@ -2,12 +2,12 @@ tags:
   - Events
 summary: Send message
 description: >
-  Sends a message to notify a message subscriber or buffer it.
+  Sends a message to notify a message subscriber or to buffer the message.
 
 
-  A subscriber can be a message start or catch event.
+  A subscriber can be a message start, boundary or catch event.
   In case of a message start event, a new process instance is created.
-  In case of a message catch event, an existing process instance is continued.
+  In case of a message boundary or catch event, an existing process instance is continued.
 requestBody:
   content:
     application/json:

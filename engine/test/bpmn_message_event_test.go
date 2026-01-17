@@ -6,32 +6,232 @@ import (
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func newMessageEventTest(t *testing.T, e engine.Engine) messageEventTest {
 	return messageEventTest{
 		e: e,
 
-		catchTest: mustCreateProcess(t, e, "event/message-catch.bpmn", "messageCatchTest"),
+		boundaryProcess:                mustCreateProcess(t, e, "event/message-boundary.bpmn", "messageBoundaryTest"),
+		boundaryNonInterruptingProcess: mustCreateProcess(t, e, "event/message-boundary-non-interrupting.bpmn", "messageBoundaryNonInterruptingTest"),
+		catchProcess:                   mustCreateProcess(t, e, "event/message-catch.bpmn", "messageCatchTest"),
 	}
 }
 
 type messageEventTest struct {
 	e engine.Engine
 
-	catchTest engine.Process
+	boundaryProcess                engine.Process
+	boundaryNonInterruptingProcess engine.Process
+	catchProcess                   engine.Process
+}
+
+func (x messageEventTest) boundary(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryProcess)
+
+	piAssert.IsWaitingAt("serviceTask")
+
+	piAssert.IsWaitingAt("messageBoundaryEvent")
+	piAssert.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			MessageCorrelationKey: "boundary-message-ck",
+			MessageName:           "boundary-message",
+		},
+	})
+
+	piAssert.IsWaitingAt("serviceTask")
+
+	_, err := x.e.SendMessage(context.Background(), engine.SendMessageCmd{
+		CorrelationKey: "boundary-message-ck",
+		Name:           "boundary-message",
+		WorkerId:       testWorkerId,
+	})
+	if err != nil {
+		t.Fatalf("failed to send message: %v", err)
+	}
+
+	piAssert.IsWaitingAt("messageBoundaryEvent")
+	piAssert.ExecuteTask()
+	piAssert.HasPassed("messageBoundaryEvent")
+	piAssert.HasPassed("endEventB")
+	piAssert.IsCompleted()
+
+	elementInstances := piAssert.ElementInstances()
+	require.Len(elementInstances, 5)
+
+	assert.Equal(engine.InstanceTerminated, elementInstances[2].State) // serviceTask
+	assert.Equal(engine.InstanceCompleted, elementInstances[3].State)  // messageBoundaryEvent
+
+	jobs := piAssert.Jobs()
+	require.Len(jobs, 2)
+
+	assert.Equal(engine.JobSubscribeMessage, jobs[0].Type)
+	assert.Equal(engine.JobExecute, jobs[1].Type)
+}
+
+func (x messageEventTest) boundaryMessageSentBefore(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	_, err := x.e.SendMessage(context.Background(), engine.SendMessageCmd{
+		CorrelationKey: "boundary-message-ck",
+		ExpirationTimer: &engine.Timer{
+			TimeDuration: engine.ISO8601Duration("PT1H"),
+		},
+		Name:     "boundary-message",
+		WorkerId: testWorkerId,
+	})
+	if err != nil {
+		t.Fatalf("failed to send message: %v", err)
+	}
+
+	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryProcess)
+
+	piAssert.IsWaitingAt("serviceTask")
+
+	piAssert.IsWaitingAt("messageBoundaryEvent")
+	piAssert.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			MessageCorrelationKey: "boundary-message-ck",
+			MessageName:           "boundary-message",
+		},
+	})
+
+	piAssert.IsWaitingAt("serviceTask")
+
+	piAssert.IsWaitingAt("messageBoundaryEvent")
+	piAssert.ExecuteTask()
+	piAssert.HasPassed("messageBoundaryEvent")
+	piAssert.HasPassed("endEventB")
+	piAssert.IsCompleted()
+
+	elementInstances := piAssert.ElementInstances()
+	require.Len(elementInstances, 5)
+
+	assert.Equal(engine.InstanceTerminated, elementInstances[2].State) // serviceTask
+	assert.Equal(engine.InstanceCompleted, elementInstances[3].State)  // messageBoundaryEvent
+
+	jobs := piAssert.Jobs()
+	require.Len(jobs, 1)
+
+	assert.Equal(engine.JobSubscribeMessage, jobs[0].Type)
+}
+
+func (x messageEventTest) boundaryNonInterrupting(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryNonInterruptingProcess)
+
+	piAssert.IsWaitingAt("serviceTask")
+
+	piAssert.IsWaitingAt("messageBoundaryEvent")
+	piAssert.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			MessageCorrelationKey: "boundary-message-ck",
+			MessageName:           "boundary-message",
+		},
+	})
+
+	piAssert.IsWaitingAt("serviceTask")
+
+	_, err := x.e.SendMessage(context.Background(), engine.SendMessageCmd{
+		CorrelationKey: "boundary-message-ck",
+		Name:           "boundary-message",
+		WorkerId:       testWorkerId,
+	})
+	if err != nil {
+		t.Fatalf("failed to send message: %v", err)
+	}
+
+	piAssert.IsWaitingAt("messageBoundaryEvent")
+	piAssert.ExecuteTask()
+
+	piAssert.IsWaitingAt("serviceTask")
+	piAssert.CompleteJob()
+
+	piAssert.HasPassed("serviceTask")
+	piAssert.HasPassed("endEventA")
+	piAssert.IsCompleted()
+
+	elementInstances := piAssert.ElementInstances()
+	require.Len(elementInstances, 7)
+
+	assert.Equal(engine.InstanceCompleted, elementInstances[2].State)  // serviceTask
+	assert.Equal(engine.InstanceCompleted, elementInstances[3].State)  // messageBoundaryEvent #1
+	assert.Equal(engine.InstanceTerminated, elementInstances[4].State) // messageBoundaryEvent #2
+
+	jobs := piAssert.Jobs()
+	require.Len(jobs, 2)
+
+	assert.Equal(engine.JobSubscribeMessage, jobs[0].Type)
+	assert.Equal(engine.JobExecute, jobs[1].Type)
+}
+
+func (x messageEventTest) boundaryNonInterruptingMessageSentBefore(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	_, err := x.e.SendMessage(context.Background(), engine.SendMessageCmd{
+		CorrelationKey: "boundary-message-ck",
+		ExpirationTimer: &engine.Timer{
+			TimeDuration: engine.ISO8601Duration("PT1H"),
+		},
+		Name:     "boundary-message",
+		WorkerId: testWorkerId,
+	})
+	if err != nil {
+		t.Fatalf("failed to send message: %v", err)
+	}
+
+	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryNonInterruptingProcess)
+
+	piAssert.IsWaitingAt("serviceTask")
+
+	piAssert.IsWaitingAt("messageBoundaryEvent")
+	piAssert.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			MessageCorrelationKey: "boundary-message-ck",
+			MessageName:           "boundary-message",
+		},
+	})
+
+	piAssert.IsWaitingAt("serviceTask")
+
+	piAssert.IsWaitingAt("messageBoundaryEvent")
+	piAssert.ExecuteTask()
+
+	piAssert.IsWaitingAt("serviceTask")
+	piAssert.CompleteJob()
+
+	piAssert.HasPassed("serviceTask")
+	piAssert.HasPassed("endEventA")
+	piAssert.IsCompleted()
+
+	elementInstances := piAssert.ElementInstances()
+	require.Len(elementInstances, 7)
+
+	assert.Equal(engine.InstanceCompleted, elementInstances[2].State)  // serviceTask
+	assert.Equal(engine.InstanceCompleted, elementInstances[3].State)  // messageBoundaryEvent #1
+	assert.Equal(engine.InstanceTerminated, elementInstances[4].State) // messageBoundaryEvent #2
+
+	jobs := piAssert.Jobs()
+	require.Len(jobs, 2)
+
+	assert.Equal(engine.JobSubscribeMessage, jobs[0].Type)
+	assert.Equal(engine.JobExecute, jobs[1].Type)
 }
 
 func (x messageEventTest) catch(t *testing.T) {
 	assert := assert.New(t)
 
 	processInstance, err := x.e.CreateProcessInstance(context.Background(), engine.CreateProcessInstanceCmd{
-		BpmnProcessId: x.catchTest.BpmnProcessId,
+		BpmnProcessId: x.catchProcess.BpmnProcessId,
 		Variables: []engine.VariableData{
 			{Name: "a", Data: &engine.Data{Encoding: "encoding-a", Value: "value-a"}},
 			{Name: "b", Data: &engine.Data{Encoding: "encoding-b", Value: "value-b"}},
 		},
-		Version:  x.catchTest.Version,
+		Version:  x.catchProcess.Version,
 		WorkerId: testWorkerId,
 	})
 	if err != nil {
@@ -134,8 +334,8 @@ func (x messageEventTest) catchMessageSentBefore(t *testing.T) {
 	}
 
 	createProcessInstanceCmd := engine.CreateProcessInstanceCmd{
-		BpmnProcessId: x.catchTest.BpmnProcessId,
-		Version:       x.catchTest.Version,
+		BpmnProcessId: x.catchProcess.BpmnProcessId,
+		Version:       x.catchProcess.Version,
 		WorkerId:      testWorkerId,
 	}
 

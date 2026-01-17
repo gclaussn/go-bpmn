@@ -263,6 +263,133 @@ func findMessageSubscriber(ctx Context, cmd engine.SendMessageCmd) (*MessageSubs
 	return nil, nil, nil
 }
 
+func (ec *executionContext) triggerMessageBoundaryEvent(ctx Context, messageId int64, interrupting bool) error {
+	execution := ec.executions[0]
+
+	message, err := ctx.Messages().Select(messageId)
+	if err != nil {
+		return err
+	}
+
+	ec.engineOrWorkerId = message.CreatedBy
+
+	scope, err := ctx.ElementInstances().Select(execution.Partition, execution.ParentId.Int32)
+	if err != nil {
+		return err
+	}
+
+	ec.addExecution(scope)
+
+	var newExecution *ElementInstanceEntity
+
+	// start boundary event
+	execution.State = engine.InstanceStarted
+
+	if interrupting {
+		// terminate attached to and all other boundary events
+		attachedTo, err := ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
+		if err != nil {
+			return err
+		}
+
+		attachedTo.State = engine.InstanceTerminated
+		ec.addExecution(attachedTo)
+
+		boundaryEvents, err := ctx.ElementInstances().SelectBoundaryEvents(attachedTo)
+		if err != nil {
+			return err
+		}
+
+		for _, boundaryEvent := range boundaryEvents {
+			if boundaryEvent.Id == execution.Id {
+				continue
+			}
+
+			boundaryEvent.State = engine.InstanceTerminated
+			ec.addExecution(boundaryEvent)
+		}
+	} else {
+		// attach new boundary event
+		attached, err := ec.process.graph.createExecutionAt(scope, execution.BpmnElementId)
+		if err != nil {
+			return err
+		}
+
+		attached.ParentId = execution.ParentId
+		attached.PrevElementId = execution.PrevElementId
+		attached.PrevId = execution.PrevId
+
+		attached.Context = execution.Context
+		attached.State = engine.InstanceCreated
+
+		newExecution = &attached
+		ec.addExecution(newExecution)
+	}
+
+	if err := ec.continueExecutions(ctx); err != nil {
+		if _, ok := err.(engine.Error); ok {
+			return err
+		} else {
+			return fmt.Errorf("failed to continue executions %+v: %v", ec.executions, err)
+		}
+	}
+
+	messageVariables, err := ctx.MessageVariables().SelectByMessageId(messageId)
+	if err != nil {
+		return err
+	}
+
+	for _, variable := range messageVariables {
+		if !variable.Value.Valid {
+			if err := ctx.Variables().Delete(&VariableEntity{ // with fields, needed for deletion
+				Partition:         execution.Partition,
+				ProcessInstanceId: execution.ProcessInstanceId,
+				Name:              variable.Name,
+			}); err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		if err := ctx.Variables().Insert(&VariableEntity{
+			Partition: execution.Partition,
+
+			ProcessId:         execution.ProcessId,
+			ProcessInstanceId: execution.ProcessInstanceId,
+
+			CreatedAt:   ctx.Time(),
+			CreatedBy:   message.CreatedBy,
+			Encoding:    variable.Encoding.String,
+			IsEncrypted: variable.IsEncrypted.Bool,
+			Name:        variable.Name,
+			UpdatedAt:   ctx.Time(),
+			UpdatedBy:   message.CreatedBy,
+			Value:       variable.Value.String,
+		}); err != nil {
+			return err
+		}
+	}
+
+	event := EventEntity{
+		Partition: execution.Partition,
+
+		ElementInstanceId: execution.Id,
+
+		CreatedAt:             ctx.Time(),
+		CreatedBy:             message.CreatedBy,
+		MessageCorrelationKey: pgtype.Text{String: message.CorrelationKey, Valid: true},
+		MessageName:           pgtype.Text{String: message.Name, Valid: true},
+	}
+
+	if err := ctx.Events().Insert(&event); err != nil {
+		return err
+	}
+
+	message.ExpiresAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
+	return ctx.Messages().Update(message)
+}
+
 func (ec *executionContext) triggerMessageCatchEvent(ctx Context, messageId int64) error {
 	execution := ec.executions[0]
 

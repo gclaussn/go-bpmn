@@ -162,6 +162,7 @@ func (d Delegator) SetTimer(bpmnElementId string, delegation func(jc JobContext)
 // A delegation function must return message name and correlation key.
 //
 // Applicable for BPMN element types:
+//   - message boundary event
 //   - message catch event
 func (d Delegator) SubscribeMessage(bpmnElementId string, delegation func(jc JobContext) (string, string, error)) {
 	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {

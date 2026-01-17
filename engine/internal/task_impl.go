@@ -242,12 +242,15 @@ func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
 	var interrupting bool
 	switch bpmnElement.Type {
 	case
+		model.ElementMessageBoundaryEvent,
 		model.ElementSignalBoundaryEvent,
 		model.ElementTimerBoundaryEvent:
 		interrupting = bpmnElement.Model.(model.BoundaryEvent).CancelActivity
 	}
 
 	switch bpmnElement.Type {
+	case model.ElementMessageBoundaryEvent:
+		return ec.triggerMessageBoundaryEvent(ctx, t.MessageId, interrupting)
 	case model.ElementMessageCatchEvent:
 		return ec.triggerMessageCatchEvent(ctx, t.MessageId)
 	case model.ElementMessageStartEvent:

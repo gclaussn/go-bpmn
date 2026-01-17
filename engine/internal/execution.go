@@ -129,7 +129,7 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			} else {
 				execution.Context = pgtype.Text{String: node.eventDefinition.EscalationCode.String, Valid: true}
 			}
-		case model.ElementMessageCatchEvent:
+		case model.ElementMessageBoundaryEvent, model.ElementMessageCatchEvent:
 			jobType = engine.JobSubscribeMessage
 		case model.ElementSignalBoundaryEvent, model.ElementSignalCatchEvent:
 			if node.eventDefinition == nil {
@@ -652,6 +652,25 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 			return nil
 		}
 
+		var (
+			attachedTo   *ElementInstanceEntity
+			interrupting bool
+		)
+		if node.bpmnElement.Type == model.ElementMessageBoundaryEvent {
+			selectedAttachedTo, err := ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
+			if err != nil {
+				return fmt.Errorf("failed to select attached to element instance: %v", err)
+			}
+
+			if selectedAttachedTo.EndedAt.Valid {
+				return nil // terminated or canceled
+			}
+
+			attachedTo = selectedAttachedTo
+
+			interrupting = node.bpmnElement.Model.(model.BoundaryEvent).CancelActivity
+		}
+
 		bufferedMessage, err := ctx.Messages().SelectBuffered(jobCompletion.MessageName, jobCompletion.MessageCorrelationKey, ctx.Time())
 		if err != nil && err != pgx.ErrNoRows {
 			return err
@@ -685,6 +704,11 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 			if err := ctx.Messages().Update(bufferedMessage); err != nil {
 				return err
 			}
+
+			if attachedTo != nil && !interrupting {
+				attachedTo.ExecutionCount++
+				ec.addExecution(attachedTo)
+			}
 		} else {
 			messageSubscription := MessageSubscriptionEntity{
 				Partition: execution.Partition,
@@ -703,6 +727,11 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 
 			if err := ctx.MessageSubscriptions().Insert(&messageSubscription); err != nil {
 				return err
+			}
+
+			if attachedTo != nil {
+				attachedTo.ExecutionCount++
+				ec.addExecution(attachedTo)
 			}
 		}
 

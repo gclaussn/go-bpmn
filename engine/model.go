@@ -96,7 +96,7 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 //   - [JobSetErrorCode]: error boundary event
 //   - [JobSetEscalationCode]: escalation boundary event
 //   - [JobSetTimer]: timer boundary and catch event
-//   - [JobSubscribeMessage]: message catch event
+//   - [JobSubscribeMessage]: message boundary and catch event
 //   - [JobSubscribeSignal]: signal boundary and catch event
 type JobType int
 

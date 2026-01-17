@@ -145,10 +145,11 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 			case "manualTask":
 				addNewElement(ElementManualTask, t.Attr)
 			case "messageEventDefinition":
-				switch element.Type {
-				case ElementNoneStartEvent:
+				if isBoundaryEvent {
+					element.Type = ElementMessageBoundaryEvent
+				} else if element.Type == ElementNoneStartEvent {
 					element.Type = ElementMessageStartEvent
-				default:
+				} else {
 					element.Type = ElementMessageCatchEvent
 				}
 			case "outgoing":
@@ -262,6 +263,7 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 		case
 			ElementErrorBoundaryEvent,
 			ElementEscalationBoundaryEvent,
+			ElementMessageBoundaryEvent,
 			ElementSignalBoundaryEvent,
 			ElementTimerBoundaryEvent:
 			// resolve "attached to" placeholder
