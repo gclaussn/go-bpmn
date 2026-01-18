@@ -101,6 +101,7 @@ func ResolveIncident(ctx Context, cmd engine.ResolveIncidentCmd) error {
 			CreatedAt:      ctx.Time(),
 			CreatedBy:      cmd.WorkerId,
 			DueAt:          dueAt,
+			State:          engine.WorkCreated,
 			Type:           job.Type,
 		}
 
@@ -124,6 +125,7 @@ func ResolveIncident(ctx Context, cmd engine.ResolveIncidentCmd) error {
 			CreatedBy:      cmd.WorkerId,
 			DueAt:          dueAt,
 			SerializedTask: task.SerializedTask,
+			State:          engine.WorkCreated,
 			Type:           task.Type,
 
 			Instance: task.Instance,

@@ -158,6 +158,7 @@ func dequeueProcessInstance(ctx Context, processInstance *ProcessInstanceEntity,
 			CreatedAt: ctx.Time(),
 			CreatedBy: engineOrWorkerId,
 			DueAt:     ctx.Time(),
+			State:     engine.WorkCreated,
 			Type:      engine.TaskStartProcessInstance,
 
 			Instance: StartProcessInstanceTask{},

@@ -604,6 +604,7 @@ func TestCreateProcessWithTimer(t *testing.T) {
 					CreatedBy:      testWorkerId,
 					DueAt:          tasks[0].DueAt,
 					SerializedTask: tasks[0].SerializedTask,
+					State:          engine.WorkCreated,
 					Type:           engine.TaskTriggerEvent,
 				}, tasks[0])
 

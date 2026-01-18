@@ -114,6 +114,7 @@ func TestResolveIncident(t *testing.T) {
 			CreatedBy:      cmd.WorkerId,
 			DueAt:          retryJob.CreatedAt,
 			RetryCount:     0,
+			State:          engine.WorkCreated,
 			Type:           job.Type,
 		}, retryJob)
 
@@ -174,6 +175,7 @@ func TestResolveIncident(t *testing.T) {
 			CreatedBy:      cmd.WorkerId,
 			DueAt:          retryJob.CreatedAt.Add(1 * time.Hour),
 			RetryCount:     0,
+			State:          engine.WorkCreated,
 			Type:           job.Type,
 		}, retryJob)
 	})
@@ -241,6 +243,7 @@ func TestResolveIncident(t *testing.T) {
 			DueAt:          retryTask.CreatedAt,
 			RetryCount:     0,
 			SerializedTask: retryTask.SerializedTask,
+			State:          engine.WorkCreated,
 			Type:           task.Type,
 		}, retryTask)
 	})
@@ -290,6 +293,7 @@ func TestResolveIncident(t *testing.T) {
 			DueAt:          retryTask.CreatedAt.Add(24 * time.Hour),
 			RetryCount:     0,
 			SerializedTask: retryTask.SerializedTask,
+			State:          engine.WorkCreated,
 			Type:           task.Type,
 		}, retryTask)
 	})

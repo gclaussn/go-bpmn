@@ -51,6 +51,7 @@ func TestLockJobs(t *testing.T) {
 
 			BpmnElementId: bpmnElementIds[i],
 			DueAt:         dueAts[i],
+			State:         engine.WorkCreated,
 		}
 
 		entities[i] = jobs[i]
@@ -66,6 +67,7 @@ func TestLockJobs(t *testing.T) {
 				assert.Len(lockedJobs, 1)
 				assert.Equal(engine.Partition(date), lockedJobs[0].Partition)
 				assert.Equal(jobs[0].Id, lockedJobs[0].Id)
+				assert.Equal(engine.WorkLocked, lockedJobs[0].State)
 			},
 		},
 		{

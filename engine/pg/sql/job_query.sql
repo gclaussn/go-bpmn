@@ -17,6 +17,7 @@ SELECT
 	locked_at,
 	locked_by,
 	retry_count,
+	state,
 	type
 FROM
 	job

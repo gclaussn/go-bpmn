@@ -2,7 +2,8 @@ UPDATE
 	task
 SET
 	locked_at = $1,
-	locked_by = $2
+	locked_by = $2,
+	state = 'LOCKED'
 FROM (
 	SELECT
 		partition,
@@ -54,4 +55,5 @@ RETURNING
 	task.locked_by,
 	task.retry_count,
   task.serialized_task,
+	task.state,
 	task.type

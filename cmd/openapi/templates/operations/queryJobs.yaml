@@ -38,6 +38,7 @@ responses:
               createdBy: go-bpmn
               dueAt: "2025-05-01T17:44:19.997Z"
               retryCount: 0
+              state: CREATED
               type: EXECUTE
             - partition: "2025-05-01"
               id: 1043
@@ -50,6 +51,7 @@ responses:
               createdBy: go-bpmn
               dueAt: "2025-05-01T17:44:19.997Z"
               retryCount: 0
+              state: CREATED
               type: EXECUTE
   "400":
     description: Bad request

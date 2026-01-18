@@ -17,5 +17,6 @@ CREATE TABLE IF NOT EXISTS job (
 	locked_at TIMESTAMP(3),
 	locked_by VARCHAR,
 	retry_count INTEGER NOT NULL,
+	state VARCHAR NOT NULL,
 	type VARCHAR NOT NULL
 ) PARTITION BY LIST (partition);

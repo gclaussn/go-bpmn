@@ -195,6 +195,7 @@ func TestCompleteJob(t *testing.T) {
 				LockedAt:       lockedJobs[0].LockedAt,
 				LockedBy:       testWorkerId,
 				RetryCount:     0,
+				State:          engine.WorkDone,
 				Type:           engine.JobExecute,
 			}, completedJob)
 
@@ -226,6 +227,7 @@ func TestCompleteJob(t *testing.T) {
 				LockedAt:       lockedJobs[0].LockedAt,
 				LockedBy:       testWorkerId,
 				RetryCount:     0,
+				State:          engine.WorkDone,
 				Type:           engine.JobExecute,
 			}, results[0])
 		})
@@ -292,6 +294,7 @@ func TestCompleteJob(t *testing.T) {
 				LockedAt:       nil,
 				LockedBy:       "",
 				RetryCount:     1,
+				State:          engine.WorkCreated,
 				Type:           engine.JobExecute,
 			}, results[0])
 		})

@@ -166,6 +166,7 @@ func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.Signal, error) {
 			CreatedAt:     signal.CreatedAt,
 			CreatedBy:     signal.CreatedBy,
 			DueAt:         signal.CreatedAt,
+			State:         engine.WorkCreated,
 			Type:          engine.TaskTriggerEvent,
 
 			Instance: TriggerEventTask{SignalId: signal.Id},
@@ -186,6 +187,7 @@ func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.Signal, error) {
 			CreatedAt:     signal.CreatedAt,
 			CreatedBy:     signal.CreatedBy,
 			DueAt:         signal.CreatedAt,
+			State:         engine.WorkCreated,
 			Type:          engine.TaskTriggerEvent,
 
 			Instance: TriggerEventTask{SignalId: signal.Id},

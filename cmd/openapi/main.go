@@ -63,22 +63,30 @@ func main() {
 
 	// model
 	elementType, elementTypeValues := describeEnum(model.ElementType(0))
+
 	generator.generateEnum(elementType, elementTypeValues)
 	generator.generateSchemas("model/element_type.go")
 
 	// engine
 	instanceState, instanceStateValues := describeEnum(engine.InstanceState(0))
 	generator.generateEnum(instanceState, instanceStateValues)
+
 	jobType, jobTypeValues := describeEnum(engine.JobType(0))
 	generator.generateEnum(jobType, jobTypeValues)
+
 	taskType, taskTypeValues := describeEnum(engine.TaskType(0))
 	generator.generateEnum(taskType, taskTypeValues)
+
+	workState, workStateValues := describeEnum(engine.WorkState(0))
+	generator.generateEnum(workState, workStateValues)
+
 	generator.generateSchemas("engine/command.go")
 	generator.generateSchemas("engine/model.go")
 
 	// server
 	problemType, problemTypeValues := describeEnum(common.ProblemType(0))
 	generator.generateEnum(problemType, problemTypeValues)
+
 	generator.generateSchemas("http/common/problem.go")
 	generator.generateSchemas("http/common/response.go")
 

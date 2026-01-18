@@ -17,5 +17,6 @@ CREATE TABLE IF NOT EXISTS task (
 	locked_by VARCHAR,
 	retry_count INTEGER NOT NULL,
 	serialized_task VARCHAR,
+	state VARCHAR NOT NULL,
 	type VARCHAR NOT NULL
 ) PARTITION BY LIST (partition);

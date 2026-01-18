@@ -46,6 +46,7 @@ INSERT INTO task (
 	due_at,
 	retry_count,
 	serialized_task,
+	state,
 	type
 ) VALUES (
 	$1,
@@ -62,7 +63,8 @@ INSERT INTO task (
 	$10,
 	$11,
 	$12,
-	$13
+	$13,
+	$14
 ) RETURNING id
 `,
 		entity.Partition,
@@ -79,6 +81,7 @@ INSERT INTO task (
 		entity.DueAt,
 		entity.RetryCount,
 		entity.SerializedTask,
+		entity.State.String(),
 		entity.Type.String(),
 	)
 
@@ -124,6 +127,7 @@ INSERT INTO task (
 	due_at,
 	retry_count,
 	serialized_task,
+	state,
 	type
 ) VALUES (
 	$1,
@@ -140,7 +144,8 @@ INSERT INTO task (
 	$10,
 	$11,
 	$12,
-	$13
+	$13,
+	$14
 ) RETURNING id
 `,
 			entity.Partition,
@@ -157,6 +162,7 @@ INSERT INTO task (
 			entity.DueAt,
 			entity.RetryCount,
 			entity.SerializedTask,
+			entity.State.String(),
 			entity.Type.String(),
 		)
 	}
@@ -193,6 +199,7 @@ SELECT
 	locked_by,
 	retry_count,
 	serialized_task,
+	state,
 	type
 FROM
 	task
@@ -202,8 +209,9 @@ WHERE
 `, partition, id)
 
 	var (
-		entity    internal.TaskEntity
-		typeValue string
+		entity     internal.TaskEntity
+		stateValue string
+		typeValue  string
 	)
 	if err := row.Scan(
 		&entity.ElementId,
@@ -221,6 +229,7 @@ WHERE
 		&entity.LockedBy,
 		&entity.RetryCount,
 		&entity.SerializedTask,
+		&stateValue,
 		&typeValue,
 	); err != nil {
 		return nil, fmt.Errorf("failed to select task %s/%d: %v", partition.Format(time.DateOnly), id, err)
@@ -228,6 +237,7 @@ WHERE
 
 	entity.Partition = partition
 	entity.Id = id
+	entity.State = engine.MapWorkState(stateValue)
 	entity.Type = engine.MapTaskType(typeValue)
 
 	return &entity, nil
@@ -239,7 +249,8 @@ UPDATE
 	task
 SET
 	completed_at = $3,
-	error = $4
+	error = $4,
+	state = $5
 WHERE
 	partition = $1 AND
 	id = $2
@@ -249,6 +260,7 @@ WHERE
 
 		entity.CompletedAt,
 		entity.Error,
+		entity.State.String(),
 	); err != nil {
 		return fmt.Errorf("failed to update task %+v: %v", entity, err)
 	}
@@ -275,8 +287,9 @@ func (r taskRepository) Query(criteria engine.TaskCriteria, options engine.Query
 	results := make([]engine.Task, 0)
 	for rows.Next() {
 		var (
-			entity    internal.TaskEntity
-			typeValue string
+			entity     internal.TaskEntity
+			stateValue string
+			typeValue  string
 		)
 
 		if err := rows.Scan(
@@ -298,11 +311,13 @@ func (r taskRepository) Query(criteria engine.TaskCriteria, options engine.Query
 			&entity.LockedBy,
 			&entity.RetryCount,
 			&entity.SerializedTask,
+			&stateValue,
 			&typeValue,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan task row: %v", err)
 		}
 
+		entity.State = engine.MapWorkState(stateValue)
 		entity.Type = engine.MapTaskType(typeValue)
 
 		results = append(results, entity.Task())
@@ -331,8 +346,9 @@ func (r taskRepository) Lock(cmd engine.ExecuteTasksCmd, lockedAt time.Time) ([]
 	var entities []*internal.TaskEntity
 	for rows.Next() {
 		var (
-			entity    internal.TaskEntity
-			typeValue string
+			entity     internal.TaskEntity
+			stateValue string
+			typeValue  string
 		)
 
 		if err := rows.Scan(
@@ -352,11 +368,13 @@ func (r taskRepository) Lock(cmd engine.ExecuteTasksCmd, lockedAt time.Time) ([]
 			&entity.LockedBy,
 			&entity.RetryCount,
 			&entity.SerializedTask,
+			&stateValue,
 			&typeValue,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan task lock row: %v", err)
 		}
 
+		entity.State = engine.MapWorkState(stateValue)
 		entity.Type = engine.MapTaskType(typeValue)
 
 		var err error

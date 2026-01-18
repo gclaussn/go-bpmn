@@ -42,6 +42,9 @@ func TestExecuteTask(t *testing.T) {
 		assert.Nil(err)
 		assert.True(entity.Error.Valid)
 		assert.Equal("BUG: failed to map task type: type START_PROCESS_INSTANCE is not supported", entity.Error.String)
+		assert.True(entity.CompletedAt.Valid)
+		assert.False(entity.CompletedAt.Time.IsZero())
+		assert.Equal(engine.WorkCausedIncident, entity.State)
 
 		results, err := e.CreateQuery().QueryIncidents(context.Background(), engine.IncidentCriteria{TaskId: entity.Id})
 		assert.Nil(err)
@@ -89,6 +92,9 @@ func TestExecuteTask(t *testing.T) {
 		assert.Nil(err)
 		assert.True(entity.Error.Valid)
 		assert.Equal("NOT_FOUND: dummy title: dummy detail", entity.Error.String)
+		assert.True(entity.CompletedAt.Valid)
+		assert.False(entity.CompletedAt.Time.IsZero())
+		assert.Equal(engine.WorkCausedRetry, entity.State)
 
 		results, err := e.CreateQuery().QueryTasks(context.Background(), engine.TaskCriteria{Id: entity.Id + 1})
 		assert.Nil(err)
@@ -104,9 +110,10 @@ func TestExecuteTask(t *testing.T) {
 		assert.Equal(entity.BpmnElementId.String, results[0].BpmnElementId)
 		assert.NotEmpty(results[0].CreatedAt)
 		assert.Equal(engine.DefaultEngineId, results[0].CreatedBy)
-		assert.Equal(ctx.Time(), results[0].DueAt)
+		assert.Equal(entity.CompletedAt.Time, results[0].DueAt)
 		assert.Equal(3, results[0].RetryCount)
 		assert.Equal(entity.SerializedTask.String, results[0].SerializedTask)
+		assert.Equal(engine.WorkCreated, results[0].State)
 		assert.Equal(entity.Type, results[0].Type)
 	})
 }
@@ -169,6 +176,7 @@ func TestLockTasks(t *testing.T) {
 			ProcessInstanceId: pgtype.Int4{Int32: processInstanceIds[i], Valid: true},
 
 			DueAt: dueAts[i],
+			State: engine.WorkCreated,
 			Type:  types[i],
 
 			Instance: instances[i],
@@ -187,6 +195,7 @@ func TestLockTasks(t *testing.T) {
 				assert.Len(lockedTasks, 1)
 				assert.Equal(engine.Partition(date), lockedTasks[0].Partition)
 				assert.Equal(tasks[0].Id, lockedTasks[0].Id)
+				assert.Equal(engine.WorkLocked, lockedTasks[0].State)
 			},
 		},
 		{

@@ -704,6 +704,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			CreatedAt:     ctx.Time(),
 			CreatedBy:     cmd.WorkerId,
 			DueAt:         dueAt,
+			State:         engine.WorkCreated,
 			Type:          engine.TaskTriggerEvent,
 
 			Instance: TriggerEventTask{Timer: timer},
@@ -741,6 +742,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			CreatedAt: ctx.Time(),
 			CreatedBy: cmd.WorkerId,
 			DueAt:     ctx.Time(),
+			State:     engine.WorkCreated,
 			Type:      engine.TaskDequeueProcessInstance,
 
 			Instance: DequeueProcessInstanceTask{BpmnProcessId: cmd.BpmnProcessId},

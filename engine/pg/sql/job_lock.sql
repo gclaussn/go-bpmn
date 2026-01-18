@@ -2,7 +2,8 @@ UPDATE
 	job
 SET
 	locked_at = $1,
-	locked_by = {{.WorkerId | quoteString}}
+	locked_by = {{.WorkerId | quoteString}},
+	state = 'LOCKED'
 FROM (
 	SELECT
 		partition,
@@ -51,4 +52,5 @@ RETURNING
 	job.locked_at,
 	job.locked_by,
 	job.retry_count,
+	job.state,
 	job.type

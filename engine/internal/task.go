@@ -49,6 +49,7 @@ type TaskEntity struct {
 	LockedBy       pgtype.Text
 	RetryCount     int
 	SerializedTask pgtype.Text
+	State          engine.WorkState
 	Type           engine.TaskType
 
 	Instance Task // task instance that should be executed
@@ -74,6 +75,7 @@ func (e TaskEntity) Task() engine.Task {
 		LockedBy:       e.LockedBy.String,
 		RetryCount:     e.RetryCount,
 		SerializedTask: e.SerializedTask.String,
+		State:          e.State,
 		Type:           e.Type,
 	}
 }
@@ -145,6 +147,16 @@ func ExecuteTask(ctx Context, task *TaskEntity) error {
 
 	task.CompletedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
 
+	if task.Error.Valid {
+		if isRetry {
+			task.State = engine.WorkCausedRetry
+		} else {
+			task.State = engine.WorkCausedIncident
+		}
+	} else if task.State == engine.WorkLocked {
+		task.State = engine.WorkDone
+	}
+
 	if err := ctx.Tasks().Update(task); err != nil {
 		return err
 	}
@@ -168,6 +180,7 @@ func ExecuteTask(ctx Context, task *TaskEntity) error {
 			DueAt:          ctx.Time(),
 			RetryCount:     task.RetryCount + 1,
 			SerializedTask: task.SerializedTask,
+			State:          engine.WorkCreated,
 			Type:           task.Type,
 
 			Instance: task.Instance,

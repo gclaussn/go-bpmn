@@ -151,6 +151,7 @@ func (r *jobRepository) Lock(cmd engine.LockJobsCmd, lockedAt time.Time) ([]*int
 
 			e.LockedAt = pgtype.Timestamp{Time: lockedAt, Valid: true}
 			e.LockedBy = pgtype.Text{String: cmd.WorkerId, Valid: true}
+			e.State = engine.WorkLocked
 			entities[j] = e
 
 			results = append(results, &e)
@@ -195,6 +196,7 @@ func (r *jobRepository) Unlock(cmd engine.UnlockJobsCmd) (int, error) {
 
 			e.LockedAt = pgtype.Timestamp{}
 			e.LockedBy = pgtype.Text{}
+			e.State = engine.WorkCreated
 			entities[j] = e
 			count++
 		}

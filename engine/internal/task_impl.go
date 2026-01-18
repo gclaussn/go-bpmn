@@ -21,6 +21,7 @@ func (t DequeueProcessInstanceTask) Execute(ctx Context, task *TaskEntity) error
 	}
 
 	if !queue.MustDequeue() {
+		task.State = engine.WorkCanceled
 		return nil
 	}
 
@@ -48,6 +49,7 @@ func (t DequeueProcessInstanceTask) Execute(ctx Context, task *TaskEntity) error
 		CreatedAt: ctx.Time(),
 		CreatedBy: ctx.Options().EngineId,
 		DueAt:     ctx.Time(),
+		State:     engine.WorkCreated,
 		Type:      engine.TaskStartProcessInstance,
 
 		Instance: StartProcessInstanceTask{},
@@ -76,6 +78,7 @@ func (t DequeueProcessInstanceTask) Execute(ctx Context, task *TaskEntity) error
 		CreatedAt: ctx.Time(),
 		CreatedBy: ctx.Options().EngineId,
 		DueAt:     ctx.Time(),
+		State:     engine.WorkCreated,
 		Type:      engine.TaskDequeueProcessInstance,
 
 		Instance: DequeueProcessInstanceTask{BpmnProcessId: t.BpmnProcessId},
@@ -100,7 +103,8 @@ func (t JoinParallelGatewayTask) Execute(ctx Context, task *TaskEntity) error {
 		return err
 	}
 
-	if processInstance.State != engine.InstanceStarted && processInstance.State != engine.InstanceSuspended {
+	if processInstance.EndedAt.Valid {
+		task.State = engine.WorkCanceled
 		return nil
 	}
 
@@ -134,6 +138,7 @@ func (t StartProcessInstanceTask) Execute(ctx Context, task *TaskEntity) error {
 		return err
 	}
 	if processInstance.State != engine.InstanceQueued {
+		task.State = engine.WorkCanceled
 		return nil
 	}
 
@@ -220,6 +225,7 @@ func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
 			return err
 		}
 		if processInstance.EndedAt.Valid {
+			task.State = engine.WorkCanceled
 			return nil
 		}
 
@@ -228,6 +234,7 @@ func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
 			return err
 		}
 		if execution.EndedAt.Valid {
+			task.State = engine.WorkCanceled
 			return nil
 		}
 

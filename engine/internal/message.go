@@ -200,6 +200,7 @@ func SendMessage(ctx Context, cmd engine.SendMessageCmd) (engine.Message, error)
 			CreatedAt:     message.CreatedAt,
 			CreatedBy:     message.CreatedBy,
 			DueAt:         message.CreatedAt,
+			State:         engine.WorkCreated,
 			Type:          engine.TaskTriggerEvent,
 
 			Instance: TriggerEventTask{MessageId: message.Id},
@@ -220,6 +221,7 @@ func SendMessage(ctx Context, cmd engine.SendMessageCmd) (engine.Message, error)
 			CreatedAt:     message.CreatedAt,
 			CreatedBy:     message.CreatedBy,
 			DueAt:         message.CreatedAt,
+			State:         engine.WorkCreated,
 			Type:          engine.TaskTriggerEvent,
 
 			Instance: TriggerEventTask{MessageId: message.Id, Timer: cmd.ExpirationTimer},

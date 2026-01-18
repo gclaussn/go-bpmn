@@ -44,6 +44,7 @@ responses:
               lockedAt: "2025-05-01T19:38:23.001Z"
               lockedBy: default-engine
               retryCount: 0
+              state: DONE
               type: JOIN_PARALLEL_GATEWAY
           failedTasks: []
   "400":

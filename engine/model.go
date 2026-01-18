@@ -291,6 +291,86 @@ func (v *TaskType) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// WorkState describes possible states for jobs and tasks.
+//
+//   - [WorkCanceled]: canceled, because the process or element instance is ended (terminated or canceled) or the work is already done
+//   - [WorkCausedIncident]: completed with an error and no retries left, which caused the creation of an incident
+//   - [WorkCausedRetry]: completed with an error and retries left, which caused the creation of a retry job
+//   - [WorkCreated]: created as a result of an engine command
+//   - [WorkDone]: completed without an error
+//   - [WorkLocked]: locked by a worker (in case of a job) or an engine (in case of a task)
+type WorkState int
+
+const (
+	WorkCanceled WorkState = iota + 1
+	WorkCausedIncident
+	WorkCausedRetry
+	WorkCreated
+	WorkDone
+	WorkLocked
+)
+
+func MapWorkState(s string) WorkState {
+	switch s {
+	case "CANCELED":
+		return WorkCanceled
+	case "CAUSED_INCIDENT":
+		return WorkCausedIncident
+	case "CAUSED_RETRY":
+		return WorkCausedRetry
+	case "CREATED":
+		return WorkCreated
+	case "DONE":
+		return WorkDone
+	case "LOCKED":
+		return WorkLocked
+	default:
+		return 0
+	}
+}
+
+func (v WorkState) MarshalJSON() ([]byte, error) {
+	s := v.String()
+	if s == "" {
+		return []byte("null"), nil
+	}
+	return []byte(fmt.Sprintf("%q", s)), nil
+}
+
+func (v WorkState) String() string {
+	switch v {
+	case WorkCanceled:
+		return "CANCELED"
+	case WorkCausedIncident:
+		return "CAUSED_INCIDENT"
+	case WorkCausedRetry:
+		return "CAUSED_RETRY"
+	case WorkCreated:
+		return "CREATED"
+	case WorkDone:
+		return "DONE"
+	case WorkLocked:
+		return "LOCKED"
+	default:
+		return ""
+	}
+}
+
+func (v *WorkState) UnmarshalJSON(data []byte) error {
+	s := string(data)
+	if s == "null" {
+		return nil
+	}
+	if len(s) > 2 {
+		s = s[1 : len(s)-1]
+		*v = MapWorkState(s)
+	}
+	if *v == 0 {
+		return fmt.Errorf("invalid work state data %s", s)
+	}
+	return nil
+}
+
 // Data is used to store any data within an engine.
 type Data struct {
 	Encoding    string `json:"encoding" validate:"required"` // Encoding of the value - e.g. `json`.
@@ -437,6 +517,7 @@ type Job struct {
 	LockedAt       *time.Time `json:"lockedAt,omitempty"`                   // Lock time.
 	LockedBy       string     `json:"lockedBy,omitempty"`                   // ID of the worker that locked the job.
 	RetryCount     int        `json:"retryCount" validate:"required,gte=0"` // Retry indicator, which is increased for each failed attempt.
+	State          WorkState  `json:"state" validate:"required"`            // Current state.
 	Type           JobType    `json:"type" validate:"required"`             // Job type.
 }
 
@@ -605,6 +686,7 @@ type Task struct {
 	LockedBy       string     `json:"lockedBy,omitempty"`                   // ID of the engine that locked the task.
 	RetryCount     int        `json:"retryCount" validate:"required,gte=0"` // Retry indicator, which is increased for each failed attempt.
 	SerializedTask string     `json:"serializedTask,omitempty"`             // JSON serialized task.
+	State          WorkState  `json:"state" validate:"required"`            // Current state.
 	Type           TaskType   `json:"type" validate:"required"`             // Task type.
 }
 

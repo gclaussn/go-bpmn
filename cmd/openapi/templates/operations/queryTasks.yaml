@@ -34,6 +34,7 @@ responses:
               lockedAt: "2025-05-01T19:26:16.671Z"
               lockedBy: default-engine
               retryCount: 0
+              state: DONE
               type: JOIN_PARALLEL_GATEWAY
             - partition: "2025-05-02"
               id: 1
@@ -42,6 +43,7 @@ responses:
               dueAt: "2025-05-02T00:00:00Z"
               retryCount: 0
               serializedTask: "{\"Partition\":\"2025-05-04\"}"
+              state: CREATED
               type: CREATE_PARTITION
             - partition: "2025-05-03"
               id: 1
@@ -50,6 +52,7 @@ responses:
               dueAt: "2025-05-03T00:05:00Z"
               retryCount: 0
               serializedTask: "{\"Partition\":\"2025-05-01\"}"
+              state: CREATED
               type: DETACH_PARTITION
   "400":
     description: Bad request

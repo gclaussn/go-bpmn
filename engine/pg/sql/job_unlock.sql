@@ -2,7 +2,8 @@ UPDATE
 	job
 SET
 	locked_at = null,
-	locked_by = null
+	locked_by = null,
+	state = 'CREATED'
 WHERE
 	completed_at IS NULL
 	AND locked_by = {{.WorkerId | quoteString}}

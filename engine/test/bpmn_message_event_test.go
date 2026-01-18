@@ -47,6 +47,7 @@ func (x messageEventTest) boundary(t *testing.T) {
 	})
 
 	piAssert.IsWaitingAt("serviceTask")
+	executeJob := piAssert.Job()
 
 	_, err := x.e.SendMessage(context.Background(), engine.SendMessageCmd{
 		CorrelationKey: "boundary-message-ck",
@@ -74,6 +75,24 @@ func (x messageEventTest) boundary(t *testing.T) {
 
 	assert.Equal(engine.JobSubscribeMessage, jobs[0].Type)
 	assert.Equal(engine.JobExecute, jobs[1].Type)
+
+	// when complete job of terminated element instance
+	x.e.LockJobs(context.Background(), engine.LockJobsCmd{
+		Partition: executeJob.Partition,
+		Id:        executeJob.Id,
+	})
+
+	canceledExecuteJob, err := x.e.CompleteJob(context.Background(), engine.CompleteJobCmd{
+		Partition: executeJob.Partition,
+		Id:        executeJob.Id,
+	})
+	if err != nil {
+		t.Fatalf("failed to complete job: %v", err)
+	}
+
+	// then work is canceled
+	assert.True(canceledExecuteJob.IsCompleted())
+	assert.Equal(engine.WorkCanceled, canceledExecuteJob.State)
 }
 
 func (x messageEventTest) boundaryMessageSentBefore(t *testing.T) {

@@ -28,6 +28,7 @@ type JobEntity struct {
 	LockedAt       pgtype.Timestamp
 	LockedBy       pgtype.Text
 	RetryCount     int
+	State          engine.WorkState
 	Type           engine.JobType
 }
 
@@ -51,6 +52,7 @@ func (e JobEntity) Job() engine.Job {
 		LockedAt:       timeOrNil(e.LockedAt),
 		LockedBy:       e.LockedBy.String,
 		RetryCount:     e.RetryCount,
+		State:          e.State,
 		Type:           e.Type,
 	}
 }
@@ -109,6 +111,21 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 				job.LockedBy.String,
 			),
 		}
+	}
+
+	execution, err := ctx.ElementInstances().Select(job.Partition, job.ElementInstanceId)
+	if err != nil {
+		return engine.Job{}, err
+	}
+	if execution.EndedAt.Valid {
+		job.CompletedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
+		job.State = engine.WorkCanceled
+
+		if err := ctx.Jobs().Update(job); err != nil {
+			return engine.Job{}, err
+		}
+
+		return job.Job(), nil
 	}
 
 	encryption := ctx.Options().Encryption
@@ -213,8 +230,14 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 			return engine.Job{}, err
 		}
 
+		scope, err := ctx.ElementInstances().Select(execution.Partition, execution.ParentId.Int32)
+		if err != nil {
+			return engine.Job{}, err
+		}
+
 		ec := executionContext{
 			engineOrWorkerId: cmd.WorkerId,
+			executions:       []*ElementInstanceEntity{scope, execution},
 			process:          process,
 			processInstance:  processInstance,
 		}
@@ -237,6 +260,14 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 	}
 
 	job.CompletedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
+
+	if !job.Error.Valid {
+		job.State = engine.WorkDone
+	} else if cmd.RetryLimit > job.RetryCount {
+		job.State = engine.WorkCausedRetry
+	} else {
+		job.State = engine.WorkCausedIncident
+	}
 
 	if err := ctx.Jobs().Update(job); err != nil {
 		return engine.Job{}, err
@@ -263,6 +294,7 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 			CreatedBy:      cmd.WorkerId,
 			DueAt:          retryTimer.Calculate(ctx.Time()),
 			RetryCount:     job.RetryCount + 1,
+			State:          engine.WorkCreated,
 			Type:           job.Type,
 		}
 

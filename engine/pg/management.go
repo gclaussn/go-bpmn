@@ -142,8 +142,9 @@ func prepareDatabase(ctx *pgContext) error {
 		{Partition: engine.Partition(date.AddDate(0, 0, 2))},
 	}
 
+	createPartition := &internal.TaskEntity{}
 	for i := range createPartitionTasks {
-		if err := createPartitionTasks[i].Execute(ctx, nil); err != nil {
+		if err := createPartitionTasks[i].Execute(ctx, createPartition); err != nil {
 			return fmt.Errorf("failed to create partition %s: %v", createPartitionTasks[i].Partition, err)
 		}
 	}
@@ -154,6 +155,7 @@ func prepareDatabase(ctx *pgContext) error {
 		CreatedAt: ctx.Time(),
 		CreatedBy: ctx.Options().EngineId,
 		DueAt:     ctx.Date().AddDate(0, 0, 2),
+		State:     engine.WorkCreated,
 		Type:      engine.TaskPurgeMessages,
 
 		Instance: purgeMessagesTask{},
@@ -169,6 +171,7 @@ func prepareDatabase(ctx *pgContext) error {
 		CreatedAt: ctx.Time(),
 		CreatedBy: ctx.Options().EngineId,
 		DueAt:     ctx.Date().AddDate(0, 0, 2),
+		State:     engine.WorkCreated,
 		Type:      engine.TaskPurgeSignals,
 
 		Instance: purgeSignalsTask{},
@@ -255,7 +258,7 @@ type createPartitionTask struct {
 	initial bool
 }
 
-func (t createPartitionTask) Execute(ctx internal.Context, _ *internal.TaskEntity) error {
+func (t createPartitionTask) Execute(ctx internal.Context, task *internal.TaskEntity) error {
 	pgCtx := ctx.(*pgContext)
 
 	date := time.Time(t.Partition)
@@ -266,6 +269,7 @@ func (t createPartitionTask) Execute(ctx internal.Context, _ *internal.TaskEntit
 	}
 
 	if partitionExists {
+		task.State = engine.WorkCanceled
 		return nil
 	}
 
@@ -305,6 +309,7 @@ func (t createPartitionTask) Execute(ctx internal.Context, _ *internal.TaskEntit
 		CreatedAt: ctx.Time(),
 		CreatedBy: ctx.Options().EngineId,
 		DueAt:     date.AddDate(0, 0, -1),
+		State:     engine.WorkCreated,
 		Type:      engine.TaskCreatePartition,
 
 		Instance: createPartitionTask{
@@ -322,6 +327,7 @@ func (t createPartitionTask) Execute(ctx internal.Context, _ *internal.TaskEntit
 		CreatedAt: ctx.Time(),
 		CreatedBy: ctx.Options().EngineId,
 		DueAt:     date.Add(5 * time.Minute),
+		State:     engine.WorkCreated,
 		Type:      engine.TaskDetachPartition,
 
 		Instance: detachPartitionTask{
@@ -379,6 +385,7 @@ SELECT EXISTS(SELECT 1 FROM task WHERE partition = $1 AND completed_at IS NULL)
 			CreatedAt: ctx.Time(),
 			CreatedBy: ctx.Options().EngineId,
 			DueAt:     ctx.Date().AddDate(0, 0, 1).Add(offset),
+			State:     engine.WorkCreated,
 			Type:      engine.TaskDetachPartition,
 
 			Instance: detachPartitionTask{
@@ -408,6 +415,7 @@ SELECT EXISTS(SELECT 1 FROM task WHERE partition = $1 AND completed_at IS NULL)
 			CreatedAt: ctx.Time(),
 			CreatedBy: ctx.Options().EngineId,
 			DueAt:     ctx.Time(),
+			State:     engine.WorkCreated,
 			Type:      engine.TaskDropPartition,
 
 			Instance: dropPartitionTask(t),
@@ -480,6 +488,7 @@ WHERE
 		CreatedAt: ctx.Time(),
 		CreatedBy: ctx.Options().EngineId,
 		DueAt:     ctx.Date().AddDate(0, 0, 1),
+		State:     engine.WorkCreated,
 		Type:      engine.TaskPurgeMessages,
 
 		Instance: purgeMessagesTask{},
@@ -517,6 +526,7 @@ WHERE
 		CreatedAt: ctx.Time(),
 		CreatedBy: ctx.Options().EngineId,
 		DueAt:     ctx.Date().AddDate(0, 0, 1),
+		State:     engine.WorkCreated,
 		Type:      engine.TaskPurgeSignals,
 
 		Instance: purgeSignalsTask{},

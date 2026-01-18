@@ -193,6 +193,7 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 				CreatedAt:      ctx.Time(),
 				CreatedBy:      ec.engineOrWorkerId,
 				DueAt:          ctx.Time(),
+				State:          engine.WorkCreated,
 				Type:           jobType,
 			}
 
@@ -210,6 +211,7 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 				CreatedAt:     ctx.Time(),
 				CreatedBy:     ec.engineOrWorkerId,
 				DueAt:         ctx.Time(),
+				State:         engine.WorkCreated,
 				Type:          taskType,
 
 				Instance: taskInstance,
@@ -342,18 +344,8 @@ func (ec *executionContext) findParent(ctx Context, execution *ElementInstanceEn
 }
 
 func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.CompleteJobCmd) error {
-	execution, err := ctx.ElementInstances().Select(job.Partition, job.ElementInstanceId)
-	if err != nil {
-		return err
-	}
-
-	scope, err := ctx.ElementInstances().Select(job.Partition, execution.ParentId.Int32)
-	if err != nil {
-		return err
-	}
-
-	ec.addExecution(scope)
-	ec.addExecution(execution)
+	scope := ec.executions[0]
+	execution := ec.executions[1]
 
 	graph := ec.process.graph
 
@@ -552,6 +544,7 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 					CreatedBy:      ec.engineOrWorkerId,
 					DueAt:          retryTimer.Calculate(ctx.Time()),
 					RetryCount:     job.RetryCount,
+					State:          engine.WorkCreated,
 					Type:           job.Type,
 				}
 
@@ -640,6 +633,7 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 			CreatedAt:     ctx.Time(),
 			CreatedBy:     ec.engineOrWorkerId,
 			DueAt:         dueAt,
+			State:         engine.WorkCreated,
 			Type:          engine.TaskTriggerEvent,
 
 			Instance: TriggerEventTask{Timer: jobCompletion.Timer},
@@ -702,6 +696,7 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 				CreatedAt:     ctx.Time(),
 				CreatedBy:     ec.engineOrWorkerId,
 				DueAt:         ctx.Time(),
+				State:         engine.WorkCreated,
 				Type:          engine.TaskTriggerEvent,
 
 				Instance: TriggerEventTask{MessageId: bufferedMessage.Id},
@@ -807,8 +802,9 @@ func (ec *executionContext) handleParallelGateway(ctx Context, task *TaskEntity)
 		return err
 	}
 
-	if execution.State != engine.InstanceStarted {
-		return nil // already completed by another task instance
+	if execution.EndedAt.Valid {
+		task.State = engine.WorkCanceled
+		return nil // already completed by another task instance, terminated or canceled
 	}
 
 	waiting, err := ctx.ElementInstances().SelectParallelGateways(execution)

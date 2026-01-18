@@ -89,6 +89,7 @@ func (ec *executionContext) triggerTimerBoundaryEvent(ctx Context, timer engine.
 			CreatedAt:     ctx.Time(),
 			CreatedBy:     ec.engineOrWorkerId,
 			DueAt:         dueAt,
+			State:         engine.WorkCreated,
 			Type:          engine.TaskTriggerEvent,
 
 			Instance: TriggerEventTask{Timer: &timer},
@@ -256,6 +257,7 @@ func (ec *executionContext) triggerTimerStartEvent(ctx Context, task *TaskEntity
 		CreatedAt:     ctx.Time(),
 		CreatedBy:     ctx.Options().EngineId,
 		DueAt:         dueAt,
+		State:         engine.WorkCreated,
 		Type:          engine.TaskTriggerEvent,
 
 		Instance: TriggerEventTask{Timer: &timer},

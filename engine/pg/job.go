@@ -33,6 +33,7 @@ INSERT INTO job (
 	created_by,
 	due_at,
 	retry_count,
+	state,
 	type
 ) VALUES (
 	$1,
@@ -49,7 +50,8 @@ INSERT INTO job (
 	$10,
 	$11,
 	$12,
-	$13
+	$13,
+	$14
 ) RETURNING id
 `,
 		entity.Partition,
@@ -66,6 +68,7 @@ INSERT INTO job (
 		entity.CreatedBy,
 		entity.DueAt,
 		entity.RetryCount,
+		entity.State.String(),
 		entity.Type.String(),
 	)
 
@@ -94,6 +97,7 @@ SELECT
 	locked_at,
 	locked_by,
 	retry_count,
+	state,
 	type
 FROM
 	job
@@ -103,8 +107,9 @@ WHERE
 `, partition, id)
 
 	var (
-		entity    internal.JobEntity
-		typeValue string
+		entity     internal.JobEntity
+		stateValue string
+		typeValue  string
 	)
 	if err := row.Scan(
 		&entity.ElementId,
@@ -122,6 +127,7 @@ WHERE
 		&entity.LockedAt,
 		&entity.LockedBy,
 		&entity.RetryCount,
+		&stateValue,
 		&typeValue,
 	); err != nil {
 		return nil, fmt.Errorf("failed to select job %s/%d: %v", partition.Format(time.DateOnly), id, err)
@@ -129,6 +135,7 @@ WHERE
 
 	entity.Partition = partition
 	entity.Id = id
+	entity.State = engine.MapWorkState(stateValue)
 	entity.Type = engine.MapJobType(typeValue)
 
 	return &entity, nil
@@ -140,7 +147,8 @@ UPDATE
 	job
 SET
 	completed_at = $3,
-	error = $4
+	error = $4,
+	state = $5
 WHERE
 	partition = $1 AND
 	id = $2
@@ -150,6 +158,7 @@ WHERE
 
 		entity.CompletedAt,
 		entity.Error,
+		entity.State.String(),
 	); err != nil {
 		return fmt.Errorf("failed to update job %+v: %v", entity, err)
 	}
@@ -176,8 +185,9 @@ func (r jobRepository) Query(criteria engine.JobCriteria, options engine.QueryOp
 	results := make([]engine.Job, 0)
 	for rows.Next() {
 		var (
-			entity    internal.JobEntity
-			typeValue string
+			entity     internal.JobEntity
+			stateValue string
+			typeValue  string
 		)
 
 		if err := rows.Scan(
@@ -199,11 +209,13 @@ func (r jobRepository) Query(criteria engine.JobCriteria, options engine.QueryOp
 			&entity.LockedAt,
 			&entity.LockedBy,
 			&entity.RetryCount,
+			&stateValue,
 			&typeValue,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan job row: %v", err)
 		}
 
+		entity.State = engine.MapWorkState(stateValue)
 		entity.Type = engine.MapJobType(typeValue)
 
 		results = append(results, entity.Job())
@@ -228,8 +240,9 @@ func (r jobRepository) Lock(cmd engine.LockJobsCmd, lockedAt time.Time) ([]*inte
 	var entities []*internal.JobEntity
 	for rows.Next() {
 		var (
-			entity    internal.JobEntity
-			typeValue string
+			entity     internal.JobEntity
+			stateValue string
+			typeValue  string
 		)
 
 		if err := rows.Scan(
@@ -249,11 +262,13 @@ func (r jobRepository) Lock(cmd engine.LockJobsCmd, lockedAt time.Time) ([]*inte
 			&entity.LockedAt,
 			&entity.LockedBy,
 			&entity.RetryCount,
+			&stateValue,
 			&typeValue,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan job lock row: %v", err)
 		}
 
+		entity.State = engine.MapWorkState(stateValue)
 		entity.Type = engine.MapJobType(typeValue)
 
 		entities = append(entities, &entity)

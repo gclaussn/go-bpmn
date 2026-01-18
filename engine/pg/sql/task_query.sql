@@ -17,6 +17,7 @@ SELECT
 	locked_by,
 	retry_count,
 	serialized_task,
+	state,
 	type
 FROM
 	task

@@ -69,6 +69,7 @@ func TestLockTasks(t *testing.T) {
 			ProcessInstanceId: pgtype.Int4{Int32: processInstanceIds[i], Valid: true},
 
 			DueAt: dueAts[i],
+			State: engine.WorkCreated,
 			Type:  types[i],
 
 			Instance: instances[i],
@@ -87,6 +88,7 @@ func TestLockTasks(t *testing.T) {
 				assert.Len(lockedTasks, 1)
 				assert.Equal(engine.Partition(date), lockedTasks[0].Partition)
 				assert.Equal(tasks[0].Id, lockedTasks[0].Id)
+				assert.Equal(engine.WorkLocked, lockedTasks[0].State)
 			},
 		},
 		{

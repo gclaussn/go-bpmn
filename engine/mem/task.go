@@ -171,6 +171,7 @@ func (r *taskRepository) Lock(cmd engine.ExecuteTasksCmd, lockedAt time.Time) ([
 
 			e.LockedAt = pgtype.Timestamp{Time: lockedAt, Valid: true}
 			e.LockedBy = pgtype.Text{String: r.engineId, Valid: true}
+			e.State = engine.WorkLocked
 			entities[j] = e
 
 			results = append(results, &e)
@@ -215,6 +216,7 @@ func (r *taskRepository) Unlock(cmd engine.UnlockTasksCmd) (int, error) {
 
 			e.LockedAt = pgtype.Timestamp{}
 			e.LockedBy = pgtype.Text{}
+			e.State = engine.WorkCreated
 			entities[j] = e
 			count++
 		}

@@ -40,6 +40,7 @@ responses:
               lockedAt: "2025-05-01T17:59:30.657Z"
               lockedBy: go-bpmn
               retryCount: 0
+              state: LOCKED
               type: EXECUTE
   "400":
     description: Bad request
