@@ -298,6 +298,7 @@ func (v *TaskType) UnmarshalJSON(data []byte) error {
 //   - [WorkCausedRetry]: completed with an error and retries left, which caused the creation of a retry job
 //   - [WorkCreated]: created as a result of an engine command
 //   - [WorkDone]: completed without an error
+//   - [WorkDue]: ready to be locked by a worker (in case of a job) or an engine (in case of a task)
 //   - [WorkLocked]: locked by a worker (in case of a job) or an engine (in case of a task)
 type WorkState int
 
@@ -307,6 +308,7 @@ const (
 	WorkCausedRetry
 	WorkCreated
 	WorkDone
+	WorkDue
 	WorkLocked
 )
 
@@ -322,6 +324,8 @@ func MapWorkState(s string) WorkState {
 		return WorkCreated
 	case "DONE":
 		return WorkDone
+	case "DUE":
+		return WorkDue
 	case "LOCKED":
 		return WorkLocked
 	default:
@@ -349,6 +353,8 @@ func (v WorkState) String() string {
 		return "CREATED"
 	case WorkDone:
 		return "DONE"
+	case WorkDue:
+		return "DUE"
 	case WorkLocked:
 		return "LOCKED"
 	default:

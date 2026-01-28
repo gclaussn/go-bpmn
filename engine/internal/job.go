@@ -62,7 +62,7 @@ type JobRepository interface {
 	Select(partition time.Time, id int32) (*JobEntity, error)
 	Update(*JobEntity) error
 
-	Query(engine.JobCriteria, engine.QueryOptions) ([]engine.Job, error)
+	Query(engine.JobCriteria, engine.QueryOptions, time.Time) ([]engine.Job, error)
 
 	Lock(cmd engine.LockJobsCmd, lockedAt time.Time) ([]*JobEntity, error)
 	Unlock(engine.UnlockJobsCmd) (int, error)

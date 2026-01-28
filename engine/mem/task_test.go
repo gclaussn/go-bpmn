@@ -113,7 +113,7 @@ func TestExecuteTask(t *testing.T) {
 		assert.Equal(entity.CompletedAt.Time, results[0].DueAt)
 		assert.Equal(3, results[0].RetryCount)
 		assert.Equal(entity.SerializedTask.String, results[0].SerializedTask)
-		assert.Equal(engine.WorkCreated, results[0].State)
+		assert.Equal(engine.WorkDue, results[0].State)
 		assert.Equal(entity.Type, results[0].Type)
 	})
 }

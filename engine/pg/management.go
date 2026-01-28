@@ -239,7 +239,7 @@ func insertTaskIfNotExists(ctx internal.Context, task *internal.TaskEntity) erro
 		Type: task.Type,
 	}, engine.QueryOptions{
 		Limit: 1,
-	})
+	}, ctx.Time())
 	if err != nil {
 		return fmt.Errorf("failed to query tasks: %v", err)
 	}

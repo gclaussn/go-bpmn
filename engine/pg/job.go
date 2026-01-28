@@ -166,7 +166,7 @@ WHERE
 	return nil
 }
 
-func (r jobRepository) Query(criteria engine.JobCriteria, options engine.QueryOptions) ([]engine.Job, error) {
+func (r jobRepository) Query(criteria engine.JobCriteria, options engine.QueryOptions, now time.Time) ([]engine.Job, error) {
 	var sql bytes.Buffer
 	if err := sqlJobQuery.Execute(&sql, map[string]any{
 		"c": criteria,
@@ -217,6 +217,10 @@ func (r jobRepository) Query(criteria engine.JobCriteria, options engine.QueryOp
 
 		entity.State = engine.MapWorkState(stateValue)
 		entity.Type = engine.MapJobType(typeValue)
+
+		if entity.State == engine.WorkCreated && !now.Before(entity.DueAt) {
+			entity.State = engine.WorkDue
+		}
 
 		results = append(results, entity.Job())
 	}

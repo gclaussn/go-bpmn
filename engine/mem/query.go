@@ -34,7 +34,7 @@ func (q *query) QueryIncidents(_ context.Context, criteria engine.IncidentCriter
 func (q *query) QueryJobs(_ context.Context, criteria engine.JobCriteria) ([]engine.Job, error) {
 	defer q.e.unlock()
 	memCtx := q.e.rlock()
-	return memCtx.Jobs().Query(criteria, q.options)
+	return memCtx.Jobs().Query(criteria, q.options, memCtx.Time())
 }
 
 func (q *query) QueryMessages(_ context.Context, criteria engine.MessageCriteria) ([]engine.Message, error) {
@@ -58,7 +58,7 @@ func (q *query) QueryProcessInstances(_ context.Context, criteria engine.Process
 func (q *query) QueryTasks(_ context.Context, criteria engine.TaskCriteria) ([]engine.Task, error) {
 	defer q.e.unlock()
 	memCtx := q.e.rlock()
-	return memCtx.Tasks().Query(criteria, q.options)
+	return memCtx.Tasks().Query(criteria, q.options, memCtx.Time())
 }
 
 func (q *query) QueryVariables(_ context.Context, criteria engine.VariableCriteria) ([]engine.Variable, error) {

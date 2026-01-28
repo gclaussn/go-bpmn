@@ -56,7 +56,7 @@ func (r *taskRepository) Update(entity *internal.TaskEntity) error {
 	return fmt.Errorf("failed to update task %s/%d: %v", key, entity.Id, pgx.ErrNoRows)
 }
 
-func (r *taskRepository) Query(c engine.TaskCriteria, o engine.QueryOptions) ([]engine.Task, error) {
+func (r *taskRepository) Query(c engine.TaskCriteria, o engine.QueryOptions, now time.Time) ([]engine.Task, error) {
 	var (
 		offset int
 		limit  int
@@ -105,6 +105,10 @@ func (r *taskRepository) Query(c engine.TaskCriteria, o engine.QueryOptions) ([]
 			if offset < o.Offset {
 				offset++
 				continue
+			}
+
+			if e.State == engine.WorkCreated && !now.Before(e.DueAt) {
+				e.State = engine.WorkDue
 			}
 
 			results = append(results, e.Task())

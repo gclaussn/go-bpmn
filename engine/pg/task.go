@@ -268,7 +268,7 @@ WHERE
 	return nil
 }
 
-func (r taskRepository) Query(criteria engine.TaskCriteria, options engine.QueryOptions) ([]engine.Task, error) {
+func (r taskRepository) Query(criteria engine.TaskCriteria, options engine.QueryOptions, now time.Time) ([]engine.Task, error) {
 	var sql bytes.Buffer
 	if err := sqlTaskQuery.Execute(&sql, map[string]any{
 		"c": criteria,
@@ -319,6 +319,10 @@ func (r taskRepository) Query(criteria engine.TaskCriteria, options engine.Query
 
 		entity.State = engine.MapWorkState(stateValue)
 		entity.Type = engine.MapTaskType(typeValue)
+
+		if entity.State == engine.WorkCreated && !now.Before(entity.DueAt) {
+			entity.State = engine.WorkDue
+		}
 
 		results = append(results, entity.Task())
 	}

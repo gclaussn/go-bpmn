@@ -53,7 +53,7 @@ func (q *query) QueryJobs(ctx context.Context, criteria engine.JobCriteria) ([]e
 	}
 
 	defer cancel()
-	results, err := pgCtx.Jobs().Query(criteria, q.options)
+	results, err := pgCtx.Jobs().Query(criteria, q.options, pgCtx.Time())
 	return results, q.e.release(pgCtx, err)
 }
 
@@ -97,7 +97,7 @@ func (q *query) QueryTasks(ctx context.Context, criteria engine.TaskCriteria) ([
 	}
 
 	defer cancel()
-	results, err := pgCtx.Tasks().Query(criteria, q.options)
+	results, err := pgCtx.Tasks().Query(criteria, q.options, pgCtx.Time())
 	return results, q.e.release(pgCtx, err)
 }
 

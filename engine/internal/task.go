@@ -113,7 +113,7 @@ type TaskRepository interface {
 	Select(partition time.Time, id int32) (*TaskEntity, error)
 	Update(*TaskEntity) error
 
-	Query(engine.TaskCriteria, engine.QueryOptions) ([]engine.Task, error)
+	Query(engine.TaskCriteria, engine.QueryOptions, time.Time) ([]engine.Task, error)
 
 	Lock(cmd engine.ExecuteTasksCmd, lockedAt time.Time) ([]*TaskEntity, error)
 	Unlock(engine.UnlockTasksCmd) (int, error)
