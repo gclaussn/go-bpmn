@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"strconv"
-	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/spf13/cobra"
@@ -43,12 +42,12 @@ func newEventSendMessageCmd(cli *Cli) *cobra.Command {
 		Short: "Send a message",
 		RunE: func(c *cobra.Command, _ []string) error {
 			expirationTimer := engine.Timer{
-				Time:         time.Time(expirationTime),
+				Time:         expirationTime.Time(),
 				TimeCycle:    expirationTimeCycle,
 				TimeDuration: engine.ISO8601Duration(expirationTimeDuration),
 			}
 
-			if !expirationTimer.Time.IsZero() || expirationTimer.TimeCycle != "" || !expirationTimer.TimeDuration.IsZero() {
+			if expirationTimer.Time != nil || expirationTimer.TimeCycle != "" || !expirationTimer.TimeDuration.IsZero() {
 				cmd.ExpirationTimer = &expirationTimer
 			}
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/engine/internal"
@@ -132,7 +133,7 @@ func (r elementRepository) Query(criteria engine.ElementCriteria, options engine
 			escalationCode pgtype.Text
 			messageName    pgtype.Text
 			signalName     pgtype.Text
-			time           pgtype.Timestamp
+			timeV          pgtype.Timestamp
 			timeCycle      pgtype.Text
 			timeDuration   pgtype.Text
 		)
@@ -154,7 +155,7 @@ func (r elementRepository) Query(criteria engine.ElementCriteria, options engine
 			&escalationCode,
 			&messageName,
 			&signalName,
-			&time,
+			&timeV,
 			&timeCycle,
 			&timeDuration,
 		); err != nil {
@@ -168,8 +169,13 @@ func (r elementRepository) Query(criteria engine.ElementCriteria, options engine
 			var timer *engine.Timer
 			switch entity.BpmnElementType {
 			case model.ElementTimerBoundaryEvent, model.ElementTimerCatchEvent, model.ElementTimerStartEvent:
+				var t *time.Time
+				if timeV.Valid {
+					t = &timeV.Time
+				}
+
 				timer = &engine.Timer{
-					Time:         time.Time,
+					Time:         t,
 					TimeCycle:    timeCycle.String,
 					TimeDuration: engine.ISO8601Duration(timeDuration.String),
 				}

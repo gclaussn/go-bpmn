@@ -45,7 +45,7 @@ func (ec *executionContext) triggerTimerBoundaryEvent(ctx Context, timer engine.
 			boundaryEvent.State = engine.InstanceTerminated
 			ec.addExecution(boundaryEvent)
 		}
-	} else if timer.Time.IsZero() {
+	} else if timer.Time == nil || timer.Time.IsZero() {
 		// attach new boundary event, if timer is cycle or duration
 		attached, err := ec.process.graph.createExecutionAt(scope, execution.BpmnElementId)
 		if err != nil {
@@ -107,7 +107,7 @@ func (ec *executionContext) triggerTimerBoundaryEvent(ctx Context, timer engine.
 
 		CreatedAt:    ctx.Time(),
 		CreatedBy:    ctx.Options().EngineId,
-		Time:         pgtype.Timestamp{Time: timer.Time, Valid: !timer.Time.IsZero()},
+		Time:         toPgTimestamp(timer.Time),
 		TimeCycle:    pgtype.Text{String: timer.TimeCycle, Valid: timer.TimeCycle != ""},
 		TimeDuration: pgtype.Text{String: timer.TimeDuration.String(), Valid: !timer.TimeDuration.IsZero()},
 	}
@@ -137,7 +137,7 @@ func (ec *executionContext) triggerTimerCatchEvent(ctx Context, timer engine.Tim
 
 		CreatedAt:    ctx.Time(),
 		CreatedBy:    ctx.Options().EngineId,
-		Time:         pgtype.Timestamp{Time: timer.Time, Valid: !timer.Time.IsZero()},
+		Time:         toPgTimestamp(timer.Time),
 		TimeCycle:    pgtype.Text{String: timer.TimeCycle, Valid: timer.TimeCycle != ""},
 		TimeDuration: pgtype.Text{String: timer.TimeDuration.String(), Valid: !timer.TimeDuration.IsZero()},
 	}

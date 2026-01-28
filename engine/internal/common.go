@@ -13,7 +13,7 @@ import (
 )
 
 func evaluateTimer(timer engine.Timer, start time.Time) (time.Time, error) {
-	if !timer.Time.IsZero() {
+	if timer.Time != nil && !timer.Time.IsZero() {
 		// must be UTC and truncated to millis (see engine/pg/pg.go:pgEngineWithContext#require)
 		return timer.Time.UTC().Truncate(time.Millisecond), nil
 	} else if timer.TimeCycle != "" {
@@ -61,4 +61,11 @@ func timeOrNil(v pgtype.Timestamp) *time.Time {
 		return nil
 	}
 	return &v.Time
+}
+
+func toPgTimestamp(v *time.Time) pgtype.Timestamp {
+	if v == nil || v.IsZero() {
+		return pgtype.Timestamp{}
+	}
+	return pgtype.Timestamp{Time: *v, Valid: true}
 }

@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/spf13/cobra"
@@ -106,7 +105,7 @@ func newProcessCreateCmd(cli *Cli) *cobra.Command {
 				}
 				timers = append(timers, engine.TimerDefinition{
 					BpmnElementId: bpmnElementId,
-					Timer:         &engine.Timer{Time: time.Time(value)},
+					Timer:         &engine.Timer{Time: value.Time()},
 				})
 			}
 			for bpmnElementId, v := range timeCycle {

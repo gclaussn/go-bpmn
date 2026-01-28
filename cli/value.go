@@ -108,6 +108,14 @@ func (v timeValue) String() string {
 	return time.Time(v).Format(time.RFC3339)
 }
 
+func (v timeValue) Time() *time.Time {
+	t := time.Time(v)
+	if t.IsZero() {
+		return nil
+	}
+	return &t
+}
+
 func (v timeValue) Type() string {
 	return "time"
 }

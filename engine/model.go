@@ -722,7 +722,7 @@ type TaskCriteria struct {
 // A timer defines a point in time using a time value, a CRON expression or a duration.
 type Timer struct {
 	// A point in time.
-	Time time.Time `json:"time"`
+	Time *time.Time `json:"time,omitempty"`
 	// CRON expression that specifies a cyclic timer.
 	TimeCycle string `json:"timeCycle,omitempty" validate:"cron"`
 	// Duration based timer that uses the engine's time to calculate a point in time.
@@ -730,7 +730,7 @@ type Timer struct {
 }
 
 func (t Timer) String() string {
-	if !t.Time.IsZero() {
+	if t.Time != nil && !t.Time.IsZero() {
 		return t.Time.UTC().Truncate(time.Millisecond).Format(time.RFC3339Nano)
 	} else if t.TimeCycle != "" {
 		return t.TimeCycle

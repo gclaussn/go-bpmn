@@ -41,7 +41,7 @@ func (x timerEventTest) boundary(t *testing.T) {
 	piAssert.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			Timer: &engine.Timer{
-				Time: triggerAt,
+				Time: &triggerAt,
 			},
 		},
 	})
@@ -85,7 +85,7 @@ func (x timerEventTest) boundaryWithTimer(t *testing.T) {
 		BpmnProcessId: "timerBoundaryTest",
 		BpmnXml:       bpmnXml,
 		Timers: []engine.TimerDefinition{
-			{BpmnElementId: "timerBoundaryEvent", Timer: &engine.Timer{Time: triggerAt}},
+			{BpmnElementId: "timerBoundaryEvent", Timer: &engine.Timer{Time: &triggerAt}},
 		},
 		Version:  t.Name(),
 		WorkerId: testWorkerId,
@@ -188,7 +188,7 @@ func (x timerEventTest) catch(t *testing.T) {
 	piAssert.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			Timer: &engine.Timer{
-				Time: triggerAt,
+				Time: &triggerAt,
 			},
 		},
 	})
@@ -215,7 +215,7 @@ func (x timerEventTest) catchWithTimer(t *testing.T) {
 		BpmnProcessId: "timerCatchTest",
 		BpmnXml:       bpmnXml,
 		Timers: []engine.TimerDefinition{
-			{BpmnElementId: "timerCatchEvent", Timer: &engine.Timer{Time: triggerAt}},
+			{BpmnElementId: "timerCatchEvent", Timer: &engine.Timer{Time: &triggerAt}},
 		},
 		Version:  t.Name(),
 		WorkerId: testWorkerId,

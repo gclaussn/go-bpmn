@@ -674,7 +674,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			BpmnElementId:   bpmnElementId,
 			BpmnElementType: node.bpmnElement.Type,
 			BpmnProcessId:   process.BpmnProcessId,
-			Time:            pgtype.Timestamp{Time: timer.Time, Valid: !timer.Time.IsZero()},
+			Time:            toPgTimestamp(timer.Time),
 			TimeCycle:       pgtype.Text{String: timer.TimeCycle, Valid: timer.TimeCycle != ""},
 			TimeDuration:    pgtype.Text{String: timer.TimeDuration.String(), Valid: !timer.TimeDuration.IsZero()},
 			Version:         process.Version,

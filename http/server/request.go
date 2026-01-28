@@ -49,7 +49,7 @@ func newValidate() *validator.Validate {
 		if !ok {
 			return true
 		}
-		return !timer.Time.IsZero() || timer.TimeCycle != "" || !timer.TimeDuration.IsZero()
+		return (timer.Time != nil && !timer.Time.IsZero()) || timer.TimeCycle != "" || !timer.TimeDuration.IsZero()
 	}, true)
 	validate.RegisterValidation("variable_name", func(fl validator.FieldLevel) bool {
 		return RegexpVariableName.MatchString(fl.Field().String())

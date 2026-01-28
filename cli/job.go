@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"strconv"
-	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/spf13/cobra"
@@ -62,12 +61,12 @@ func newJobCompleteCmd(cli *Cli) *cobra.Command {
 			}
 
 			timer := engine.Timer{
-				Time:         time.Time(timeV),
+				Time:         timeV.Time(),
 				TimeCycle:    timeCycle,
 				TimeDuration: engine.ISO8601Duration(timeDuration),
 			}
 
-			if !timer.Time.IsZero() || timer.TimeCycle != "" || !timer.TimeDuration.IsZero() {
+			if timer.Time != nil || timer.TimeCycle != "" || !timer.TimeDuration.IsZero() {
 				completion.Timer = &timer
 			}
 
