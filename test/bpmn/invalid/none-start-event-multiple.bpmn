@@ -1,0 +1,21 @@
+<definitions id="test">
+  <process id="noneStartEventMultipleTest" isExecutable="true">
+    <startEvent id="startEventA">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <startEvent id="startEventB">
+      <outgoing>f2</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEventA" targetRef="join" />
+    <sequenceFlow id="f2" sourceRef="startEventB" targetRef="join" />
+    <exclusiveGateway id="join">
+      <incoming>f1</incoming>
+      <incoming>f2</incoming>
+      <outgoing>f3</outgoing>
+    </exclusiveGateway>
+    <sequenceFlow id="f3" sourceRef="join" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f3</incoming>
+    </endEvent>
+  </process>
+</definitions>

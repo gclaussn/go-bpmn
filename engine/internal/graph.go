@@ -116,6 +116,15 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 		}
 	}
 
+	noneStartEvents := bpmnElements[0].ChildrenByType(model.ElementNoneStartEvent)
+	if len(noneStartEvents) > 1 {
+		causes = append(causes, engine.ErrorCause{
+			Pointer: elementPointer(bpmnElements[0]),
+			Type:    "process",
+			Detail:  "BPMN process has multiple none start events",
+		})
+	}
+
 	return causes, nil
 }
 
@@ -366,7 +375,7 @@ func (g graph) createExecution(scope *ElementInstanceEntity) (ElementInstanceEnt
 	}
 
 	if len(noneStartEvents) == 0 {
-		return ElementInstanceEntity{}, fmt.Errorf("BPMN scope %s has no none start event element", scope.BpmnElementId)
+		return ElementInstanceEntity{}, fmt.Errorf("BPMN scope %s has no none start event", scope.BpmnElementId)
 	}
 
 	node := g.nodes[noneStartEvents[0].Id]

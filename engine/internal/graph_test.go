@@ -116,6 +116,15 @@ func TestValidateProcess(t *testing.T) {
 		assert.NotEmpty(causes[1].Type)
 		assert.Contains(causes[1].Detail, "no source element")
 	})
+
+	t.Run("returns cause when BPMN process has multiple none start events", func(t *testing.T) {
+		causes := mustValidateProcess(t, "invalid/none-start-event-multiple.bpmn")
+		assert.Len(causes, 1)
+
+		assert.Equal("/noneStartEventMultipleTest", causes[0].Pointer)
+		assert.NotEmpty(causes[0].Type)
+		assert.Contains(causes[0].Detail, "multiple none start events")
+	})
 }
 
 func TestContinueExecution(t *testing.T) {
@@ -513,7 +522,7 @@ func TestCreateExecution(t *testing.T) {
 
 		// then
 		assert.Equal(engine.MapInstanceState(""), execution.State)
-		assert.Contains(err.Error(), "has no none start event element")
+		assert.Contains(err.Error(), "has no none start event")
 	})
 }
 

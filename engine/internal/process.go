@@ -599,6 +599,8 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	}
 
 	// prepare message event definitions
+	startMessageNames := make(map[string]bool)
+
 	for bpmnElementId, messageName := range messageNames {
 		node, err := graph.node(bpmnElementId)
 		if err != nil {
@@ -608,6 +610,41 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 				Detail:  err.Error(),
 			})
 			continue
+		}
+
+		// check for duplicate message start event definitions
+		//   - must be unique within process
+		//   - must be unique across all not suspended event definitions
+		if node.bpmnElement.Type == model.ElementMessageStartEvent {
+			if _, ok := startMessageNames[messageName]; ok {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(node.bpmnElement),
+					Type:    "message_event",
+					Detail:  fmt.Sprintf("start message name %s must be unique", messageName),
+				})
+				continue
+			}
+
+			startMessageNames[messageName] = true
+
+			eventDefinition, err := ctx.EventDefinitions().SelectByMessageName(messageName)
+			if err != nil && err != pgx.ErrNoRows {
+				return engine.Process{}, err
+			}
+
+			if eventDefinition != nil && eventDefinition.BpmnProcessId != cmd.BpmnProcessId {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(node.bpmnElement),
+					Type:    "message_event",
+					Detail: fmt.Sprintf(
+						"start message name %s must be unique - already defined in process %s:%s",
+						messageName,
+						eventDefinition.BpmnProcessId,
+						eventDefinition.Version,
+					),
+				})
+				continue
+			}
 		}
 
 		eventDefinitions = append(eventDefinitions, &EventDefinitionEntity{
@@ -624,6 +661,8 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	}
 
 	// prepare signal event definitions
+	startSignalNames := make(map[string]bool)
+
 	for bpmnElementId, signalName := range signalNames {
 		node, err := graph.node(bpmnElementId)
 		if err != nil {
@@ -633,6 +672,21 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 				Detail:  err.Error(),
 			})
 			continue
+		}
+
+		// check for duplicate signal start event definitions
+		//   - must be unique within process
+		if node.bpmnElement.Type == model.ElementSignalStartEvent {
+			if _, ok := startSignalNames[signalName]; ok {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(node.bpmnElement),
+					Type:    "signal_event",
+					Detail:  fmt.Sprintf("start signal name %s must be unique", signalName),
+				})
+				continue
+			}
+
+			startSignalNames[signalName] = true
 		}
 
 		eventDefinitions = append(eventDefinitions, &EventDefinitionEntity{

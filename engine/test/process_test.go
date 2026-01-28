@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -397,6 +398,89 @@ func TestCreateProcessWithMessage(t *testing.T) {
 		}
 	})
 
+	t.Run("returns error when start message name is not unique within process", func(t *testing.T) {
+		bpmnXml := mustReadBpmnFile(t, "event/message-start-multiple.bpmn")
+
+		for i, e := range engines {
+			t.Run(engineTypes[i], func(t *testing.T) {
+				// given
+				cmd := engine.CreateProcessCmd{
+					BpmnProcessId: "messageStartMultipleTest",
+					BpmnXml:       bpmnXml,
+					Messages: []engine.MessageDefinition{
+						{BpmnElementId: "messageStartEventA", MessageName: t.Name()},
+						{BpmnElementId: "messageStartEventB", MessageName: t.Name()},
+					},
+					Version:  t.Name(),
+					WorkerId: testWorkerId,
+				}
+
+				// when
+				_, err := e.CreateProcess(context.Background(), cmd)
+				require.IsType(engine.Error{}, err)
+
+				// then
+				engineErr := err.(engine.Error)
+				assert.Equal(engine.ErrorValidation, engineErr.Type)
+				assert.NotEmpty(engineErr.Title)
+				assert.NotEmpty(engineErr.Detail)
+				assert.Len(engineErr.Causes, 1)
+
+				cause := engineErr.Causes[0]
+				assert.Regexp("/messageStartMultipleTest/(messageStartEventA|messageStartEventB)", cause.Pointer)
+				assert.Equal("message_event", cause.Type)
+				assert.Contains(cause.Detail, "must be unique")
+			})
+		}
+	})
+
+	t.Run("returns error when start message name is not unique within not suspended event definitions", func(t *testing.T) {
+		for i, e := range engines {
+			startDefinitionBpmnXml := mustReadBpmnFile(t, "event/message-start-definition.bpmn")
+
+			t.Run(engineTypes[i], func(t *testing.T) {
+				// given
+				cmd1 := engine.CreateProcessCmd{
+					BpmnProcessId: "messageStartDefinitionTest",
+					BpmnXml:       startDefinitionBpmnXml,
+					Version:       t.Name(),
+					WorkerId:      testWorkerId,
+				}
+
+				process1, err := e.CreateProcess(context.Background(), cmd1)
+				if err != nil {
+					t.Fatalf("failed to create process: %v", err)
+				}
+
+				cmd2 := engine.CreateProcessCmd{
+					BpmnProcessId: "messageStartTest",
+					BpmnXml:       bpmnXml1,
+					Messages: []engine.MessageDefinition{
+						{BpmnElementId: "messageStartEvent", MessageName: "startMessageName"},
+					},
+					Version:  t.Name(),
+					WorkerId: testWorkerId,
+				}
+
+				// when
+				_, err = e.CreateProcess(context.Background(), cmd2)
+				require.IsType(engine.Error{}, err)
+
+				// then
+				engineErr := err.(engine.Error)
+				assert.Equal(engine.ErrorValidation, engineErr.Type)
+				assert.NotEmpty(engineErr.Title)
+				assert.NotEmpty(engineErr.Detail)
+				assert.Len(engineErr.Causes, 1)
+
+				cause := engineErr.Causes[0]
+				assert.Equal("/messageStartTest/messageStartEvent", cause.Pointer)
+				assert.Equal("message_event", cause.Type)
+				assert.Contains(cause.Detail, fmt.Sprintf("must be unique - already defined in process %s:%s", process1.BpmnProcessId, process1.Version))
+			})
+		}
+	})
+
 	t.Run("create", func(t *testing.T) {
 		for i, e := range engines {
 			t.Run(engineTypes[i], func(t *testing.T) {
@@ -470,6 +554,51 @@ func TestCreateProcessWithMessage(t *testing.T) {
 					IsSuspended: false,
 					MessageName: "start-message*",
 				}, elements[0].EventDefinition)
+			})
+		}
+	})
+}
+
+func TestCreateProcessWithSignal(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	engines, engineTypes := mustCreateEngines(t)
+	for _, e := range engines {
+		defer e.Shutdown()
+	}
+
+	t.Run("returns error when start signal name is not unique within process", func(t *testing.T) {
+		bpmnXml := mustReadBpmnFile(t, "event/signal-start-multiple.bpmn")
+
+		for i, e := range engines {
+			t.Run(engineTypes[i], func(t *testing.T) {
+				// given
+				cmd := engine.CreateProcessCmd{
+					BpmnProcessId: "signalStartMultipleTest",
+					BpmnXml:       bpmnXml,
+					Signals: []engine.SignalDefinition{
+						{BpmnElementId: "signalStartEventA", SignalName: t.Name()},
+						{BpmnElementId: "signalStartEventB", SignalName: t.Name()},
+					},
+					Version:  t.Name(),
+					WorkerId: testWorkerId,
+				}
+
+				// when
+				_, err := e.CreateProcess(context.Background(), cmd)
+				require.IsType(engine.Error{}, err)
+
+				// then
+				engineErr := err.(engine.Error)
+				assert.Equal(engine.ErrorValidation, engineErr.Type)
+				assert.NotEmpty(engineErr.Title)
+				assert.NotEmpty(engineErr.Detail)
+				assert.Len(engineErr.Causes, 1)
+
+				cause := engineErr.Causes[0]
+				assert.Regexp("/signalStartMultipleTest/(signalStartEventA|signalStartEventB)", cause.Pointer)
+				assert.Equal("signal_event", cause.Type)
+				assert.Contains(cause.Detail, "must be unique")
 			})
 		}
 	})
