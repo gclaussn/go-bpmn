@@ -148,7 +148,7 @@ curl -v \
 -H "Authorization: ${GO_BPMN_AUTHORIZATION}" \
 -H "Content-Type: application/json" \
 -X POST http://127.0.0.1:8080/process-instances \
--d '{"bpmnProcessId": "example", "variables": {"xory": {"encoding": "json", "value": "x"}}, "version": "1", "workerId": "curl"}'
+-d '{"bpmnProcessId": "example", "variables": [{"name": "xory", "data": {"encoding": "json", "value": "x"}}], "version": "1", "workerId": "curl"}'
 ```
 
   </TabItem>
@@ -157,7 +157,8 @@ curl -v \
 ```sh
 go-bpmn process-instance create \
 --bpmn-process-id example \
---variable xory='{"encoding": "json", "value": "x"}' \
+--variable-value xory="x" \
+--variable-encoding xory="json" \
 --version 1
 ```
 
@@ -167,11 +168,8 @@ go-bpmn process-instance create \
 ```go
 processInstance, err := e.CreateProcessInstance(context.Background(), engine.CreateProcessInstanceCmd{
   BpmnProcessId: "example",
-  Variables: map[string]*engine.Data{
-    "xory": {
-      Encoding: "json",
-      Value:    "x",
-    },
+  Variables: []engine.VariableData{
+    {Name: "xory", Data: &engine.Data{Encoding: "json", Value: "x"}},
   },
   Version:  "1",
   WorkerId: "go",
@@ -314,17 +312,17 @@ curl -v \
 -d '{"limit": 1, "workerId": "curl"}'
 ```
 
-Complete job, which confirms the execution of service task `doX`:
+Complete job, which should confirm that the execution of service task `doX` by setting a process variable with name `result`:
 
 ```sh
 curl -v \
 -H "Authorization: ${GO_BPMN_AUTHORIZATION}" \
 -H "Content-Type: application/json" \
 -X PATCH http://127.0.0.1:8080/jobs/$(date -I)/2/complete \
--d '{"processVariables": {"result": {"encoding": "json", "value": "x done"}}, "workerId": "curl"}'
+-d '{"processVariables": [{"name": "result", "data": {"encoding": "json", "value": "x done"}}], "workerId": "curl"}'
 ```
 
-Verify that process instance is in state `ENDED`:
+Verify that process instance is in state `COMPLETED`:
 
 ```sh
 curl -v \
@@ -343,16 +341,17 @@ Lock job to allow an exclusive execution:
 go-bpmn job lock
 ```
 
-Complete job, which confirms the execution of service task `doX`:
+Complete job, which should confirm that the execution of service task `doX` by setting a process variable with name `result`:
 
 ```sh
 go-bpmn job complete \
 --partition $(date -I) \
---process-variable result='{"encoding": "json", "value": "x done"}' \
+--process-variable-value result="x done" \
+--process-variable-encoding result="json" \
 --id 2
 ```
 
-Verify that process instance is in state `ENDED`:
+Verify that process instance is in state `COMPLETED`:
 
 ```sh
 go-bpmn process-instance query
@@ -375,12 +374,15 @@ if len(lockedJobs) == 0 {
 }
 ```
 
-Complete job, which confirms the execution of service task `doX`:
+Complete job, which should confirm that the execution of service task `doX` by setting a process variable with name `result`:
 
 ```go
 completedJob, err := e.CompleteJob(context.Background(), engine.CompleteJobCmd{
   Partition: lockedJobs[0].Partition,
   Id:        lockedJobs[0].Id,
+  ProcessVariables: []engine.VariableData{
+    {Name: "result", Data: &engine.Data{Encoding: "json", Value: "x done"}},
+  },
   WorkerId: "go",
 })
 if err != nil {
@@ -388,7 +390,7 @@ if err != nil {
 }
 ```
 
-Verify that process instance is in state `ENDED`:
+Verify that process instance is in state `COMPLETED`:
 
 ```go
 q := e.CreateQuery()
@@ -406,8 +408,8 @@ if len(results) != 1 {
 }
 
 processInstance := results[0]
-if !processInstance.IsEnded() {
-  log.Fatalf("expected process instance to be ended, but is not ended")
+if processInstance.State != engine.InstanceCompleted {
+  log.Fatalf("expected process instance to be completed, but is not")
 }
 ```
 
