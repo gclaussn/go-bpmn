@@ -8,10 +8,10 @@ import (
 	"github.com/gclaussn/go-bpmn/worker"
 )
 
-type escalationBounaryEventDelegate struct {
+type escalationBoundaryEvent struct {
 }
 
-func (d escalationBounaryEventDelegate) CreateProcessCmd() (engine.CreateProcessCmd, error) {
+func (h escalationBoundaryEvent) CreateProcessCmd() (engine.CreateProcessCmd, error) {
 	bpmnXml, err := readBpmnFile("event/escalation-boundary.bpmn")
 	if err != nil {
 		return engine.CreateProcessCmd{}, err
@@ -24,17 +24,17 @@ func (d escalationBounaryEventDelegate) CreateProcessCmd() (engine.CreateProcess
 	}, nil
 }
 
-func (d escalationBounaryEventDelegate) Delegate(delegator worker.Delegator) error {
-	delegator.SetEscalationCode("escalationBoundaryEvent", d.setEscalationCode)
-	delegator.Execute("serviceTask", d.execute)
+func (h escalationBoundaryEvent) Handle(mux worker.JobMux) error {
+	mux.SetEscalationCode("escalationBoundaryEvent", h.setEscalationCode)
+	mux.Execute("serviceTask", h.execute)
 	return nil
 }
 
-func (d escalationBounaryEventDelegate) setEscalationCode(jc worker.JobContext) (string, error) {
+func (h escalationBoundaryEvent) setEscalationCode(jc worker.JobContext) (string, error) {
 	return "TEST_CODE", nil
 }
 
-func (d escalationBounaryEventDelegate) execute(jc worker.JobContext) error {
+func (h escalationBoundaryEvent) execute(jc worker.JobContext) error {
 	return worker.NewBpmnEscalation("TEST_CODE")
 }
 
@@ -44,12 +44,12 @@ func TestEscalationBoundaryEventProcess(t *testing.T) {
 
 	w := mustCreateWorker(t, e)
 
-	process, err := w.Register(&escalationBounaryEventDelegate{})
+	escalationBounaryEventProcess, err := w.Register(escalationBoundaryEvent{})
 	if err != nil {
-		t.Fatalf("failed to register process: %v", err)
+		t.Fatalf("failed to register handler: %v", err)
 	}
 
-	processInstance, err := process.CreateProcessInstance(context.Background(), worker.Variables{})
+	processInstance, err := escalationBounaryEventProcess.CreateProcessInstance(context.Background(), worker.Variables{})
 	if err != nil {
 		t.Fatalf("failed to create process instance: %v", err)
 	}

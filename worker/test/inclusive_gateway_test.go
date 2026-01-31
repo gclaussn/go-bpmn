@@ -8,10 +8,10 @@ import (
 	"github.com/gclaussn/go-bpmn/worker"
 )
 
-type inclusiveGatewayDelegate struct {
+type inclusiveGateway struct {
 }
 
-func (d inclusiveGatewayDelegate) CreateProcessCmd() (engine.CreateProcessCmd, error) {
+func (h inclusiveGateway) CreateProcessCmd() (engine.CreateProcessCmd, error) {
 	bpmnXml, err := readBpmnFile("gateway/inclusive.bpmn")
 	if err != nil {
 		return engine.CreateProcessCmd{}, err
@@ -24,12 +24,12 @@ func (d inclusiveGatewayDelegate) CreateProcessCmd() (engine.CreateProcessCmd, e
 	}, nil
 }
 
-func (d inclusiveGatewayDelegate) Delegate(delegator worker.Delegator) error {
-	delegator.EvaluateInclusiveGateway("fork", d.evaluateFork)
+func (h inclusiveGateway) Handle(mux worker.JobMux) error {
+	mux.EvaluateInclusiveGateway("fork", h.evaluateFork)
 	return nil
 }
 
-func (d inclusiveGatewayDelegate) evaluateFork(jc worker.JobContext) ([]string, error) {
+func (h inclusiveGateway) evaluateFork(jc worker.JobContext) ([]string, error) {
 	return []string{"endEventA", "endEventC"}, nil
 }
 
@@ -39,9 +39,9 @@ func TestInclusiveGatewayProcess(t *testing.T) {
 
 	w := mustCreateWorker(t, e)
 
-	inclusiveGatewayProcess, err := w.Register(&inclusiveGatewayDelegate{})
+	inclusiveGatewayProcess, err := w.Register(inclusiveGateway{})
 	if err != nil {
-		t.Fatalf("failed to register process: %v", err)
+		t.Fatalf("failed to register handler: %v", err)
 	}
 
 	processInstance, err := inclusiveGatewayProcess.CreateProcessInstance(context.Background(), worker.Variables{})

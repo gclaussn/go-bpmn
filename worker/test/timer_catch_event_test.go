@@ -9,10 +9,10 @@ import (
 	"github.com/gclaussn/go-bpmn/worker"
 )
 
-type timerCatchEventDelegate struct {
+type timerCatchEvent struct {
 }
 
-func (d timerCatchEventDelegate) CreateProcessCmd() (engine.CreateProcessCmd, error) {
+func (h timerCatchEvent) CreateProcessCmd() (engine.CreateProcessCmd, error) {
 	bpmnXml, err := readBpmnFile("event/timer-catch.bpmn")
 	if err != nil {
 		return engine.CreateProcessCmd{}, err
@@ -25,12 +25,12 @@ func (d timerCatchEventDelegate) CreateProcessCmd() (engine.CreateProcessCmd, er
 	}, nil
 }
 
-func (d timerCatchEventDelegate) Delegate(delegator worker.Delegator) error {
-	delegator.SetTimer("timerCatchEvent", d.setTimer)
+func (h timerCatchEvent) Handle(mux worker.JobMux) error {
+	mux.SetTimer("timerCatchEvent", h.setTimer)
 	return nil
 }
 
-func (d timerCatchEventDelegate) setTimer(jc worker.JobContext) (engine.Timer, error) {
+func (h timerCatchEvent) setTimer(jc worker.JobContext) (engine.Timer, error) {
 	return engine.Timer{TimeDuration: engine.ISO8601Duration("PT1H")}, nil
 }
 
@@ -40,9 +40,9 @@ func TestTimerCatchEventProcess(t *testing.T) {
 
 	w := mustCreateWorker(t, e)
 
-	timerCatchEventProcess, err := w.Register(&timerCatchEventDelegate{})
+	timerCatchEventProcess, err := w.Register(timerCatchEvent{})
 	if err != nil {
-		t.Fatalf("failed to register process: %v", err)
+		t.Fatalf("failed to register handler: %v", err)
 	}
 
 	processInstance, err := timerCatchEventProcess.CreateProcessInstance(context.Background(), worker.Variables{})

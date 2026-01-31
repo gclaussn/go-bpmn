@@ -1,6 +1,6 @@
-// Package worker provides a SDK to implement processes.
+// Package worker provides a SDK to implement and automate processes.
 /*
-worker offers a delegation mechanims of jobs, created within an engine to interact with running process instances.
+worker offers a handler interface, which must be implemented to automate the execution of jobs, created within an engine.
 
 Create a Worker
 
@@ -18,11 +18,11 @@ The engine can be an embedded engine (pg, or mem for testing) or a remote engine
 
 Implement a Process
 
-A process must implement the [Delegate] interface.
+A process automation must implement the [Handler] interface.
 
-	type exampleDelegate struct {}
+	type exampleHandler struct {}
 
-	func (d exampleDelegate) CreateProcessCmd() (engine.CreateProcessCmd, error) {
+	func (h exampleHandler) CreateProcessCmd() (engine.CreateProcessCmd, error) {
 		bpmnFile, err := os.Open("./example.bpmn")
 		if err != nil {
 			return engine.CreateProcessCmd{}, err
@@ -42,23 +42,23 @@ A process must implement the [Delegate] interface.
 		}, nil
 	}
 
-	func (d exampleDelegate) Delegate(delegator worker.Delegator) error {
-		delegator.Execute("serviceTask", d.executeServiceTask)
+	func (h exampleHandler) Handle(mux worker.JobMux) error {
+		mux.Execute("serviceTask", d.executeServiceTask)
 		return nil
 	}
 
-	func (d exampleDelegate) executeServiceTask(jc worker.JobContext) error {
+	func (h exampleHandler) executeServiceTask(jc worker.JobContext) error {
 		// ...
 		return nil
 	}
 
 Run a Worker
 
-Before a worker is started, implemented delegates must be registered.
+Before a worker is started, implemented handlers must be registered.
 
-	exampleProcess, err := w.Register(exampleDelegate{})
+	exampleProcess, err := w.Register(exampleHandler{})
 	if err != nil {
-		log.Fatalf("failed to register example delegate: %v", err)
+		log.Fatalf("failed to register example handler: %v", err)
 	}
 
 	w.Start()
@@ -72,7 +72,7 @@ Before a worker is started, implemented delegates must be registered.
 
 Create a Process Instance
 
-A registered process can be used to create a new process instance with variables.
+A process handle can be used to create a new process instance with variables.
 
 	variables := worker.Variables{}
 	variables.PutVariable("a", "value a")

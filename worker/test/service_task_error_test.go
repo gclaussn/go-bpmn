@@ -10,10 +10,10 @@ import (
 	"github.com/gclaussn/go-bpmn/worker"
 )
 
-type serviceTaskErrorDelegate struct {
+type serviceTaskError struct {
 }
 
-func (d serviceTaskErrorDelegate) CreateProcessCmd() (engine.CreateProcessCmd, error) {
+func (h serviceTaskError) CreateProcessCmd() (engine.CreateProcessCmd, error) {
 	bpmnXml, err := readBpmnFile("task/service.bpmn")
 	if err != nil {
 		return engine.CreateProcessCmd{}, err
@@ -26,14 +26,14 @@ func (d serviceTaskErrorDelegate) CreateProcessCmd() (engine.CreateProcessCmd, e
 	}, nil
 }
 
-func (d serviceTaskErrorDelegate) Delegate(delegator worker.Delegator) error {
-	delegator.Execute("serviceTask", d.executeServiceTask)
+func (h serviceTaskError) Handle(mux worker.JobMux) error {
+	mux.Execute("serviceTask", h.executeServiceTask)
 	return nil
 }
 
-func (d serviceTaskErrorDelegate) executeServiceTask(jc worker.JobContext) error {
+func (h serviceTaskError) executeServiceTask(jc worker.JobContext) error {
 	if jc.Job.RetryCount < 2 {
-		return worker.NewJobErrorWithTimer(
+		return worker.NewJobErrorWithRetryTimer(
 			errors.New("test error"),
 			2,
 			engine.ISO8601Duration("PT1H"),
@@ -49,9 +49,9 @@ func TestServiceTaskErrorProcess(t *testing.T) {
 
 	w := mustCreateWorker(t, e)
 
-	serviceTaskErrorProcess, err := w.Register(&serviceTaskErrorDelegate{})
+	serviceTaskErrorProcess, err := w.Register(serviceTaskError{})
 	if err != nil {
-		t.Fatalf("failed to register delegate: %v", err)
+		t.Fatalf("failed to register handler: %v", err)
 	}
 
 	processInstance, err := serviceTaskErrorProcess.CreateProcessInstance(context.Background(), worker.Variables{})
@@ -66,10 +66,10 @@ func TestServiceTaskErrorProcess(t *testing.T) {
 
 	now := time.Now().UTC()
 
-	e.SetTime(context.Background(), engine.SetTimeCmd{Time: now.Add(1 * time.Hour).Add(time.Second)})
+	e.SetTime(context.Background(), engine.SetTimeCmd{Time: now.Add(1 * time.Hour).Add(time.Minute)})
 	piAssert.ExecuteJobWithError()
 
-	e.SetTime(context.Background(), engine.SetTimeCmd{Time: now.Add(2 * time.Hour).Add(time.Second)})
+	e.SetTime(context.Background(), engine.SetTimeCmd{Time: now.Add(2 * time.Hour).Add(time.Minute)})
 	piAssert.ExecuteJob()
 
 	piAssert.IsCompleted()

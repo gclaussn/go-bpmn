@@ -8,10 +8,10 @@ import (
 	"github.com/gclaussn/go-bpmn/worker"
 )
 
-type exclusiveGatewayDelegate struct {
+type exclusiveGateway struct {
 }
 
-func (d exclusiveGatewayDelegate) CreateProcessCmd() (engine.CreateProcessCmd, error) {
+func (h exclusiveGateway) CreateProcessCmd() (engine.CreateProcessCmd, error) {
 	bpmnXml, err := readBpmnFile("gateway/exclusive.bpmn")
 	if err != nil {
 		return engine.CreateProcessCmd{}, err
@@ -24,19 +24,19 @@ func (d exclusiveGatewayDelegate) CreateProcessCmd() (engine.CreateProcessCmd, e
 	}, nil
 }
 
-func (d exclusiveGatewayDelegate) Delegate(delegator worker.Delegator) error {
-	delegator.EvaluateExclusiveGateway("fork", d.evaluateFork)
+func (h exclusiveGateway) Handle(mux worker.JobMux) error {
+	mux.EvaluateExclusiveGateway("fork", h.evaluateFork)
 	return nil
 }
 
-func (d exclusiveGatewayDelegate) evaluateFork(_ worker.JobContext) (string, error) {
+func (h exclusiveGateway) evaluateFork(_ worker.JobContext) (string, error) {
 	return "join", nil
 }
 
-type exclusiveGatewayGenericDelegate struct {
+type exclusiveGatewayGeneric struct {
 }
 
-func (d exclusiveGatewayGenericDelegate) CreateProcessCmd() (engine.CreateProcessCmd, error) {
+func (h exclusiveGatewayGeneric) CreateProcessCmd() (engine.CreateProcessCmd, error) {
 	bpmnXml, err := readBpmnFile("gateway/exclusive.bpmn")
 	if err != nil {
 		return engine.CreateProcessCmd{}, err
@@ -49,12 +49,12 @@ func (d exclusiveGatewayGenericDelegate) CreateProcessCmd() (engine.CreateProces
 	}, nil
 }
 
-func (d exclusiveGatewayGenericDelegate) Delegate(delegator worker.Delegator) error {
-	delegator.ExecuteAny("fork", d.evaluateFork)
+func (h exclusiveGatewayGeneric) Handle(mux worker.JobMux) error {
+	mux.ExecuteAny("fork", h.evaluateFork)
 	return nil
 }
 
-func (d exclusiveGatewayGenericDelegate) evaluateFork(_ worker.JobContext) (*engine.JobCompletion, error) {
+func (h exclusiveGatewayGeneric) evaluateFork(_ worker.JobContext) (*engine.JobCompletion, error) {
 	return &engine.JobCompletion{
 		ExclusiveGatewayDecision: "join",
 	}, nil
@@ -66,9 +66,9 @@ func TestExclusiveGatewayProcess(t *testing.T) {
 
 	w := mustCreateWorker(t, e)
 
-	exclusiveGatewayProcess, err := w.Register(&exclusiveGatewayDelegate{})
+	exclusiveGatewayProcess, err := w.Register(exclusiveGateway{})
 	if err != nil {
-		t.Fatalf("failed to register process: %v", err)
+		t.Fatalf("failed to register handler: %v", err)
 	}
 
 	processInstance, err := exclusiveGatewayProcess.CreateProcessInstance(context.Background(), worker.Variables{})
@@ -90,9 +90,9 @@ func TestExclusiveGatewayGenericProcess(t *testing.T) {
 
 	w := mustCreateWorker(t, e)
 
-	exclusiveGatewayProcess, err := w.Register(&exclusiveGatewayGenericDelegate{})
+	exclusiveGatewayProcess, err := w.Register(exclusiveGatewayGeneric{})
 	if err != nil {
-		t.Fatalf("failed to register process: %v", err)
+		t.Fatalf("failed to register handler: %v", err)
 	}
 
 	processInstance, err := exclusiveGatewayProcess.CreateProcessInstance(context.Background(), worker.Variables{})

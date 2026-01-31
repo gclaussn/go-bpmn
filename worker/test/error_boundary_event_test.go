@@ -8,10 +8,10 @@ import (
 	"github.com/gclaussn/go-bpmn/worker"
 )
 
-type errorBounaryEventDelegate struct {
+type errorBoundaryEvent struct {
 }
 
-func (d errorBounaryEventDelegate) CreateProcessCmd() (engine.CreateProcessCmd, error) {
+func (h errorBoundaryEvent) CreateProcessCmd() (engine.CreateProcessCmd, error) {
 	bpmnXml, err := readBpmnFile("event/error-boundary-event.bpmn")
 	if err != nil {
 		return engine.CreateProcessCmd{}, err
@@ -24,17 +24,17 @@ func (d errorBounaryEventDelegate) CreateProcessCmd() (engine.CreateProcessCmd, 
 	}, nil
 }
 
-func (d errorBounaryEventDelegate) Delegate(delegator worker.Delegator) error {
-	delegator.SetErrorCode("errorBoundaryEvent", d.setErrorCode)
-	delegator.Execute("serviceTask", d.execute)
+func (h errorBoundaryEvent) Handle(mux worker.JobMux) error {
+	mux.SetErrorCode("errorBoundaryEvent", h.setErrorCode)
+	mux.Execute("serviceTask", h.execute)
 	return nil
 }
 
-func (d errorBounaryEventDelegate) setErrorCode(jc worker.JobContext) (string, error) {
+func (h errorBoundaryEvent) setErrorCode(jc worker.JobContext) (string, error) {
 	return "TEST_CODE", nil
 }
 
-func (d errorBounaryEventDelegate) execute(jc worker.JobContext) error {
+func (h errorBoundaryEvent) execute(jc worker.JobContext) error {
 	return worker.NewBpmnError("TEST_CODE")
 }
 
@@ -44,12 +44,12 @@ func TestErrorBoundaryEventProcess(t *testing.T) {
 
 	w := mustCreateWorker(t, e)
 
-	process, err := w.Register(&errorBounaryEventDelegate{})
+	errorBoundaryEventProcess, err := w.Register(errorBoundaryEvent{})
 	if err != nil {
-		t.Fatalf("failed to register process: %v", err)
+		t.Fatalf("failed to register handler: %v", err)
 	}
 
-	processInstance, err := process.CreateProcessInstance(context.Background(), worker.Variables{})
+	processInstance, err := errorBoundaryEventProcess.CreateProcessInstance(context.Background(), worker.Variables{})
 	if err != nil {
 		t.Fatalf("failed to create process instance: %v", err)
 	}

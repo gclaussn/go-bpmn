@@ -20,8 +20,8 @@ func TestVariables(t *testing.T) {
 	assert.Nil(variableA.Value)
 
 	// when
-	variables.PutVariable("a", "va")
-	variables.PutEncryptedVariable("c", "vc")
+	variables.Put("a", "va")
+	variables.PutEncrypted("c", "vc")
 
 	// then
 	variableA, aExists = variables["a"]
@@ -39,7 +39,7 @@ func TestVariables(t *testing.T) {
 	assert.Equal("vc", variableC.Value)
 
 	// when
-	variables.DeleteVariable("a")
+	variables.Delete("a")
 
 	// then
 	variableA, aExists = variables["a"]
@@ -50,7 +50,7 @@ func TestVariables(t *testing.T) {
 	assert.Nil(variableA.Value)
 
 	// when
-	variables.SetVariable(Variable{
+	variables.Set(Variable{
 		Encoding: "custom",
 		Name:     "c",
 		Value:    "vc*",

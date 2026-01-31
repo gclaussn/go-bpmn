@@ -40,9 +40,9 @@ func main() {
 		log.Fatalf("failed to create worker: %v", err)
 	}
 
-	serviceTaskProcess, err := w.Register(serviceTaskDelegate{})
+	serviceTaskProcess, err := w.Register(serviceTask{})
 	if err != nil {
-		log.Fatalf("failed to register service task delegate: %v", err)
+		log.Fatalf("failed to register service task handler: %v", err)
 	}
 
 	w.Start()
@@ -55,7 +55,7 @@ func main() {
 			select {
 			case <-ticker.C:
 				variables := worker.Variables{}
-				variables.PutVariable("a", "b")
+				variables.Put("a", "b")
 
 				processInstance, err := serviceTaskProcess.CreateProcessInstance(context.Background(), variables)
 				if err != nil {

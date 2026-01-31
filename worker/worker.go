@@ -36,7 +36,7 @@ func New(e engine.Engine, customizers ...func(*Options)) (*Worker, error) {
 		defaultEncoder: options.Encoders[options.DefaultEncoding],
 		id:             options.WorkerId,
 		options:        options,
-		processes:      make(map[int32]Process),
+		processHandles: make(map[int32]ProcessHandle),
 	}
 
 	return &worker, nil
@@ -65,17 +65,18 @@ func NewOptions() Options {
 	}
 }
 
-type Delegate interface {
-	CreateProcessCmd() (engine.CreateProcessCmd, error)
-	Delegate(delegator Delegator) error
-}
-
 type Decoder interface {
 	Decode(string, any) error
 }
 
 type Encoder interface {
 	Encode(any) (string, error)
+}
+
+// Handler must be implemented to automate a [engine.Process].
+type Handler interface {
+	CreateProcessCmd() (engine.CreateProcessCmd, error)
+	Handle(JobMux) error
 }
 
 type Options struct {
@@ -103,34 +104,34 @@ func (o Options) Validate() error {
 	return nil
 }
 
-type Process struct {
+type ProcessHandle struct {
 	Process  engine.Process
 	Elements map[string]engine.Element
 
-	w         *Worker
-	delegate  Delegate
-	delegator Delegator
+	handler Handler
+	mux     JobMux
+	w       *Worker
 }
 
-func (p Process) CreateProcessInstanceCmd() engine.CreateProcessInstanceCmd {
+func (h ProcessHandle) CreateProcessInstanceCmd() engine.CreateProcessInstanceCmd {
 	return engine.CreateProcessInstanceCmd{
-		BpmnProcessId: p.Process.BpmnProcessId,
-		Version:       p.Process.Version,
-		WorkerId:      p.w.id,
+		BpmnProcessId: h.Process.BpmnProcessId,
+		Version:       h.Process.Version,
+		WorkerId:      h.w.id,
 	}
 }
 
-func (p Process) CreateProcessInstance(ctx context.Context, variables Variables) (engine.ProcessInstance, error) {
-	processVariables, err := p.w.encodeVariables(variables)
+func (h ProcessHandle) CreateProcessInstance(ctx context.Context, variables Variables) (engine.ProcessInstance, error) {
+	processVariables, err := h.w.encodeVariables(variables)
 	if err != nil {
 		return engine.ProcessInstance{}, nil
 	}
 
-	return p.w.e.CreateProcessInstance(ctx, engine.CreateProcessInstanceCmd{
-		BpmnProcessId: p.Process.BpmnProcessId,
-		Version:       p.Process.Version,
+	return h.w.e.CreateProcessInstance(ctx, engine.CreateProcessInstanceCmd{
+		BpmnProcessId: h.Process.BpmnProcessId,
+		Version:       h.Process.Version,
 		Variables:     processVariables,
-		WorkerId:      p.w.id,
+		WorkerId:      h.w.id,
 	})
 }
 
@@ -141,7 +142,7 @@ type Worker struct {
 	id             string
 	jobExecutor    *jobExecutor
 	options        Options
-	processes      map[int32]Process
+	processHandles map[int32]ProcessHandle
 }
 
 func (w *Worker) Decoder(encoding string) Decoder {
@@ -161,15 +162,15 @@ func (w *Worker) Encoder(encoding string) Encoder {
 }
 
 func (w *Worker) ExecuteJob(ctx context.Context, job engine.Job) (engine.Job, error) {
-	process, ok := w.processes[job.ProcessId]
+	processHandle, ok := w.processHandles[job.ProcessId]
 	if !ok {
-		return engine.Job{}, fmt.Errorf("no process registered for ID %d", job.ProcessId)
+		return engine.Job{}, fmt.Errorf("no handler registered for process ID %d", job.ProcessId)
 	}
 
 	jc := JobContext{
 		Job:     job,
-		Process: process.Process,
-		Element: process.Elements[job.BpmnElementId],
+		Process: processHandle.Process,
+		Element: processHandle.Elements[job.BpmnElementId],
 
 		w:   w,
 		ctx: ctx,
@@ -178,12 +179,12 @@ func (w *Worker) ExecuteJob(ctx context.Context, job engine.Job) (engine.Job, er
 		elementVariables: Variables{},
 	}
 
-	delegation := process.delegator[job.BpmnElementId]
-	if delegation == nil {
-		return engine.Job{}, fmt.Errorf("no job delegation registered for process %s and BPMN element %s", jc.Process, job.BpmnElementId)
+	jobHandler := processHandle.mux[job.BpmnElementId]
+	if jobHandler == nil {
+		return engine.Job{}, fmt.Errorf("no job handler registered for process %s and BPMN element %s", jc.Process, job.BpmnElementId)
 	}
 
-	completion, delegationErr := delegation(jc)
+	completion, jobHandlerErr := jobHandler(jc)
 
 	elementVariables, err := jc.w.encodeVariables(jc.elementVariables)
 	if err != nil {
@@ -205,81 +206,83 @@ func (w *Worker) ExecuteJob(ctx context.Context, job engine.Job) (engine.Job, er
 		WorkerId:         w.id,
 	}
 
-	if delegationErr != nil {
-		switch delegationErr := delegationErr.(type) {
+	if jobHandlerErr != nil {
+		switch jobHandlerErr := jobHandlerErr.(type) {
 		case jobError:
-			if err := delegationErr.Unwrap(); err != nil {
+			if err := jobHandlerErr.Unwrap(); err != nil {
 				cmd.Error = err.Error()
 			} else {
-				cmd.Error = fmt.Sprintf("%T failed to execute job", process.delegate)
+				cmd.Error = fmt.Sprintf("%T failed to execute job", processHandle.handler)
 			}
 
-			cmd.RetryLimit = delegationErr.retryLimit
-			cmd.RetryTimer = delegationErr.retryTimer
+			cmd.RetryLimit = jobHandlerErr.retryLimit
+			cmd.RetryTimer = jobHandlerErr.retryTimer
 		case bpmnError:
 			cmd.Completion = &engine.JobCompletion{
-				ErrorCode: delegationErr.code,
+				ErrorCode: jobHandlerErr.code,
 			}
 		case bpmnEscalation:
 			cmd.Completion = &engine.JobCompletion{
-				EscalationCode: delegationErr.code,
+				EscalationCode: jobHandlerErr.code,
 			}
 		default:
-			cmd.Error = delegationErr.Error()
+			cmd.Error = jobHandlerErr.Error()
 		}
 	}
 
 	return w.e.CompleteJob(ctx, cmd)
 }
 
-func (w *Worker) Register(delegate Delegate) (Process, error) {
-	createProcessCmd, err := delegate.CreateProcessCmd()
+func (w *Worker) Register(handler Handler) (ProcessHandle, error) {
+	createProcessCmd, err := handler.CreateProcessCmd()
 	if err != nil {
-		return Process{}, fmt.Errorf("failed to create process command: %v", err)
+		return ProcessHandle{}, fmt.Errorf("failed to create process command: %v", err)
 	}
 
 	createProcessCmd.WorkerId = w.id
 
 	process, err := w.e.CreateProcess(context.Background(), createProcessCmd)
 	if err != nil {
-		return Process{}, fmt.Errorf("failed to create process: %v", err)
+		return ProcessHandle{}, fmt.Errorf("failed to create process: %v", err)
 	}
 
-	if _, ok := w.processes[process.Id]; ok {
-		return Process{}, fmt.Errorf("process %s:%s is already registered", createProcessCmd.BpmnProcessId, createProcessCmd.Version)
+	if _, ok := w.processHandles[process.Id]; ok {
+		return ProcessHandle{}, fmt.Errorf("handler for process %s:%s is already registered", createProcessCmd.BpmnProcessId, createProcessCmd.Version)
 	}
 
-	results, err := w.e.CreateQuery().QueryElements(context.Background(), engine.ElementCriteria{ProcessId: process.Id})
+	elements, err := w.e.CreateQuery().QueryElements(context.Background(), engine.ElementCriteria{ProcessId: process.Id})
 	if err != nil {
-		return Process{}, fmt.Errorf("failed to query elements: %v", err)
+		return ProcessHandle{}, fmt.Errorf("failed to query elements: %v", err)
 	}
 
-	elements := make(map[string]engine.Element, len(results))
-	for _, element := range results {
-		elements[element.BpmnElementId] = element
+	elementMap := make(map[string]engine.Element, len(elements))
+	for _, element := range elements {
+		elementMap[element.BpmnElementId] = element
 	}
 
-	delegator := Delegator{}
-	if err := delegate.Delegate(delegator); err != nil {
-		return Process{}, fmt.Errorf("failed to delegate jobs: %v", err)
+	mux := make(JobMux, len(elements))
+	if err := handler.Handle(mux); err != nil {
+		return ProcessHandle{}, fmt.Errorf("failed to register job handlers: %v", err)
 	}
 
-	for bpmnElementId := range delegator {
-		if _, ok := elements[bpmnElementId]; !ok {
-			return Process{}, fmt.Errorf("invalid job delegation %s: process %s has no such BPMN element", bpmnElementId, process)
+	for bpmnElementId := range mux {
+		if _, ok := elementMap[bpmnElementId]; !ok {
+			return ProcessHandle{}, fmt.Errorf("invalid job handler %s: process %s has no such BPMN element", bpmnElementId, process)
 		}
 	}
 
-	w.processes[process.Id] = Process{
+	processHandle := ProcessHandle{
 		Process:  process,
-		Elements: elements,
+		Elements: elementMap,
 
-		w:         w,
-		delegate:  delegate,
-		delegator: delegator,
+		handler: handler,
+		mux:     mux,
+		w:       w,
 	}
 
-	return w.processes[process.Id], nil
+	w.processHandles[process.Id] = processHandle
+
+	return processHandle, nil
 }
 
 func (w *Worker) Start() {

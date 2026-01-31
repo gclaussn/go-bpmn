@@ -8,10 +8,10 @@ import (
 	"github.com/gclaussn/go-bpmn/worker"
 )
 
-type messageCatchEventDelegate struct {
+type messageCatchEvent struct {
 }
 
-func (d messageCatchEventDelegate) CreateProcessCmd() (engine.CreateProcessCmd, error) {
+func (h messageCatchEvent) CreateProcessCmd() (engine.CreateProcessCmd, error) {
 	bpmnXml, err := readBpmnFile("event/message-catch.bpmn")
 	if err != nil {
 		return engine.CreateProcessCmd{}, err
@@ -24,12 +24,12 @@ func (d messageCatchEventDelegate) CreateProcessCmd() (engine.CreateProcessCmd, 
 	}, nil
 }
 
-func (d messageCatchEventDelegate) Delegate(delegator worker.Delegator) error {
-	delegator.SubscribeMessage("messageCatchEvent", d.subscribeMessage)
+func (h messageCatchEvent) Handle(mux worker.JobMux) error {
+	mux.SubscribeMessage("messageCatchEvent", h.subscribeMessage)
 	return nil
 }
 
-func (d messageCatchEventDelegate) subscribeMessage(jc worker.JobContext) (string, string, error) {
+func (h messageCatchEvent) subscribeMessage(jc worker.JobContext) (string, string, error) {
 	return "catch-message", "catch-message-ck", nil
 }
 
@@ -39,9 +39,9 @@ func TestMessageCatchEventProcess(t *testing.T) {
 
 	w := mustCreateWorker(t, e)
 
-	messageCatchEventProcess, err := w.Register(&messageCatchEventDelegate{})
+	messageCatchEventProcess, err := w.Register(messageCatchEvent{})
 	if err != nil {
-		t.Fatalf("failed to register process: %v", err)
+		t.Fatalf("failed to register handler: %v", err)
 	}
 
 	processInstance, err := messageCatchEventProcess.CreateProcessInstance(context.Background(), worker.Variables{})

@@ -8,10 +8,10 @@ import (
 	"github.com/gclaussn/go-bpmn/worker"
 )
 
-type serviceTaskDelegate struct {
+type serviceTask struct {
 }
 
-func (d serviceTaskDelegate) CreateProcessCmd() (engine.CreateProcessCmd, error) {
+func (h serviceTask) CreateProcessCmd() (engine.CreateProcessCmd, error) {
 	bpmnFile, err := os.Open("./bpmn/task/service.bpmn")
 	if err != nil {
 		return engine.CreateProcessCmd{}, err
@@ -31,14 +31,14 @@ func (d serviceTaskDelegate) CreateProcessCmd() (engine.CreateProcessCmd, error)
 	}, nil
 }
 
-func (d serviceTaskDelegate) Delegate(delegator worker.Delegator) error {
-	delegator.Execute("serviceTask", d.executeServiceTask)
+func (h serviceTask) Handle(mux worker.JobMux) error {
+	mux.Execute("serviceTask", h.executeServiceTask)
 	return nil
 }
 
-func (d serviceTaskDelegate) executeServiceTask(jc worker.JobContext) error {
+func (h serviceTask) executeServiceTask(jc worker.JobContext) error {
 	processVariables := worker.Variables{}
-	processVariables.DeleteVariable("a")
+	processVariables.Delete("a")
 
 	jc.SetProcessVariables(processVariables)
 	return nil

@@ -31,23 +31,23 @@ func (v Variable) IsDeleted() bool {
 // Variables is used to get and set variables of a process instance or element instance.
 type Variables map[string]Variable
 
-func (v Variables) DeleteVariable(name string) {
+func (v Variables) Delete(name string) {
 	v[name] = Variable{Name: name}
 }
 
-func (v Variables) PutVariable(name string, value any) {
+func (v Variables) Put(name string, value any) {
 	if name != "" {
 		v[name] = Variable{Name: name, Value: value}
 	}
 }
 
-func (v Variables) PutEncryptedVariable(name string, value any) {
+func (v Variables) PutEncrypted(name string, value any) {
 	if name != "" {
 		v[name] = Variable{Name: name, Value: value, IsEncrypted: true}
 	}
 }
 
-func (v Variables) SetVariable(variable Variable) {
+func (v Variables) Set(variable Variable) {
 	if variable.Name != "" {
 		v[variable.Name] = variable
 	}

@@ -9,11 +9,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type serviceTaskDelegate struct {
+type serviceTask struct {
 	t *testing.T
 }
 
-func (d serviceTaskDelegate) CreateProcessCmd() (engine.CreateProcessCmd, error) {
+func (h serviceTask) CreateProcessCmd() (engine.CreateProcessCmd, error) {
 	bpmnXml, err := readBpmnFile("task/service.bpmn")
 	if err != nil {
 		return engine.CreateProcessCmd{}, err
@@ -26,13 +26,13 @@ func (d serviceTaskDelegate) CreateProcessCmd() (engine.CreateProcessCmd, error)
 	}, nil
 }
 
-func (d serviceTaskDelegate) Delegate(delegator worker.Delegator) error {
-	delegator.Execute("serviceTask", d.executeServiceTask)
+func (h serviceTask) Handle(mux worker.JobMux) error {
+	mux.Execute("serviceTask", h.executeServiceTask)
 	return nil
 }
 
-func (d serviceTaskDelegate) executeServiceTask(jc worker.JobContext) error {
-	assert := assert.New(d.t)
+func (h serviceTask) executeServiceTask(jc worker.JobContext) error {
+	assert := assert.New(h.t)
 
 	assert.NotNil(jc.Engine)
 	assert.Equal(int32(1), jc.Job.Id)
@@ -58,13 +58,13 @@ func (d serviceTaskDelegate) executeServiceTask(jc worker.JobContext) error {
 	assert.Equal("string", a)
 
 	newProcessVariables := worker.Variables{}
-	newProcessVariables.PutVariable("a", "string*")
-	newProcessVariables.DeleteVariable("e")
+	newProcessVariables.Put("a", "string*")
+	newProcessVariables.Delete("e")
 
 	jc.SetProcessVariables(newProcessVariables)
 
 	newElementVariables := worker.Variables{}
-	newElementVariables.PutVariable("a", "string")
+	newElementVariables.Put("a", "string")
 
 	jc.SetElementVariables(newElementVariables)
 
@@ -79,9 +79,9 @@ func TestServiceTaskProcess(t *testing.T) {
 
 	w := mustCreateWorker(t, e)
 
-	serviceTaskProcess, err := w.Register(&serviceTaskDelegate{t})
+	serviceTaskProcess, err := w.Register(serviceTask{t})
 	if err != nil {
-		t.Fatalf("failed to register delegate: %v", err)
+		t.Fatalf("failed to register handler: %v", err)
 	}
 
 	process := serviceTaskProcess.Process
@@ -95,11 +95,11 @@ func TestServiceTaskProcess(t *testing.T) {
 	assert.Equal(worker.DefaultWorkerId, createProcessInstanceCmd.WorkerId)
 
 	variables := worker.Variables{}
-	variables.PutVariable("a", "string")
-	variables.PutVariable("b", 1)
-	variables.PutVariable("c", true)
-	variables.PutVariable("d", 0.1)
-	variables.PutVariable("e", engine.Data{Value: "value"}) // example for a complex variable
+	variables.Put("a", "string")
+	variables.Put("b", 1)
+	variables.Put("c", true)
+	variables.Put("d", 0.1)
+	variables.Put("e", engine.Data{Value: "value"}) // example for a complex variable
 
 	processInstance, err := serviceTaskProcess.CreateProcessInstance(context.Background(), variables)
 	if err != nil {

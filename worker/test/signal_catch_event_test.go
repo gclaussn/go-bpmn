@@ -8,10 +8,10 @@ import (
 	"github.com/gclaussn/go-bpmn/worker"
 )
 
-type signalCatchEventDelegate struct {
+type signalCatchEvent struct {
 }
 
-func (d signalCatchEventDelegate) CreateProcessCmd() (engine.CreateProcessCmd, error) {
+func (h signalCatchEvent) CreateProcessCmd() (engine.CreateProcessCmd, error) {
 	bpmnXml, err := readBpmnFile("event/signal-catch.bpmn")
 	if err != nil {
 		return engine.CreateProcessCmd{}, err
@@ -24,12 +24,12 @@ func (d signalCatchEventDelegate) CreateProcessCmd() (engine.CreateProcessCmd, e
 	}, nil
 }
 
-func (d signalCatchEventDelegate) Delegate(delegator worker.Delegator) error {
-	delegator.SubscribeSignal("signalCatchEvent", d.subscribeSignal)
+func (h signalCatchEvent) Handle(mux worker.JobMux) error {
+	mux.SubscribeSignal("signalCatchEvent", h.subscribeSignal)
 	return nil
 }
 
-func (d signalCatchEventDelegate) subscribeSignal(jc worker.JobContext) (string, error) {
+func (h signalCatchEvent) subscribeSignal(jc worker.JobContext) (string, error) {
 	return "catch-signal", nil
 }
 
@@ -39,9 +39,9 @@ func TestSignalCatchEventProcess(t *testing.T) {
 
 	w := mustCreateWorker(t, e)
 
-	signalCatchEventProcess, err := w.Register(&signalCatchEventDelegate{})
+	signalCatchEventProcess, err := w.Register(signalCatchEvent{})
 	if err != nil {
-		t.Fatalf("failed to register process: %v", err)
+		t.Fatalf("failed to register handler: %v", err)
 	}
 
 	processInstance, err := signalCatchEventProcess.CreateProcessInstance(context.Background(), worker.Variables{})

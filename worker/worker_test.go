@@ -43,17 +43,17 @@ func (e *testWorkerEngine) LockJobs(ctx context.Context, cmd engine.LockJobsCmd)
 	return lockedJobs, nil
 }
 
-type testDelegate struct {
+type testHandler struct {
 }
 
-func (d testDelegate) CreateProcessCmd() (engine.CreateProcessCmd, error) {
+func (h testHandler) CreateProcessCmd() (engine.CreateProcessCmd, error) {
 	return engine.CreateProcessCmd{
 		BpmnProcessId: "test",
 		Version:       "1",
 	}, nil
 }
 
-func (d testDelegate) Delegate(delegator Delegator) error {
+func (h testHandler) Handle(mux JobMux) error {
 	return nil
 }
 
@@ -67,10 +67,10 @@ func TestRegister(t *testing.T) {
 
 	t.Run("returns error when already registered", func(t *testing.T) {
 		// given
-		w.processes[1] = Process{}
+		w.processHandles[1] = ProcessHandle{}
 
 		// when
-		_, err := w.Register(testDelegate{})
+		_, err := w.Register(testHandler{})
 
 		// then
 		assert.Error(err)
@@ -88,14 +88,14 @@ func TestWorkerStartAndStop(t *testing.T) {
 		o.JobExecutorInterval = time.Millisecond * 100
 	})
 
-	delegator := Delegator{}
-	delegator.Execute("a", func(_ JobContext) error {
+	mux := JobMux{}
+	mux.Execute("a", func(_ JobContext) error {
 		return nil
 	})
 
-	w.processes[1] = Process{delegator: delegator}
-	w.processes[2] = Process{delegator: delegator}
-	w.processes[3] = Process{delegator: delegator}
+	w.processHandles[1] = ProcessHandle{mux: mux}
+	w.processHandles[2] = ProcessHandle{mux: mux}
+	w.processHandles[3] = ProcessHandle{mux: mux}
 
 	// when
 	w.Start()

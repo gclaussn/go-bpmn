@@ -5,10 +5,16 @@ import (
 	"fmt"
 	"time"
 
+	"maps"
+
 	"github.com/gclaussn/go-bpmn/engine"
 )
 
-func NewJobError(err error, retryLimit int) error {
+func NewJobError(err error) error {
+	return jobError{err: err}
+}
+
+func NewJobErrorWithRetry(err error, retryLimit int) error {
 	return jobError{
 		err:        err,
 		retryLimit: retryLimit,
@@ -16,7 +22,7 @@ func NewJobError(err error, retryLimit int) error {
 	}
 }
 
-func NewJobErrorWithTimer(err error, retryLimit int, retryTimer engine.ISO8601Duration) error {
+func NewJobErrorWithRetryTimer(err error, retryLimit int, retryTimer engine.ISO8601Duration) error {
 	return jobError{
 		err:        err,
 		retryLimit: retryLimit,
@@ -36,15 +42,18 @@ func newJobExecutor(w *Worker) *jobExecutor {
 	}
 }
 
-type Delegator map[string]func(JobContext) (*engine.JobCompletion, error)
+type JobMux map[string]func(JobContext) (*engine.JobCompletion, error)
 
-func (d Delegator) EvaluateExclusiveGateway(bpmnElementId string, delegation func(jc JobContext) (string, error)) {
-	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
-		if jc.Job.Type != engine.JobEvaluateExclusiveGateway {
-			return nil, fmt.Errorf("expected job type %s, but got %s", engine.JobEvaluateExclusiveGateway, jc.Job.Type)
+// EvaluateExclusiveGateway handles jobs of type [engine.JobEvaluateExclusiveGateway].
+//
+// Applicable for BPMN elements of type exclusive gateway.
+func (m JobMux) EvaluateExclusiveGateway(bpmnElementId string, jobHandler func(jc JobContext) (string, error)) {
+	m[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
+		if err := ensureJobType(jc.Job.Type, engine.JobEvaluateExclusiveGateway); err != nil {
+			return nil, err
 		}
 
-		bpmnElementId, err := delegation(jc)
+		bpmnElementId, err := jobHandler(jc)
 		if err != nil {
 			return nil, err
 		}
@@ -55,13 +64,16 @@ func (d Delegator) EvaluateExclusiveGateway(bpmnElementId string, delegation fun
 	}
 }
 
-func (d Delegator) EvaluateInclusiveGateway(bpmnElementId string, delegation func(jc JobContext) ([]string, error)) {
-	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
-		if jc.Job.Type != engine.JobEvaluateInclusiveGateway {
-			return nil, fmt.Errorf("expected job type %s, but got %s", engine.JobEvaluateInclusiveGateway, jc.Job.Type)
+// EvaluateInclusiveGateway handles jobs of type [engine.JobEvaluateInclusiveGateway].
+//
+// Applicable for BPMN elements of type inclusive gateway.
+func (m JobMux) EvaluateInclusiveGateway(bpmnElementId string, jobHandler func(jc JobContext) ([]string, error)) {
+	m[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
+		if err := ensureJobType(jc.Job.Type, engine.JobEvaluateInclusiveGateway); err != nil {
+			return nil, err
 		}
 
-		bpmnElementIds, err := delegation(jc)
+		bpmnElementIds, err := jobHandler(jc)
 		if err != nil {
 			return nil, err
 		}
@@ -72,13 +84,20 @@ func (d Delegator) EvaluateInclusiveGateway(bpmnElementId string, delegation fun
 	}
 }
 
-func (d Delegator) Execute(bpmnElementId string, delegation func(jc JobContext) error) {
-	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
-		if jc.Job.Type != engine.JobExecute {
-			return nil, fmt.Errorf("expected job type %s, but got %s", engine.JobExecute, jc.Job.Type)
+// Execute handles jobs of type [engine.JobExecute].
+//
+// Applicable for BPMN element types:
+//   - business rule task
+//   - script task
+//   - send task
+//   - service task
+func (m JobMux) Execute(bpmnElementId string, jobHandler func(jc JobContext) error) {
+	m[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
+		if err := ensureJobType(jc.Job.Type, engine.JobExecute); err != nil {
+			return nil, err
 		}
 
-		if err := delegation(jc); err != nil {
+		if err := jobHandler(jc); err != nil {
 			return nil, err
 		}
 
@@ -86,24 +105,24 @@ func (d Delegator) Execute(bpmnElementId string, delegation func(jc JobContext) 
 	}
 }
 
-// ExecuteAny delegates jobs of any type. The delegation function allows to return a job-specific completion.
-func (d Delegator) ExecuteAny(bpmnElementId string, delegation func(jc JobContext) (*engine.JobCompletion, error)) {
-	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
-		return delegation(jc)
+// ExecuteAny handles jobs of any type. The job handler function allows to return a job-specific completion.
+func (m JobMux) ExecuteAny(bpmnElementId string, jobHandler func(jc JobContext) (*engine.JobCompletion, error)) {
+	m[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
+		return jobHandler(jc)
 	}
 }
 
-// SetErrorCode delegates jobs of type [engine.JobSetErrorCode].
+// SetErrorCode handles jobs of type [engine.JobSetErrorCode].
 //
 // Applicable for BPMN element types:
 //   - error boundary event
-func (d Delegator) SetErrorCode(bpmnElementId string, delegation func(jc JobContext) (string, error)) {
-	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
-		if jc.Job.Type != engine.JobSetErrorCode {
-			return nil, fmt.Errorf("expected job type %s, but got %s", engine.JobSetErrorCode, jc.Job.Type)
+func (m JobMux) SetErrorCode(bpmnElementId string, jobHandler func(jc JobContext) (string, error)) {
+	m[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
+		if err := ensureJobType(jc.Job.Type, engine.JobSetErrorCode); err != nil {
+			return nil, err
 		}
 
-		errorCode, err := delegation(jc)
+		errorCode, err := jobHandler(jc)
 		if err != nil {
 			return nil, err
 		}
@@ -114,17 +133,17 @@ func (d Delegator) SetErrorCode(bpmnElementId string, delegation func(jc JobCont
 	}
 }
 
-// SetEscalationCode delegates jobs of type [engine.JobSetEscalationCode].
+// SetEscalationCode handles jobs of type [engine.JobSetEscalationCode].
 //
 // Applicable for BPMN element types:
 //   - escalation boundary event
-func (d Delegator) SetEscalationCode(bpmnElementId string, delegation func(jc JobContext) (string, error)) {
-	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
-		if jc.Job.Type != engine.JobSetEscalationCode {
-			return nil, fmt.Errorf("expected job type %s, but got %s", engine.JobSetEscalationCode, jc.Job.Type)
+func (m JobMux) SetEscalationCode(bpmnElementId string, jobHandler func(jc JobContext) (string, error)) {
+	m[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
+		if err := ensureJobType(jc.Job.Type, engine.JobSetEscalationCode); err != nil {
+			return nil, err
 		}
 
-		esclationCode, err := delegation(jc)
+		esclationCode, err := jobHandler(jc)
 		if err != nil {
 			return nil, err
 		}
@@ -135,18 +154,18 @@ func (d Delegator) SetEscalationCode(bpmnElementId string, delegation func(jc Jo
 	}
 }
 
-// SetMessageCorrelationKey delegates jobs of type [engine.JobSetMessageCorrelationKey].
+// SetMessageCorrelationKey handles jobs of type [engine.JobSetMessageCorrelationKey].
 //
 // Applicable for BPMN element types:
 //   - message boundary event
 //   - message catch event
-func (d Delegator) SetMessageCorrelationKey(bpmnElementId string, delegation func(jc JobContext) (string, error)) {
-	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
-		if jc.Job.Type != engine.JobSetMessageCorrelationKey {
-			return nil, fmt.Errorf("expected job type %s, but got %s", engine.JobSetMessageCorrelationKey, jc.Job.Type)
+func (m JobMux) SetMessageCorrelationKey(bpmnElementId string, jobHandler func(jc JobContext) (string, error)) {
+	m[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
+		if err := ensureJobType(jc.Job.Type, engine.JobSetMessageCorrelationKey); err != nil {
+			return nil, err
 		}
 
-		messageCorrelationKey, err := delegation(jc)
+		messageCorrelationKey, err := jobHandler(jc)
 		if err != nil {
 			return nil, err
 		}
@@ -157,18 +176,18 @@ func (d Delegator) SetMessageCorrelationKey(bpmnElementId string, delegation fun
 	}
 }
 
-// SetTimer delegates jobs of type [engine.JobSetTimer].
+// SetTimer handles jobs of type [engine.JobSetTimer].
 //
 // Applicable for BPMN element types:
 //   - timer boundary event
 //   - timer catch event
-func (d Delegator) SetTimer(bpmnElementId string, delegation func(jc JobContext) (engine.Timer, error)) {
-	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
-		if jc.Job.Type != engine.JobSetTimer {
-			return nil, fmt.Errorf("expected job type %s, but got %s", engine.JobSetTimer, jc.Job.Type)
+func (m JobMux) SetTimer(bpmnElementId string, jobHandler func(jc JobContext) (engine.Timer, error)) {
+	m[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
+		if err := ensureJobType(jc.Job.Type, engine.JobSetTimer); err != nil {
+			return nil, err
 		}
 
-		timer, err := delegation(jc)
+		timer, err := jobHandler(jc)
 		if err != nil {
 			return nil, err
 		}
@@ -179,20 +198,20 @@ func (d Delegator) SetTimer(bpmnElementId string, delegation func(jc JobContext)
 	}
 }
 
-// SubscribeMessage delegates jobs of type [engine.JobSubscribeMessage].
+// SubscribeMessage handles jobs of type [engine.JobSubscribeMessage].
 //
-// A delegation function must return message name and correlation key.
+// A job handler function must return message name and correlation key.
 //
 // Applicable for BPMN element types:
 //   - message boundary event
 //   - message catch event
-func (d Delegator) SubscribeMessage(bpmnElementId string, delegation func(jc JobContext) (string, string, error)) {
-	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
-		if jc.Job.Type != engine.JobSubscribeMessage {
-			return nil, fmt.Errorf("expected job type %s, but got %s", engine.JobSubscribeMessage, jc.Job.Type)
+func (m JobMux) SubscribeMessage(bpmnElementId string, jobHandler func(jc JobContext) (string, string, error)) {
+	m[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
+		if err := ensureJobType(jc.Job.Type, engine.JobSubscribeMessage); err != nil {
+			return nil, err
 		}
 
-		messageName, messageCorrelationKey, err := delegation(jc)
+		messageName, messageCorrelationKey, err := jobHandler(jc)
 		if err != nil {
 			return nil, err
 		}
@@ -204,18 +223,18 @@ func (d Delegator) SubscribeMessage(bpmnElementId string, delegation func(jc Job
 	}
 }
 
-// SubscribeSignal delegates jobs of type [engine.JobSubscribeSignal].
+// SubscribeSignal handles jobs of type [engine.JobSubscribeSignal].
 //
 // Applicable for BPMN element types:
 //   - signal boundary event
 //   - signal catch event
-func (d Delegator) SubscribeSignal(bpmnElementId string, delegation func(jc JobContext) (string, error)) {
-	d[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
-		if jc.Job.Type != engine.JobSubscribeSignal {
-			return nil, fmt.Errorf("expected job type %s, but got %s", engine.JobSubscribeSignal, jc.Job.Type)
+func (m JobMux) SubscribeSignal(bpmnElementId string, jobHandler func(jc JobContext) (string, error)) {
+	m[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
+		if err := ensureJobType(jc.Job.Type, engine.JobSubscribeSignal); err != nil {
+			return nil, err
 		}
 
-		signalName, err := delegation(jc)
+		signalName, err := jobHandler(jc)
 		if err != nil {
 			return nil, err
 		}
@@ -243,8 +262,6 @@ func (jc JobContext) Context() context.Context {
 }
 
 func (jc JobContext) ElementVariables(names ...string) (Variables, error) {
-	variables := Variables{}
-
 	elementVariables, err := jc.w.e.GetElementVariables(jc.ctx, engine.GetElementVariablesCmd{
 		Partition:         jc.Job.Partition,
 		ElementInstanceId: jc.Job.ElementInstanceId,
@@ -252,11 +269,12 @@ func (jc JobContext) ElementVariables(names ...string) (Variables, error) {
 		Names: names,
 	})
 	if err != nil {
-		return variables, err
+		return nil, err
 	}
 
+	variables := make(Variables, len(elementVariables))
 	for _, variable := range elementVariables {
-		variables.SetVariable(Variable{
+		variables.Set(Variable{
 			Encoding:    variable.Data.Encoding,
 			IsEncrypted: variable.Data.IsEncrypted,
 			Name:        variable.Name,
@@ -272,8 +290,6 @@ func (jc JobContext) Engine() engine.Engine {
 }
 
 func (jc JobContext) ProcessVariables(names ...string) (Variables, error) {
-	variables := Variables{}
-
 	processVariables, err := jc.w.e.GetProcessVariables(jc.ctx, engine.GetProcessVariablesCmd{
 		ProcessInstanceId: jc.Job.ProcessInstanceId,
 		Partition:         jc.Job.Partition,
@@ -281,11 +297,12 @@ func (jc JobContext) ProcessVariables(names ...string) (Variables, error) {
 		Names: names,
 	})
 	if err != nil {
-		return variables, err
+		return nil, err
 	}
 
+	variables := make(Variables, len(processVariables))
 	for _, variable := range processVariables {
-		variables.SetVariable(Variable{
+		variables.Set(Variable{
 			Encoding:    variable.Data.Encoding,
 			IsEncrypted: variable.Data.IsEncrypted,
 			Name:        variable.Name,
@@ -297,15 +314,11 @@ func (jc JobContext) ProcessVariables(names ...string) (Variables, error) {
 }
 
 func (jc JobContext) SetElementVariables(elementVariables Variables) {
-	for variableName, variable := range elementVariables {
-		jc.elementVariables[variableName] = variable
-	}
+	maps.Copy(jc.elementVariables, elementVariables)
 }
 
 func (jc JobContext) SetProcessVariables(processVariables Variables) {
-	for variableName, variable := range processVariables {
-		jc.processVariables[variableName] = variable
-	}
+	maps.Copy(jc.processVariables, processVariables)
 }
 
 type jobError struct {
@@ -336,10 +349,10 @@ type jobExecutor struct {
 
 func (e *jobExecutor) execute() {
 	go func(w *Worker) {
-		processIds := make([]int32, len(w.processes))
+		processIds := make([]int32, len(w.processHandles))
 
 		i := 0
-		for processId := range w.processes {
+		for processId := range w.processHandles {
 			processIds[i] = processId
 			i++
 		}
@@ -376,4 +389,11 @@ func (e *jobExecutor) execute() {
 func (e *jobExecutor) stop() {
 	e.ticker.Stop()
 	e.tickerCancel()
+}
+
+func ensureJobType(actual engine.JobType, expected engine.JobType) error {
+	if actual != expected {
+		return fmt.Errorf("expected job type %s, but got %s", expected, actual)
+	}
+	return nil
 }
