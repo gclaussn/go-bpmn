@@ -42,7 +42,7 @@ export GO_BPMN_URL="http://localhost:8080"
 export GO_BPMN_AUTHORIZATION="$(docker compose -f compose-pg.yaml exec engine cat /conf/authorization)"
 export GO_BPMN_DEBUG="true"
 
-alias go-bpmn='go run cmd/go-bpmn/main.go'
+alias go-bpmn="go run cmd/go-bpmn/main.go"
 ```
 
 Examples:
@@ -57,9 +57,9 @@ go-bpmn process create \
 go-bpmn process-instance create \
 --bpmn-process-id parallelServiceTasksTest \
 --version 1 \
+--variable-value x="text x" \
 --variable-encoding x=text \
 --variable-encrypted x=true \
---variable-value x="text x" \
---variable-encoding y=text \
---variable-value y="text y"
+--variable-value y="text y" \
+--variable-encoding y=text
 ```

@@ -1,6 +1,6 @@
 // Package server implements the engine's HTTP API.
 /*
-server implements handlers for each engine command, using the [net/http] package.
+server implements handlers for each engine command and query, using the [net/http] package.
 
 Run a Server
 

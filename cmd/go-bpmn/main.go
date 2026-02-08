@@ -11,6 +11,7 @@ Available Commands:
 	completion       Generate the autocompletion script for the specified shell
 	element          Query elements
 	element-instance Manage and query element instances
+	event            Create and query events
 	help             Help about any command
 	incident         Resolve and query incidents
 	job              Manage and query jobs

@@ -1,6 +1,6 @@
 # Development
 
-## Testing
+## Test
 
 ```sh
 # start test database container
@@ -11,7 +11,7 @@ export GO_BPMN_TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5432/te
 ```
 
 ```sh
-# run tests, which do not rely on a database
+# run tests that do not require a database
 go test ./... -short
 
 # run all tests
@@ -22,7 +22,7 @@ go test -v -coverpkg=./... -coverprofile coverage.out ./...
 go tool cover -html coverage.out -o coverage.html
 ```
 
-## Building
+## Build
 
 ```sh
 # CLI
@@ -41,3 +41,12 @@ CGO_ENABLED=0 go build -o go-bpmn-pgd ./cmd/go-bpmn-pgd
 # generate YAML
 go run cmd/openapi/main.go -output-path openapi.yaml
 ```
+
+## Godoc
+
+```sh
+# generate Go package and command documentation
+godoc -http=:6060
+```
+
+Open [go-bpmn](http://localhost:6060/pkg/github.com/gclaussn/go-bpmn/) documentation.

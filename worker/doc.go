@@ -1,6 +1,6 @@
 // Package worker provides a SDK to implement and automate processes.
 /*
-worker offers a handler interface, which must be implemented to automate the execution of jobs, created within an engine.
+worker offers a [Handler] interface, which must be implemented to automate jobs, created by an engine.
 
 Create a Worker
 
@@ -43,7 +43,7 @@ A process automation must implement the [Handler] interface.
 	}
 
 	func (h exampleHandler) Handle(mux worker.JobMux) error {
-		mux.Execute("serviceTask", d.executeServiceTask)
+		mux.Execute("serviceTask", h.executeServiceTask)
 		return nil
 	}
 
@@ -75,9 +75,9 @@ Create a Process Instance
 A process handle can be used to create a new process instance with variables.
 
 	variables := worker.Variables{}
-	variables.PutVariable("a", "value a")
+	variables.Put("a", "value a")
 
-	processInstance, err := exampleProcess.CreateProcessInstance(variables)
+	processInstance, err := exampleProcess.CreateProcessInstance(context.Background(), variables)
 	if err != nil {
 		log.Printf("failed to create process instance: %v", err)
 	}

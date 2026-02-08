@@ -30,6 +30,6 @@ When used in a Go module:
 go get github.com/gclaussn/go-bpmn
 ```
 
-## Developmemt
+## Development
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for more information.
