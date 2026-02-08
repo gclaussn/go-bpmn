@@ -73,7 +73,7 @@ To execute an instance of the example process, the process must first be created
   <TabItem label="curl">
 
 ```sh
-curl -v \
+curl \
 -H "Authorization: ${GO_BPMN_AUTHORIZATION}" \
 -H "Content-Type: application/json" \
 -X POST http://127.0.0.1:8080/processes \
@@ -121,7 +121,7 @@ if err != nil {
 
 process, err := e.CreateProcess(context.Background(), engine.CreateProcessCmd{
   BpmnProcessId: "example",
-  BpmnXml:       bpmnXml,
+  BpmnXml:       string(bpmnXml),
   Version:       "1",
   WorkerId:      "go",
 })
@@ -144,11 +144,11 @@ In this example, the initial process data is provided as variable `xory`, a JSON
   <TabItem label="curl">
 
 ```sh
-curl -v \
+curl \
 -H "Authorization: ${GO_BPMN_AUTHORIZATION}" \
 -H "Content-Type: application/json" \
 -X POST http://127.0.0.1:8080/process-instances \
--d '{"bpmnProcessId": "example", "variables": {"xory": {"encoding": "json", "value": "x"}}, "version": "1", "workerId": "curl"}'
+-d '{"bpmnProcessId": "example", "variables": [{"name": "xory", "data": {"encoding": "json", "value": "x"}}], "version": "1", "workerId": "curl"}'
 ```
 
   </TabItem>
@@ -157,7 +157,8 @@ curl -v \
 ```sh
 go-bpmn process-instance create \
 --bpmn-process-id example \
---variable xory='{"encoding": "json", "value": "x"}' \
+--variable-value xory="x" \
+--variable-encoding xory="json" \
 --version 1
 ```
 
@@ -167,11 +168,8 @@ go-bpmn process-instance create \
 ```go
 processInstance, err := e.CreateProcessInstance(context.Background(), engine.CreateProcessInstanceCmd{
   BpmnProcessId: "example",
-  Variables: map[string]*engine.Data{
-    "xory": {
-      Encoding: "json",
-      Value:    "x",
-    },
+  Variables: []engine.VariableData{
+    {Name: "xory", Data: &engine.Data{Encoding: "json", Value: "x"}},
   },
   Version:  "1",
   WorkerId: "go",
@@ -194,10 +192,10 @@ In case of an exclusive gateway, a job needs to be completed with a decision tha
 <Tabs syncKey="lang">
   <TabItem label="curl">
 
-Lock job to allow an exclusive execution:
+Lock job to allow an exclusive job execution:
 
 ```sh
-curl -v \
+curl \
 -H "Authorization: ${GO_BPMN_AUTHORIZATION}" \
 -H "Content-Type: application/json" \
 -X POST http://127.0.0.1:8080/jobs/lock \
@@ -207,7 +205,7 @@ curl -v \
 Get variables of process instance (to make an decision):
 
 ```sh
-curl -v \
+curl \
 -H "Authorization: ${GO_BPMN_AUTHORIZATION}" \
 "http://127.0.0.1:8080/process-instances/$(date -I)/1/variables"
 ```
@@ -215,7 +213,7 @@ curl -v \
 Complete job with an exclusive gateway decision:
 
 ```sh
-curl -v \
+curl \
 -H "Authorization: ${GO_BPMN_AUTHORIZATION}" \
 -H "Content-Type: application/json" \
 -X PATCH http://127.0.0.1:8080/jobs/$(date -I)/1/complete \
@@ -225,7 +223,7 @@ curl -v \
   </TabItem>
   <TabItem label="CLI">
 
-Lock job to allow an exclusive execution:
+Lock job to allow an exclusive job execution:
 
 ```sh
 go-bpmn job lock
@@ -249,11 +247,11 @@ go-bpmn job complete \
   </TabItem>
   <TabItem label="Go">
 
-Lock job to allow an exclusive execution:
+Lock job to allow an exclusive job execution:
 
 ```go
 lockedJobs, err := e.LockJobs(context.Background(), engine.LockJobsCmd{
-  WorkerId:  "go",
+  WorkerId: "go",
 })
 if err != nil {
   log.Fatalf("failed to lock job: %v", err)
@@ -271,7 +269,7 @@ variables, err := e.GetProcessVariables(context.Background(), engine.GetProcessV
   ProcessInstanceId: 1,
 })
 if err != nil {
-  t.Fatalf("failed to get process variables: %v", err)
+  log.Fatalf("failed to get process variables: %v", err)
 }
 ```
 
@@ -304,30 +302,30 @@ In case of a service task, no type-specific completion is required.
 <Tabs syncKey="lang">
   <TabItem label="curl">
 
-Lock job to allow an exclusive execution:
+Lock job to allow an exclusive job execution:
 
 ```sh
-curl -v \
+curl \
 -H "Authorization: ${GO_BPMN_AUTHORIZATION}" \
 -H "Content-Type: application/json" \
 -X POST http://127.0.0.1:8080/jobs/lock \
 -d '{"limit": 1, "workerId": "curl"}'
 ```
 
-Complete job, which confirms the execution of service task `doX`:
+Complete job, which should confirm that the execution of service task `doX` by setting a process variable with name `result`:
 
 ```sh
-curl -v \
+curl \
 -H "Authorization: ${GO_BPMN_AUTHORIZATION}" \
 -H "Content-Type: application/json" \
 -X PATCH http://127.0.0.1:8080/jobs/$(date -I)/2/complete \
--d '{"processVariables": {"result": {"encoding": "json", "value": "x done"}}, "workerId": "curl"}'
+-d '{"processVariables": [{"name": "result", "data": {"encoding": "json", "value": "x done"}}], "workerId": "curl"}'
 ```
 
-Verify that process instance is in state `ENDED`:
+Verify that process instance is in state `COMPLETED`:
 
 ```sh
-curl -v \
+curl \
 -H "Authorization: ${GO_BPMN_AUTHORIZATION}" \
 -H "Content-Type: application/json" \
 -X POST http://127.0.0.1:8080/process-instances/query \
@@ -337,22 +335,23 @@ curl -v \
   </TabItem>
   <TabItem label="CLI">
 
-Lock job to allow an exclusive execution:
+Lock job to allow an exclusive job execution:
 
 ```sh
 go-bpmn job lock
 ```
 
-Complete job, which confirms the execution of service task `doX`:
+Complete job, which should confirm that the execution of service task `doX` by setting a process variable with name `result`:
 
 ```sh
 go-bpmn job complete \
 --partition $(date -I) \
---process-variable result='{"encoding": "json", "value": "x done"}' \
+--process-variable-value result="x done" \
+--process-variable-encoding result="json" \
 --id 2
 ```
 
-Verify that process instance is in state `ENDED`:
+Verify that process instance is in state `COMPLETED`:
 
 ```sh
 go-bpmn process-instance query
@@ -361,11 +360,11 @@ go-bpmn process-instance query
   </TabItem>
   <TabItem label="Go">
 
-Lock job to allow an exclusive execution:
+Lock job to allow an exclusive job execution:
 
 ```go
 lockedJobs, err := e.LockJobs(context.Background(), engine.LockJobsCmd{
-  WorkerId:  "go",
+  WorkerId: "go",
 })
 if err != nil {
   log.Fatalf("failed to lock job: %v", err)
@@ -375,12 +374,15 @@ if len(lockedJobs) == 0 {
 }
 ```
 
-Complete job, which confirms the execution of service task `doX`:
+Complete job, which should confirm that the execution of service task `doX` by setting a process variable with name `result`:
 
 ```go
 completedJob, err := e.CompleteJob(context.Background(), engine.CompleteJobCmd{
   Partition: lockedJobs[0].Partition,
   Id:        lockedJobs[0].Id,
+  ProcessVariables: []engine.VariableData{
+    {Name: "result", Data: &engine.Data{Encoding: "json", Value: "x done"}},
+  },
   WorkerId: "go",
 })
 if err != nil {
@@ -388,12 +390,12 @@ if err != nil {
 }
 ```
 
-Verify that process instance is in state `ENDED`:
+Verify that process instance is in state `COMPLETED`:
 
 ```go
 q := e.CreateQuery()
 
-results, err := q.QueryProessInstances(context.Background(), engine.ProcessInstanceCriteria{
+results, err := q.QueryProcessInstances(context.Background(), engine.ProcessInstanceCriteria{
   Partition: engine.Partition{},
   Id:        1,
 })
@@ -406,8 +408,8 @@ if len(results) != 1 {
 }
 
 processInstance := results[0]
-if !processInstance.IsEnded() {
-  log.Fatalf("expected process instance to be ended, but is not ended")
+if processInstance.State != engine.InstanceCompleted {
+  log.Fatalf("expected process instance to be completed, but is not")
 }
 ```
 
