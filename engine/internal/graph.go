@@ -80,12 +80,41 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 					Detail:  fmt.Sprintf("BPMN element %s is not supported: joining inclusive gateway", bpmnElement.Id),
 				})
 			}
-		case
-			model.ElementErrorBoundaryEvent,
-			model.ElementEscalationBoundaryEvent,
-			model.ElementMessageBoundaryEvent,
-			model.ElementSignalBoundaryEvent,
-			model.ElementTimerBoundaryEvent:
+		case model.ElementSubProcess:
+			subProcess := bpmnElement.Model.(model.SubProcess)
+			if subProcess.TriggeredByEvent {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(bpmnElement),
+					Type:    "element",
+					Detail:  fmt.Sprintf("BPMN element %s is not supported: event sub-process", bpmnElement.Id),
+				})
+			}
+
+			for _, child := range bpmnElement.Children {
+				if model.IsStartEvent(child.Type) {
+					if child.Type == model.ElementNoneStartEvent {
+						continue
+					}
+
+					causes = append(causes, engine.ErrorCause{
+						Pointer: elementPointer(child),
+						Type:    "element",
+						Detail:  fmt.Sprintf("sub-process %s cannot be started with event of type %s", bpmnElement.Id, child.Type),
+					})
+				}
+			}
+
+			noneStartEvents := bpmnElement.ChildrenByType(model.ElementNoneStartEvent)
+			if len(noneStartEvents) > 1 {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(bpmnElement),
+					Type:    "element",
+					Detail:  "sub-process has multiple none start events",
+				})
+			}
+		}
+
+		if model.IsBoundaryEvent(bpmnElement.Type) {
 			boundaryEvent := bpmnElement.Model.(model.BoundaryEvent)
 			if boundaryEvent.AttachedTo == nil {
 				causes = append(causes, engine.ErrorCause{
