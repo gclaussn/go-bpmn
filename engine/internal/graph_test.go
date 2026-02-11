@@ -130,11 +130,11 @@ func TestValidateProcess(t *testing.T) {
 func TestContinueExecution(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
-	scope := &ElementInstanceEntity{}
-
 	t.Run("start event", func(t *testing.T) {
 		// given
 		graph := mustCreateGraph(t, "start-end.bpmn", "startEndTest")
+
+		scope := graph.createProcessScope(&ProcessInstanceEntity{})
 
 		t.Run("scope QUEUED", func(t *testing.T) {
 			// given
@@ -144,7 +144,7 @@ func TestContinueExecution(t *testing.T) {
 				BpmnElementId:   "startEvent",
 				BpmnElementType: model.ElementNoneStartEvent,
 
-				parent: scope,
+				parent: &scope,
 			}
 
 			// when
@@ -169,7 +169,7 @@ func TestContinueExecution(t *testing.T) {
 
 			assert.Equal("endEvent", executions2[0].BpmnElementId)
 			assert.Equal(model.ElementNoneEndEvent, executions2[0].BpmnElementType)
-			assert.Equal(scope, executions2[0].parent)
+			assert.Equal(&scope, executions2[0].parent)
 			assert.Nil(executions2[0].prev)
 		})
 	})
@@ -177,6 +177,8 @@ func TestContinueExecution(t *testing.T) {
 	t.Run("service task with boundary event", func(t *testing.T) {
 		// given
 		graph := mustCreateGraph(t, "event/error-boundary-event.bpmn", "errorBoundaryEventTest")
+
+		scope := graph.createProcessScope(&ProcessInstanceEntity{})
 
 		t.Run("scope STARTED", func(t *testing.T) {
 			// given
@@ -186,7 +188,7 @@ func TestContinueExecution(t *testing.T) {
 				BpmnElementId:   "serviceTask",
 				BpmnElementType: model.ElementServiceTask,
 
-				parent: scope,
+				parent: &scope,
 			}
 
 			// when
@@ -201,7 +203,7 @@ func TestContinueExecution(t *testing.T) {
 
 			assert.Equal("errorBoundaryEvent", executions1[0].BpmnElementId)
 			assert.Equal(model.ElementErrorBoundaryEvent, executions1[0].BpmnElementType)
-			assert.Equal(scope, executions1[0].parent)
+			assert.Equal(&scope, executions1[0].parent)
 			assert.Equal(execution, executions1[0].prev)
 
 			// when
@@ -222,7 +224,7 @@ func TestContinueExecution(t *testing.T) {
 				BpmnElementId:   "serviceTask",
 				BpmnElementType: model.ElementServiceTask,
 
-				parent: scope,
+				parent: &scope,
 			}
 
 			// when
@@ -237,7 +239,7 @@ func TestContinueExecution(t *testing.T) {
 
 			assert.Equal("errorBoundaryEvent", executions1[0].BpmnElementId)
 			assert.Equal(model.ElementErrorBoundaryEvent, executions1[0].BpmnElementType)
-			assert.Equal(scope, executions1[0].parent)
+			assert.Equal(&scope, executions1[0].parent)
 			assert.Equal(execution, executions1[0].prev)
 
 			// when
@@ -277,13 +279,15 @@ func TestContinueExecution(t *testing.T) {
 				{BpmnElementId: "errorBoundaryEvent", ErrorCode: pgtype.Text{String: "TEST_CODE"}},
 			})
 
+			scope := graph.createProcessScope(&ProcessInstanceEntity{})
+
 			scope.State = engine.InstanceStarted
 
 			execution := &ElementInstanceEntity{
 				BpmnElementId:   "serviceTask",
 				BpmnElementType: model.ElementServiceTask,
 
-				parent: scope,
+				parent: &scope,
 			}
 
 			// when
@@ -305,6 +309,8 @@ func TestContinueExecution(t *testing.T) {
 		// given
 		graph := mustCreateGraph(t, "event/error-boundary-event.bpmn", "errorBoundaryEventTest")
 
+		scope := graph.createProcessScope(&ProcessInstanceEntity{})
+
 		t.Run("scope STARTED", func(t *testing.T) {
 			// given
 			scope.State = engine.InstanceStarted
@@ -314,7 +320,7 @@ func TestContinueExecution(t *testing.T) {
 				BpmnElementType: model.ElementServiceTask,
 				State:           engine.InstanceCreated,
 
-				parent: scope,
+				parent: &scope,
 			}
 
 			// when
@@ -338,7 +344,7 @@ func TestContinueExecution(t *testing.T) {
 				ExecutionCount:  -1,
 				State:           engine.InstanceCreated,
 
-				parent: scope,
+				parent: &scope,
 			}
 
 			// when
@@ -362,7 +368,7 @@ func TestContinueExecution(t *testing.T) {
 				ExecutionCount:  -1,
 				State:           engine.InstanceCreated,
 
-				parent: scope,
+				parent: &scope,
 			}
 
 			// when
@@ -397,7 +403,7 @@ func TestContinueExecution(t *testing.T) {
 				BpmnElementType: model.ElementServiceTask,
 				State:           engine.InstanceSuspended,
 
-				parent: scope,
+				parent: &scope,
 			}
 
 			// when
@@ -416,6 +422,8 @@ func TestContinueExecution(t *testing.T) {
 		// given
 		graph := mustCreateGraph(t, "event/timer-catch.bpmn", "timerCatchTest")
 
+		scope := graph.createProcessScope(&ProcessInstanceEntity{})
+
 		t.Run("scope STARTED", func(t *testing.T) {
 			// given
 			scope.State = engine.InstanceStarted
@@ -424,7 +432,7 @@ func TestContinueExecution(t *testing.T) {
 				BpmnElementId:   "startEvent",
 				BpmnElementType: model.ElementNoneStartEvent,
 
-				parent: scope,
+				parent: &scope,
 			}
 
 			// when

@@ -109,6 +109,14 @@ func TestBpmn(t *testing.T) {
 		}
 	})
 
+	t.Run("sub-process", func(t *testing.T) {
+		for i, e := range engines {
+			subProcessTest := subProcessTest{e}
+
+			t.Run(engineTypes[i]+"start end", subProcessTest.startEnd)
+		}
+	})
+
 	t.Run("task", func(t *testing.T) {
 		for i, e := range engines {
 			taskTest := newTaskTest(t, e)

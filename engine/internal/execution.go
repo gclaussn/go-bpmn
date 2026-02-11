@@ -23,6 +23,8 @@ func (ec *executionContext) addExecution(execution *ElementInstanceEntity) {
 
 // continueExecutions continues each execution until a wait state is reached or no more outgoing sequence flows exist.
 func (ec *executionContext) continueExecutions(ctx Context) error {
+	now := pgtype.Timestamp{Time: ctx.Time(), Valid: true}
+
 	i := 0
 	for i < len(ec.executions) {
 		execution := ec.executions[i]
@@ -52,22 +54,21 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 
 		switch execution.State {
 		case engine.InstanceStarted:
-			execution.StartedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
+			execution.StartedAt = now
 		case engine.InstanceCompleted:
-			execution.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
-
 			if !execution.StartedAt.Valid {
-				execution.StartedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
+				execution.StartedAt = now
 			}
+			execution.EndedAt = now
 		case engine.InstanceTerminated:
-			execution.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
+			execution.EndedAt = now
 		}
 
-		if scope.State == engine.InstanceCompleted && !scope.ParentId.Valid {
-			scope.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
+		if scope.State == engine.InstanceCompleted && scope.BpmnElementType == model.ElementProcess {
+			scope.EndedAt = now
 
 			// complete process instance
-			ec.processInstance.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
+			ec.processInstance.EndedAt = now
 			ec.processInstance.State = engine.InstanceCompleted
 		}
 	}
@@ -312,7 +313,7 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 		return err
 	}
 
-	message.ExpiresAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
+	message.ExpiresAt = now
 	return ctx.Messages().Update(message)
 }
 

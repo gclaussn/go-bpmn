@@ -224,21 +224,17 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 		if execution.ExecutionCount < 0 { // task, sub process or call activity, but not all boundary events defined
 			execution.State = engine.InstanceCreated
 		} else if execution.Context.Valid {
-			switch execution.BpmnElementType {
-			// defined boundary event
-			case
-				model.ElementErrorBoundaryEvent,
-				model.ElementEscalationBoundaryEvent,
-				model.ElementMessageBoundaryEvent,
-				model.ElementSignalBoundaryEvent,
-				model.ElementTimerBoundaryEvent:
+			if model.IsBoundaryEvent(execution.BpmnElementType) {
+				// defined boundary event
 				execution.State = engine.InstanceCreated
-			default:
+			} else {
 				execution.State = engine.InstanceStarted
 			}
 		} else {
 			execution.State = engine.InstanceStarted
 		}
+	} else if model.IsBoundaryEvent(execution.BpmnElementType) {
+		execution.State = engine.InstanceCreated
 	} else {
 		// end branch, if BPMN element requires a job to be completed or a task to be executed
 		switch execution.BpmnElementType {
@@ -246,7 +242,8 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 			model.ElementBusinessRuleTask,
 			model.ElementScriptTask,
 			model.ElementSendTask,
-			model.ElementServiceTask:
+			model.ElementServiceTask,
+			model.ElementSubProcess:
 			if execution.State != 0 && execution.ExecutionCount == 0 {
 				execution.State = engine.InstanceStarted
 			} else {
@@ -278,13 +275,6 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 			} else {
 				execution.State = engine.InstanceStarted
 			}
-		case
-			model.ElementErrorBoundaryEvent,
-			model.ElementEscalationBoundaryEvent,
-			model.ElementMessageBoundaryEvent,
-			model.ElementSignalBoundaryEvent,
-			model.ElementTimerBoundaryEvent:
-			execution.State = engine.InstanceCreated
 		default:
 			// continue branch, if element has no behavior (pass through element)
 			execution.State = engine.InstanceCompleted
@@ -334,10 +324,10 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 		scope.ExecutionCount--
 
 		if scope.ExecutionCount == 0 {
-			if scope.ParentId.Valid {
-				executions = append(executions, scope)
-			} else {
+			if scope.BpmnElementType == model.ElementProcess {
 				scope.State = engine.InstanceCompleted
+			} else {
+				executions = append(executions, scope)
 			}
 		}
 	case engine.InstanceCreated, engine.InstanceSuspended:
@@ -346,7 +336,8 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 			model.ElementBusinessRuleTask,
 			model.ElementScriptTask,
 			model.ElementSendTask,
-			model.ElementServiceTask:
+			model.ElementServiceTask,
+			model.ElementSubProcess:
 			if execution.ExecutionCount < 0 { // not all boundary events defined
 				return executions, nil
 			}
@@ -388,6 +379,18 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 		}
 	}
 
+	if execution.State == engine.InstanceStarted {
+		if execution.BpmnElementType == model.ElementSubProcess {
+			// start branch
+			next, err := g.createExecution(execution)
+			if err != nil {
+				return executions, err
+			}
+
+			executions = append(executions, &next)
+		}
+	}
+
 	return executions, nil
 }
 
@@ -399,7 +402,9 @@ func (g graph) createExecution(scope *ElementInstanceEntity) (ElementInstanceEnt
 
 	var noneStartEvents []*model.Element
 	switch scopeNode.bpmnElement.Type {
-	case model.ElementProcess:
+	case
+		model.ElementProcess,
+		model.ElementSubProcess:
 		noneStartEvents = scopeNode.bpmnElement.ChildrenByType(model.ElementNoneStartEvent)
 	}
 
