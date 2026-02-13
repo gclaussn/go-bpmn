@@ -159,6 +159,89 @@ WHERE
 	return &entity, nil
 }
 
+func (r elementInstanceRepository) SelectActiveChildren(parent *internal.ElementInstanceEntity) ([]*internal.ElementInstanceEntity, error) {
+	rows, err := r.tx.Query(r.txCtx, `
+SELECT
+	id,
+
+	prev_element_id,
+	prev_id,
+
+	element_id,
+	process_id,
+
+	bpmn_element_id,
+	bpmn_element_type,
+	context,
+	created_at,
+	created_by,
+	ended_at,
+	execution_count,
+	is_multi_instance,
+	started_at
+FROM
+	element_instance
+WHERE
+	partition = $1 AND
+	parent_id = $2 AND
+	state NOT IN ('COMPLETED', 'TERMINATED', 'CANCELED')
+`,
+		parent.Partition,
+		parent.Id,
+	)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"failed to select active children of parent %s/%d: %v",
+			parent.Partition.Format(time.DateOnly),
+			parent.Id,
+			err,
+		)
+	}
+
+	defer rows.Close()
+
+	var entities []*internal.ElementInstanceEntity
+	for rows.Next() {
+		var (
+			entity internal.ElementInstanceEntity
+
+			bpmnElementTypeValue string
+			stateValue           string
+		)
+
+		if err := rows.Scan(
+			&entity.Id,
+
+			&entity.PrevElementId,
+			&entity.PrevId,
+
+			&entity.ElementId,
+			&entity.ProcessId,
+
+			&entity.BpmnElementId,
+			&bpmnElementTypeValue,
+			&entity.Context,
+			&entity.CreatedAt,
+			&entity.CreatedBy,
+			&entity.EndedAt,
+			&entity.ExecutionCount,
+			&entity.IsMultiInstance,
+			&entity.StartedAt,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan element instance row: %v", err)
+		}
+
+		entity.Partition = parent.Partition
+		entity.ParentId = pgtype.Int4{Int32: parent.Id, Valid: true}
+		entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
+		entity.State = engine.MapInstanceState(stateValue)
+
+		entities = append(entities, &entity)
+	}
+
+	return entities, nil
+}
+
 func (r elementInstanceRepository) SelectByProcessInstanceAndState(processInstance *internal.ProcessInstanceEntity) ([]*internal.ElementInstanceEntity, error) {
 	rows, err := r.tx.Query(r.txCtx, `
 SELECT

@@ -867,3 +867,86 @@ func (ec *executionContext) handleParallelGateway(ctx Context, task *TaskEntity)
 
 	return nil
 }
+
+// TODO
+func (ec *executionContext) startBoundaryEvent(ctx Context, interrupting bool) (*ElementInstanceEntity, error) {
+	execution := ec.executions[0]
+
+	scope, err := ctx.ElementInstances().Select(execution.Partition, execution.ParentId.Int32)
+	if err != nil {
+		return nil, err
+	}
+
+	ec.addExecution(scope)
+
+	// start boundary event
+	execution.State = engine.InstanceStarted
+
+	if !interrupting {
+		// attach new boundary event execution
+		newExecution, err := ec.process.graph.createExecutionAt(scope, execution.BpmnElementId)
+		if err != nil {
+			return nil, err
+		}
+
+		newExecution.ParentId = execution.ParentId
+		newExecution.PrevElementId = execution.PrevElementId
+		newExecution.PrevId = execution.PrevId
+
+		newExecution.Context = execution.Context
+		newExecution.State = engine.InstanceCreated
+
+		ec.addExecution(&newExecution)
+
+		return &newExecution, nil
+	}
+
+	attachedTo, err := ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
+	if err != nil {
+		return nil, err
+	}
+
+	// terminate all other attached boundary events
+	boundaryEvents, err := ctx.ElementInstances().SelectBoundaryEvents(attachedTo)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, boundaryEvent := range boundaryEvents {
+		if boundaryEvent.Id == execution.Id {
+			continue
+		}
+
+		boundaryEvent.State = engine.InstanceTerminated
+		ec.addExecution(boundaryEvent)
+	}
+
+	// terminate attached to and children, if exist
+	i := len(ec.executions)
+
+	attachedTo.parent = scope
+	ec.addExecution(attachedTo)
+
+	for i < len(ec.executions) {
+		execution = ec.executions[i]
+		execution.State = engine.InstanceTerminated
+
+		i++
+
+		if execution.ExecutionCount <= 0 {
+			continue
+		}
+
+		children, err := ctx.ElementInstances().SelectActiveChildren(execution)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, child := range children {
+			child.parent = execution
+			ec.addExecution(child)
+		}
+	}
+
+	return nil, nil
+}

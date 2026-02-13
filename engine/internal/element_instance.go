@@ -61,6 +61,9 @@ type ElementInstanceRepository interface {
 	Insert(*ElementInstanceEntity) error
 	Select(partition time.Time, id int32) (*ElementInstanceEntity, error)
 
+	// TODO
+	SelectActiveChildren(parent *ElementInstanceEntity) ([]*ElementInstanceEntity, error)
+
 	// SelectByProcessInstanceAndState selects element instances related to a process instance.
 	// Only element instances with the same state as the process instance are selected.
 	SelectByProcessInstanceAndState(*ProcessInstanceEntity) ([]*ElementInstanceEntity, error)

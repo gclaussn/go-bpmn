@@ -275,57 +275,9 @@ func (ec *executionContext) triggerMessageBoundaryEvent(ctx Context, messageId i
 
 	ec.engineOrWorkerId = message.CreatedBy
 
-	scope, err := ctx.ElementInstances().Select(execution.Partition, execution.ParentId.Int32)
+	newExecution, err := ec.startBoundaryEvent(ctx, interrupting)
 	if err != nil {
 		return err
-	}
-
-	ec.addExecution(scope)
-
-	var newExecution *ElementInstanceEntity
-
-	// start boundary event
-	execution.State = engine.InstanceStarted
-
-	if interrupting {
-		// terminate attached to and all other boundary events
-		attachedTo, err := ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
-		if err != nil {
-			return err
-		}
-
-		attachedTo.State = engine.InstanceTerminated
-		ec.addExecution(attachedTo)
-
-		boundaryEvents, err := ctx.ElementInstances().SelectBoundaryEvents(attachedTo)
-		if err != nil {
-			return err
-		}
-
-		for _, boundaryEvent := range boundaryEvents {
-			if boundaryEvent.Id == execution.Id {
-				continue
-			}
-
-			boundaryEvent.State = engine.InstanceTerminated
-			ec.addExecution(boundaryEvent)
-		}
-	} else {
-		// attach new boundary event
-		attached, err := ec.process.graph.createExecutionAt(scope, execution.BpmnElementId)
-		if err != nil {
-			return err
-		}
-
-		attached.ParentId = execution.ParentId
-		attached.PrevElementId = execution.PrevElementId
-		attached.PrevId = execution.PrevId
-
-		attached.Context = execution.Context
-		attached.State = engine.InstanceCreated
-
-		newExecution = &attached
-		ec.addExecution(newExecution)
 	}
 
 	if err := ec.continueExecutions(ctx); err != nil {
@@ -370,6 +322,63 @@ func (ec *executionContext) triggerMessageBoundaryEvent(ctx Context, messageId i
 			Value:       variable.Value.String,
 		}); err != nil {
 			return err
+		}
+	}
+
+	if newExecution != nil {
+		bufferedMessage, err := ctx.Messages().SelectBuffered(message.Name, message.CorrelationKey, ctx.Time())
+		if err != nil && err != pgx.ErrNoRows {
+			return err
+		}
+
+		if bufferedMessage != nil {
+			triggerEventTask := TaskEntity{
+				Partition: newExecution.Partition,
+
+				ElementId:         pgtype.Int4{Int32: newExecution.ElementId, Valid: true},
+				ElementInstanceId: pgtype.Int4{Int32: newExecution.Id, Valid: true},
+				ProcessId:         pgtype.Int4{Int32: newExecution.ProcessId, Valid: true},
+				ProcessInstanceId: pgtype.Int4{Int32: newExecution.ProcessInstanceId, Valid: true},
+
+				BpmnElementId: pgtype.Text{String: newExecution.BpmnElementId, Valid: true},
+				CreatedAt:     ctx.Time(),
+				CreatedBy:     ec.engineOrWorkerId,
+				DueAt:         ctx.Time(),
+				State:         engine.WorkCreated,
+				Type:          engine.TaskTriggerEvent,
+
+				Instance: TriggerEventTask{MessageId: bufferedMessage.Id},
+			}
+
+			if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {
+				return err
+			}
+
+			bufferedMessage.ExpiresAt = pgtype.Timestamp{}
+			bufferedMessage.IsCorrelated = true
+
+			if err := ctx.Messages().Update(bufferedMessage); err != nil {
+				return err
+			}
+		} else {
+			messageSubscription := MessageSubscriptionEntity{
+				Partition: newExecution.Partition,
+
+				ElementId:         newExecution.ElementId,
+				ElementInstanceId: newExecution.Id,
+				ProcessId:         newExecution.ProcessId,
+				ProcessInstanceId: newExecution.ProcessInstanceId,
+
+				BpmnElementId:  newExecution.BpmnElementId,
+				CorrelationKey: message.CorrelationKey,
+				CreatedAt:      ctx.Time(),
+				CreatedBy:      ec.engineOrWorkerId,
+				Name:           message.Name,
+			}
+
+			if err := ctx.MessageSubscriptions().Insert(&messageSubscription); err != nil {
+				return err
+			}
 		}
 	}
 

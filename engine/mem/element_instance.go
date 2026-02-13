@@ -35,6 +35,23 @@ func (r *elementInstanceRepository) Select(partition time.Time, id int32) (*inte
 	return nil, fmt.Errorf("failed to select element instance %s/%d: %v", key, id, pgx.ErrNoRows)
 }
 
+func (r *elementInstanceRepository) SelectActiveChildren(parent *internal.ElementInstanceEntity) ([]*internal.ElementInstanceEntity, error) {
+	var results []*internal.ElementInstanceEntity
+
+	key := parent.Partition.Format(time.DateOnly)
+	for _, e := range r.partitions[key] {
+		if e.ParentId.Int32 != parent.Id {
+			continue
+		}
+
+		if e.State != engine.InstanceCompleted && e.State != engine.InstanceTerminated && e.State != engine.InstanceCanceled {
+			results = append(results, &e)
+		}
+	}
+
+	return results, nil
+}
+
 func (r *elementInstanceRepository) SelectByProcessInstanceAndState(processInstance *internal.ProcessInstanceEntity) ([]*internal.ElementInstanceEntity, error) {
 	var results []*internal.ElementInstanceEntity
 
