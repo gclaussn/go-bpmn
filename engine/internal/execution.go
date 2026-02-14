@@ -35,9 +35,13 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			continue // skip scope
 		}
 
-		scope, err := ec.findParent(ctx, execution)
-		if err != nil {
-			return err
+		scope := execution.parent
+		if scope == nil {
+			parent, err := ec.findParent(ctx, execution)
+			if err != nil {
+				return err
+			}
+			scope = parent
 		}
 
 		// continue execution
@@ -319,10 +323,6 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 
 // findParent finds and returns the parent execution.
 func (ec *executionContext) findParent(ctx Context, execution *ElementInstanceEntity) (*ElementInstanceEntity, error) {
-	if execution.parent != nil {
-		return execution.parent, nil
-	}
-
 	parentId := execution.ParentId.Int32
 
 	// find parent within executions
@@ -921,32 +921,39 @@ func (ec *executionContext) startBoundaryEvent(ctx Context, interrupting bool) (
 		ec.addExecution(boundaryEvent)
 	}
 
-	// terminate attached to and children, if exist
+	// terminate attachedTo and it's children recursively, if attachedTo is a scope (e.g. sub-process)
 	i := len(ec.executions)
 
 	attachedTo.parent = scope
 	ec.addExecution(attachedTo)
 
 	for i < len(ec.executions) {
-		execution = ec.executions[i]
-		execution.State = engine.InstanceTerminated
+		next := ec.executions[i]
+		next.State = engine.InstanceTerminated
 
 		i++
 
-		if execution.ExecutionCount <= 0 {
+		if next.ExecutionCount <= 0 {
 			continue
 		}
 
-		children, err := ctx.ElementInstances().SelectActiveChildren(execution)
+		children, err := ctx.ElementInstances().SelectActiveChildren(next)
 		if err != nil {
 			return nil, err
 		}
 
 		for _, child := range children {
-			child.parent = execution
+			child.parent = next
 			ec.addExecution(child)
 		}
 	}
+
+	// reverse execution order so that scopes are executed after their children
+	// this guarantees that the continuation will decrement the execution count of a terminated scope to 0
+	// otherwise a terminated scope might be skipped, leaving it's parent with a wrong execution count
+	slices.SortFunc(ec.executions, func(a *ElementInstanceEntity, b *ElementInstanceEntity) int {
+		return int(b.Id - a.Id)
+	})
 
 	return nil, nil
 }

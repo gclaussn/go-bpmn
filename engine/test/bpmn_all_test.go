@@ -114,6 +114,7 @@ func TestBpmn(t *testing.T) {
 			subProcessTest := subProcessTest{e}
 
 			t.Run(engineTypes[i]+"start end", subProcessTest.startEnd)
+			t.Run(engineTypes[i]+"boundary", subProcessTest.boundary)
 		}
 	})
 
