@@ -275,7 +275,7 @@ func (ec *executionContext) triggerMessageBoundaryEvent(ctx Context, messageId i
 
 	ec.engineOrWorkerId = message.CreatedBy
 
-	_, err = ec.startBoundaryEvent(ctx, interrupting)
+	newExecution, err := ec.startBoundaryEvent(ctx, interrupting)
 	if err != nil {
 		return err
 	}
@@ -322,6 +322,63 @@ func (ec *executionContext) triggerMessageBoundaryEvent(ctx Context, messageId i
 			Value:       variable.Value.String,
 		}); err != nil {
 			return err
+		}
+	}
+
+	if newExecution != nil {
+		bufferedMessage, err := ctx.Messages().SelectBuffered(message.Name, message.CorrelationKey, ctx.Time())
+		if err != nil && err != pgx.ErrNoRows {
+			return err
+		}
+
+		if bufferedMessage != nil {
+			triggerEventTask := TaskEntity{
+				Partition: newExecution.Partition,
+
+				ElementId:         pgtype.Int4{Int32: newExecution.ElementId, Valid: true},
+				ElementInstanceId: pgtype.Int4{Int32: newExecution.Id, Valid: true},
+				ProcessId:         pgtype.Int4{Int32: newExecution.ProcessId, Valid: true},
+				ProcessInstanceId: pgtype.Int4{Int32: newExecution.ProcessInstanceId, Valid: true},
+
+				BpmnElementId: pgtype.Text{String: newExecution.BpmnElementId, Valid: true},
+				CreatedAt:     ctx.Time(),
+				CreatedBy:     ec.engineOrWorkerId,
+				DueAt:         ctx.Time(),
+				State:         engine.WorkCreated,
+				Type:          engine.TaskTriggerEvent,
+
+				Instance: TriggerEventTask{MessageId: bufferedMessage.Id},
+			}
+
+			if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {
+				return err
+			}
+
+			bufferedMessage.ExpiresAt = pgtype.Timestamp{}
+			bufferedMessage.IsCorrelated = true
+
+			if err := ctx.Messages().Update(bufferedMessage); err != nil {
+				return err
+			}
+		} else {
+			messageSubscription := MessageSubscriptionEntity{
+				Partition: newExecution.Partition,
+
+				ElementId:         newExecution.ElementId,
+				ElementInstanceId: newExecution.Id,
+				ProcessId:         newExecution.ProcessId,
+				ProcessInstanceId: newExecution.ProcessInstanceId,
+
+				BpmnElementId:  newExecution.BpmnElementId,
+				CorrelationKey: message.CorrelationKey,
+				CreatedAt:      ctx.Time(),
+				CreatedBy:      ec.engineOrWorkerId,
+				Name:           message.Name,
+			}
+
+			if err := ctx.MessageSubscriptions().Insert(&messageSubscription); err != nil {
+				return err
+			}
 		}
 	}
 

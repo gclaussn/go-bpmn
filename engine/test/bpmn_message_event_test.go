@@ -152,21 +152,37 @@ func (x messageEventTest) boundaryNonInterrupting(t *testing.T) {
 	piAssert.IsWaitingAt("messageBoundaryEvent")
 	piAssert.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
-			MessageCorrelationKey: "boundary-message-ck",
+			MessageCorrelationKey: t.Name(),
 			MessageName:           "boundary-message",
 		},
 	})
 
 	piAssert.IsWaitingAt("serviceTask")
 
-	_, err := x.e.SendMessage(context.Background(), engine.SendMessageCmd{
-		CorrelationKey: "boundary-message-ck",
+	message1, err := x.e.SendMessage(context.Background(), engine.SendMessageCmd{
+		CorrelationKey: t.Name(),
 		Name:           "boundary-message",
 		WorkerId:       testWorkerId,
 	})
 	if err != nil {
 		t.Fatalf("failed to send message: %v", err)
 	}
+
+	assert.True(message1.IsCorrelated)
+
+	piAssert.IsWaitingAt("messageBoundaryEvent")
+	piAssert.ExecuteTask()
+
+	message2, err := x.e.SendMessage(context.Background(), engine.SendMessageCmd{
+		CorrelationKey: t.Name(),
+		Name:           "boundary-message",
+		WorkerId:       testWorkerId,
+	})
+	if err != nil {
+		t.Fatalf("failed to send message: %v", err)
+	}
+
+	assert.True(message2.IsCorrelated)
 
 	piAssert.IsWaitingAt("messageBoundaryEvent")
 	piAssert.ExecuteTask()
@@ -179,11 +195,12 @@ func (x messageEventTest) boundaryNonInterrupting(t *testing.T) {
 	piAssert.IsCompleted()
 
 	elementInstances := piAssert.ElementInstances()
-	require.Len(elementInstances, 7)
+	require.Len(elementInstances, 9)
 
 	assert.Equal(engine.InstanceCompleted, elementInstances[2].State)  // serviceTask
 	assert.Equal(engine.InstanceCompleted, elementInstances[3].State)  // messageBoundaryEvent #1
-	assert.Equal(engine.InstanceTerminated, elementInstances[4].State) // messageBoundaryEvent #2
+	assert.Equal(engine.InstanceCompleted, elementInstances[4].State)  // messageBoundaryEvent #2
+	assert.Equal(engine.InstanceTerminated, elementInstances[6].State) // messageBoundaryEvent #3
 
 	jobs := piAssert.Jobs()
 	require.Len(jobs, 2)
@@ -196,7 +213,7 @@ func (x messageEventTest) boundaryNonInterruptingMessageSentBefore(t *testing.T)
 	assert, require := assert.New(t), require.New(t)
 
 	_, err := x.e.SendMessage(context.Background(), engine.SendMessageCmd{
-		CorrelationKey: "boundary-message-ck",
+		CorrelationKey: t.Name(),
 		ExpirationTimer: &engine.Timer{
 			TimeDuration: engine.ISO8601Duration("PT1H"),
 		},
@@ -214,7 +231,7 @@ func (x messageEventTest) boundaryNonInterruptingMessageSentBefore(t *testing.T)
 	piAssert.IsWaitingAt("messageBoundaryEvent")
 	piAssert.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
-			MessageCorrelationKey: "boundary-message-ck",
+			MessageCorrelationKey: t.Name(),
 			MessageName:           "boundary-message",
 		},
 	})
