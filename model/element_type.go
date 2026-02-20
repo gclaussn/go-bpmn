@@ -26,6 +26,7 @@ const (
 	ElementSignalBoundaryEvent
 	ElementSignalCatchEvent
 	ElementSignalStartEvent
+	ElementSubProcess
 	ElementTask
 	ElementTimerBoundaryEvent
 	ElementTimerCatchEvent
@@ -74,6 +75,8 @@ func MapElementType(s string) ElementType {
 		return ElementSignalCatchEvent
 	case "SIGNAL_START_EVENT":
 		return ElementSignalStartEvent
+	case "SUB_PROCESS":
+		return ElementSubProcess
 	case "TASK":
 		return ElementTask
 	case "TIMER_BOUNDARY_EVENT":
@@ -137,6 +140,8 @@ func (v ElementType) String() string {
 		return "SIGNAL_CATCH_EVENT"
 	case ElementSignalStartEvent:
 		return "SIGNAL_START_EVENT"
+	case ElementSubProcess:
+		return "SUB_PROCESS"
 	case ElementTask:
 		return "TASK"
 	case ElementTimerBoundaryEvent:
@@ -163,4 +168,31 @@ func (v *ElementType) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("invalid element type data %s", s)
 	}
 	return nil
+}
+
+func IsBoundaryEvent(elementType ElementType) bool {
+	switch elementType {
+	case
+		ElementErrorBoundaryEvent,
+		ElementEscalationBoundaryEvent,
+		ElementMessageBoundaryEvent,
+		ElementSignalBoundaryEvent,
+		ElementTimerBoundaryEvent:
+		return true
+	default:
+		return false
+	}
+}
+
+func IsStartEvent(elementType ElementType) bool {
+	switch elementType {
+	case
+		ElementNoneStartEvent,
+		ElementMessageStartEvent,
+		ElementSignalStartEvent,
+		ElementTimerStartEvent:
+		return true
+	default:
+		return false
+	}
 }

@@ -23,6 +23,10 @@ func (ec *executionContext) addExecution(execution *ElementInstanceEntity) {
 
 // continueExecutions continues each execution until a wait state is reached or no more outgoing sequence flows exist.
 func (ec *executionContext) continueExecutions(ctx Context) error {
+	now := pgtype.Timestamp{Time: ctx.Time(), Valid: true}
+
+	graph := ec.process.graph
+
 	i := 0
 	for i < len(ec.executions) {
 		execution := ec.executions[i]
@@ -33,13 +37,13 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			continue // skip scope
 		}
 
-		scope, err := ec.findParent(ctx, execution)
+		scope, err := ec.findScope(ctx, execution)
 		if err != nil {
 			return err
 		}
 
 		// continue execution
-		executions, err := ec.process.graph.continueExecution(ec.executions, execution)
+		executions, err := graph.continueExecution(ec.executions, execution)
 		if err != nil {
 			return engine.Error{
 				Type:   engine.ErrorProcessModel,
@@ -52,23 +56,44 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 
 		switch execution.State {
 		case engine.InstanceStarted:
-			execution.StartedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
+			execution.StartedAt = now
 		case engine.InstanceCompleted:
-			execution.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
+			execution.EndedAt = now
 
 			if !execution.StartedAt.Valid {
-				execution.StartedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
+				execution.StartedAt = now
 			}
 		case engine.InstanceTerminated:
-			execution.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
+			execution.EndedAt = now
 		}
 
-		if scope.State == engine.InstanceCompleted && !scope.ParentId.Valid {
-			scope.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
+		if execution.State == engine.InstanceCompleted && isTaskOrScope(execution.BpmnElementType) {
+			node, _ := graph.node(execution.BpmnElementId)
+			if len(node.boundaryEvents) != 0 {
+				// terminate attached boundary events
+				boundaryEvents, err := ctx.ElementInstances().SelectBoundaryEvents(execution)
+				if err != nil {
+					return err
+				}
 
-			// complete process instance
-			ec.processInstance.EndedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
-			ec.processInstance.State = engine.InstanceCompleted
+				for _, boundaryEvent := range boundaryEvents {
+					boundaryEvent.State = engine.InstanceTerminated
+					ec.addExecution(boundaryEvent)
+				}
+			}
+		}
+
+		if scope.ExecutionCount == 0 {
+			if scope.BpmnElementType == model.ElementProcess {
+				scope.State = engine.InstanceCompleted
+				scope.EndedAt = now
+
+				// complete process instance
+				ec.processInstance.EndedAt = now
+				ec.processInstance.State = engine.InstanceCompleted
+			} else {
+				ec.addExecution(scope)
+			}
 		}
 	}
 
@@ -97,7 +122,7 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			taskInstance Task
 		)
 
-		node, _ := ec.process.graph.node(execution.BpmnElementId)
+		node, _ := graph.node(execution.BpmnElementId)
 
 		switch execution.BpmnElementType {
 		case
@@ -312,35 +337,35 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 		return err
 	}
 
-	message.ExpiresAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
+	message.ExpiresAt = now
 	return ctx.Messages().Update(message)
 }
 
-// findParent finds and returns the parent execution.
-func (ec *executionContext) findParent(ctx Context, execution *ElementInstanceEntity) (*ElementInstanceEntity, error) {
+// findScope finds and returns the parent execution.
+func (ec *executionContext) findScope(ctx Context, execution *ElementInstanceEntity) (*ElementInstanceEntity, error) {
 	if execution.parent != nil {
 		return execution.parent, nil
 	}
 
 	parentId := execution.ParentId.Int32
 
-	// find parent within executions
-	for _, parent := range ec.executions {
-		if parent.Id == parentId {
-			execution.parent = parent
-			return parent, nil
+	// find scope within executions
+	for _, scope := range ec.executions {
+		if scope.Id == parentId {
+			execution.parent = scope
+			return scope, nil
 		}
 	}
 
-	// find parent within repository
-	parent, err := ctx.ElementInstances().Select(execution.Partition, parentId)
+	// find scope within repository
+	scope, err := ctx.ElementInstances().Select(execution.Partition, parentId)
 	if err != nil {
 		return nil, err
 	}
 
-	execution.parent = parent
-	ec.addExecution(parent)
-	return parent, nil
+	execution.parent = scope
+	ec.addExecution(scope)
+	return scope, nil
 }
 
 func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.CompleteJobCmd) error {
@@ -446,28 +471,51 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 			ec.addExecution(&next)
 		}
 	case engine.JobExecute:
+		var (
+			errorCodeSet      bool
+			escalationCodeSet bool
+		)
+		if jobCompletion != nil {
+			if jobCompletion.ErrorCode != "" {
+				errorCodeSet = true
+			}
+
+			if jobCompletion.EscalationCode != "" {
+				escalationCodeSet = true
+			}
+
+			if errorCodeSet && escalationCodeSet {
+				job.Error = pgtype.Text{String: "expected error code or escalation code to be set", Valid: true}
+				return nil
+			}
+		}
+
+		if !errorCodeSet && !escalationCodeSet {
+			break
+		}
+
 		boundaryEvents, err := ctx.ElementInstances().SelectBoundaryEvents(execution)
 		if err != nil {
 			return err
 		}
 
-		var targetId int32 // optional ID of a triggered boundary event
-
-		if jobCompletion != nil && jobCompletion.ErrorCode != "" {
+		var (
+			boundaryEvent *ElementInstanceEntity
+			interrupting  = true
+		)
+		if errorCodeSet {
 			errorCode := jobCompletion.ErrorCode
 
-			target := findErrorBoundaryEvent(boundaryEvents, errorCode)
-			if target == nil {
+			boundaryEvent = findErrorBoundaryEvent(boundaryEvents, errorCode)
+			if boundaryEvent == nil {
 				job.Error = pgtype.Text{String: fmt.Sprintf("failed to find boundary event for error code %s", errorCode), Valid: true}
 				return nil
 			}
 
-			targetId = target.Id
-
 			event := EventEntity{
-				Partition: target.Partition,
+				Partition: boundaryEvent.Partition,
 
-				ElementInstanceId: targetId,
+				ElementInstanceId: boundaryEvent.Id,
 
 				CreatedAt: ctx.Time(),
 				CreatedBy: ec.engineOrWorkerId,
@@ -477,29 +525,27 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 			if err := ctx.Events().Insert(&event); err != nil {
 				return err
 			}
-		}
-
-		if jobCompletion != nil && jobCompletion.EscalationCode != "" {
+		} else {
 			escalationCode := jobCompletion.EscalationCode
 
-			target := findEscalationBoundaryEvent(boundaryEvents, escalationCode)
-			if target == nil {
+			boundaryEvent = findEscalationBoundaryEvent(boundaryEvents, escalationCode)
+			if boundaryEvent == nil {
 				job.Error = pgtype.Text{String: fmt.Sprintf("failed to find boundary event for escalation code %s", escalationCode), Valid: true}
 				return nil
 			}
 
-			targetId = target.Id
-
-			targetNode, err := graph.node(target.BpmnElementId)
+			boundaryEventNode, err := graph.node(boundaryEvent.BpmnElementId)
 			if err != nil {
 				job.Error = pgtype.Text{String: err.Error(), Valid: true}
 				return nil
 			}
 
-			event := EventEntity{
-				Partition: target.Partition,
+			interrupting = boundaryEventNode.bpmnElement.Model.(model.BoundaryEvent).CancelActivity
 
-				ElementInstanceId: targetId,
+			event := EventEntity{
+				Partition: boundaryEvent.Partition,
+
+				ElementInstanceId: boundaryEvent.Id,
 
 				CreatedAt:      ctx.Time(),
 				CreatedBy:      ec.engineOrWorkerId,
@@ -509,67 +555,44 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 			if err := ctx.Events().Insert(&event); err != nil {
 				return err
 			}
-
-			if !targetNode.bpmnElement.Model.(model.BoundaryEvent).CancelActivity { // non-interrupting
-				// start boundary event
-				target.State = engine.InstanceStarted
-
-				// attach new boundary event
-				attached, err := graph.createExecutionAt(scope, target.BpmnElementId)
-				if err != nil {
-					return err
-				}
-
-				attached.ParentId = target.ParentId
-				attached.PrevElementId = target.PrevElementId
-				attached.PrevId = target.PrevId
-
-				attached.Context = target.Context
-				attached.State = engine.InstanceCreated
-
-				// retry job
-				retryTimer := engine.ISO8601Duration(cmd.RetryTimer)
-
-				retry := JobEntity{
-					Partition: job.Partition,
-
-					ElementId:         job.ElementId,
-					ElementInstanceId: job.ElementInstanceId,
-					ProcessId:         job.ProcessId,
-					ProcessInstanceId: job.ProcessInstanceId,
-
-					BpmnElementId:  job.BpmnElementId,
-					CorrelationKey: job.CorrelationKey,
-					CreatedAt:      ctx.Time(),
-					CreatedBy:      ec.engineOrWorkerId,
-					DueAt:          retryTimer.Calculate(ctx.Time()),
-					RetryCount:     job.RetryCount,
-					State:          engine.WorkCreated,
-					Type:           job.Type,
-				}
-
-				if err := ctx.Jobs().Insert(&retry); err != nil {
-					return err
-				}
-
-				// overwrite executions to avoid completion of current execution
-				ec.executions = []*ElementInstanceEntity{scope, &attached, target}
-				break
-			}
 		}
 
-		if targetId != 0 {
-			execution.State = engine.InstanceTerminated
+		// overwrite executions
+		ec.executions = []*ElementInstanceEntity{scope, boundaryEvent}
+
+		newBoundaryEvent, err := ec.startBoundaryEvent(ctx, interrupting)
+		if err != nil {
+			return err
 		}
 
-		for _, boundaryEvent := range boundaryEvents {
-			if boundaryEvent.Id == targetId {
-				boundaryEvent.State = engine.InstanceStarted
-			} else {
-				boundaryEvent.State = engine.InstanceTerminated
+		if newBoundaryEvent != nil {
+			// retry job
+			retryTimer := engine.ISO8601Duration(cmd.RetryTimer)
+
+			retry := JobEntity{
+				Partition: job.Partition,
+
+				ElementId:         job.ElementId,
+				ElementInstanceId: job.ElementInstanceId,
+				ProcessId:         job.ProcessId,
+				ProcessInstanceId: job.ProcessInstanceId,
+
+				BpmnElementId:  job.BpmnElementId,
+				CorrelationKey: job.CorrelationKey,
+				CreatedAt:      ctx.Time(),
+				CreatedBy:      ec.engineOrWorkerId,
+				DueAt:          retryTimer.Calculate(ctx.Time()),
+				RetryCount:     job.RetryCount,
+				State:          engine.WorkCreated,
+				Type:           job.Type,
 			}
 
-			ec.addExecution(boundaryEvent)
+			if err := ctx.Jobs().Insert(&retry); err != nil {
+				return err
+			}
+
+			// overwrite executions to avoid completion of execution (e.g. service task)
+			ec.executions = []*ElementInstanceEntity{scope, newBoundaryEvent, boundaryEvent}
 		}
 	case engine.JobSetErrorCode, engine.JobSetEscalationCode:
 		attachedTo, err := ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
@@ -796,17 +819,7 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 	return nil
 }
 
-func (ec *executionContext) handleParallelGateway(ctx Context, task *TaskEntity) error {
-	execution, err := ctx.ElementInstances().Select(task.Partition, task.ElementInstanceId.Int32)
-	if err != nil {
-		return err
-	}
-
-	if execution.EndedAt.Valid {
-		task.State = engine.WorkCanceled
-		return nil // already completed by another task instance, terminated or canceled
-	}
-
+func (ec *executionContext) handleParallelGateway(ctx Context, execution *ElementInstanceEntity) error {
 	waiting, err := ctx.ElementInstances().SelectParallelGateways(execution)
 	if err != nil {
 		return err
@@ -838,13 +851,6 @@ func (ec *executionContext) handleParallelGateway(ctx Context, task *TaskEntity)
 		return nil
 	}
 
-	for i, joinedExecution := range joined {
-		if i != 0 {
-			// end all, but first joined execution
-			joinedExecution.State = engine.InstanceCompleted
-		}
-	}
-
 	scope, err := ctx.ElementInstances().Select(execution.Partition, execution.ParentId.Int32)
 	if err != nil {
 		return err
@@ -852,8 +858,9 @@ func (ec *executionContext) handleParallelGateway(ctx Context, task *TaskEntity)
 
 	ec.addExecution(scope)
 
-	for i := range joined {
-		ec.addExecution(joined[i])
+	for _, joinedExecution := range joined {
+		joinedExecution.parent = scope
+		ec.addExecution(joinedExecution)
 	}
 
 	if err := ec.continueExecutions(ctx); err != nil {
@@ -865,4 +872,92 @@ func (ec *executionContext) handleParallelGateway(ctx Context, task *TaskEntity)
 	}
 
 	return nil
+}
+
+// startBoundaryEvent starts the boundary event. (expects scope as first and boundary event as second execution)
+//
+// If the boundary event is non-interrupting, a new boundary event execution is attached.
+//
+// If the boundary event is interrupting, all other boundary events as well as the execution, the boundary is attached to, are terminated.
+func (ec *executionContext) startBoundaryEvent(ctx Context, interrupting bool) (*ElementInstanceEntity, error) {
+	scope := ec.executions[0]
+	boundaryEvent := ec.executions[1]
+
+	// start boundary event
+	boundaryEvent.State = engine.InstanceStarted
+
+	if !interrupting {
+		// attach new boundary event execution
+		newBoundaryEvent, err := ec.process.graph.createExecutionAt(scope, boundaryEvent.BpmnElementId)
+		if err != nil {
+			return nil, err
+		}
+
+		newBoundaryEvent.ParentId = boundaryEvent.ParentId
+		newBoundaryEvent.PrevElementId = boundaryEvent.PrevElementId
+		newBoundaryEvent.PrevId = boundaryEvent.PrevId
+
+		newBoundaryEvent.Context = boundaryEvent.Context
+		newBoundaryEvent.State = engine.InstanceCreated
+
+		ec.addExecution(&newBoundaryEvent)
+
+		return &newBoundaryEvent, nil
+	}
+
+	attachedTo, err := ctx.ElementInstances().Select(boundaryEvent.Partition, boundaryEvent.PrevId.Int32)
+	if err != nil {
+		return nil, err
+	}
+
+	// terminate all other attached boundary events
+	boundaryEvents, err := ctx.ElementInstances().SelectBoundaryEvents(attachedTo)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, other := range boundaryEvents {
+		if other.Id == boundaryEvent.Id {
+			continue
+		}
+
+		other.State = engine.InstanceTerminated
+		ec.addExecution(other)
+	}
+
+	// terminate attachedTo and it's children recursively, if attachedTo is a scope (e.g. sub-process)
+	i := len(ec.executions)
+
+	attachedTo.parent = scope
+	ec.addExecution(attachedTo)
+
+	for i < len(ec.executions) {
+		execution := ec.executions[i]
+		execution.State = engine.InstanceTerminated
+
+		i++
+
+		if execution.ExecutionCount <= 0 {
+			continue
+		}
+
+		children, err := ctx.ElementInstances().SelectActiveChildren(execution)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, child := range children {
+			child.parent = execution
+			ec.addExecution(child)
+		}
+	}
+
+	// reverse execution order so that scopes are executed after their children
+	// this guarantees that the continuation will decrement the execution count of a terminated scope to 0
+	// otherwise a terminated scope might be skipped, leaving it's parent with a wrong execution count
+	slices.SortFunc(ec.executions, func(a *ElementInstanceEntity, b *ElementInstanceEntity) int {
+		return int(b.Id - a.Id)
+	})
+
+	return nil, nil
 }

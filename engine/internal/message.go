@@ -266,7 +266,7 @@ func findMessageSubscriber(ctx Context, cmd engine.SendMessageCmd) (*MessageSubs
 }
 
 func (ec *executionContext) triggerMessageBoundaryEvent(ctx Context, messageId int64, interrupting bool) error {
-	execution := ec.executions[0]
+	execution := ec.executions[1]
 
 	message, err := ctx.Messages().Select(messageId)
 	if err != nil {
@@ -275,57 +275,9 @@ func (ec *executionContext) triggerMessageBoundaryEvent(ctx Context, messageId i
 
 	ec.engineOrWorkerId = message.CreatedBy
 
-	scope, err := ctx.ElementInstances().Select(execution.Partition, execution.ParentId.Int32)
+	_, err = ec.startBoundaryEvent(ctx, interrupting)
 	if err != nil {
 		return err
-	}
-
-	ec.addExecution(scope)
-
-	var newExecution *ElementInstanceEntity
-
-	// start boundary event
-	execution.State = engine.InstanceStarted
-
-	if interrupting {
-		// terminate attached to and all other boundary events
-		attachedTo, err := ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
-		if err != nil {
-			return err
-		}
-
-		attachedTo.State = engine.InstanceTerminated
-		ec.addExecution(attachedTo)
-
-		boundaryEvents, err := ctx.ElementInstances().SelectBoundaryEvents(attachedTo)
-		if err != nil {
-			return err
-		}
-
-		for _, boundaryEvent := range boundaryEvents {
-			if boundaryEvent.Id == execution.Id {
-				continue
-			}
-
-			boundaryEvent.State = engine.InstanceTerminated
-			ec.addExecution(boundaryEvent)
-		}
-	} else {
-		// attach new boundary event
-		attached, err := ec.process.graph.createExecutionAt(scope, execution.BpmnElementId)
-		if err != nil {
-			return err
-		}
-
-		attached.ParentId = execution.ParentId
-		attached.PrevElementId = execution.PrevElementId
-		attached.PrevId = execution.PrevId
-
-		attached.Context = execution.Context
-		attached.State = engine.InstanceCreated
-
-		newExecution = &attached
-		ec.addExecution(newExecution)
 	}
 
 	if err := ec.continueExecutions(ctx); err != nil {
@@ -393,7 +345,7 @@ func (ec *executionContext) triggerMessageBoundaryEvent(ctx Context, messageId i
 }
 
 func (ec *executionContext) triggerMessageCatchEvent(ctx Context, messageId int64) error {
-	execution := ec.executions[0]
+	execution := ec.executions[1]
 
 	message, err := ctx.Messages().Select(messageId)
 	if err != nil {

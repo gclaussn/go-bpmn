@@ -87,7 +87,7 @@ responses:
                   detail: is invalid
                   value: PT
           invalid_or_missing_event_definitions:
-            summary: Invalid or missing event defitions
+            summary: Invalid or missing event definitions
             value:
               status: 400
               type: VALIDATION
@@ -96,13 +96,13 @@ responses:
               errors:
                 - pointer: example/timerStartEvent
                   type: timer_event
-                  detail: no timer defined for BPMN element timerStartEvent
+                  detail: no timer defined for element timerStartEvent
                 - pointer: example/endEvent
                   type: timer_event
-                  detail: BPMN element endEvent is not a timer event
+                  detail: element endEvent is not a timer event
                 - pointer: example
                   type: timer_event
-                  detail: BPMN process example has no element timerStart
+                  detail: process example has no element timerStart
   "409":
     description: Conflict
     content:
@@ -148,16 +148,16 @@ responses:
               errors:
                 - pointer: example
                   type: process
-                  detail: BPMN process example is not executable
+                  detail: process example is not executable
                 - pointer: example/
                   type: element
-                  detail: BPMN element of type SERVICE_TASK has no ID
+                  detail: element of type SERVICE_TASK has no ID
                 - pointer: example/join
                   type: element
                   detail: "BPMN element join is not supported: joining inclusive gateway"
                 - pointer: example/f1
                   type: sequence_flow
-                  detail: BPMN sequence flow f1 has no target element
+                  detail: sequence flow f1 has no target element
                 - pointer: example/f2
                   type: sequence_flow
-                  detail: BPMN sequence flow f2 has no source element
+                  detail: sequence flow f2 has no source element

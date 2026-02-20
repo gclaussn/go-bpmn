@@ -44,6 +44,21 @@ func elementPointer(bpmnElement *model.Element) string {
 	return strings.Join(ids, "/")
 }
 
+// isTaskOrScope determines if a element type is a task or a scope, to which boundary events can be attached.
+func isTaskOrScope(elementType model.ElementType) bool {
+	switch elementType {
+	case
+		model.ElementBusinessRuleTask,
+		model.ElementScriptTask,
+		model.ElementSendTask,
+		model.ElementServiceTask,
+		model.ElementSubProcess:
+		return true
+	default:
+		return false
+	}
+}
+
 func isTimerEvent(elementType model.ElementType) bool {
 	switch elementType {
 	case

@@ -235,6 +235,8 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 			return engine.Job{}, err
 		}
 
+		execution.parent = scope
+
 		ec := executionContext{
 			engineOrWorkerId: cmd.WorkerId,
 			executions:       []*ElementInstanceEntity{scope, execution},

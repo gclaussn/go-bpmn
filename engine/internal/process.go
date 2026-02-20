@@ -300,7 +300,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 				causes = append(causes, engine.ErrorCause{
 					Pointer: elementPointer(bpmnElement),
 					Type:    "error_event",
-					Detail:  fmt.Sprintf("BPMN element %s is not an error boundary event", bpmnElement.Id),
+					Detail:  fmt.Sprintf("element %s is not an error boundary event", bpmnElement.Id),
 				})
 			}
 		}
@@ -318,7 +318,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 				causes = append(causes, engine.ErrorCause{
 					Pointer: elementPointer(bpmnElement),
 					Type:    "escalation_event",
-					Detail:  fmt.Sprintf("BPMN element %s is not an escalation boundary event", bpmnElement.Id),
+					Detail:  fmt.Sprintf("element %s is not an escalation boundary event", bpmnElement.Id),
 				})
 			}
 		}
@@ -356,7 +356,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 					causes = append(causes, engine.ErrorCause{
 						Pointer: elementPointer(bpmnElement),
 						Type:    "message_event",
-						Detail:  fmt.Sprintf("no message name defined for BPMN element %s", bpmnElement.Id),
+						Detail:  fmt.Sprintf("no message name defined for element %s", bpmnElement.Id),
 					})
 				}
 			}
@@ -365,7 +365,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 				causes = append(causes, engine.ErrorCause{
 					Pointer: elementPointer(bpmnElement),
 					Type:    "message_event",
-					Detail:  fmt.Sprintf("BPMN element %s is not a message event", bpmnElement.Id),
+					Detail:  fmt.Sprintf("element %s is not a message event", bpmnElement.Id),
 				})
 			}
 		}
@@ -403,7 +403,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 					causes = append(causes, engine.ErrorCause{
 						Pointer: elementPointer(bpmnElement),
 						Type:    "signal_event",
-						Detail:  fmt.Sprintf("no signal name defined for BPMN element %s", bpmnElement.Id),
+						Detail:  fmt.Sprintf("no signal name defined for element %s", bpmnElement.Id),
 					})
 				}
 			}
@@ -412,7 +412,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 				causes = append(causes, engine.ErrorCause{
 					Pointer: elementPointer(bpmnElement),
 					Type:    "signal_event",
-					Detail:  fmt.Sprintf("BPMN element %s is not a signal event", bpmnElement.Id),
+					Detail:  fmt.Sprintf("element %s is not a signal event", bpmnElement.Id),
 				})
 			}
 		}
@@ -423,7 +423,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 				causes = append(causes, engine.ErrorCause{
 					Pointer: elementPointer(bpmnElement),
 					Type:    "timer_event",
-					Detail:  fmt.Sprintf("BPMN element %s is not a timer event", bpmnElement.Id),
+					Detail:  fmt.Sprintf("element %s is not a timer event", bpmnElement.Id),
 				})
 			}
 		} else {

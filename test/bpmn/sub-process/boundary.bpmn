@@ -1,0 +1,70 @@
+<definitions id="test">
+  <process id="boundaryTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="subProcess" />
+    <subProcess id="subProcess">
+      <incoming>f1</incoming>
+      <startEvent id="subProcessStartEvent">
+        <outgoing>f2</outgoing>
+      </startEvent>
+      <sequenceFlow id="f2" sourceRef="subProcessStartEvent" targetRef="fork" />
+      <parallelGateway id="fork">
+        <incoming>f2</incoming>
+        <outgoing>f3</outgoing>
+        <outgoing>f4</outgoing>
+      </parallelGateway>
+      <sequenceFlow id="f3" sourceRef="fork" targetRef="serviceTaskA" />
+      <sequenceFlow id="f4" sourceRef="fork" targetRef="serviceTaskB" />
+      <serviceTask id="serviceTaskA">
+        <incoming>f3</incoming>
+        <outgoing>f5</outgoing>
+      </serviceTask>
+      <serviceTask id="serviceTaskB">
+        <incoming>f4</incoming>
+        <outgoing>f6</outgoing>
+      </serviceTask>
+      <sequenceFlow id="f5" sourceRef="serviceTaskA" targetRef="join" />
+      <sequenceFlow id="f6" sourceRef="serviceTaskB" targetRef="join" />
+      <exclusiveGateway id="join">
+        <incoming>f5</incoming>
+        <incoming>f6</incoming>
+        <outgoing>f7</outgoing>
+      </exclusiveGateway>
+      <sequenceFlow id="f7" sourceRef="join" targetRef="subProcessEndEvent" />
+      <endEvent id="subProcessEndEvent">
+        <incoming>f7</incoming>
+      </endEvent>
+      <outgoing>f8</outgoing>
+    </subProcess>
+    <sequenceFlow id="f8" sourceRef="subProcess" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f8</incoming>
+    </endEvent>
+    <boundaryEvent id="messageBoundaryEvent" attachedToRef="subProcess">
+      <outgoing>f9</outgoing>
+      <messageEventDefinition id="messageBoundaryEventDefinition" />
+    </boundaryEvent>
+    <sequenceFlow id="f9" sourceRef="messageBoundaryEvent" targetRef="messageEnd" />
+    <endEvent id="messageEnd">
+      <incoming>f9</incoming>
+    </endEvent>
+    <boundaryEvent id="signalBoundaryEvent" attachedToRef="subProcess">
+      <outgoing>f10</outgoing>
+      <signalEventDefinition id="signalBoundaryEventDefinition" />
+    </boundaryEvent>
+    <sequenceFlow id="f10" sourceRef="signalBoundaryEvent" targetRef="signalEnd" />
+    <endEvent id="signalEnd">
+      <incoming>f10</incoming>
+    </endEvent>
+    <boundaryEvent id="timerBoundaryEvent" attachedToRef="subProcess">
+      <outgoing>f11</outgoing>
+      <timerEventDefinition id="timerBoundaryEventDefinition" />
+    </boundaryEvent>
+    <sequenceFlow id="f11" sourceRef="timerBoundaryEvent" targetRef="timerEnd" />
+    <endEvent id="timerEnd">
+      <incoming>f11</incoming>
+    </endEvent>
+  </process>
+</definitions>

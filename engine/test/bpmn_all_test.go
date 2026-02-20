@@ -109,6 +109,18 @@ func TestBpmn(t *testing.T) {
 		}
 	})
 
+	t.Run("sub-process", func(t *testing.T) {
+		for i, e := range engines {
+			subProcessTest := subProcessTest{e}
+
+			t.Run(engineTypes[i]+"start end", subProcessTest.startEnd)
+			t.Run(engineTypes[i]+"boundary", subProcessTest.boundary)
+			t.Run(engineTypes[i]+"boundary terminated", subProcessTest.boundaryTerminated)
+			t.Run(engineTypes[i]+"nested", subProcessTest.nested)
+			t.Run(engineTypes[i]+"nested termined", subProcessTest.nestedTerminated)
+		}
+	})
+
 	t.Run("task", func(t *testing.T) {
 		for i, e := range engines {
 			taskTest := newTaskTest(t, e)

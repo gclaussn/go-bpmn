@@ -1,0 +1,48 @@
+<definitions id="test">
+  <process id="nestedTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="subProcess" />
+    <subProcess id="subProcess">
+      <incoming>f1</incoming>
+      <startEvent id="subProcessStartEvent">
+        <outgoing>f2</outgoing>
+      </startEvent>
+      <sequenceFlow id="f2" sourceRef="subProcessStartEvent" targetRef="nestedSubProcess" />
+      <subProcess id="nestedSubProcess">
+        <incoming>f2</incoming>
+        <startEvent id="nestedSubProcessStartEvent">
+          <outgoing>f3</outgoing>
+        </startEvent>
+        <sequenceFlow id="f3" sourceRef="nestedSubProcessStartEvent" targetRef="serviceTask" />
+        <serviceTask id="serviceTask">
+          <incoming>f3</incoming>
+          <outgoing>f4</outgoing>
+        </serviceTask>
+        <sequenceFlow id="f4" sourceRef="serviceTask" targetRef="nestedSubProcessEndEvent" />
+        <endEvent id="nestedSubProcessEndEvent">
+          <incoming>f4</incoming>
+        </endEvent>
+        <outgoing>f5</outgoing>
+      </subProcess>
+      <sequenceFlow id="f5" sourceRef="nestedSubProcess" targetRef="subProcessEndEvent" />
+      <endEvent id="subProcessEndEvent">
+        <incoming>f5</incoming>
+      </endEvent>
+      <outgoing>f6</outgoing>
+    </subProcess>
+    <sequenceFlow id="f6" sourceRef="subProcess" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f6</incoming>
+    </endEvent>
+    <boundaryEvent id="signalBoundaryEvent" attachedToRef="subProcess">
+      <outgoing>f7</outgoing>
+      <signalEventDefinition id="signalBoundaryEventDefinition" />
+    </boundaryEvent>
+    <sequenceFlow id="f7" sourceRef="signalBoundaryEvent" targetRef="signalEnd" />
+    <endEvent id="signalEnd">
+      <incoming>f7</incoming>
+    </endEvent>
+  </process>
+</definitions>

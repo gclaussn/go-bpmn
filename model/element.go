@@ -98,3 +98,7 @@ type Process struct {
 type StartEvent struct {
 	EventDefinition EventDefinition
 }
+
+type SubProcess struct {
+	TriggeredByEvent bool // Event sub-process indicator
+}

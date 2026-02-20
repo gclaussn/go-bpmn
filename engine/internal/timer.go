@@ -8,59 +8,11 @@ import (
 )
 
 func (ec *executionContext) triggerTimerBoundaryEvent(ctx Context, timer engine.Timer, interrupting bool) error {
-	execution := ec.executions[0]
+	execution := ec.executions[1]
 
-	scope, err := ctx.ElementInstances().Select(execution.Partition, execution.ParentId.Int32)
+	newExecution, err := ec.startBoundaryEvent(ctx, interrupting)
 	if err != nil {
 		return err
-	}
-
-	ec.addExecution(scope)
-
-	var newExecution *ElementInstanceEntity
-
-	// start boundary event
-	execution.State = engine.InstanceStarted
-
-	if interrupting {
-		// terminate attached to and all other boundary events
-		attachedTo, err := ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
-		if err != nil {
-			return err
-		}
-
-		attachedTo.State = engine.InstanceTerminated
-		ec.addExecution(attachedTo)
-
-		boundaryEvents, err := ctx.ElementInstances().SelectBoundaryEvents(attachedTo)
-		if err != nil {
-			return err
-		}
-
-		for _, boundaryEvent := range boundaryEvents {
-			if boundaryEvent.Id == execution.Id {
-				continue
-			}
-
-			boundaryEvent.State = engine.InstanceTerminated
-			ec.addExecution(boundaryEvent)
-		}
-	} else if timer.Time == nil || timer.Time.IsZero() {
-		// attach new boundary event, if timer is cycle or duration
-		attached, err := ec.process.graph.createExecutionAt(scope, execution.BpmnElementId)
-		if err != nil {
-			return err
-		}
-
-		attached.ParentId = execution.ParentId
-		attached.PrevElementId = execution.PrevElementId
-		attached.PrevId = execution.PrevId
-
-		attached.Context = execution.Context
-		attached.State = engine.InstanceCreated
-
-		newExecution = &attached
-		ec.addExecution(newExecution)
 	}
 
 	if err := ec.continueExecutions(ctx); err != nil {
@@ -120,7 +72,7 @@ func (ec *executionContext) triggerTimerBoundaryEvent(ctx Context, timer engine.
 }
 
 func (ec *executionContext) triggerTimerCatchEvent(ctx Context, timer engine.Timer) error {
-	execution := ec.executions[0]
+	execution := ec.executions[1]
 
 	if err := ec.continueExecutions(ctx); err != nil {
 		if _, ok := err.(engine.Error); ok {

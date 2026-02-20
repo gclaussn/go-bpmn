@@ -1,6 +1,7 @@
 package model
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -21,8 +22,8 @@ func TestInvalidXml(t *testing.T) {
 		t.Fatal("expected error when XML contains no definitions")
 	}
 
-	if _, err := New(strings.NewReader("<process></process1>")); err == nil {
-		t.Fatal("expected error when XML is invalid")
+	if _, err := New(strings.NewReader("<definitions><process><x></y></process></definitions")); err == nil {
+		t.Fatal("expected error when XML element could not be skipped")
 	}
 }
 
@@ -57,29 +58,35 @@ func TestUnknownElement(t *testing.T) {
 func TestUnknownBoundaryEvent(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
-	// when
-	model := mustCreateModel(t, "invalid/unknown-boundary-event.bpmn")
+	fileName := "../test/bpmn/invalid/unknown-boundary-event.bpmn"
 
-	// then
-	require.Len(model.Definitions.Processes, 1)
+	bpmnFile, err := os.Open(fileName)
+	if err != nil {
+		t.Fatalf("failed to open BPMN file %s: %v", fileName, err)
+	}
 
-	processElement := model.Definitions.Processes[0]
-	assert.Len(processElement.Children, 4)
-	assert.Nil(processElement.ChildById("unknownBoundaryEvent"))
+	defer bpmnFile.Close()
+
+	_, err = New(bpmnFile)
+	require.Error(err)
+	assert.Contains(err.Error(), "unknownBoundaryEvent")
 }
 
 func TestUnknownCatchEvent(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
-	// when
-	model := mustCreateModel(t, "invalid/unknown-catch-event.bpmn")
+	fileName := "../test/bpmn/invalid/unknown-catch-event.bpmn"
 
-	// then
-	require.Len(model.Definitions.Processes, 1)
+	bpmnFile, err := os.Open(fileName)
+	if err != nil {
+		t.Fatalf("failed to open BPMN file %s: %v", fileName, err)
+	}
 
-	processElement := model.Definitions.Processes[0]
-	assert.Len(processElement.Children, 2)
-	assert.Nil(processElement.ChildById("unknownCatchEvent"))
+	defer bpmnFile.Close()
+
+	_, err = New(bpmnFile)
+	require.Error(err)
+	assert.Contains(err.Error(), "unknownCatchEvent")
 }
 
 func TestServiceTask(t *testing.T) {
@@ -362,4 +369,37 @@ func TestTimerStartEvent(t *testing.T) {
 
 	assert.Len(timerStartEvent.Incoming, 0)
 	assert.Len(timerStartEvent.Outgoing, 1)
+}
+
+func TestSubProcess(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	// when
+	model := mustCreateModel(t, "sub-process/start-end.bpmn")
+
+	// then
+	processElement := model.ProcessById("startEndTest")
+	require.NotNil(processElement)
+
+	assert.Len(processElement.Children, 3)
+
+	subProcess := model.ElementById("subProcess")
+	require.NotNil(subProcess)
+	require.Len(subProcess.Children, 2)
+	require.Len(subProcess.Incoming, 1)
+	require.Len(subProcess.Outgoing, 1)
+
+	assert.False(subProcess.Model.(SubProcess).TriggeredByEvent)
+
+	subProcessStartEvent := subProcess.ChildById("subProcessStartEvent")
+	require.NotNil(subProcessStartEvent)
+	require.Len(subProcessStartEvent.Incoming, 0)
+	require.Len(subProcessStartEvent.Outgoing, 1)
+
+	subProcessEndEvent := subProcess.ChildById("subProcessEndEvent")
+	require.NotNil(subProcessEndEvent)
+	require.Len(subProcessEndEvent.Incoming, 1)
+	require.Len(subProcessEndEvent.Outgoing, 0)
+
+	assert.Equal(subProcessStartEvent.Outgoing[0], subProcessEndEvent.Incoming[0])
 }

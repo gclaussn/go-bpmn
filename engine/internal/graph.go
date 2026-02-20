@@ -34,7 +34,7 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 		causes = append(causes, engine.ErrorCause{
 			Pointer: elementPointer(bpmnElements[0]),
 			Type:    "process",
-			Detail:  fmt.Sprintf("BPMN process %s is not executable", bpmnElements[0].Id),
+			Detail:  fmt.Sprintf("process %s is not executable", bpmnElements[0].Id),
 		})
 	}
 
@@ -43,7 +43,7 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 			causes = append(causes, engine.ErrorCause{
 				Pointer: elementPointer(bpmnElement),
 				Type:    "element",
-				Detail:  fmt.Sprintf("BPMN element of type %s has no ID", bpmnElement.Type),
+				Detail:  fmt.Sprintf("element of type %s has no ID", bpmnElement.Type),
 			})
 		}
 
@@ -77,15 +77,45 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 				causes = append(causes, engine.ErrorCause{
 					Pointer: elementPointer(bpmnElement),
 					Type:    "element",
-					Detail:  fmt.Sprintf("BPMN element %s is not supported: joining inclusive gateway", bpmnElement.Id),
+					Detail:  fmt.Sprintf("element %s is not supported: joining inclusive gateway", bpmnElement.Id),
 				})
 			}
-		case
-			model.ElementErrorBoundaryEvent,
-			model.ElementEscalationBoundaryEvent,
-			model.ElementMessageBoundaryEvent,
-			model.ElementSignalBoundaryEvent,
-			model.ElementTimerBoundaryEvent:
+		case model.ElementSubProcess:
+			subProcess := bpmnElement.Model.(model.SubProcess)
+			if subProcess.TriggeredByEvent {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(bpmnElement),
+					Type:    "element",
+					Detail:  fmt.Sprintf("element %s is not supported: event sub-process", bpmnElement.Id),
+				})
+				break
+			}
+
+			for _, child := range bpmnElement.Children {
+				if model.IsStartEvent(child.Type) {
+					if child.Type == model.ElementNoneStartEvent {
+						continue
+					}
+
+					causes = append(causes, engine.ErrorCause{
+						Pointer: elementPointer(child),
+						Type:    "element",
+						Detail:  fmt.Sprintf("sub-process %s cannot be started by event %s: not a none start event", bpmnElement.Id, child.Id),
+					})
+				}
+			}
+
+			noneStartEvents := bpmnElement.ChildrenByType(model.ElementNoneStartEvent)
+			if len(noneStartEvents) != 1 {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(bpmnElement),
+					Type:    "element",
+					Detail:  fmt.Sprintf("sub-process %s has no or multiple none start events", bpmnElement.Id),
+				})
+			}
+		}
+
+		if model.IsBoundaryEvent(bpmnElement.Type) {
 			boundaryEvent := bpmnElement.Model.(model.BoundaryEvent)
 			if boundaryEvent.AttachedTo == nil {
 				causes = append(causes, engine.ErrorCause{
@@ -101,7 +131,7 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 				causes = append(causes, engine.ErrorCause{
 					Pointer: fmt.Sprintf("%s/%s", elementPointer(bpmnElement.Parent), sequenceFlow.Id),
 					Type:    "sequence_flow",
-					Detail:  fmt.Sprintf("BPMN sequence flow %s has no source element", sequenceFlow.Id),
+					Detail:  fmt.Sprintf("sequence flow %s has no source element", sequenceFlow.Id),
 				})
 			}
 		}
@@ -110,7 +140,7 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 				causes = append(causes, engine.ErrorCause{
 					Pointer: fmt.Sprintf("%s/%s", elementPointer(bpmnElement.Parent), sequenceFlow.Id),
 					Type:    "sequence_flow",
-					Detail:  fmt.Sprintf("BPMN sequence flow %s has no target element", sequenceFlow.Id),
+					Detail:  fmt.Sprintf("sequence flow %s has no target element", sequenceFlow.Id),
 				})
 			}
 		}
@@ -121,7 +151,7 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 		causes = append(causes, engine.ErrorCause{
 			Pointer: elementPointer(bpmnElements[0]),
 			Type:    "process",
-			Detail:  "BPMN process has multiple none start events",
+			Detail:  fmt.Sprintf("process %s has multiple none start events", bpmnElements[0].Id),
 		})
 	}
 
@@ -152,7 +182,17 @@ func newGraph(bpmnModel *model.Model, bpmnElements []*model.Element, elements []
 		if !ok {
 			return graph{}, fmt.Errorf("BPMN element %s has no entity", bpmnElement.Id)
 		}
-		nodes[bpmnElement.Id] = node{id: id, bpmnElement: bpmnElement}
+
+		var boundaryEvents []*model.Element
+		if isTaskOrScope(bpmnElement.Type) {
+			boundaryEvents = bpmnModel.AttachedTo(bpmnElement.Id)
+		}
+
+		nodes[bpmnElement.Id] = node{
+			id:             id,
+			bpmnElement:    bpmnElement,
+			boundaryEvents: boundaryEvents,
+		}
 	}
 
 	return graph{
@@ -195,34 +235,25 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 		if execution.ExecutionCount < 0 { // task, sub process or call activity, but not all boundary events defined
 			execution.State = engine.InstanceCreated
 		} else if execution.Context.Valid {
-			switch execution.BpmnElementType {
-			// defined boundary event
-			case
-				model.ElementErrorBoundaryEvent,
-				model.ElementEscalationBoundaryEvent,
-				model.ElementMessageBoundaryEvent,
-				model.ElementSignalBoundaryEvent,
-				model.ElementTimerBoundaryEvent:
+			if model.IsBoundaryEvent(execution.BpmnElementType) {
+				// defined boundary event
 				execution.State = engine.InstanceCreated
-			default:
+			} else {
 				execution.State = engine.InstanceStarted
 			}
 		} else {
 			execution.State = engine.InstanceStarted
 		}
+	} else if model.IsBoundaryEvent(execution.BpmnElementType) {
+		execution.State = engine.InstanceCreated
+	} else if isTaskOrScope(execution.BpmnElementType) {
+		if execution.State != 0 && execution.ExecutionCount == 0 {
+			execution.State = engine.InstanceStarted
+		} else {
+			execution.State = engine.InstanceCreated
+		}
 	} else {
-		// end branch, if BPMN element requires a job to be completed or a task to be executed
 		switch execution.BpmnElementType {
-		case
-			model.ElementBusinessRuleTask,
-			model.ElementScriptTask,
-			model.ElementSendTask,
-			model.ElementServiceTask:
-			if execution.State != 0 && execution.ExecutionCount == 0 {
-				execution.State = engine.InstanceStarted
-			} else {
-				execution.State = engine.InstanceCreated
-			}
 		// gateway
 		case
 			model.ElementExclusiveGateway,
@@ -249,13 +280,6 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 			} else {
 				execution.State = engine.InstanceStarted
 			}
-		case
-			model.ElementErrorBoundaryEvent,
-			model.ElementEscalationBoundaryEvent,
-			model.ElementMessageBoundaryEvent,
-			model.ElementSignalBoundaryEvent,
-			model.ElementTimerBoundaryEvent:
-			execution.State = engine.InstanceCreated
 		default:
 			// continue branch, if element has no behavior (pass through element)
 			execution.State = engine.InstanceCompleted
@@ -303,47 +327,33 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 		}
 
 		scope.ExecutionCount--
-
-		if scope.ExecutionCount == 0 {
-			if scope.ParentId.Valid {
-				executions = append(executions, scope)
-			} else {
-				scope.State = engine.InstanceCompleted
-			}
-		}
 	case engine.InstanceCreated, engine.InstanceSuspended:
-		switch execution.BpmnElementType {
-		case
-			model.ElementBusinessRuleTask,
-			model.ElementScriptTask,
-			model.ElementSendTask,
-			model.ElementServiceTask:
+		if isTaskOrScope(execution.BpmnElementType) {
 			if execution.ExecutionCount < 0 { // not all boundary events defined
 				return executions, nil
 			}
 
 			executionCount := 0
 
-			attachments := g.model.AttachedTo(execution.BpmnElementId)
-			for _, attachment := range attachments {
-				attachedNode := g.nodes[attachment.Id]
+			for _, boundaryEvent := range node.boundaryEvents {
+				boundaryEventNode := g.nodes[boundaryEvent.Id]
 
 				// start branch
 				attached := ElementInstanceEntity{
 					Partition: scope.Partition,
 
-					ElementId:         attachedNode.id,
+					ElementId:         boundaryEventNode.id,
 					ProcessId:         scope.ProcessId,
 					ProcessInstanceId: scope.ProcessInstanceId,
 
-					BpmnElementId:   attachment.Id,
-					BpmnElementType: attachment.Type,
+					BpmnElementId:   boundaryEvent.Id,
+					BpmnElementType: boundaryEvent.Type,
 
 					parent: scope,
 					prev:   execution,
 				}
 
-				if attachedNode.eventDefinition == nil || attachment.Type == model.ElementMessageBoundaryEvent {
+				if boundaryEventNode.eventDefinition == nil || boundaryEvent.Type == model.ElementMessageBoundaryEvent {
 					executionCount--
 				}
 
@@ -359,6 +369,18 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 		}
 	}
 
+	if execution.State == engine.InstanceStarted {
+		if execution.BpmnElementType == model.ElementSubProcess {
+			// start branch
+			next, err := g.createExecution(execution)
+			if err != nil {
+				return executions, err
+			}
+
+			executions = append(executions, &next)
+		}
+	}
+
 	return executions, nil
 }
 
@@ -370,12 +392,14 @@ func (g graph) createExecution(scope *ElementInstanceEntity) (ElementInstanceEnt
 
 	var noneStartEvents []*model.Element
 	switch scopeNode.bpmnElement.Type {
-	case model.ElementProcess:
+	case
+		model.ElementProcess,
+		model.ElementSubProcess:
 		noneStartEvents = scopeNode.bpmnElement.ChildrenByType(model.ElementNoneStartEvent)
 	}
 
 	if len(noneStartEvents) == 0 {
-		return ElementInstanceEntity{}, fmt.Errorf("BPMN scope %s has no none start event", scope.BpmnElementId)
+		return ElementInstanceEntity{}, fmt.Errorf("scope %s has no none start event", scope.BpmnElementId)
 	}
 
 	node := g.nodes[noneStartEvents[0].Id]
@@ -410,7 +434,7 @@ func (g graph) createExecutionAt(scope *ElementInstanceEntity, bpmnElementId str
 	}
 
 	if node.bpmnElement.Parent != scopeNode.bpmnElement {
-		return ElementInstanceEntity{}, fmt.Errorf("BPMN scope %s has no element %s", scope.BpmnElementId, bpmnElementId)
+		return ElementInstanceEntity{}, fmt.Errorf("scope %s has no element %s", scope.BpmnElementId, bpmnElementId)
 	}
 
 	execution := ElementInstanceEntity{
@@ -456,7 +480,7 @@ func (g graph) ensureSequenceFlow(sourceId string, targetId string) error {
 		return err
 	}
 	if node.bpmnElement.TargetById(targetId) == nil {
-		return fmt.Errorf("BPMN element %s has no outgoing sequence flow to %s", sourceId, targetId)
+		return fmt.Errorf("element %s has no outgoing sequence flow to %s", sourceId, targetId)
 	}
 	return nil
 }
@@ -473,7 +497,7 @@ func (g graph) joinParallelGateway(waiting []*ElementInstanceEntity) ([]*Element
 
 	incoming := node.bpmnElement.Incoming
 	if node.bpmnElement.Type != model.ElementParallelGateway || len(incoming) < 2 {
-		return nil, fmt.Errorf("BPMN element %s is not a joining parallel gateway", node.bpmnElement.Id)
+		return nil, fmt.Errorf("element %s is not a joining parallel gateway", node.bpmnElement.Id)
 	}
 
 	for i := range waiting {
@@ -501,9 +525,7 @@ func (g graph) joinParallelGateway(waiting []*ElementInstanceEntity) ([]*Element
 			continue
 		}
 
-		if i == 0 {
-			execution.State = engine.InstanceStarted
-		} else {
+		if i != 0 {
 			execution.State = engine.InstanceCompleted
 		}
 
@@ -522,7 +544,7 @@ func (g graph) node(bpmnElementId string) (node, error) {
 	if node, ok := g.nodes[bpmnElementId]; ok {
 		return node, nil
 	} else {
-		return node, fmt.Errorf("BPMN process %s has no element %s", g.processElement.Id, bpmnElementId)
+		return node, fmt.Errorf("process %s has no element %s", g.processElement.Id, bpmnElementId)
 	}
 }
 
@@ -542,5 +564,6 @@ func (g graph) setEventDefinitions(eventDefinitions []*EventDefinitionEntity) {
 type node struct {
 	id              int32 // ID of the related ElementEntity
 	bpmnElement     *model.Element
+	boundaryEvents  []*model.Element
 	eventDefinition *EventDefinitionEntity
 }

@@ -95,4 +95,4 @@ responses:
               status: 422
               type: PROCESS_MODEL
               title: failed to create execution
-              detail: BPMN scope parallelServiceTasksTest has no none start event element
+              detail: scope parallelServiceTasksTest has no none start event element

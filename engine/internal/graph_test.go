@@ -14,7 +14,7 @@ import (
 func TestValidateProcess(t *testing.T) {
 	assert := assert.New(t)
 
-	t.Run("returns cause when BPMN process is not executable", func(t *testing.T) {
+	t.Run("returns cause when process is not executable", func(t *testing.T) {
 		causes := mustValidateProcess(t, "invalid/process-not-executable.bpmn")
 		assert.Len(causes, 1)
 
@@ -23,7 +23,7 @@ func TestValidateProcess(t *testing.T) {
 		assert.Contains(causes[0].Detail, "not executable")
 	})
 
-	t.Run("returns cause when BPMN element has no ID", func(t *testing.T) {
+	t.Run("returns cause when element has no ID", func(t *testing.T) {
 		causes := mustValidateProcess(t, "start-end.bpmn", func(processElement *model.Element) {
 			startEvent := processElement.ChildById("startEvent")
 			startEvent.Id = ""
@@ -32,7 +32,7 @@ func TestValidateProcess(t *testing.T) {
 
 		assert.Equal("/startEndTest/", causes[0].Pointer)
 		assert.NotEmpty(causes[0].Type)
-		assert.Equal("BPMN element of type NONE_START_EVENT has no ID", causes[0].Detail)
+		assert.Equal("element of type NONE_START_EVENT has no ID", causes[0].Detail)
 	})
 
 	t.Run("exclusive gateway", func(t *testing.T) {
@@ -94,17 +94,139 @@ func TestValidateProcess(t *testing.T) {
 			assert.Equal("inclusive gateway fork has no default sequence flow f1", causes[0].Detail)
 		})
 
-		t.Run("returns cause when BPMN process contains joining gateway", func(t *testing.T) {
+		t.Run("returns cause when process contains joining gateway", func(t *testing.T) {
 			causes := mustValidateProcess(t, "invalid/inclusive-gateway-join.bpmn")
 			assert.Len(causes, 1)
 
 			assert.Equal("/inclusiveGatewayJoinTest/join", causes[0].Pointer)
 			assert.NotEmpty(causes[0].Type)
-			assert.Contains(causes[0].Detail, "joining inclusive gateway", causes[0].Detail)
+			assert.Contains(causes[0].Detail, "joining inclusive gateway")
 		})
 	})
 
-	t.Run("returns cause when BPMN sequence flow has no source or target", func(t *testing.T) {
+	t.Run("sub-process", func(t *testing.T) {
+		// given no none start event
+		bpmnElements := []*model.Element{
+			{
+				Id:    "process",
+				Type:  model.ElementProcess,
+				Model: model.Process{IsExecutable: true},
+			},
+			{
+				Id:    "subProcess",
+				Type:  model.ElementSubProcess,
+				Model: model.SubProcess{TriggeredByEvent: false},
+			},
+		}
+
+		bpmnElements[1].Parent = bpmnElements[0]
+
+		t.Run("returns cause when sub-process has not exactly one none start event", func(t *testing.T) {
+			// when
+			causes, err := validateProcess(bpmnElements)
+			if err != nil {
+				t.Fatalf("failed to validate BPMN process: %v", err)
+			}
+
+			// then
+			assert.Len(causes, 1)
+
+			assert.Equal("/process/subProcess", causes[0].Pointer)
+			assert.NotEmpty(causes[0].Type)
+			assert.Contains(causes[0].Detail, "has no or multiple none start events")
+
+			// given one none start event
+			bpmnElements[1].Children = []*model.Element{
+				{
+					Id:   "subProcessStartEvent1",
+					Type: model.ElementNoneStartEvent,
+				},
+			}
+
+			// when
+			causes, err = validateProcess(bpmnElements)
+			if err != nil {
+				t.Fatalf("failed to validate BPMN process: %v", err)
+			}
+
+			// then
+			assert.Empty(causes)
+
+			// given multiple none start events
+			bpmnElements[1].Children = []*model.Element{
+				{
+					Id:   "subProcessStartEvent1",
+					Type: model.ElementNoneStartEvent,
+				},
+				{
+					Id:   "subProcessStartEvent2",
+					Type: model.ElementNoneStartEvent,
+				},
+			}
+
+			// when
+			causes, err = validateProcess(bpmnElements)
+			if err != nil {
+				t.Fatalf("failed to validate BPMN process: %v", err)
+			}
+
+			// then
+			assert.Len(causes, 1)
+
+			assert.Equal("/process/subProcess", causes[0].Pointer)
+			assert.NotEmpty(causes[0].Type)
+			assert.Contains(causes[0].Detail, "has no or multiple none start events")
+		})
+
+		t.Run("returns cause when sub-process has none start event", func(t *testing.T) {
+			// given
+			bpmnElements[1].Children = []*model.Element{
+				{
+					Id:   "subProcessStartEvent",
+					Type: model.ElementNoneStartEvent,
+				},
+				{
+					Id: "otherStartEvent",
+				},
+			}
+
+			bpmnElements[1].Children[1].Parent = bpmnElements[1]
+
+			i := 0
+			for {
+				i++
+
+				elementType := model.ElementType(i)
+				if elementType.String() == "" {
+					break
+				}
+
+				if !model.IsStartEvent(elementType) || elementType == model.ElementNoneStartEvent {
+					continue
+				}
+
+				t.Run(elementType.String(), func(t *testing.T) {
+					// given
+					bpmnElements[1].Children[1].Type = elementType
+
+					// when
+					causes, err := validateProcess(bpmnElements)
+					if err != nil {
+						t.Fatalf("failed to validate BPMN process: %v", err)
+					}
+
+					// then
+					assert.Len(causes, 1)
+
+					assert.Equal("/process/subProcess/otherStartEvent", causes[0].Pointer)
+					assert.NotEmpty(causes[0].Type)
+					assert.Contains(causes[0].Detail, "cannot be started by event")
+				})
+			}
+		})
+	})
+
+	t.Run("returns cause when sequence flow has no source or target", func(t *testing.T) {
 		causes := mustValidateProcess(t, "invalid/unknown-element.bpmn")
 		assert.Len(causes, 2)
 
@@ -117,7 +239,7 @@ func TestValidateProcess(t *testing.T) {
 		assert.Contains(causes[1].Detail, "no source element")
 	})
 
-	t.Run("returns cause when BPMN process has multiple none start events", func(t *testing.T) {
+	t.Run("returns cause when process has multiple none start events", func(t *testing.T) {
 		causes := mustValidateProcess(t, "invalid/none-start-event-multiple.bpmn")
 		assert.Len(causes, 1)
 
@@ -130,11 +252,11 @@ func TestValidateProcess(t *testing.T) {
 func TestContinueExecution(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
-	scope := &ElementInstanceEntity{}
-
 	t.Run("start event", func(t *testing.T) {
 		// given
 		graph := mustCreateGraph(t, "start-end.bpmn", "startEndTest")
+
+		scope := graph.createProcessScope(&ProcessInstanceEntity{})
 
 		t.Run("scope QUEUED", func(t *testing.T) {
 			// given
@@ -144,7 +266,7 @@ func TestContinueExecution(t *testing.T) {
 				BpmnElementId:   "startEvent",
 				BpmnElementType: model.ElementNoneStartEvent,
 
-				parent: scope,
+				parent: &scope,
 			}
 
 			// when
@@ -169,7 +291,7 @@ func TestContinueExecution(t *testing.T) {
 
 			assert.Equal("endEvent", executions2[0].BpmnElementId)
 			assert.Equal(model.ElementNoneEndEvent, executions2[0].BpmnElementType)
-			assert.Equal(scope, executions2[0].parent)
+			assert.Equal(&scope, executions2[0].parent)
 			assert.Nil(executions2[0].prev)
 		})
 	})
@@ -177,6 +299,8 @@ func TestContinueExecution(t *testing.T) {
 	t.Run("service task with boundary event", func(t *testing.T) {
 		// given
 		graph := mustCreateGraph(t, "event/error-boundary-event.bpmn", "errorBoundaryEventTest")
+
+		scope := graph.createProcessScope(&ProcessInstanceEntity{})
 
 		t.Run("scope STARTED", func(t *testing.T) {
 			// given
@@ -186,7 +310,7 @@ func TestContinueExecution(t *testing.T) {
 				BpmnElementId:   "serviceTask",
 				BpmnElementType: model.ElementServiceTask,
 
-				parent: scope,
+				parent: &scope,
 			}
 
 			// when
@@ -201,7 +325,7 @@ func TestContinueExecution(t *testing.T) {
 
 			assert.Equal("errorBoundaryEvent", executions1[0].BpmnElementId)
 			assert.Equal(model.ElementErrorBoundaryEvent, executions1[0].BpmnElementType)
-			assert.Equal(scope, executions1[0].parent)
+			assert.Equal(&scope, executions1[0].parent)
 			assert.Equal(execution, executions1[0].prev)
 
 			// when
@@ -222,7 +346,7 @@ func TestContinueExecution(t *testing.T) {
 				BpmnElementId:   "serviceTask",
 				BpmnElementType: model.ElementServiceTask,
 
-				parent: scope,
+				parent: &scope,
 			}
 
 			// when
@@ -237,7 +361,7 @@ func TestContinueExecution(t *testing.T) {
 
 			assert.Equal("errorBoundaryEvent", executions1[0].BpmnElementId)
 			assert.Equal(model.ElementErrorBoundaryEvent, executions1[0].BpmnElementType)
-			assert.Equal(scope, executions1[0].parent)
+			assert.Equal(&scope, executions1[0].parent)
 			assert.Equal(execution, executions1[0].prev)
 
 			// when
@@ -277,13 +401,15 @@ func TestContinueExecution(t *testing.T) {
 				{BpmnElementId: "errorBoundaryEvent", ErrorCode: pgtype.Text{String: "TEST_CODE"}},
 			})
 
+			scope := graph.createProcessScope(&ProcessInstanceEntity{})
+
 			scope.State = engine.InstanceStarted
 
 			execution := &ElementInstanceEntity{
 				BpmnElementId:   "serviceTask",
 				BpmnElementType: model.ElementServiceTask,
 
-				parent: scope,
+				parent: &scope,
 			}
 
 			// when
@@ -305,6 +431,8 @@ func TestContinueExecution(t *testing.T) {
 		// given
 		graph := mustCreateGraph(t, "event/error-boundary-event.bpmn", "errorBoundaryEventTest")
 
+		scope := graph.createProcessScope(&ProcessInstanceEntity{})
+
 		t.Run("scope STARTED", func(t *testing.T) {
 			// given
 			scope.State = engine.InstanceStarted
@@ -314,7 +442,7 @@ func TestContinueExecution(t *testing.T) {
 				BpmnElementType: model.ElementServiceTask,
 				State:           engine.InstanceCreated,
 
-				parent: scope,
+				parent: &scope,
 			}
 
 			// when
@@ -338,7 +466,7 @@ func TestContinueExecution(t *testing.T) {
 				ExecutionCount:  -1,
 				State:           engine.InstanceCreated,
 
-				parent: scope,
+				parent: &scope,
 			}
 
 			// when
@@ -362,7 +490,7 @@ func TestContinueExecution(t *testing.T) {
 				ExecutionCount:  -1,
 				State:           engine.InstanceCreated,
 
-				parent: scope,
+				parent: &scope,
 			}
 
 			// when
@@ -397,7 +525,7 @@ func TestContinueExecution(t *testing.T) {
 				BpmnElementType: model.ElementServiceTask,
 				State:           engine.InstanceSuspended,
 
-				parent: scope,
+				parent: &scope,
 			}
 
 			// when
@@ -416,6 +544,8 @@ func TestContinueExecution(t *testing.T) {
 		// given
 		graph := mustCreateGraph(t, "event/timer-catch.bpmn", "timerCatchTest")
 
+		scope := graph.createProcessScope(&ProcessInstanceEntity{})
+
 		t.Run("scope STARTED", func(t *testing.T) {
 			// given
 			scope.State = engine.InstanceStarted
@@ -424,7 +554,7 @@ func TestContinueExecution(t *testing.T) {
 				BpmnElementId:   "startEvent",
 				BpmnElementType: model.ElementNoneStartEvent,
 
-				parent: scope,
+				parent: &scope,
 			}
 
 			// when
@@ -631,8 +761,8 @@ func TestJoinParallelGateway(t *testing.T) {
 	t.Run("no join when not all incoming sequence flows satisfied", func(t *testing.T) {
 		// given
 		executions := []*ElementInstanceEntity{
-			{Id: 1, BpmnElementId: "join", ElementId: 6, PrevElementId: pgtype.Int4{Int32: 4}},
-			{Id: 2, BpmnElementId: "join", ElementId: 6, PrevElementId: pgtype.Int4{Int32: 4}},
+			{Id: 1, BpmnElementId: "join", ElementId: 6, PrevElementId: pgtype.Int4{Int32: 4}, State: engine.InstanceStarted},
+			{Id: 2, BpmnElementId: "join", ElementId: 6, PrevElementId: pgtype.Int4{Int32: 4}, State: engine.InstanceStarted},
 		}
 
 		// when
@@ -648,9 +778,9 @@ func TestJoinParallelGateway(t *testing.T) {
 	t.Run("join", func(t *testing.T) {
 		// given
 		executions := []*ElementInstanceEntity{
-			{Id: 1, BpmnElementId: "join", ElementId: 6, PrevElementId: pgtype.Int4{Int32: 4}},
-			{Id: 2, BpmnElementId: "join", ElementId: 6, PrevElementId: pgtype.Int4{Int32: 4}},
-			{Id: 3, BpmnElementId: "join", ElementId: 6, PrevElementId: pgtype.Int4{Int32: 5}},
+			{Id: 1, BpmnElementId: "join", ElementId: 6, PrevElementId: pgtype.Int4{Int32: 4}, State: engine.InstanceStarted},
+			{Id: 2, BpmnElementId: "join", ElementId: 6, PrevElementId: pgtype.Int4{Int32: 4}, State: engine.InstanceStarted},
+			{Id: 3, BpmnElementId: "join", ElementId: 6, PrevElementId: pgtype.Int4{Int32: 5}, State: engine.InstanceStarted},
 		}
 
 		// when

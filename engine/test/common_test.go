@@ -96,15 +96,22 @@ func mustCreateEngines(t *testing.T) ([]engine.Engine, []string) {
 	return engines, engineTypes
 }
 
-func mustCreateProcess(t *testing.T, e engine.Engine, fileName string, bpmnProcessId string) engine.Process {
+func mustCreateProcess(t *testing.T, e engine.Engine, fileName string, bpmnProcessId string, cmds ...engine.CreateProcessCmd) engine.Process {
 	bpmnXml := mustReadBpmnFile(t, fileName)
 
-	process, err := e.CreateProcess(context.Background(), engine.CreateProcessCmd{
-		BpmnProcessId: bpmnProcessId,
-		BpmnXml:       bpmnXml,
-		Version:       t.Name(),
-		WorkerId:      testWorkerId,
-	})
+	var cmd engine.CreateProcessCmd
+	if len(cmds) != 0 {
+		cmd = cmds[0]
+	} else {
+		cmd = engine.CreateProcessCmd{}
+	}
+
+	cmd.BpmnProcessId = bpmnProcessId
+	cmd.BpmnXml = bpmnXml
+	cmd.Version = t.Name()
+	cmd.WorkerId = testWorkerId
+
+	process, err := e.CreateProcess(context.Background(), cmd)
 	if err != nil {
 		t.Fatalf("failed to create process: %v", err)
 	}

@@ -113,13 +113,22 @@ func (t JoinParallelGatewayTask) Execute(ctx Context, task *TaskEntity) error {
 		return err
 	}
 
+	execution, err := ctx.ElementInstances().Select(task.Partition, task.ElementInstanceId.Int32)
+	if err != nil {
+		return err
+	}
+	if execution.EndedAt.Valid {
+		task.State = engine.WorkCanceled
+		return nil // already completed by another task instance, terminated or canceled
+	}
+
 	ec := executionContext{
 		engineOrWorkerId: ctx.Options().EngineId,
 		process:          process,
 		processInstance:  processInstance,
 	}
 
-	return ec.handleParallelGateway(ctx, task)
+	return ec.handleParallelGateway(ctx, execution)
 }
 
 type StartProcessInstanceTask struct {
@@ -238,9 +247,16 @@ func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
 			return nil
 		}
 
+		scope, err := ctx.ElementInstances().Select(execution.Partition, execution.ParentId.Int32)
+		if err != nil {
+			return err
+		}
+
+		execution.parent = scope
+
 		ec = &executionContext{
 			engineOrWorkerId: ctx.Options().EngineId,
-			executions:       []*ElementInstanceEntity{execution},
+			executions:       []*ElementInstanceEntity{scope, execution},
 			process:          process,
 			processInstance:  processInstance,
 		}
