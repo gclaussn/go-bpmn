@@ -283,6 +283,8 @@ func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
 		return ec.triggerSignalBoundaryEvent(ctx, t.SignalId, interrupting)
 	case model.ElementSignalCatchEvent:
 		return ec.triggerSignalCatchEvent(ctx, t.SignalId)
+	case model.ElementSignalEndEvent, model.ElementSignalThrowEvent:
+		return ec.triggerSignalThrowEvent(ctx)
 	case model.ElementSignalStartEvent:
 		return ec.triggerSignalStartEvent(ctx, task, bpmnElement, t.SignalId)
 	case model.ElementTimerBoundaryEvent:
@@ -295,7 +297,7 @@ func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
 		return engine.Error{
 			Type:   engine.ErrorBug,
 			Title:  "failed to trigger event",
-			Detail: "event is not supported",
+			Detail: fmt.Sprintf("element type %s is not supported", bpmnElement.Type),
 		}
 	}
 }

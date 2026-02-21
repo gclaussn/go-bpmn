@@ -1,0 +1,17 @@
+<definitions id="test">
+  <process id="signalThrowTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="signalThrowEvent" />
+    <intermediateThrowEvent id="signalThrowEvent">
+      <incoming>f1</incoming>
+      <outgoing>f2</outgoing>
+      <signalEventDefinition id="signalThrowEventDefinition" />
+    </intermediateThrowEvent>
+    <sequenceFlow id="f2" sourceRef="signalThrowEvent" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f2</incoming>
+    </endEvent>
+  </process>
+</definitions>

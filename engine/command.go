@@ -277,8 +277,8 @@ type JobCompletion struct {
 	// Name of the message to subscribe to.
 	// Applicable when job type is `SUBSCRIBE_MESSAGE`.
 	MessageName string `json:"messageName,omitempty"`
-	// Name of the signal to subscribe to.
-	// Applicable when job type is `SUBSCRIBE_SIGNAL`.
+	// Name of the signal, used to subscribe to or send a signal.
+	// Applicable when job type is `SUBSCRIBE_SIGNAL` or `SET_SIGNAL_NAME`.
 	SignalName string `json:"signalName,omitempty"`
 	// A timer definition.
 	// Applicable when job type is `SET_TIMER`.

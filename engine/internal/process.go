@@ -372,8 +372,8 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			}
 		}
 
-		signalName, signalNameSet := signalNames[bpmnElement.Id]
-		if signalNameSet && signalName == "" {
+		signalName, isSignalNameSet := signalNames[bpmnElement.Id]
+		if isSignalNameSet && signalName == "" {
 			causes = append(causes, engine.ErrorCause{
 				Pointer: elementPointer(bpmnElement),
 				Type:    "signal_event",
@@ -383,21 +383,28 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 		switch bpmnElement.Type {
 		case model.ElementSignalBoundaryEvent:
-			if !signalNameSet {
+			if !isSignalNameSet {
 				boundaryEvent := bpmnElement.Model.(model.BoundaryEvent)
 				if signal := boundaryEvent.EventDefinition.Signal; signal != nil {
 					signalNames[bpmnElement.Id] = signal.Name
 				}
 			}
 		case model.ElementSignalCatchEvent:
-			if !signalNameSet {
+			if !isSignalNameSet {
 				intermediateCatchEvent := bpmnElement.Model.(model.IntermediateCatchEvent)
 				if signal := intermediateCatchEvent.EventDefinition.Signal; signal != nil {
 					signalNames[bpmnElement.Id] = signal.Name
 				}
 			}
+		case model.ElementSignalEndEvent:
+			if !isSignalNameSet {
+				endEvent := bpmnElement.Model.(model.EndEvent)
+				if signal := endEvent.EventDefinition.Signal; signal != nil {
+					signalNames[bpmnElement.Id] = signal.Name
+				}
+			}
 		case model.ElementSignalStartEvent:
-			if !signalNameSet {
+			if !isSignalNameSet {
 				startEvent := bpmnElement.Model.(model.StartEvent)
 				if signal := startEvent.EventDefinition.Signal; signal != nil {
 					signalNames[bpmnElement.Id] = signal.Name
@@ -409,8 +416,15 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 					})
 				}
 			}
+		case model.ElementSignalThrowEvent:
+			if !isSignalNameSet {
+				intermediateThrowEvent := bpmnElement.Model.(model.IntermediateThrowEvent)
+				if signal := intermediateThrowEvent.EventDefinition.Signal; signal != nil {
+					signalNames[bpmnElement.Id] = signal.Name
+				}
+			}
 		default:
-			if signalNameSet {
+			if isSignalNameSet {
 				causes = append(causes, engine.ErrorCause{
 					Pointer: elementPointer(bpmnElement),
 					Type:    "signal_event",

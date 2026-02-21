@@ -221,6 +221,35 @@ func (x signalEventTest) catchDefinition(t *testing.T) {
 	piAssert.IsCompleted()
 }
 
+func (x signalEventTest) end(t *testing.T) {
+	process := mustCreateProcess(t, x.e, "event/signal-end.bpmn", "signalEndTest")
+
+	piAssert := mustCreateProcessInstance(t, x.e, process)
+
+	piAssert.IsWaitingAt("signalEndEvent")
+	piAssert.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			SignalName: t.Name(),
+		},
+	})
+
+	piAssert.IsWaitingAt("signalEndEvent")
+	piAssert.ExecuteTask()
+
+	piAssert.IsCompleted()
+}
+
+func (x signalEventTest) endDefinition(t *testing.T) {
+	process := mustCreateProcess(t, x.e, "event/signal-end-definition.bpmn", "signalEndDefinitionTest")
+
+	piAssert := mustCreateProcessInstance(t, x.e, process)
+
+	piAssert.IsWaitingAt("signalEndEvent")
+	piAssert.ExecuteTask()
+
+	piAssert.IsCompleted()
+}
+
 func (x signalEventTest) start(t *testing.T) {
 	bpmnXml := mustReadBpmnFile(t, "event/signal-start.bpmn")
 
@@ -269,4 +298,33 @@ func (x signalEventTest) startEventDefinition(t *testing.T) {
 	})
 
 	piAssert1.IsCompleted()
+}
+
+func (x signalEventTest) throw(t *testing.T) {
+	process := mustCreateProcess(t, x.e, "event/signal-throw.bpmn", "signalThrowTest")
+
+	piAssert := mustCreateProcessInstance(t, x.e, process)
+
+	piAssert.IsWaitingAt("signalThrowEvent")
+	piAssert.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			SignalName: t.Name(),
+		},
+	})
+
+	piAssert.IsWaitingAt("signalThrowEvent")
+	piAssert.ExecuteTask()
+
+	piAssert.IsCompleted()
+}
+
+func (x signalEventTest) throwDefinition(t *testing.T) {
+	process := mustCreateProcess(t, x.e, "event/signal-throw-definition.bpmn", "signalThrowDefinitionTest")
+
+	piAssert := mustCreateProcessInstance(t, x.e, process)
+
+	piAssert.IsWaitingAt("signalThrowEvent")
+	piAssert.ExecuteTask()
+
+	piAssert.IsCompleted()
 }

@@ -273,17 +273,19 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 		case model.ElementMessageCatchEvent:
 			execution.State = engine.InstanceCreated
 		case
+			model.ElementMessageEndEvent,
+			model.ElementMessageThrowEvent:
+			execution.State = engine.InstanceStarted
+		case
 			model.ElementSignalCatchEvent,
+			model.ElementSignalEndEvent,
+			model.ElementSignalThrowEvent,
 			model.ElementTimerCatchEvent:
 			if node.eventDefinition == nil {
 				execution.State = engine.InstanceCreated
 			} else {
 				execution.State = engine.InstanceStarted
 			}
-		case
-			model.ElementMessageEndEvent,
-			model.ElementMessageThrowEvent:
-			execution.State = engine.InstanceStarted
 		default:
 			// continue branch, if element has no behavior (pass through element)
 			execution.State = engine.InstanceCompleted

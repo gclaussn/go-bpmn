@@ -500,3 +500,22 @@ func (ec *executionContext) triggerSignalStartEvent(ctx Context, task *TaskEntit
 
 	return nil
 }
+
+func (ec *executionContext) triggerSignalThrowEvent(ctx Context) error {
+	if _, err := SendSignal(ctx, engine.SendSignalCmd{
+		Name:     ec.executions[1].Context.String,
+		WorkerId: ec.engineOrWorkerId,
+	}); err != nil {
+		return err
+	}
+
+	if err := ec.continueExecutions(ctx); err != nil {
+		if _, ok := err.(engine.Error); ok {
+			return err
+		} else {
+			return fmt.Errorf("failed to continue executions %+v: %v", ec.executions, err)
+		}
+	}
+
+	return nil
+}

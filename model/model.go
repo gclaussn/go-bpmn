@@ -92,6 +92,7 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				definitionsParsed = true
 			case "endEvent":
 				startElement(ElementNoneEndEvent, t.Attr)
+				element.Model = EndEvent{}
 			case "error":
 				bpmnErrorId := getAttrValue(t.Attr, "id")
 				bpmnError := definitions.errorById(bpmnErrorId)
@@ -147,6 +148,7 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				element.Model = IntermediateCatchEvent{}
 			case "intermediateThrowEvent":
 				startElement(ElementNoneThrowEvent, t.Attr)
+				element.Model = IntermediateThrowEvent{}
 			case "manualTask":
 				startElement(ElementManualTask, t.Attr)
 			case "message":
@@ -209,6 +211,10 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 					element.Type = ElementSignalBoundaryEvent
 				} else if element.Type == ElementNoneStartEvent {
 					element.Type = ElementSignalStartEvent
+				} else if element.Type == ElementNoneEndEvent {
+					element.Type = ElementSignalEndEvent
+				} else if element.Type == ElementNoneThrowEvent {
+					element.Type = ElementSignalThrowEvent
 				} else {
 					element.Type = ElementSignalCatchEvent
 				}
@@ -223,7 +229,13 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				case BoundaryEvent:
 					model.EventDefinition = eventDefinition
 					element.Model = model
+				case EndEvent:
+					model.EventDefinition = eventDefinition
+					element.Model = model
 				case IntermediateCatchEvent:
+					model.EventDefinition = eventDefinition
+					element.Model = model
+				case IntermediateThrowEvent:
 					model.EventDefinition = eventDefinition
 					element.Model = model
 				case StartEvent:

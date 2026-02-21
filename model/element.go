@@ -70,6 +70,10 @@ type BoundaryEvent struct {
 	EventDefinition EventDefinition
 }
 
+type EndEvent struct {
+	EventDefinition EventDefinition
+}
+
 type EventDefinition struct {
 	Id string
 
@@ -88,6 +92,10 @@ type InclusiveGateway struct {
 }
 
 type IntermediateCatchEvent struct {
+	EventDefinition EventDefinition
+}
+
+type IntermediateThrowEvent struct {
 	EventDefinition EventDefinition
 }
 

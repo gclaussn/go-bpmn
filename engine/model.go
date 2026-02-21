@@ -96,6 +96,7 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 //   - [JobSetErrorCode]: error boundary event
 //   - [JobSetEscalationCode]: escalation boundary event
 //   - [JobSetMessageCorrelationKey]: message boundary and catch event, when event definition exists
+//   - [JobSetSignalName]: signal throw and end event
 //   - [JobSetTimer]: timer boundary and catch event
 //   - [JobSubscribeMessage]: message boundary and catch event
 //   - [JobSubscribeSignal]: signal boundary and catch event
@@ -108,6 +109,7 @@ const (
 	JobSetErrorCode
 	JobSetEscalationCode
 	JobSetMessageCorrelationKey
+	JobSetSignalName
 	JobSetTimer
 	JobSubscribeMessage
 	JobSubscribeSignal
@@ -127,6 +129,8 @@ func MapJobType(s string) JobType {
 		return JobSetEscalationCode
 	case "SET_MESSAGE_CORRELATION_KEY":
 		return JobSetMessageCorrelationKey
+	case "SET_SIGNAL_NAME":
+		return JobSetSignalName
 	case "SET_TIMER":
 		return JobSetTimer
 	case "SUBSCRIBE_MESSAGE":
@@ -160,6 +164,8 @@ func (v JobType) String() string {
 		return "SET_ESCALATION_CODE"
 	case JobSetMessageCorrelationKey:
 		return "SET_MESSAGE_CORRELATION_KEY"
+	case JobSetSignalName:
+		return "SET_SIGNAL_NAME"
 	case JobSetTimer:
 		return "SET_TIMER"
 	case JobSubscribeMessage:

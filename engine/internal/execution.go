@@ -183,6 +183,15 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 
 				execution.Context = pgtype.Text{String: node.eventDefinition.SignalName.String, Valid: true}
 			}
+		case model.ElementSignalEndEvent, model.ElementSignalThrowEvent:
+			if node.eventDefinition == nil {
+				jobType = engine.JobSetSignalName
+			} else {
+				taskType = engine.TaskTriggerEvent
+				taskInstance = TriggerEventTask{}
+
+				execution.Context = pgtype.Text{String: node.eventDefinition.SignalName.String, Valid: true}
+			}
 		case model.ElementTimerBoundaryEvent, model.ElementTimerCatchEvent:
 			if node.eventDefinition == nil {
 				jobType = engine.JobSetTimer
@@ -623,6 +632,35 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 		}
 
 		execution.Context = pgtype.Text{String: context, Valid: true}
+	case engine.JobSetSignalName:
+		if jobCompletion == nil || jobCompletion.SignalName == "" {
+			job.Error = pgtype.Text{String: "expected a signal name", Valid: true}
+			return nil
+		}
+
+		triggerEventTask := TaskEntity{
+			Partition: execution.Partition,
+
+			ElementId:         pgtype.Int4{Int32: execution.ElementId, Valid: true},
+			ElementInstanceId: pgtype.Int4{Int32: execution.Id, Valid: true},
+			ProcessId:         pgtype.Int4{Int32: execution.ProcessId, Valid: true},
+			ProcessInstanceId: pgtype.Int4{Int32: execution.ProcessInstanceId, Valid: true},
+
+			BpmnElementId: pgtype.Text{String: execution.BpmnElementId, Valid: true},
+			CreatedAt:     ctx.Time(),
+			CreatedBy:     ec.engineOrWorkerId,
+			DueAt:         ctx.Time(),
+			State:         engine.WorkCreated,
+			Type:          engine.TaskTriggerEvent,
+
+			Instance: TriggerEventTask{},
+		}
+
+		if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {
+			return err
+		}
+
+		execution.Context = pgtype.Text{String: jobCompletion.SignalName, Valid: true}
 	case engine.JobSetTimer:
 		if jobCompletion == nil || jobCompletion.Timer == nil {
 			job.Error = pgtype.Text{String: "expected a timer", Valid: true}

@@ -178,6 +178,28 @@ func (m JobMux) SetMessageCorrelationKey(bpmnElementId string, jobHandler func(j
 	}
 }
 
+// SetSignalName handles jobs of type [engine.JobSetSignalName].
+//
+// Applicable for BPMN element types:
+//   - signal end event
+//   - signal throw event
+func (m JobMux) SetSignalName(bpmnElementId string, jobHandler func(jc JobContext) (string, error)) {
+	m[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
+		if err := ensureJobType(jc.Job.Type, engine.JobSetSignalName); err != nil {
+			return nil, err
+		}
+
+		signalName, err := jobHandler(jc)
+		if err != nil {
+			return nil, err
+		}
+
+		return &engine.JobCompletion{
+			SignalName: signalName,
+		}, nil
+	}
+}
+
 // SetTimer handles jobs of type [engine.JobSetTimer].
 //
 // Applicable for BPMN element types:
