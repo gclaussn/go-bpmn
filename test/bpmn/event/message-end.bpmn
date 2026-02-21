@@ -1,0 +1,12 @@
+<definitions id="test">
+  <process id="messageEndTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="messageEndEvent" />
+    <endEvent id="messageEndEvent">
+      <incoming>f1</incoming>
+      <messageEventDefinition id="messageEndEventDefinition" />
+    </endEvent>
+  </process>
+</definitions>
