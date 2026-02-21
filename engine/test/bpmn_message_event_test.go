@@ -531,6 +531,15 @@ func (x messageEventTest) catchMessageSentBefore(t *testing.T) {
 	assert.True(messages[2].IsCorrelated)
 }
 
+func (x messageEventTest) end(t *testing.T) {
+	process := mustCreateProcess(t, x.e, "event/message-end.bpmn", "messageEndTest")
+
+	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert.IsWaitingAt("messageEndEvent")
+	piAssert.CompleteJob()
+	piAssert.IsCompleted()
+}
+
 func (x messageEventTest) start(t *testing.T) {
 	assert := assert.New(t)
 
@@ -672,5 +681,14 @@ func (x messageEventTest) startDefinition(t *testing.T) {
 		WorkerId:       testWorkerId,
 	})
 
+	piAssert.IsCompleted()
+}
+
+func (x messageEventTest) throw(t *testing.T) {
+	process := mustCreateProcess(t, x.e, "event/message-throw.bpmn", "messageThrowTest")
+
+	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert.IsWaitingAt("messageThrowEvent")
+	piAssert.CompleteJob()
 	piAssert.IsCompleted()
 }

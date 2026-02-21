@@ -14,7 +14,9 @@ const (
 	ElementManualTask
 	ElementMessageBoundaryEvent
 	ElementMessageCatchEvent
+	ElementMessageEndEvent
 	ElementMessageStartEvent
+	ElementMessageThrowEvent
 	ElementNoneEndEvent
 	ElementNoneStartEvent
 	ElementNoneThrowEvent
@@ -51,8 +53,12 @@ func MapElementType(s string) ElementType {
 		return ElementMessageBoundaryEvent
 	case "MESSAGE_CATCH_EVENT":
 		return ElementMessageCatchEvent
+	case "MESSAGE_END_EVENT":
+		return ElementMessageEndEvent
 	case "MESSAGE_START_EVENT":
 		return ElementMessageStartEvent
+	case "MESSAGE_THROW_EVENT":
+		return ElementMessageThrowEvent
 	case "NONE_END_EVENT":
 		return ElementNoneEndEvent
 	case "NONE_START_EVENT":
@@ -116,8 +122,12 @@ func (v ElementType) String() string {
 		return "MESSAGE_BOUNDARY_EVENT"
 	case ElementMessageCatchEvent:
 		return "MESSAGE_CATCH_EVENT"
+	case ElementMessageEndEvent:
+		return "MESSAGE_END_EVENT"
 	case ElementMessageStartEvent:
 		return "MESSAGE_START_EVENT"
+	case ElementMessageThrowEvent:
+		return "MESSAGE_THROW_EVENT"
 	case ElementNoneEndEvent:
 		return "NONE_END_EVENT"
 	case ElementNoneStartEvent:

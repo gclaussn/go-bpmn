@@ -125,6 +125,7 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 		node, _ := graph.node(execution.BpmnElementId)
 
 		switch execution.BpmnElementType {
+		// task
 		case
 			model.ElementBusinessRuleTask,
 			model.ElementScriptTask,
@@ -197,6 +198,10 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 
 				execution.Context = pgtype.Text{String: timer.String(), Valid: true}
 			}
+		case
+			model.ElementMessageEndEvent,
+			model.ElementMessageThrowEvent:
+			jobType = engine.JobExecute
 		default:
 			return engine.Error{
 				Type:   engine.ErrorBug,

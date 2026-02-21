@@ -158,6 +158,10 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 					element.Type = ElementMessageBoundaryEvent
 				} else if element.Type == ElementNoneStartEvent {
 					element.Type = ElementMessageStartEvent
+				} else if element.Type == ElementNoneEndEvent {
+					element.Type = ElementMessageEndEvent
+				} else if element.Type == ElementNoneThrowEvent {
+					element.Type = ElementMessageThrowEvent
 				} else {
 					element.Type = ElementMessageCatchEvent
 				}

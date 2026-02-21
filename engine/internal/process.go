@@ -323,8 +323,8 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			}
 		}
 
-		messageName, messageNameSet := messageNames[bpmnElement.Id]
-		if messageNameSet && messageName == "" {
+		messageName, isMessageNameSet := messageNames[bpmnElement.Id]
+		if isMessageNameSet && messageName == "" {
 			causes = append(causes, engine.ErrorCause{
 				Pointer: elementPointer(bpmnElement),
 				Type:    "message_event",
@@ -334,21 +334,21 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 		switch bpmnElement.Type {
 		case model.ElementMessageBoundaryEvent:
-			if !messageNameSet {
+			if !isMessageNameSet {
 				boundaryEvent := bpmnElement.Model.(model.BoundaryEvent)
 				if message := boundaryEvent.EventDefinition.Message; message != nil {
 					messageNames[bpmnElement.Id] = message.Name
 				}
 			}
 		case model.ElementMessageCatchEvent:
-			if !messageNameSet {
+			if !isMessageNameSet {
 				intermediateCatchEvent := bpmnElement.Model.(model.IntermediateCatchEvent)
 				if message := intermediateCatchEvent.EventDefinition.Message; message != nil {
 					messageNames[bpmnElement.Id] = message.Name
 				}
 			}
 		case model.ElementMessageStartEvent:
-			if !messageNameSet {
+			if !isMessageNameSet {
 				startEvent := bpmnElement.Model.(model.StartEvent)
 				if message := startEvent.EventDefinition.Message; message != nil {
 					messageNames[bpmnElement.Id] = message.Name
@@ -360,8 +360,10 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 					})
 				}
 			}
+		case model.ElementMessageThrowEvent, model.ElementMessageEndEvent:
+			// ignore, because message throw and end event are executed (job type EXECUTE)
 		default:
-			if messageNameSet {
+			if isMessageNameSet {
 				causes = append(causes, engine.ErrorCause{
 					Pointer: elementPointer(bpmnElement),
 					Type:    "message_event",
@@ -612,13 +614,18 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			continue
 		}
 
+		bpmnElement := node.bpmnElement
+		if bpmnElement.Type == model.ElementMessageEndEvent || bpmnElement.Type == model.ElementMessageThrowEvent {
+			continue
+		}
+
 		// check for duplicate message start event definitions
 		//   - must be unique within process
 		//   - must be unique across all not suspended event definitions
-		if node.bpmnElement.Type == model.ElementMessageStartEvent {
+		if bpmnElement.Type == model.ElementMessageStartEvent {
 			if _, ok := startMessageNames[messageName]; ok {
 				causes = append(causes, engine.ErrorCause{
-					Pointer: elementPointer(node.bpmnElement),
+					Pointer: elementPointer(bpmnElement),
 					Type:    "message_event",
 					Detail:  fmt.Sprintf("start message name %s must be unique", messageName),
 				})
@@ -634,7 +641,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 			if eventDefinition != nil && eventDefinition.BpmnProcessId != cmd.BpmnProcessId {
 				causes = append(causes, engine.ErrorCause{
-					Pointer: elementPointer(node.bpmnElement),
+					Pointer: elementPointer(bpmnElement),
 					Type:    "message_event",
 					Detail: fmt.Sprintf(
 						"start message name %s must be unique - already defined in process %s:%s",
@@ -653,7 +660,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			ProcessId: process.Id,
 
 			BpmnElementId:   bpmnElementId,
-			BpmnElementType: node.bpmnElement.Type,
+			BpmnElementType: bpmnElement.Type,
 			BpmnProcessId:   process.BpmnProcessId,
 			MessageName:     pgtype.Text{String: messageName, Valid: true},
 			Version:         process.Version,

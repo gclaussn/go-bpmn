@@ -92,7 +92,7 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 //
 //   - [JobEvaluateExclusiveGateway]: forking exclusive gateway
 //   - [JobEvaluateInclusiveGateway]: forking inclusive gateway
-//   - [JobExecute]: business rule, script, send and service task
+//   - [JobExecute]: business rule task, script task, send task, service task, message end event, message throw event
 //   - [JobSetErrorCode]: error boundary event
 //   - [JobSetEscalationCode]: escalation boundary event
 //   - [JobSetMessageCorrelationKey]: message boundary and catch event, when event definition exists

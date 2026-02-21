@@ -280,6 +280,10 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 			} else {
 				execution.State = engine.InstanceStarted
 			}
+		case
+			model.ElementMessageEndEvent,
+			model.ElementMessageThrowEvent:
+			execution.State = engine.InstanceStarted
 		default:
 			// continue branch, if element has no behavior (pass through element)
 			execution.State = engine.InstanceCompleted

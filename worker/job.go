@@ -91,6 +91,8 @@ func (m JobMux) EvaluateInclusiveGateway(bpmnElementId string, jobHandler func(j
 //   - script task
 //   - send task
 //   - service task
+//   - message end event
+//   - message throw event
 func (m JobMux) Execute(bpmnElementId string, jobHandler func(jc JobContext) error) {
 	m[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
 		if err := ensureJobType(jc.Job.Type, engine.JobExecute); err != nil {
