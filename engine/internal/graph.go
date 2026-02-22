@@ -277,6 +277,7 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 			model.ElementMessageThrowEvent:
 			execution.State = engine.InstanceStarted
 		case
+			model.ElementErrorEndEvent,
 			model.ElementSignalCatchEvent,
 			model.ElementSignalEndEvent,
 			model.ElementSignalThrowEvent,

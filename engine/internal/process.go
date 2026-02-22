@@ -287,16 +287,24 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	}
 
 	for _, bpmnElement := range bpmnElements {
-		_, errorCodeSet := errorCodes[bpmnElement.Id]
-		if bpmnElement.Type == model.ElementErrorBoundaryEvent {
-			if !errorCodeSet {
+		_, isErrorCodeSet := errorCodes[bpmnElement.Id]
+		switch bpmnElement.Type {
+		case model.ElementErrorBoundaryEvent:
+			if !isErrorCodeSet {
 				boundaryEvent := bpmnElement.Model.(model.BoundaryEvent)
 				if bpmnError := boundaryEvent.EventDefinition.Error; bpmnError != nil {
 					errorCodes[bpmnElement.Id] = bpmnError.Code
 				}
 			}
-		} else {
-			if errorCodeSet {
+		case model.ElementErrorEndEvent:
+			if !isErrorCodeSet {
+				endEvent := bpmnElement.Model.(model.EndEvent)
+				if bpmnError := endEvent.EventDefinition.Error; bpmnError != nil {
+					errorCodes[bpmnElement.Id] = bpmnError.Code
+				}
+			}
+		default:
+			if isErrorCodeSet {
 				causes = append(causes, engine.ErrorCause{
 					Pointer: elementPointer(bpmnElement),
 					Type:    "error_event",

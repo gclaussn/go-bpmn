@@ -149,6 +149,15 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			} else {
 				execution.Context = pgtype.Text{String: node.eventDefinition.ErrorCode.String, Valid: true}
 			}
+		case model.ElementErrorEndEvent:
+			if node.eventDefinition == nil {
+				jobType = engine.JobSetErrorCode
+			} else {
+				taskType = engine.TaskTriggerEvent
+				taskInstance = TriggerEventTask{}
+
+				execution.Context = pgtype.Text{String: node.eventDefinition.ErrorCode.String, Valid: true}
+			}
 		case model.ElementEscalationBoundaryEvent:
 			if node.eventDefinition == nil {
 				jobType = engine.JobSetEscalationCode
@@ -571,7 +580,7 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 			}
 		}
 
-		// overwrite executions
+		// overwrite executions to fulfill startBoundaryEvent contract
 		ec.executions = []*ElementInstanceEntity{scope, boundaryEvent}
 
 		newBoundaryEvent, err := ec.startBoundaryEvent(ctx, interrupting)
@@ -609,18 +618,6 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 			ec.executions = []*ElementInstanceEntity{scope, newBoundaryEvent, boundaryEvent}
 		}
 	case engine.JobSetErrorCode, engine.JobSetEscalationCode:
-		attachedTo, err := ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
-		if err != nil {
-			return fmt.Errorf("failed to select attached to element instance: %v", err)
-		}
-
-		if attachedTo.EndedAt.Valid {
-			return nil // terminated or canceled
-		}
-
-		attachedTo.ExecutionCount++
-		ec.addExecution(attachedTo)
-
 		var context string
 		if jobCompletion != nil {
 			switch job.Type {
@@ -628,6 +625,48 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 				context = jobCompletion.ErrorCode
 			case engine.JobSetEscalationCode:
 				context = jobCompletion.EscalationCode
+			}
+		}
+
+		switch execution.BpmnElementType {
+		case model.ElementErrorBoundaryEvent, model.ElementEscalationBoundaryEvent:
+			attachedTo, err := ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
+			if err != nil {
+				return fmt.Errorf("failed to select attached to element instance: %v", err)
+			}
+
+			if attachedTo.EndedAt.Valid {
+				return nil // terminated or canceled
+			}
+
+			attachedTo.ExecutionCount++
+			ec.addExecution(attachedTo)
+		case model.ElementErrorEndEvent:
+			if context == "" {
+				job.Error = pgtype.Text{String: "expected an error code", Valid: true}
+				return nil
+			}
+
+			triggerEventTask := TaskEntity{
+				Partition: execution.Partition,
+
+				ElementId:         pgtype.Int4{Int32: execution.ElementId, Valid: true},
+				ElementInstanceId: pgtype.Int4{Int32: execution.Id, Valid: true},
+				ProcessId:         pgtype.Int4{Int32: execution.ProcessId, Valid: true},
+				ProcessInstanceId: pgtype.Int4{Int32: execution.ProcessInstanceId, Valid: true},
+
+				BpmnElementId: pgtype.Text{String: execution.BpmnElementId, Valid: true},
+				CreatedAt:     ctx.Time(),
+				CreatedBy:     ec.engineOrWorkerId,
+				DueAt:         ctx.Time(),
+				State:         engine.WorkCreated,
+				Type:          engine.TaskTriggerEvent,
+
+				Instance: TriggerEventTask{},
+			}
+
+			if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {
+				return err
 			}
 		}
 
@@ -917,7 +956,7 @@ func (ec *executionContext) handleParallelGateway(ctx Context, execution *Elemen
 	return nil
 }
 
-// startBoundaryEvent starts the boundary event. (expects scope as first and boundary event as second execution)
+// startBoundaryEvent starts the boundary event. (expects scope of the boundary event as first and boundary event as second execution)
 //
 // If the boundary event is non-interrupting, a new boundary event execution is attached.
 //

@@ -93,7 +93,7 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 //   - [JobEvaluateExclusiveGateway]: forking exclusive gateway
 //   - [JobEvaluateInclusiveGateway]: forking inclusive gateway
 //   - [JobExecute]: business rule task, script task, send task, service task, message end event, message throw event
-//   - [JobSetErrorCode]: error boundary event
+//   - [JobSetErrorCode]: error boundary and end event
 //   - [JobSetEscalationCode]: escalation boundary event
 //   - [JobSetMessageCorrelationKey]: message boundary and catch event, when event definition exists
 //   - [JobSetSignalName]: signal throw and end event
@@ -197,7 +197,7 @@ func (v *JobType) UnmarshalJSON(data []byte) error {
 //   - [TaskDequeueProcessInstance] dequeues a queued process instance
 //   - [TaskJoinParallelGateway] continues a parallel gateway by joining executions
 //   - [TaskStartProcessInstance] starts a queued process instance
-//   - [TaskTriggerEvent] triggers a message, signal or timer event
+//   - [TaskTriggerEvent] triggers an event (error, message, signal or timer)
 //
 // Management related types, that are only relevant for a pg engine:
 //
