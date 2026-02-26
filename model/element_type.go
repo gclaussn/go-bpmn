@@ -10,6 +10,8 @@ const (
 	ElementErrorBoundaryEvent
 	ElementErrorEndEvent
 	ElementEscalationBoundaryEvent
+	ElementEscalationEndEvent
+	ElementEscalationThrowEvent
 	ElementExclusiveGateway
 	ElementInclusiveGateway
 	ElementManualTask
@@ -48,6 +50,10 @@ func MapElementType(s string) ElementType {
 		return ElementErrorEndEvent
 	case "ESCALATION_BOUNDARY_EVENT":
 		return ElementEscalationBoundaryEvent
+	case "ESCALATION_END_EVENT":
+		return ElementEscalationEndEvent
+	case "ESCALATION_THROW_EVENT":
+		return ElementEscalationThrowEvent
 	case "EXCLUSIVE_GATEWAY":
 		return ElementExclusiveGateway
 	case "INCLUSIVE_GATEWAY":
@@ -123,6 +129,10 @@ func (v ElementType) String() string {
 		return "ERROR_END_EVENT"
 	case ElementEscalationBoundaryEvent:
 		return "ESCALATION_BOUNDARY_EVENT"
+	case ElementEscalationEndEvent:
+		return "ESCALATION_END_EVENT"
+	case ElementEscalationThrowEvent:
+		return "ESCALATION_THROW_EVENT"
 	case ElementExclusiveGateway:
 		return "EXCLUSIVE_GATEWAY"
 	case ElementInclusiveGateway:

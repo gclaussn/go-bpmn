@@ -127,6 +127,10 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 			case "escalationEventDefinition":
 				if element.Type == 0 {
 					element.Type = ElementEscalationBoundaryEvent
+				} else if element.Type == ElementNoneEndEvent {
+					element.Type = ElementEscalationEndEvent
+				} else if element.Type == ElementNoneThrowEvent {
+					element.Type = ElementEscalationThrowEvent
 				}
 
 				eventDefinition := EventDefinition{Id: getAttrValue(t.Attr, "id")}
@@ -137,6 +141,12 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 
 				switch model := element.Model.(type) {
 				case BoundaryEvent:
+					model.EventDefinition = eventDefinition
+					element.Model = model
+				case EndEvent:
+					model.EventDefinition = eventDefinition
+					element.Model = model
+				case IntermediateThrowEvent:
 					model.EventDefinition = eventDefinition
 					element.Model = model
 				}
