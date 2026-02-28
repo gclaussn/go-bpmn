@@ -1,0 +1,47 @@
+<definitions id="test">
+  <process id="escalationThrowEndTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="subProcess" />
+    <subProcess id="subProcess">
+      <incoming>f1</incoming>
+      <startEvent id="subProcessStartEvent">
+        <outgoing>f2</outgoing>
+      </startEvent>
+      <sequenceFlow id="f2" sourceRef="subProcessStartEvent" targetRef="escalationThrowEvent" />
+      <intermediateThrowEvent id="escalationThrowEvent">
+        <incoming>f2</incoming>
+        <outgoing>f3</outgoing>
+        <escalationEventDefinition id="escalationThrowEventDefinition" />
+      </intermediateThrowEvent>
+      <sequenceFlow id="f3" sourceRef="escalationThrowEvent" targetRef="escalationEndEvent" />
+      <endEvent id="escalationEndEvent">
+        <incoming>f3</incoming>
+        <escalationEventDefinition id="escalationEndEventDefinition" />
+      </endEvent>
+      <outgoing>f4</outgoing>
+    </subProcess>
+    <sequenceFlow id="f4" sourceRef="subProcess" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f4</incoming>
+    </endEvent>
+    <boundaryEvent id="escalationBoundaryEventNonInterrupting" cancelActivity="false" attachedToRef="subProcess">
+      <outgoing>f5</outgoing>
+      <escalationEventDefinition id="escalationBoundaryEventNonInterruptingDefinition" />
+    </boundaryEvent>
+    <sequenceFlow id="f5" sourceRef="escalationBoundaryEventNonInterrupting" targetRef="escalationEndNonInterrupting" />
+    <endEvent id="escalationEndNonInterrupting">
+      <incoming>f5</incoming>
+    </endEvent>
+    <boundaryEvent id="escalationBoundaryEvent" attachedToRef="subProcess">
+      <outgoing>f6</outgoing>
+      <escalationEventDefinition id="escalationBoundaryEventDefinition" />
+    </boundaryEvent>
+    <sequenceFlow id="f6" sourceRef="escalationBoundaryEvent" targetRef="escalationEnd" />
+    <endEvent id="escalationEnd">
+      <incoming>f6</incoming>
+    </endEvent>
+    <outgoing>f4</outgoing>
+  </process>
+</definitions>

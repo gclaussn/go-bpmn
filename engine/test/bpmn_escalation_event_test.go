@@ -131,3 +131,46 @@ func (x escalationEventTest) boundaryNonInterrupting(t *testing.T) {
 	assert.Equal(engine.JobExecute, jobs[1].Type)
 	assert.Equal(engine.JobExecute, jobs[2].Type)
 }
+
+func (x escalationEventTest) throw(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	process := mustCreateProcess(t, x.e, "event/escalation-throw-end.bpmn", "escalationThrowEndTest", engine.CreateProcessCmd{
+		Escalations: []engine.EscalationDefinition{
+			{BpmnElementId: "escalationThrowEvent", EscalationCode: "throw"},
+			{BpmnElementId: "escalationEndEvent", EscalationCode: "end"},
+			{BpmnElementId: "escalationBoundaryEventNonInterrupting", EscalationCode: ""},
+			{BpmnElementId: "escalationBoundaryEvent", EscalationCode: "throw"},
+		},
+	})
+
+	piAssert := mustCreateProcessInstance(t, x.e, process)
+
+	piAssert.IsWaitingAt("escalationThrowEvent")
+	piAssert.ExecuteTask()
+
+	piAssert.IsWaitingAt("escalationEndEvent")
+	piAssert.ExecuteTask()
+
+	piAssert.IsCompleted()
+
+	elementInstances := piAssert.ElementInstances()
+	require.Len(elementInstances, 11)
+
+	assert.Equal("subProcess", elementInstances[2].BpmnElementId)
+	assert.Equal(engine.InstanceCompleted, elementInstances[2].State)
+	assert.Equal("escalationBoundaryEventNonInterrupting", elementInstances[3].BpmnElementId)
+	assert.Equal(engine.InstanceCompleted, elementInstances[3].State)
+	assert.Equal("escalationBoundaryEvent", elementInstances[4].BpmnElementId)
+	assert.Equal(engine.InstanceTerminated, elementInstances[4].State)
+	assert.Equal("escalationThrowEvent", elementInstances[6].BpmnElementId)
+	assert.Equal(engine.InstanceCompleted, elementInstances[6].State)
+	assert.Equal("escalationBoundaryEventNonInterrupting", elementInstances[7].BpmnElementId)
+	assert.Equal(engine.InstanceTerminated, elementInstances[7].State)
+	assert.Equal("escalationEndNonInterrupting", elementInstances[8].BpmnElementId)
+	assert.Equal(engine.InstanceCompleted, elementInstances[8].State)
+	assert.Equal("escalationEndEvent", elementInstances[9].BpmnElementId)
+	assert.Equal(engine.InstanceCompleted, elementInstances[9].State)
+	assert.Equal("endEvent", elementInstances[10].BpmnElementId)
+	assert.Equal(engine.InstanceCompleted, elementInstances[10].State)
+}

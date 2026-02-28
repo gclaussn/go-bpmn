@@ -21,13 +21,13 @@ func (ec *executionContext) triggerEscalationEndEvent(ctx Context) error {
 	escalationCode := execution.Context.String
 
 	// find escalation boundary event
-	var boundaryEvent *ElementInstanceEntity
-	for _, e := range boundaryEvents {
-		if e.BpmnElementType != model.ElementEscalationBoundaryEvent {
+	var target *ElementInstanceEntity
+	for _, boundaryEvent := range boundaryEvents {
+		if boundaryEvent.BpmnElementType != model.ElementEscalationBoundaryEvent {
 			continue
 		}
 
-		node, err := ec.process.graph.node(e.BpmnElementId)
+		node, err := ec.process.graph.node(boundaryEvent.BpmnElementId)
 		if err != nil {
 			return err
 		}
@@ -37,34 +37,34 @@ func (ec *executionContext) triggerEscalationEndEvent(ctx Context) error {
 		switch execution.BpmnElementType {
 		case model.ElementEscalationEndEvent:
 			if !interrupting {
-				continue // end event cannot trigger a non-interrupting boundary event
+				continue // cannot trigger a non-interrupting boundary event
 			}
 		case model.ElementEscalationThrowEvent:
 			if interrupting {
-				continue // throw event cannot trigger an interrupting boundary event
+				continue // cannot trigger an interrupting boundary event
 			}
 		}
 
-		if e.Context.String == "" && boundaryEvent == nil {
-			boundaryEvent = e
+		if boundaryEvent.Context.String == "" && target == nil {
+			target = boundaryEvent
 			continue
 		}
-		if e.Context.String == escalationCode {
-			boundaryEvent = e
+		if boundaryEvent.Context.String == escalationCode {
+			target = boundaryEvent
 			break
 		}
 	}
 
-	if boundaryEvent != nil {
-		boundaryEventScope, err := ctx.ElementInstances().Select(boundaryEvent.Partition, boundaryEvent.ParentId.Int32)
+	if target != nil {
+		targetScope, err := ctx.ElementInstances().Select(target.Partition, target.ParentId.Int32)
 		if err != nil {
 			return err
 		}
 
 		event := EventEntity{
-			Partition: boundaryEvent.Partition,
+			Partition: target.Partition,
 
-			ElementInstanceId: boundaryEvent.Id,
+			ElementInstanceId: target.Id,
 
 			CreatedAt:      ctx.Time(),
 			CreatedBy:      ec.engineOrWorkerId,
@@ -76,9 +76,9 @@ func (ec *executionContext) triggerEscalationEndEvent(ctx Context) error {
 		}
 
 		// overwrite executions to fulfill startBoundaryEvent contract
-		ec.executions = []*ElementInstanceEntity{boundaryEventScope, boundaryEvent}
+		ec.executions = []*ElementInstanceEntity{targetScope, target}
 
-		node, _ := ec.process.graph.node(boundaryEvent.BpmnElementId)
+		node, _ := ec.process.graph.node(target.BpmnElementId)
 		interrupting := node.bpmnElement.Model.(model.BoundaryEvent).CancelActivity
 
 		if _, err := ec.startBoundaryEvent(ctx, interrupting); err != nil {
@@ -92,6 +92,9 @@ func (ec *executionContext) triggerEscalationEndEvent(ctx Context) error {
 					e.State = engine.InstanceCompleted
 				}
 			}
+		} else {
+			ec.addExecution(scope)
+			ec.addExecution(execution)
 		}
 	}
 

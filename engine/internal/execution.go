@@ -91,7 +91,7 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 				// complete process instance
 				ec.processInstance.EndedAt = now
 				ec.processInstance.State = engine.InstanceCompleted
-			} else {
+			} else if scope.State == engine.InstanceStarted {
 				ec.addExecution(scope)
 			}
 		}
@@ -992,7 +992,8 @@ func (ec *executionContext) handleParallelGateway(ctx Context, execution *Elemen
 	return nil
 }
 
-// startBoundaryEvent starts the boundary event. (expects scope of the boundary event as first and boundary event as second execution)
+// startBoundaryEvent starts a boundary event.
+// The method expects the scope of the boundary event as first and the boundary event as second execution.
 //
 // If the boundary event is non-interrupting, a new boundary event execution is attached.
 //
