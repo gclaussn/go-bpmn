@@ -9,7 +9,7 @@ import (
 )
 
 // TODO
-func (ec *executionContext) triggerEscalationEndEvent(ctx Context) error {
+func (ec *executionContext) triggerEscalationThrowEvent(ctx Context) error {
 	scope := ec.executions[0]
 	execution := ec.executions[1]
 

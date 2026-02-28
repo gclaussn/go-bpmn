@@ -275,7 +275,7 @@ func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
 	case model.ElementErrorEndEvent:
 		return ec.triggerErrorEndEvent(ctx)
 	case model.ElementEscalationEndEvent, model.ElementEscalationThrowEvent:
-		return ec.triggerEscalationEndEvent(ctx)
+		return ec.triggerEscalationThrowEvent(ctx)
 	case model.ElementMessageBoundaryEvent:
 		return ec.triggerMessageBoundaryEvent(ctx, t.MessageId, interrupting)
 	case model.ElementMessageCatchEvent:

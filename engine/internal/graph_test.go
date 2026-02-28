@@ -354,28 +354,30 @@ func TestContinueExecution(t *testing.T) {
 
 			// then
 			require.NoError(err)
-			require.Len(executions1, 1)
+			require.Len(executions1, 0)
 
 			assert.Equal(engine.InstanceSuspended, execution.State)
-			assert.Equal(-1, execution.ExecutionCount)
+			assert.Equal(0, execution.ExecutionCount)
 
-			assert.Equal("errorBoundaryEvent", executions1[0].BpmnElementId)
-			assert.Equal(model.ElementErrorBoundaryEvent, executions1[0].BpmnElementType)
-			assert.Equal(&scope, executions1[0].parent)
-			assert.Equal(execution, executions1[0].prev)
+			// given
+			scope.State = engine.InstanceStarted
 
 			// when
-			executions2, err := graph.continueExecution(nil, executions1[0])
+			executions2, err := graph.continueExecution(nil, execution)
 
 			// then
 			require.NoError(err)
-			require.Len(executions2, 0)
+			require.Len(executions2, 1)
 
-			assert.Equal(engine.InstanceSuspended, executions1[0].State)
+			assert.Equal(engine.InstanceCreated, execution.State)
+			assert.Equal(-1, execution.ExecutionCount)
+
+			assert.Equal("errorBoundaryEvent", executions2[0].BpmnElementId)
+			assert.Equal(model.ElementErrorBoundaryEvent, executions2[0].BpmnElementType)
+			assert.Equal(&scope, executions2[0].parent)
+			assert.Equal(execution, executions2[0].prev)
 
 			// when
-			scope.State = engine.InstanceStarted
-
 			executions3, err := graph.continueExecution(nil, execution)
 
 			// then
@@ -384,15 +386,6 @@ func TestContinueExecution(t *testing.T) {
 
 			assert.Equal(engine.InstanceCreated, execution.State)
 			assert.Equal(-1, execution.ExecutionCount)
-
-			// when
-			executions4, err := graph.continueExecution(nil, executions1[0])
-
-			// then
-			require.NoError(err)
-			require.Len(executions4, 0)
-
-			assert.Equal(engine.InstanceCreated, executions1[0].State)
 		})
 
 		t.Run("with event definition", func(t *testing.T) {
@@ -500,7 +493,7 @@ func TestContinueExecution(t *testing.T) {
 			require.NoError(err)
 			require.Len(executions1, 0)
 
-			assert.Equal(engine.InstanceSuspended, execution.State)
+			assert.Equal(engine.InstanceCreated, execution.State)
 			assert.Equal(-1, execution.ExecutionCount)
 
 			// when
@@ -514,29 +507,6 @@ func TestContinueExecution(t *testing.T) {
 
 			assert.Equal(engine.InstanceCreated, execution.State)
 			assert.Equal(-1, execution.ExecutionCount)
-		})
-
-		t.Run("SUSPENDED", func(t *testing.T) {
-			// given
-			scope.State = engine.InstanceStarted
-
-			execution := &ElementInstanceEntity{
-				BpmnElementId:   "serviceTask",
-				BpmnElementType: model.ElementServiceTask,
-				State:           engine.InstanceSuspended,
-
-				parent: &scope,
-			}
-
-			// when
-			executions, err := graph.continueExecution(nil, execution)
-
-			// then
-			require.NoError(err)
-			require.Len(executions, 0)
-
-			assert.Equal(engine.InstanceStarted, execution.State)
-			assert.Equal(0, execution.ExecutionCount)
 		})
 	})
 

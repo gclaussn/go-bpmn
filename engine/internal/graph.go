@@ -227,31 +227,43 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 	} else if execution.State == engine.InstanceStarted {
 		// continue branch
 		execution.State = engine.InstanceCompleted
-	} else if scope.State == engine.InstanceSuspended {
-		// end branch
-		execution.State = engine.InstanceSuspended
-	} else if execution.State == engine.InstanceCreated {
-		// end branch
-		if execution.ExecutionCount < 0 { // task, sub process or call activity, but not all boundary events defined
-			execution.State = engine.InstanceCreated
-		} else if execution.Context.Valid {
-			if model.IsBoundaryEvent(execution.BpmnElementType) {
-				// defined boundary event
-				execution.State = engine.InstanceCreated
+	} else if isTaskOrScope(execution.BpmnElementType) {
+		if execution.State == 0 {
+			if scope.State == engine.InstanceSuspended {
+				execution.State = engine.InstanceSuspended
 			} else {
-				execution.State = engine.InstanceStarted
+				execution.State = engine.InstanceCreated
 			}
+		} else if execution.ExecutionCount < 0 { // not all boundary events defined
+			return executions, nil
+		} else if execution.State == engine.InstanceSuspended {
+			execution.State = engine.InstanceCreated
 		} else {
 			execution.State = engine.InstanceStarted
 		}
 	} else if model.IsBoundaryEvent(execution.BpmnElementType) {
 		execution.State = engine.InstanceCreated
-	} else if isTaskOrScope(execution.BpmnElementType) {
-		if execution.State != 0 && execution.ExecutionCount == 0 {
-			execution.State = engine.InstanceStarted
-		} else {
-			execution.State = engine.InstanceCreated
+	} else if scope.State == engine.InstanceSuspended {
+		switch execution.BpmnElementType {
+		case
+			model.ElementErrorEndEvent,
+			model.ElementEscalationEndEvent,
+			model.ElementEscalationThrowEvent,
+			model.ElementMessageCatchEvent,
+			model.ElementSignalEndEvent,
+			model.ElementSignalCatchEvent,
+			model.ElementSignalThrowEvent,
+			model.ElementTimerCatchEvent:
+			if execution.Context.Valid {
+				execution.State = engine.InstanceStarted
+			} else {
+				execution.State = engine.InstanceSuspended
+			}
+		default:
+			execution.State = engine.InstanceSuspended
 		}
+	} else if execution.State == engine.InstanceCreated {
+		execution.State = engine.InstanceStarted
 	} else {
 		switch execution.BpmnElementType {
 		// gateway
@@ -336,12 +348,8 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 		}
 
 		scope.ExecutionCount--
-	case engine.InstanceCreated, engine.InstanceSuspended:
+	case engine.InstanceCreated:
 		if isTaskOrScope(execution.BpmnElementType) {
-			if execution.ExecutionCount < 0 { // not all boundary events defined
-				return executions, nil
-			}
-
 			executionCount := 0
 
 			for _, boundaryEvent := range node.boundaryEvents {
@@ -380,6 +388,8 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 
 	if execution.State == engine.InstanceStarted {
 		if execution.BpmnElementType == model.ElementSubProcess {
+			execution.State = scope.State // possible transition to suspended
+
 			// start branch
 			next, err := g.createExecution(execution)
 			if err != nil {

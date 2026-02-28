@@ -152,7 +152,7 @@ func lookUpDatabaseUrl() string {
 	if databaseUrl := os.Getenv("GO_BPMN_TEST_DATABASE_URL"); databaseUrl != "" {
 		return databaseUrl
 	}
-	if _, ok := os.LookupEnv("VSCODE_PID1"); ok {
+	if _, ok := os.LookupEnv("VSCODE_PID"); ok {
 		// assume test database is available when running tests from vscode
 		return "postgres://postgres:postgres@localhost:5432/test"
 	}

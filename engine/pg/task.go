@@ -394,7 +394,9 @@ func (r taskRepository) Lock(cmd engine.ExecuteTasksCmd, lockedAt time.Time) ([]
 			entity.Instance = internal.StartProcessInstanceTask{}
 		case engine.TaskTriggerEvent:
 			task := internal.TriggerEventTask{}
-			err = json.Unmarshal([]byte(entity.SerializedTask.String), &task)
+			if entity.SerializedTask.Valid {
+				err = json.Unmarshal([]byte(entity.SerializedTask.String), &task)
+			}
 			entity.Instance = task
 		// management
 		case engine.TaskCreatePartition:
