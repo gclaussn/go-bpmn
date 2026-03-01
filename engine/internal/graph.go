@@ -246,6 +246,7 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 	} else if scope.State == engine.InstanceSuspended {
 		switch execution.BpmnElementType {
 		case
+			model.ElementErrorEndEvent,
 			model.ElementMessageCatchEvent,
 			model.ElementSignalEndEvent,
 			model.ElementSignalCatchEvent,
@@ -286,6 +287,7 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 			model.ElementMessageThrowEvent:
 			execution.State = engine.InstanceStarted
 		case
+			model.ElementErrorEndEvent,
 			model.ElementSignalCatchEvent,
 			model.ElementSignalEndEvent,
 			model.ElementSignalThrowEvent,

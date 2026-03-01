@@ -233,3 +233,65 @@ func (x errorEventTest) boundaryWithEventDefinition(t *testing.T) {
 	piAssert.HasPassed("endEventB")
 	piAssert.IsCompleted()
 }
+
+// end tests that an error end event terminates its scope
+func (x errorEventTest) end(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	process := mustCreateProcess(t, x.e, "event/error-end.bpmn", "errorEndTest", engine.CreateProcessCmd{
+		Errors: []engine.ErrorDefinition{
+			{BpmnElementId: "errorEndEvent", ErrorCode: "end"},
+			{BpmnElementId: "errorBoundaryEvent", ErrorCode: ""},
+		},
+	})
+
+	piAssert := mustCreateProcessInstance(t, x.e, process)
+
+	piAssert.IsWaitingAt("errorEndEvent")
+	piAssert.ExecuteTask()
+
+	piAssert.IsCompleted()
+
+	elementInstances := piAssert.ElementInstances()
+	require.Len(elementInstances, 7)
+
+	assert.Equal("subProcess", elementInstances[2].BpmnElementId)
+	assert.Equal(engine.InstanceTerminated, elementInstances[2].State)
+	assert.Equal("errorBoundaryEvent", elementInstances[3].BpmnElementId)
+	assert.Equal(engine.InstanceCompleted, elementInstances[3].State)
+	assert.Equal("errorEndEvent", elementInstances[5].BpmnElementId)
+	assert.Equal(engine.InstanceCompleted, elementInstances[5].State)
+	assert.Equal("errorEnd", elementInstances[6].BpmnElementId)
+	assert.Equal(engine.InstanceCompleted, elementInstances[6].State)
+}
+
+// endNone tests that an error end event behaves like a none end event, if no error boundary event is found
+func (x errorEventTest) endNone(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	process := mustCreateProcess(t, x.e, "event/error-end.bpmn", "errorEndTest", engine.CreateProcessCmd{
+		Errors: []engine.ErrorDefinition{
+			{BpmnElementId: "errorEndEvent", ErrorCode: "end"},
+			{BpmnElementId: "errorBoundaryEvent", ErrorCode: "x"},
+		},
+	})
+
+	piAssert := mustCreateProcessInstance(t, x.e, process)
+
+	piAssert.IsWaitingAt("errorEndEvent")
+	piAssert.ExecuteTask()
+
+	piAssert.IsCompleted()
+
+	elementInstances := piAssert.ElementInstances()
+	require.Len(elementInstances, 7)
+
+	assert.Equal("subProcess", elementInstances[2].BpmnElementId)
+	assert.Equal(engine.InstanceCompleted, elementInstances[2].State)
+	assert.Equal("errorBoundaryEvent", elementInstances[3].BpmnElementId)
+	assert.Equal(engine.InstanceTerminated, elementInstances[3].State)
+	assert.Equal("errorEndEvent", elementInstances[5].BpmnElementId)
+	assert.Equal(engine.InstanceCompleted, elementInstances[5].State)
+	assert.Equal("endEvent", elementInstances[6].BpmnElementId)
+	assert.Equal(engine.InstanceCompleted, elementInstances[6].State)
+}

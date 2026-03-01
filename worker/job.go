@@ -118,6 +118,7 @@ func (m JobMux) ExecuteAny(bpmnElementId string, jobHandler func(jc JobContext) 
 //
 // Applicable for BPMN element types:
 //   - error boundary event
+//   - error end event
 func (m JobMux) SetErrorCode(bpmnElementId string, jobHandler func(jc JobContext) (string, error)) {
 	m[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
 		if err := ensureJobType(jc.Job.Type, engine.JobSetErrorCode); err != nil {

@@ -272,6 +272,8 @@ func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
 	}
 
 	switch bpmnElement.Type {
+	case model.ElementErrorEndEvent:
+		return ec.triggerErrorEndEvent(ctx)
 	case model.ElementMessageBoundaryEvent:
 		return ec.triggerMessageBoundaryEvent(ctx, t.MessageId, interrupting)
 	case model.ElementMessageCatchEvent:

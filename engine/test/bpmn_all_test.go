@@ -29,6 +29,8 @@ func TestBpmn(t *testing.T) {
 			t.Run(engineTypes[i]+"boundary not found", errorEventTest.boundaryNotFound)
 			t.Run(engineTypes[i]+"boundary multiple", errorEventTest.boundaryMultiple)
 			t.Run(engineTypes[i]+"boundary with event definition", errorEventTest.boundaryWithEventDefinition)
+			t.Run(engineTypes[i]+"end", errorEventTest.end)
+			t.Run(engineTypes[i]+"end none", errorEventTest.endNone)
 		}
 	})
 

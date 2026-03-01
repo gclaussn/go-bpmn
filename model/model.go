@@ -99,8 +99,10 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				bpmnError.Name = getAttrValue(t.Attr, "name")
 				bpmnError.Code = getAttrValue(t.Attr, "errorCode")
 			case "errorEventDefinition":
-				if element.Type == 0 {
+				if isBoundaryEvent {
 					element.Type = ElementErrorBoundaryEvent
+				} else if element.Type == ElementNoneEndEvent {
+					element.Type = ElementErrorEndEvent
 				}
 
 				eventDefinition := EventDefinition{Id: getAttrValue(t.Attr, "id")}
@@ -111,6 +113,9 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 
 				switch model := element.Model.(type) {
 				case BoundaryEvent:
+					model.EventDefinition = eventDefinition
+					element.Model = model
+				case EndEvent:
 					model.EventDefinition = eventDefinition
 					element.Model = model
 				}

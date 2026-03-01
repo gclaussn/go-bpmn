@@ -8,6 +8,7 @@ type ElementType int
 const (
 	ElementBusinessRuleTask ElementType = iota + 1
 	ElementErrorBoundaryEvent
+	ElementErrorEndEvent
 	ElementEscalationBoundaryEvent
 	ElementExclusiveGateway
 	ElementInclusiveGateway
@@ -43,6 +44,8 @@ func MapElementType(s string) ElementType {
 		return ElementBusinessRuleTask
 	case "ERROR_BOUNDARY_EVENT":
 		return ElementErrorBoundaryEvent
+	case "ERROR_END_EVENT":
+		return ElementErrorEndEvent
 	case "ESCALATION_BOUNDARY_EVENT":
 		return ElementEscalationBoundaryEvent
 	case "EXCLUSIVE_GATEWAY":
@@ -116,6 +119,8 @@ func (v ElementType) String() string {
 		return "BUSINESS_RULE_TASK"
 	case ElementErrorBoundaryEvent:
 		return "ERROR_BOUNDARY_EVENT"
+	case ElementErrorEndEvent:
+		return "ERROR_END_EVENT"
 	case ElementEscalationBoundaryEvent:
 		return "ESCALATION_BOUNDARY_EVENT"
 	case ElementExclusiveGateway:

@@ -1,0 +1,32 @@
+<definitions id="test">
+  <process id="errorEndTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="subProcess" />
+    <subProcess id="subProcess">
+      <incoming>f1</incoming>
+      <startEvent id="subProcessStartEvent">
+        <outgoing>f2</outgoing>
+      </startEvent>
+      <sequenceFlow id="f2" sourceRef="subProcessStartEvent" targetRef="errorEndEvent" />
+      <endEvent id="errorEndEvent">
+        <incoming>f2</incoming>
+        <errorEventDefinition id="errorEndEventDefinition" />
+      </endEvent>
+      <outgoing>f3</outgoing>
+    </subProcess>
+    <sequenceFlow id="f3" sourceRef="subProcess" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f3</incoming>
+    </endEvent>
+    <boundaryEvent id="errorBoundaryEvent" attachedToRef="subProcess">
+      <outgoing>f4</outgoing>
+      <errorEventDefinition id="errorBoundaryEventDefinition" />
+    </boundaryEvent>
+    <sequenceFlow id="f4" sourceRef="errorBoundaryEvent" targetRef="errorEnd" />
+    <endEvent id="errorEnd">
+      <incoming>f4</incoming>
+    </endEvent>
+  </process>
+</definitions>
