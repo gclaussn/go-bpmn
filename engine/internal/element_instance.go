@@ -22,7 +22,7 @@ type ElementInstanceEntity struct {
 
 	BpmnElementId   string
 	BpmnElementType model.ElementType
-	Context         pgtype.Text // internal field, used for error code and escalation code
+	Context         pgtype.Text // internal field, used to persist error code, escalation code etc.
 	CreatedAt       time.Time
 	CreatedBy       string
 	EndedAt         pgtype.Timestamp
@@ -82,21 +82,4 @@ type ElementInstanceRepository interface {
 	Update(*ElementInstanceEntity) error
 
 	Query(engine.ElementInstanceCriteria, engine.QueryOptions) ([]engine.ElementInstance, error)
-}
-
-func findEscalationBoundaryEvent(boundaryEvents []*ElementInstanceEntity, escalationCode string) *ElementInstanceEntity {
-	var target *ElementInstanceEntity
-	for _, boundaryEvent := range boundaryEvents {
-		if boundaryEvent.BpmnElementType != model.ElementEscalationBoundaryEvent {
-			continue
-		}
-		if boundaryEvent.Context.String == "" && target == nil {
-			target = boundaryEvent
-			continue
-		}
-		if boundaryEvent.Context.String == escalationCode {
-			return boundaryEvent
-		}
-	}
-	return target
 }

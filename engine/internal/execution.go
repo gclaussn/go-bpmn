@@ -164,6 +164,15 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			} else {
 				execution.Context = pgtype.Text{String: node.eventDefinition.EscalationCode.String, Valid: true}
 			}
+		case model.ElementEscalationEndEvent, model.ElementEscalationThrowEvent:
+			if node.eventDefinition == nil {
+				jobType = engine.JobSetEscalationCode
+			} else {
+				taskType = engine.TaskTriggerEvent
+				taskInstance = TriggerEventTask{}
+
+				execution.Context = pgtype.Text{String: node.eventDefinition.EscalationCode.String, Valid: true}
+			}
 		case model.ElementMessageBoundaryEvent, model.ElementMessageCatchEvent:
 			if node.eventDefinition == nil {
 				jobType = engine.JobSubscribeMessage
@@ -644,6 +653,33 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 		case model.ElementErrorEndEvent:
 			if context == "" {
 				job.Error = pgtype.Text{String: "expected an error code", Valid: true}
+				return nil
+			}
+
+			triggerEventTask := TaskEntity{
+				Partition: execution.Partition,
+
+				ElementId:         pgtype.Int4{Int32: execution.ElementId, Valid: true},
+				ElementInstanceId: pgtype.Int4{Int32: execution.Id, Valid: true},
+				ProcessId:         pgtype.Int4{Int32: execution.ProcessId, Valid: true},
+				ProcessInstanceId: pgtype.Int4{Int32: execution.ProcessInstanceId, Valid: true},
+
+				BpmnElementId: pgtype.Text{String: execution.BpmnElementId, Valid: true},
+				CreatedAt:     ctx.Time(),
+				CreatedBy:     ec.engineOrWorkerId,
+				DueAt:         ctx.Time(),
+				State:         engine.WorkCreated,
+				Type:          engine.TaskTriggerEvent,
+
+				Instance: TriggerEventTask{},
+			}
+
+			if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {
+				return err
+			}
+		case model.ElementEscalationEndEvent, model.ElementEscalationThrowEvent:
+			if context == "" {
+				job.Error = pgtype.Text{String: "expected an escalation code", Valid: true}
 				return nil
 			}
 

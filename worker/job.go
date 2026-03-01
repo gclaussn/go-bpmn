@@ -139,7 +139,9 @@ func (m JobMux) SetErrorCode(bpmnElementId string, jobHandler func(jc JobContext
 // SetEscalationCode handles jobs of type [engine.JobSetEscalationCode].
 //
 // Applicable for BPMN element types:
+//   - escalation end event
 //   - escalation boundary event
+//   - escalation throw event
 func (m JobMux) SetEscalationCode(bpmnElementId string, jobHandler func(jc JobContext) (string, error)) {
 	m[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
 		if err := ensureJobType(jc.Job.Type, engine.JobSetEscalationCode); err != nil {

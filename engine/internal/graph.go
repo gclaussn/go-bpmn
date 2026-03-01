@@ -247,6 +247,8 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 		switch execution.BpmnElementType {
 		case
 			model.ElementErrorEndEvent,
+			model.ElementEscalationEndEvent,
+			model.ElementEscalationThrowEvent,
 			model.ElementMessageCatchEvent,
 			model.ElementSignalEndEvent,
 			model.ElementSignalCatchEvent,
@@ -288,6 +290,8 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 			execution.State = engine.InstanceStarted
 		case
 			model.ElementErrorEndEvent,
+			model.ElementEscalationEndEvent,
+			model.ElementEscalationThrowEvent,
 			model.ElementSignalCatchEvent,
 			model.ElementSignalEndEvent,
 			model.ElementSignalThrowEvent,

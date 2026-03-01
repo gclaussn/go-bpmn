@@ -313,20 +313,35 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			}
 		}
 
-		_, escalationCodeSet := escalationCodes[bpmnElement.Id]
-		if bpmnElement.Type == model.ElementEscalationBoundaryEvent {
-			if !escalationCodeSet {
+		_, isEscalationCodeSet := escalationCodes[bpmnElement.Id]
+		switch bpmnElement.Type {
+		case model.ElementEscalationBoundaryEvent:
+			if !isEscalationCodeSet {
 				boundaryEvent := bpmnElement.Model.(model.BoundaryEvent)
 				if escalation := boundaryEvent.EventDefinition.Escalation; escalation != nil {
 					escalationCodes[bpmnElement.Id] = escalation.Code
 				}
 			}
-		} else {
-			if escalationCodeSet {
+		case model.ElementEscalationEndEvent:
+			if !isEscalationCodeSet {
+				endEvent := bpmnElement.Model.(model.EndEvent)
+				if escalation := endEvent.EventDefinition.Escalation; escalation != nil {
+					escalationCodes[bpmnElement.Id] = escalation.Name
+				}
+			}
+		case model.ElementEscalationThrowEvent:
+			if !isEscalationCodeSet {
+				intermediateThrowEvent := bpmnElement.Model.(model.IntermediateThrowEvent)
+				if escalation := intermediateThrowEvent.EventDefinition.Escalation; escalation != nil {
+					escalationCodes[bpmnElement.Id] = escalation.Name
+				}
+			}
+		default:
+			if isEscalationCodeSet {
 				causes = append(causes, engine.ErrorCause{
 					Pointer: elementPointer(bpmnElement),
 					Type:    "escalation_event",
-					Detail:  fmt.Sprintf("element %s is not an escalation boundary event", bpmnElement.Id),
+					Detail:  fmt.Sprintf("element %s is not an escalation event", bpmnElement.Id),
 				})
 			}
 		}
