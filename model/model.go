@@ -87,6 +87,9 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				isBoundaryEvent = true
 			case "businessRuleTask":
 				startElement(ElementBusinessRuleTask, t.Attr)
+			case "callActivity":
+				startElement(ElementCallActivity, t.Attr)
+				element.Model = CallActivity{CalledElement: getAttrValue(t.Attr, "calledElement")}
 			case "definitions":
 				definitions.Id = getAttrValue(t.Attr, "id")
 				definitionsParsed = true
@@ -313,6 +316,7 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				isOutgoing = false
 			case
 				"businessRuleTask",
+				"callActivity",
 				"endEvent",
 				"exclusiveGateway",
 				"inclusiveGateway",

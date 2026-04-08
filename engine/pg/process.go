@@ -145,6 +145,51 @@ WHERE
 	return &entity, nil
 }
 
+func (r processRepository) SelectLatest(bpmnProcessId string) (*internal.ProcessEntity, error) {
+	row := r.tx.QueryRow(r.txCtx, `
+SELECT
+	id,
+
+	bpmn_xml,
+	bpmn_xml_md5,
+	created_at,
+	created_by,
+	parallelism,
+	tags,
+	version
+FROM
+	process
+WHERE
+	bpmn_process_id = $1
+ORDER BY
+	created_at DESC
+LIMIT 1
+`, bpmnProcessId)
+
+	var entity internal.ProcessEntity
+	if err := row.Scan(
+		&entity.Id,
+
+		&entity.BpmnXml,
+		&entity.BpmnXmlMd5,
+		&entity.CreatedAt,
+		&entity.CreatedBy,
+		&entity.Parallelism,
+		&entity.Tags,
+		&entity.Version,
+	); err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, err
+		} else {
+			return nil, fmt.Errorf("failed to select latest process %s: %v", bpmnProcessId, err)
+		}
+	}
+
+	entity.BpmnProcessId = bpmnProcessId
+
+	return &entity, nil
+}
+
 func (r processRepository) Query(criteria engine.ProcessCriteria, options engine.QueryOptions) ([]engine.Process, error) {
 	var sql bytes.Buffer
 	if err := sqlProcessQuery.Execute(&sql, map[string]any{

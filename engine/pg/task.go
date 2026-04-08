@@ -392,6 +392,8 @@ func (r taskRepository) Lock(cmd engine.ExecuteTasksCmd, lockedAt time.Time) ([]
 			entity.Instance = internal.JoinParallelGatewayTask{}
 		case engine.TaskStartProcessInstance:
 			entity.Instance = internal.StartProcessInstanceTask{}
+		case engine.TaskTerminateProcessInstance:
+			entity.Instance = internal.TerminateProcessInstanceTask{}
 		case engine.TaskTriggerEvent:
 			task := internal.TriggerEventTask{}
 			if entity.SerializedTask.Valid {

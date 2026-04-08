@@ -208,8 +208,13 @@ type ProcessRepository interface {
 
 	// SelectByBpmnProcessIdAndVersion selects a process by BPMN process ID and version.
 	//
-	// If no process is found, nil is returned.
+	// If no process is found, [pgx.ErrNoRows] is returned.
 	SelectByBpmnProcessIdAndVersion(bpmnProcessId string, version string) (*ProcessEntity, error)
+
+	// SelectLatest selects the latest process version - the version with the greatest created_at.
+	//
+	// If no process is found, [pgx.ErrNoRows] is returned.
+	SelectLatest(bpmnProcessId string) (*ProcessEntity, error)
 
 	Query(engine.ProcessCriteria, engine.QueryOptions) ([]engine.Process, error)
 }

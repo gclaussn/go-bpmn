@@ -1,0 +1,24 @@
+<definitions id="test">
+  <process id="callActivitySignalBoundaryTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="callActivity" />
+    <callActivity id="callActivity">
+      <incoming>f1</incoming>
+      <outgoing>f2</outgoing>
+    </callActivity>
+    <sequenceFlow id="f2" sourceRef="callActivity" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f2</incoming>
+    </endEvent>
+    <boundaryEvent id="signalBoundaryEvent" attachedToRef="callActivity">
+      <outgoing>f3</outgoing>
+      <signalEventDefinition id="signalBoundaryEventDefinition" />
+    </boundaryEvent>
+    <sequenceFlow id="f3" sourceRef="signalBoundaryEvent" targetRef="signalEnd" />
+    <endEvent id="signalEnd">
+      <incoming>f3</incoming>
+    </endEvent>
+  </process>
+</definitions>

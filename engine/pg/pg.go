@@ -233,7 +233,7 @@ func (e *pgEngine) CreateProcessInstance(ctx context.Context, cmd engine.CreateP
 	}
 
 	defer cancel()
-	processInstance, err := internal.CreateProcessInstance(pgCtx, cmd)
+	processInstance, err := internal.CreateProcessInstance(pgCtx, cmd, nil, nil)
 	return processInstance, e.release(pgCtx, err)
 }
 

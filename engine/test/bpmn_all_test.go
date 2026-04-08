@@ -18,6 +18,32 @@ func TestBpmn(t *testing.T) {
 		}
 	})
 
+	t.Run("call activity", func(t *testing.T) {
+		for i, e := range engines {
+			callActivityTest := callActivityTest{e}
+
+			t.Run(engineTypes[i]+"start end", callActivityTest.startEnd)
+			t.Run(engineTypes[i]+"suspension and queueing", callActivityTest.suspensionAndQueueing)
+			t.Run(engineTypes[i]+"called element", callActivityTest.calledElement)
+			t.Run(engineTypes[i]+"called element latest", callActivityTest.calledElementLatest)
+
+			t.Run(engineTypes[i]+"boundary event", callActivityTest.boundaryEvent)
+			t.Run(engineTypes[i]+"boundary event with recursive terminiation", callActivityTest.boundaryEventWithRecursiveTermination)
+			t.Run(engineTypes[i]+"execute with error code", callActivityTest.executeWithErrorCode)
+			t.Run(engineTypes[i]+"error end", callActivityTest.errorEnd)
+			t.Run(engineTypes[i]+"execute with escalation code", callActivityTest.executeWithEscalationCode)
+			t.Run(engineTypes[i]+"execute with non-interrupting escalation code", callActivityTest.executeWithNonInterruptingEscalationCode)
+			t.Run(engineTypes[i]+"escalation end", callActivityTest.escalationEnd)
+			t.Run(engineTypes[i]+"escalation throw", callActivityTest.escalationThrow)
+
+			t.Run(engineTypes[i]+"completes with error when process could not be found", callActivityTest.errorProcessNotFound)
+			t.Run(engineTypes[i]+"completes with error when process has no none start event", callActivityTest.errorProcessHasNoNoneStart)
+
+			t.Run(engineTypes[i]+"completes with error when called process version could not be found", callActivityTest.errorCalledProcessVersionNotFound)
+			t.Run(engineTypes[i]+"completes with error when called process could not be found", callActivityTest.errorCalledProcessNotFound)
+		}
+	})
+
 	t.Run("error event", func(t *testing.T) {
 		for i, e := range engines {
 			errorEventTest := newErrorEventTest(t, e)

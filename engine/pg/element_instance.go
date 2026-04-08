@@ -159,11 +159,12 @@ WHERE
 	return &entity, nil
 }
 
-func (r elementInstanceRepository) SelectActiveChildren(parent *internal.ElementInstanceEntity) ([]*internal.ElementInstanceEntity, error) {
+func (r elementInstanceRepository) SelectActive(processInstance *internal.ProcessInstanceEntity) ([]*internal.ElementInstanceEntity, error) {
 	rows, err := r.tx.Query(r.txCtx, `
 SELECT
 	id,
 
+	parent_id,
 	prev_element_id,
 	prev_id,
 
@@ -178,7 +179,95 @@ SELECT
 	ended_at,
 	execution_count,
 	is_multi_instance,
-	started_at
+	started_at,
+	state
+FROM
+	element_instance
+WHERE
+	partition = $1 AND
+	process_instance_id = $2 AND
+	state NOT IN ('COMPLETED', 'TERMINATED', 'CANCELED')
+`,
+		processInstance.Partition,
+		processInstance.Id,
+	)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"failed to select active element instances of process instance %s/%d: %v",
+			processInstance.Partition.Format(time.DateOnly),
+			processInstance.Id,
+			err,
+		)
+	}
+
+	defer rows.Close()
+
+	var entities []*internal.ElementInstanceEntity
+	for rows.Next() {
+		var (
+			entity internal.ElementInstanceEntity
+
+			bpmnElementTypeValue string
+			stateValue           string
+		)
+
+		if err := rows.Scan(
+			&entity.Id,
+
+			&entity.ParentId,
+			&entity.PrevElementId,
+			&entity.PrevId,
+
+			&entity.ElementId,
+			&entity.ProcessId,
+
+			&entity.BpmnElementId,
+			&bpmnElementTypeValue,
+			&entity.Context,
+			&entity.CreatedAt,
+			&entity.CreatedBy,
+			&entity.EndedAt,
+			&entity.ExecutionCount,
+			&entity.IsMultiInstance,
+			&entity.StartedAt,
+			&stateValue,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan element instance row: %v", err)
+		}
+
+		entity.Partition = processInstance.Partition
+		entity.ProcessInstanceId = processInstance.Id
+		entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
+		entity.State = engine.MapInstanceState(stateValue)
+
+		entities = append(entities, &entity)
+	}
+
+	return entities, nil
+}
+
+func (r elementInstanceRepository) SelectActiveChildren(parent *internal.ElementInstanceEntity) ([]*internal.ElementInstanceEntity, error) {
+	rows, err := r.tx.Query(r.txCtx, `
+SELECT
+	id,
+
+	prev_element_id,
+	prev_id,
+
+	element_id,
+	process_id,
+	process_instance_id,
+
+	bpmn_element_id,
+	bpmn_element_type,
+	context,
+	created_at,
+	created_by,
+	ended_at,
+	execution_count,
+	is_multi_instance,
+	started_at,
+	state
 FROM
 	element_instance
 WHERE
@@ -217,6 +306,7 @@ WHERE
 
 			&entity.ElementId,
 			&entity.ProcessId,
+			&entity.ProcessInstanceId,
 
 			&entity.BpmnElementId,
 			&bpmnElementTypeValue,
@@ -227,6 +317,7 @@ WHERE
 			&entity.ExecutionCount,
 			&entity.IsMultiInstance,
 			&entity.StartedAt,
+			&stateValue,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan element instance row: %v", err)
 		}
@@ -326,7 +417,7 @@ WHERE
 	return entities, nil
 }
 
-func (r elementInstanceRepository) SelectBoundaryEvents(execution *internal.ElementInstanceEntity) ([]*internal.ElementInstanceEntity, error) {
+func (r elementInstanceRepository) SelectBoundaryEvents(partition time.Time, id int32) ([]*internal.ElementInstanceEntity, error) {
 	rows, err := r.tx.Query(r.txCtx, `
 SELECT
 	id,
@@ -336,6 +427,7 @@ SELECT
 
 	element_id,
 	process_id,
+	process_instance_id,
 
 	bpmn_element_id,
 	bpmn_element_type,
@@ -352,8 +444,8 @@ WHERE
 ORDER BY
 	id
 `,
-		execution.Partition,
-		execution.Id,
+		partition,
+		id,
 		engine.InstanceCreated.String(),
 	)
 	if err != nil {
@@ -377,6 +469,7 @@ ORDER BY
 
 			&entity.ElementId,
 			&entity.ProcessId,
+			&entity.ProcessInstanceId,
 
 			&entity.BpmnElementId,
 			&bpmnElementTypeValue,
@@ -388,9 +481,8 @@ ORDER BY
 			return nil, fmt.Errorf("failed to scan element instance row: %v", err)
 		}
 
-		entity.Partition = execution.Partition
-		entity.PrevId = pgtype.Int4{Int32: execution.Id, Valid: true}
-		entity.ProcessInstanceId = execution.ProcessInstanceId
+		entity.Partition = partition
+		entity.PrevId = pgtype.Int4{Int32: id, Valid: true}
 		entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
 		entity.State = engine.MapInstanceState(stateValue)
 
@@ -502,6 +594,50 @@ WHERE
 		entity.State.String(),
 	); err != nil {
 		return fmt.Errorf("failed to update element instance %+v: %v", entity, err)
+	}
+
+	return nil
+}
+
+func (r elementInstanceRepository) UpdateBatch(entities []*internal.ElementInstanceEntity) error {
+	if len(entities) == 0 {
+		return nil
+	}
+
+	batch := &pgx.Batch{}
+
+	for _, entity := range entities {
+		batch.Queue(`
+UPDATE
+	element_instance
+SET
+	context = $3,
+	ended_at = $4,
+	execution_count = $5,
+	started_at = $6,
+	state = $7
+WHERE
+	partition = $1 AND
+	id = $2
+`,
+			entity.Partition,
+			entity.Id,
+
+			entity.Context,
+			entity.EndedAt,
+			entity.ExecutionCount,
+			entity.StartedAt,
+			entity.State.String(),
+		)
+	}
+
+	batchResults := r.tx.SendBatch(r.txCtx, batch)
+	defer batchResults.Close()
+
+	for i := range entities {
+		if _, err := batchResults.Exec(); err != nil {
+			return fmt.Errorf("failed to update element instance %+v: %v", entities[i], err)
+		}
 	}
 
 	return nil

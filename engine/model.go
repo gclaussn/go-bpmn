@@ -90,9 +90,11 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 //
 // Each type is used for a specific set of BPMN element types:
 //
+//   - [JobCallProcess]: call activity
 //   - [JobEvaluateExclusiveGateway]: forking exclusive gateway
 //   - [JobEvaluateInclusiveGateway]: forking inclusive gateway
 //   - [JobExecute]: business rule task, script task, send task, service task, message end event, message throw event
+//   - [JobPassVariables]: call activity
 //   - [JobSetErrorCode]: error boundary and end event
 //   - [JobSetEscalationCode]: escalation boundary, throw and end event
 //   - [JobSetMessageCorrelationKey]: message boundary and catch event, when event definition exists
@@ -103,9 +105,11 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 type JobType int
 
 const (
-	JobEvaluateExclusiveGateway JobType = iota + 1
+	JobCallProcess JobType = iota + 1
+	JobEvaluateExclusiveGateway
 	JobEvaluateInclusiveGateway
 	JobExecute
+	JobPassVariables
 	JobSetErrorCode
 	JobSetEscalationCode
 	JobSetMessageCorrelationKey
@@ -117,12 +121,16 @@ const (
 
 func MapJobType(s string) JobType {
 	switch s {
+	case "CALL_PROCESS":
+		return JobCallProcess
 	case "EVALUATE_EXCLUSIVE_GATEWAY":
 		return JobEvaluateExclusiveGateway
 	case "EVALUATE_INCLUSIVE_GATEWAY":
 		return JobEvaluateInclusiveGateway
 	case "EXECUTE":
 		return JobExecute
+	case "PASS_VARIABLES":
+		return JobPassVariables
 	case "SET_ERROR_CODE":
 		return JobSetErrorCode
 	case "SET_ESCALATION_CODE":
@@ -152,12 +160,16 @@ func (v JobType) MarshalJSON() ([]byte, error) {
 
 func (v JobType) String() string {
 	switch v {
+	case JobCallProcess:
+		return "CALL_PROCESS"
 	case JobEvaluateExclusiveGateway:
 		return "EVALUATE_EXCLUSIVE_GATEWAY"
 	case JobEvaluateInclusiveGateway:
 		return "EVALUATE_INCLUSIVE_GATEWAY"
 	case JobExecute:
 		return "EXECUTE"
+	case JobPassVariables:
+		return "PASS_VARIABLES"
 	case JobSetErrorCode:
 		return "SET_ERROR_CODE"
 	case JobSetEscalationCode:
@@ -197,6 +209,7 @@ func (v *JobType) UnmarshalJSON(data []byte) error {
 //   - [TaskDequeueProcessInstance] dequeues a queued process instance
 //   - [TaskJoinParallelGateway] continues a parallel gateway by joining executions
 //   - [TaskStartProcessInstance] starts a queued process instance
+//   - [TaskTerminateProcessInstance] terminates a process instance
 //   - [TaskTriggerEvent] triggers an event (error, escalation, message, signal or timer)
 //
 // Management related types, that are only relevant for a pg engine:
@@ -212,6 +225,7 @@ const (
 	TaskDequeueProcessInstance TaskType = iota + 1
 	TaskJoinParallelGateway
 	TaskStartProcessInstance
+	TaskTerminateProcessInstance
 	TaskTriggerEvent
 
 	// management
@@ -228,6 +242,8 @@ func MapTaskType(s string) TaskType {
 		return TaskDequeueProcessInstance
 	case "JOIN_PARALLEL_GATEWAY":
 		return TaskJoinParallelGateway
+	case "TERMINATE_PROCESS_INSTANCE":
+		return TaskTerminateProcessInstance
 	case "START_PROCESS_INSTANCE":
 		return TaskStartProcessInstance
 	case "TRIGGER_EVENT":
@@ -262,6 +278,8 @@ func (v TaskType) String() string {
 		return "DEQUEUE_PROCESS_INSTANCE"
 	case TaskJoinParallelGateway:
 		return "JOIN_PARALLEL_GATEWAY"
+	case TaskTerminateProcessInstance:
+		return "TERMINATE_PROCESS_INSTANCE"
 	case TaskStartProcessInstance:
 		return "START_PROCESS_INSTANCE"
 	case TaskTriggerEvent:
@@ -453,6 +471,8 @@ func (v ElementInstance) String() string {
 type ElementInstanceCriteria struct {
 	Partition Partition `json:"partition"`    // Partition filter.
 	Id        int32     `json:"id,omitempty"` // Element instance filter.
+
+	ParentId int32 `json:"parentId,omitempty"` // Filter, used to query children of a parent element instance.
 
 	ProcessId         int32 `json:"processId,omitempty"`         // Process filter.
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // Process instance filter.
@@ -648,6 +668,9 @@ func (v ProcessInstance) String() string {
 type ProcessInstanceCriteria struct {
 	Partition Partition `json:"partition"`    // Partition filter.
 	Id        int32     `json:"id,omitempty"` // Process instance filter.
+
+	ParentId int32 `json:"parentId,omitempty"` // Filter, used to query process instances that have a specific parent process instance.
+	RootId   int32 `json:"rootId,omitempty"`   // Filter, used to query process instances descending from a root process instance (which is included)
 
 	ProcessId int32 `json:"processId,omitempty"` // Process filter.
 

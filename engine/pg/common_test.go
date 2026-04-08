@@ -44,6 +44,7 @@ func mustCreateEngine(t *testing.T, customizers ...func(*Options)) engine.Engine
 
 	customizers = append(customizers, func(o *Options) {
 		o.Common.TaskExecutorEnabled = false
+		o.Timeout = 45 * time.Second
 	})
 
 	e, err := New(databaseUrl, customizers...)

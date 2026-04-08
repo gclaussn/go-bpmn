@@ -179,7 +179,12 @@ func (w *Worker) ExecuteJob(ctx context.Context, job engine.Job) (engine.Job, er
 		elementVariables: Variables{},
 	}
 
-	jobHandler := processHandle.mux[job.BpmnElementId]
+	bpmnElementId := job.BpmnElementId
+	if job.Type == engine.JobPassVariables {
+		bpmnElementId += ":passVariables"
+	}
+
+	jobHandler := processHandle.mux[bpmnElementId]
 	if jobHandler == nil {
 		return engine.Job{}, fmt.Errorf("no job handler registered for process %s and BPMN element %s", jc.Process, job.BpmnElementId)
 	}
@@ -266,6 +271,7 @@ func (w *Worker) Register(handler Handler) (ProcessHandle, error) {
 	}
 
 	for bpmnElementId := range mux {
+		bpmnElementId = strings.SplitN(bpmnElementId, ":", 2)[0]
 		if _, ok := elementMap[bpmnElementId]; !ok {
 			return ProcessHandle{}, fmt.Errorf("invalid job handler %s: process %s has no such BPMN element", bpmnElementId, process)
 		}

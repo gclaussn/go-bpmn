@@ -75,6 +75,10 @@ func TestQuery(t *testing.T) {
 			},
 		}
 
+		// process instance
+		processInstanceParentIds = []int32{0, 1, 2, 2, 0}
+		processInstanceRootIds   = []int32{0, 1, 1, 1, 0}
+
 		// task
 		taskElementIds         = []int32{0, 3, 0, 5, 5}
 		taskElementInstanceIds = []int32{0, 2, 0, 3, 4}
@@ -145,6 +149,9 @@ func TestQuery(t *testing.T) {
 
 		entities = append(entities, &internal.ProcessInstanceEntity{
 			Partition: partitions[i],
+
+			ParentId: pgtype.Int4{Int32: processInstanceParentIds[i], Valid: processInstanceParentIds[i] != 0},
+			RootId:   pgtype.Int4{Int32: processInstanceRootIds[i], Valid: processInstanceRootIds[i] != 0},
 
 			ProcessId: processIds[i],
 
@@ -490,6 +497,32 @@ func TestQuery(t *testing.T) {
 					assert.Len(results, 1)
 					assert.Equal(engine.Partition(date), results[0].(engine.ProcessInstance).Partition)
 					assert.Equal(int32(1), results[0].(engine.ProcessInstance).Id)
+				},
+			},
+			{
+				"by parent ID",
+				engine.ProcessInstanceCriteria{ParentId: 2},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 2)
+					assert.Equal(engine.Partition(date), results[0].(engine.ProcessInstance).Partition)
+					assert.Equal(int32(3), results[0].(engine.ProcessInstance).Id)
+					assert.Equal(engine.Partition(datePlus1), results[1].(engine.ProcessInstance).Partition)
+					assert.Equal(int32(1), results[1].(engine.ProcessInstance).Id)
+				},
+			},
+			{
+				"by root ID",
+				engine.ProcessInstanceCriteria{RootId: 1},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 4)
+					assert.Equal(engine.Partition(date), results[0].(engine.ProcessInstance).Partition)
+					assert.Equal(int32(1), results[0].(engine.ProcessInstance).Id)
+					assert.Equal(engine.Partition(date), results[1].(engine.ProcessInstance).Partition)
+					assert.Equal(int32(2), results[1].(engine.ProcessInstance).Id)
+					assert.Equal(engine.Partition(date), results[2].(engine.ProcessInstance).Partition)
+					assert.Equal(int32(3), results[2].(engine.ProcessInstance).Id)
+					assert.Equal(engine.Partition(datePlus1), results[3].(engine.ProcessInstance).Partition)
+					assert.Equal(int32(1), results[3].(engine.ProcessInstance).Id)
 				},
 			},
 			{

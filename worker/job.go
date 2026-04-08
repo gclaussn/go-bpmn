@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -43,6 +44,26 @@ func newJobExecutor(w *Worker) *jobExecutor {
 }
 
 type JobMux map[string]func(JobContext) (*engine.JobCompletion, error)
+
+// CallProcess handles jobs of type [engine.JobCallProcess].
+//
+// Applicable for BPMN elements of type call activity.
+func (m JobMux) CallProcess(bpmnElementId string, jobHandler func(jc JobContext) (*engine.CalledProcess, error)) {
+	m[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
+		if err := ensureJobType(jc.Job.Type, engine.JobCallProcess); err != nil {
+			return nil, err
+		}
+
+		calledProcess, err := jobHandler(jc)
+		if err != nil {
+			return nil, err
+		}
+
+		return &engine.JobCompletion{
+			CalledProcess: calledProcess,
+		}, nil
+	}
+}
 
 // EvaluateExclusiveGateway handles jobs of type [engine.JobEvaluateExclusiveGateway].
 //
@@ -111,6 +132,49 @@ func (m JobMux) Execute(bpmnElementId string, jobHandler func(jc JobContext) err
 func (m JobMux) ExecuteAny(bpmnElementId string, jobHandler func(jc JobContext) (*engine.JobCompletion, error)) {
 	m[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
 		return jobHandler(jc)
+	}
+}
+
+// PassVariables handles jobs of type [engine.JobPassVariables].
+//
+// Applicable for BPMN elements of type call activity.
+func (m JobMux) PassVariables(bpmnElementId string, jobHandler func(jc JobContext, subProcessInstance engine.ProcessInstance) error) {
+	m[bpmnElementId+":passVariables"] = func(jc JobContext) (*engine.JobCompletion, error) {
+		if err := ensureJobType(jc.Job.Type, engine.JobPassVariables); err != nil {
+			return nil, err
+		}
+
+		query := jc.w.e.CreateQuery()
+
+		elementInstances, err := query.QueryElementInstances(jc.ctx, engine.ElementInstanceCriteria{
+			Partition: jc.Job.Partition,
+			ParentId:  jc.Job.ElementInstanceId,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		if len(elementInstances) == 0 {
+			return nil, errors.New("failed to find sub element instance")
+		}
+
+		processInstances, err := query.QueryProcessInstances(jc.ctx, engine.ProcessInstanceCriteria{
+			Partition: elementInstances[0].Partition,
+			Id:        elementInstances[0].ProcessInstanceId,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		if len(processInstances) == 0 {
+			return nil, errors.New("failed to find sub process instance")
+		}
+
+		if err := jobHandler(jc, processInstances[0]); err != nil {
+			return nil, err
+		}
+
+		return nil, nil
 	}
 }
 
@@ -317,9 +381,13 @@ func (jc JobContext) Engine() engine.Engine {
 }
 
 func (jc JobContext) ProcessVariables(names ...string) (Variables, error) {
+	return jc.ProcessVariablesFrom(jc.Job.Partition, jc.Job.ProcessInstanceId, names...)
+}
+
+func (jc JobContext) ProcessVariablesFrom(partition engine.Partition, processInstanceId int32, names ...string) (Variables, error) {
 	processVariables, err := jc.w.e.GetProcessVariables(jc.ctx, engine.GetProcessVariablesCmd{
-		ProcessInstanceId: jc.Job.ProcessInstanceId,
-		Partition:         jc.Job.Partition,
+		Partition:         partition,
+		ProcessInstanceId: processInstanceId,
 
 		Names: names,
 	})

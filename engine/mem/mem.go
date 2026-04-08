@@ -82,7 +82,7 @@ func (e *memEngine) CreateProcess(_ context.Context, cmd engine.CreateProcessCmd
 
 func (e *memEngine) CreateProcessInstance(_ context.Context, cmd engine.CreateProcessInstanceCmd) (engine.ProcessInstance, error) {
 	defer e.unlock()
-	return internal.CreateProcessInstance(e.wlock(), cmd)
+	return internal.CreateProcessInstance(e.wlock(), cmd, nil, nil)
 }
 
 func (e *memEngine) CreateQuery() engine.Query {

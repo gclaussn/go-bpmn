@@ -27,6 +27,10 @@ WHERE
 	AND id = {{.c.Id}}
 {{end}}
 
+{{if ne .c.ParentId 0}}
+	AND parent_id = {{.c.ParentId}}
+{{end}}
+
 {{if ne .c.ProcessId 0}}
 	AND process_id = {{.c.ProcessId}}
 {{end}}

@@ -3,6 +3,7 @@ package internal
 import (
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/model"
@@ -71,7 +72,7 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			node, _ := graph.node(execution.BpmnElementId)
 			if len(node.boundaryEvents) != 0 {
 				// terminate attached boundary events
-				boundaryEvents, err := ctx.ElementInstances().SelectBoundaryEvents(execution)
+				boundaryEvents, err := ctx.ElementInstances().SelectBoundaryEvents(execution.Partition, execution.Id)
 				if err != nil {
 					return err
 				}
@@ -134,6 +135,10 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			if execution.State == engine.InstanceStarted {
 				jobType = engine.JobExecute
 			}
+		case model.ElementCallActivity:
+			jobType = engine.JobCallProcess
+
+			execution.Context = ec.processInstance.CorrelationKey // needed for the [engine.JobPassVariables] job, created when the child process instance ends
 		// gateway
 		case model.ElementExclusiveGateway:
 			jobType = engine.JobEvaluateExclusiveGateway
@@ -351,6 +356,41 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 		return nil
 	}
 
+	if ec.processInstance.ParentId.Valid {
+		var processScope *ElementInstanceEntity
+		for _, execution := range ec.executions {
+			if execution.BpmnElementType == model.ElementProcess {
+				processScope = execution
+			}
+		}
+
+		callActivityExecution, err := ctx.ElementInstances().Select(processScope.Partition, processScope.ParentId.Int32)
+		if err != nil {
+			return err
+		}
+
+		passVariablesJob := JobEntity{
+			Partition: callActivityExecution.Partition,
+
+			ElementId:         callActivityExecution.ElementId,
+			ElementInstanceId: callActivityExecution.Id,
+			ProcessId:         callActivityExecution.ProcessId,
+			ProcessInstanceId: callActivityExecution.ProcessInstanceId,
+
+			BpmnElementId:  callActivityExecution.BpmnElementId,
+			CorrelationKey: callActivityExecution.Context,
+			CreatedAt:      ctx.Time(),
+			CreatedBy:      ec.engineOrWorkerId,
+			DueAt:          ctx.Time(),
+			State:          engine.WorkCreated,
+			Type:           engine.JobPassVariables,
+		}
+
+		if err := ctx.Jobs().Insert(&passVariablesJob); err != nil {
+			return err
+		}
+	}
+
 	// end process instance
 	if err := ctx.ProcessInstances().Update(ec.processInstance); err != nil {
 		return err
@@ -415,6 +455,79 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 	jobCompletion := cmd.Completion
 
 	switch job.Type {
+	case engine.JobCallProcess:
+		var process *ProcessEntity
+		if calledElement := node.bpmnElement.Model.(model.CallActivity).CalledElement; calledElement != "" {
+			s := strings.SplitN(calledElement, ":", 2)
+			if len(s) == 2 {
+				process = &ProcessEntity{
+					BpmnProcessId: s[0],
+					Version:       s[1],
+				}
+			} else {
+				latestProcess, err := ctx.Processes().SelectLatest(s[0])
+				if err == pgx.ErrNoRows {
+					job.Error = pgtype.Text{String: fmt.Sprintf("process %s could not be found", s[0]), Valid: true}
+					return nil
+				}
+				if err != nil {
+					return err
+				}
+
+				process = latestProcess
+			}
+		}
+
+		var calledProcess *engine.CalledProcess
+		if jobCompletion != nil && jobCompletion.CalledProcess != nil {
+			calledProcess = jobCompletion.CalledProcess
+		}
+
+		if process != nil {
+			if calledProcess == nil {
+				calledProcess = &engine.CalledProcess{
+					BpmnProcessId: process.BpmnProcessId,
+					Version:       process.Version,
+				}
+			} else {
+				if calledProcess.BpmnProcessId == "" {
+					calledProcess.BpmnProcessId = process.BpmnProcessId
+				}
+				if calledProcess.Version == "" {
+					calledProcess.Version = process.Version
+				}
+			}
+		}
+
+		if calledProcess == nil {
+			job.Error = pgtype.Text{String: "expected a called process", Valid: true}
+			return nil
+		}
+		if calledProcess.BpmnProcessId == "" {
+			job.Error = pgtype.Text{String: "expected the BPMN process ID of a called process", Valid: true}
+			return nil
+		}
+		if calledProcess.Version == "" {
+			job.Error = pgtype.Text{String: "expected the version of a called process", Valid: true}
+			return nil
+		}
+
+		if _, err := CreateProcessInstance(ctx, engine.CreateProcessInstanceCmd{
+			BpmnProcessId:  calledProcess.BpmnProcessId,
+			CorrelationKey: calledProcess.CorrelationKey,
+			Tags:           calledProcess.Tags,
+			Variables:      calledProcess.Variables,
+			Version:        calledProcess.Version,
+			WorkerId:       ec.engineOrWorkerId,
+		}, ec.processInstance, execution); err != nil {
+			if _, ok := err.(engine.Error); ok {
+				job.Error = pgtype.Text{String: err.Error(), Valid: true}
+			} else {
+				return fmt.Errorf("failed to create process instance: %v", err)
+			}
+		}
+
+		return nil
 	case engine.JobEvaluateExclusiveGateway:
 		bpmnElement := node.bpmnElement
 		if bpmnElement.Type != model.ElementExclusiveGateway {
@@ -526,11 +639,6 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 			break
 		}
 
-		boundaryEvents, err := ctx.ElementInstances().SelectBoundaryEvents(execution)
-		if err != nil {
-			return err
-		}
-
 		var (
 			boundaryEvent *ElementInstanceEntity
 			interrupting  = true
@@ -538,10 +646,40 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 		if errorCodeSet {
 			errorCode := jobCompletion.ErrorCode
 
-			boundaryEvent = findErrorBoundaryEvent(boundaryEvents, errorCode)
+			boundaryEvent, err = findErrorBoundaryEvent(ctx, execution, errorCode)
+			if err != nil {
+				return err
+			}
+
 			if boundaryEvent == nil {
 				job.Error = pgtype.Text{String: fmt.Sprintf("failed to find boundary event for error code %s", errorCode), Valid: true}
 				return nil
+			}
+
+			if boundaryEvent.ProcessInstanceId != execution.ProcessInstanceId {
+				triggerEventTask := TaskEntity{
+					Partition: boundaryEvent.Partition,
+
+					ElementId:         pgtype.Int4{Int32: boundaryEvent.ElementId, Valid: true},
+					ElementInstanceId: pgtype.Int4{Int32: boundaryEvent.Id, Valid: true},
+					ProcessId:         pgtype.Int4{Int32: boundaryEvent.ProcessId, Valid: true},
+					ProcessInstanceId: pgtype.Int4{Int32: boundaryEvent.ProcessInstanceId, Valid: true},
+
+					BpmnElementId: pgtype.Text{String: boundaryEvent.BpmnElementId, Valid: true},
+					CreatedAt:     ctx.Time(),
+					CreatedBy:     ec.engineOrWorkerId,
+					DueAt:         ctx.Time(),
+					State:         engine.WorkCreated,
+					Type:          engine.TaskTriggerEvent,
+
+					Instance: TriggerEventTask{ErrorCode: errorCode},
+				}
+
+				if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {
+					return err
+				}
+
+				return terminateProcessInstance(ctx, ec.processInstance)
 			}
 
 			event := EventEntity{
@@ -560,19 +698,69 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 		} else {
 			escalationCode := jobCompletion.EscalationCode
 
-			boundaryEvent = findEscalationBoundaryEvent(boundaryEvents, escalationCode)
+			boundaryEvent, interrupting, err = findEscalationBoundaryEvent(ctx, graph, execution, execution.BpmnElementType, escalationCode)
+			if err != nil {
+				return err
+			}
 			if boundaryEvent == nil {
 				job.Error = pgtype.Text{String: fmt.Sprintf("failed to find boundary event for escalation code %s", escalationCode), Valid: true}
 				return nil
 			}
 
-			boundaryEventNode, err := graph.node(boundaryEvent.BpmnElementId)
-			if err != nil {
-				job.Error = pgtype.Text{String: err.Error(), Valid: true}
+			if boundaryEvent.ProcessInstanceId != execution.ProcessInstanceId {
+				triggerEventTask := TaskEntity{
+					Partition: boundaryEvent.Partition,
+
+					ElementId:         pgtype.Int4{Int32: boundaryEvent.ElementId, Valid: true},
+					ElementInstanceId: pgtype.Int4{Int32: boundaryEvent.Id, Valid: true},
+					ProcessId:         pgtype.Int4{Int32: boundaryEvent.ProcessId, Valid: true},
+					ProcessInstanceId: pgtype.Int4{Int32: boundaryEvent.ProcessInstanceId, Valid: true},
+
+					BpmnElementId: pgtype.Text{String: boundaryEvent.BpmnElementId, Valid: true},
+					CreatedAt:     ctx.Time(),
+					CreatedBy:     ec.engineOrWorkerId,
+					DueAt:         ctx.Time(),
+					State:         engine.WorkCreated,
+					Type:          engine.TaskTriggerEvent,
+
+					Instance: TriggerEventTask{EscalationCode: escalationCode},
+				}
+
+				if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {
+					return err
+				}
+
+				if interrupting {
+					return terminateProcessInstance(ctx, ec.processInstance)
+				}
+
+				// retry job
+				retryTimer := engine.ISO8601Duration(cmd.RetryTimer)
+
+				retry := JobEntity{
+					Partition: job.Partition,
+
+					ElementId:         job.ElementId,
+					ElementInstanceId: job.ElementInstanceId,
+					ProcessId:         job.ProcessId,
+					ProcessInstanceId: job.ProcessInstanceId,
+
+					BpmnElementId:  job.BpmnElementId,
+					CorrelationKey: job.CorrelationKey,
+					CreatedAt:      ctx.Time(),
+					CreatedBy:      ec.engineOrWorkerId,
+					DueAt:          retryTimer.Calculate(ctx.Time()),
+					RetryCount:     job.RetryCount,
+					State:          engine.WorkCreated,
+					Type:           job.Type,
+				}
+
+				if err := ctx.Jobs().Insert(&retry); err != nil {
+					return err
+				}
+
 				return nil
 			}
-
-			interrupting = boundaryEventNode.bpmnElement.Model.(model.BoundaryEvent).CancelActivity
 
 			event := EventEntity{
 				Partition: boundaryEvent.Partition,
@@ -995,19 +1183,18 @@ func (ec *executionContext) handleParallelGateway(ctx Context, execution *Elemen
 // startBoundaryEvent starts a boundary event.
 // The method expects the scope of the boundary event as first and the boundary event as second execution.
 //
-// If the boundary event is non-interrupting, a new boundary event execution is attached.
+// If the boundary event is non-interrupting, a new boundary event execution is attached and returned.
 //
 // If the boundary event is interrupting, all other boundary events as well as the execution, the boundary is attached to, are terminated.
 func (ec *executionContext) startBoundaryEvent(ctx Context, interrupting bool) (*ElementInstanceEntity, error) {
-	scope := ec.executions[0]
-	boundaryEvent := ec.executions[1]
+	boundaryEventScope, boundaryEvent := ec.executions[0], ec.executions[1]
 
 	// start boundary event
 	boundaryEvent.State = engine.InstanceStarted
 
 	if !interrupting {
 		// attach new boundary event execution
-		newBoundaryEvent, err := ec.process.graph.createExecutionAt(scope, boundaryEvent.BpmnElementId)
+		newBoundaryEvent, err := ec.process.graph.createExecutionAt(boundaryEventScope, boundaryEvent.BpmnElementId)
 		if err != nil {
 			return nil, err
 		}
@@ -1030,7 +1217,7 @@ func (ec *executionContext) startBoundaryEvent(ctx Context, interrupting bool) (
 	}
 
 	// terminate all other attached boundary events
-	boundaryEvents, err := ctx.ElementInstances().SelectBoundaryEvents(attachedTo)
+	boundaryEvents, err := ctx.ElementInstances().SelectBoundaryEvents(attachedTo.Partition, attachedTo.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -1044,15 +1231,50 @@ func (ec *executionContext) startBoundaryEvent(ctx Context, interrupting bool) (
 		ec.addExecution(other)
 	}
 
-	// terminate attachedTo and it's children recursively, if attachedTo is a scope (e.g. sub-process)
-	i := len(ec.executions)
-
-	attachedTo.parent = scope
+	// terminate attachedTo
+	attachedTo.State = engine.InstanceTerminated
+	attachedTo.parent = boundaryEventScope
 	ec.addExecution(attachedTo)
 
+	// if attachedTo is a call activity, terminate descending process instances recursively
+	if attachedTo.BpmnElementType == model.ElementCallActivity {
+		children, err := ctx.ElementInstances().SelectActiveChildren(attachedTo)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(children) == 0 {
+			return nil, nil // process scope already ended
+		}
+
+		processScope := children[0]
+
+		terminateProcessInstanceTask := TaskEntity{
+			Partition: processScope.Partition,
+
+			ProcessId:         pgtype.Int4{Int32: processScope.ProcessId, Valid: true},
+			ProcessInstanceId: pgtype.Int4{Int32: processScope.ProcessInstanceId, Valid: true},
+
+			CreatedAt: ctx.Time(),
+			CreatedBy: ec.engineOrWorkerId,
+			DueAt:     ctx.Time(),
+			State:     engine.WorkCreated,
+			Type:      engine.TaskTerminateProcessInstance,
+
+			Instance: TerminateProcessInstanceTask{},
+		}
+
+		if err := ctx.Tasks().Insert(&terminateProcessInstanceTask); err != nil {
+			return nil, err
+		}
+
+		return nil, nil
+	}
+
+	// if attachedTo is a scope (e.g. sub-process), terminate descending executions recursively
+	i := len(ec.executions) - 1
 	for i < len(ec.executions) {
 		execution := ec.executions[i]
-		execution.State = engine.InstanceTerminated
 
 		i++
 
@@ -1066,6 +1288,7 @@ func (ec *executionContext) startBoundaryEvent(ctx Context, interrupting bool) (
 		}
 
 		for _, child := range children {
+			child.State = engine.InstanceTerminated
 			child.parent = execution
 			ec.addExecution(child)
 		}

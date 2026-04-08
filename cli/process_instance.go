@@ -292,7 +292,11 @@ func newProcessInstanceQueryCmd(cli *Cli) *cobra.Command {
 	c.Flags().Var(&partition, "partition", "Process instance partition")
 	c.Flags().Int32Var(&criteria.Id, "id", 0, "Process instance ID")
 
+	c.Flags().Int32Var(&criteria.ParentId, "parent-id", 0, "Filter, used to query process instances that have a specific parent process instance")
+	c.Flags().Int32Var(&criteria.RootId, "root-id", 0, "Filter, used to query process instances descending from a root process instance (which is included)")
+
 	c.Flags().Int32Var(&criteria.ProcessId, "process-id", 0, "Process ID")
+
 	c.Flags().StringToStringVar(&tagsV, "tag", nil, "Tag, consisting of name and value")
 
 	flagQueryOptions(&c, &options)

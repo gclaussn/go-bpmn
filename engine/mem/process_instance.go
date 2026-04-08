@@ -123,6 +123,13 @@ func (r *processInstanceRepository) Query(c engine.ProcessInstanceCriteria, o en
 				continue
 			}
 
+			if c.ParentId != 0 && c.ParentId != e.ParentId.Int32 {
+				continue
+			}
+			if c.RootId != 0 && c.RootId != e.RootId.Int32 && c.RootId != e.Id {
+				continue
+			}
+
 			if c.ProcessId != 0 && c.ProcessId != e.ProcessId {
 				continue
 			}

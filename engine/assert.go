@@ -559,7 +559,8 @@ func (a *ProcessInstanceAssert) Job() Job {
 		a.Fatalf("failed to query jobs: %v", err)
 	}
 
-	for _, result := range results {
+	for i := len(results); i > 0; i-- {
+		result := results[i-1]
 		if !result.IsCompleted() {
 			return result
 		}

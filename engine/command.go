@@ -257,8 +257,25 @@ type UnlockTasksCmd struct {
 
 // command related types
 
+// CalledProcess provides data for the creation of a child process instance.
+type CalledProcess struct {
+	// BPMN ID of the process to call.
+	BpmnProcessId string `json:"bpmnProcessId"`
+	// Optional key, used to correlate the child process instance with a business entity.
+	CorrelationKey string `json:"correlationKey,omitempty"`
+	// Tags to apply to the child process instance.
+	Tags []Tag `json:"tags,omitempty" validate:"max=100,dive"`
+	// Variables to set at child process instance scope.
+	Variables []VariableData `json:"variables,omitempty" validate:"max=100,dive"`
+	// Version of the process to call.
+	Version string `json:"version"`
+}
+
 // A job completion is used to complete jobs of various types.
 type JobCompletion struct {
+	// Information, needed for calling a sub-process as a child process instance.
+	// Applicable when job type is `CALL_PROCESS`.
+	CalledProcess *CalledProcess
 	// Code of a BPMN error, used to specify or trigger a BPMN error.
 	// Applicable when job type is `SET_ERROR_CODE` or `EXECUTE`.
 	ErrorCode string `json:"errorCode,omitempty"`

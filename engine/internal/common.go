@@ -49,6 +49,7 @@ func isTaskOrScope(elementType model.ElementType) bool {
 	switch elementType {
 	case
 		model.ElementBusinessRuleTask,
+		model.ElementCallActivity,
 		model.ElementScriptTask,
 		model.ElementSendTask,
 		model.ElementServiceTask,

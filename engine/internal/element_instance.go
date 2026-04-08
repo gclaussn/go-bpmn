@@ -61,6 +61,10 @@ type ElementInstanceRepository interface {
 	Insert(*ElementInstanceEntity) error
 	Select(partition time.Time, id int32) (*ElementInstanceEntity, error)
 
+	// SelectActive selects element instances of the given process instance
+	// that are not in state COMPLETED, TERMINATED and CANCELED.
+	SelectActive(*ProcessInstanceEntity) ([]*ElementInstanceEntity, error)
+
 	// SelectActiveChildren selects children of the given parent element instance
 	// that are not in state COMPLETED, TERMINATED and CANCELED.
 	SelectActiveChildren(parent *ElementInstanceEntity) ([]*ElementInstanceEntity, error)
@@ -71,7 +75,7 @@ type ElementInstanceRepository interface {
 
 	// SelectBoundaryEvents selects element instances, which are attached to the given element instance.
 	// Only element instances with state CREATED are selected.
-	SelectBoundaryEvents(*ElementInstanceEntity) ([]*ElementInstanceEntity, error)
+	SelectBoundaryEvents(time.Time, int32) ([]*ElementInstanceEntity, error)
 
 	// SelectParallelGateways selects element instances, which have the same
 	//  - parent element instance
@@ -80,6 +84,7 @@ type ElementInstanceRepository interface {
 	SelectParallelGateways(*ElementInstanceEntity) ([]*ElementInstanceEntity, error)
 
 	Update(*ElementInstanceEntity) error
+	UpdateBatch([]*ElementInstanceEntity) error
 
 	Query(engine.ElementInstanceCriteria, engine.QueryOptions) ([]engine.ElementInstance, error)
 }

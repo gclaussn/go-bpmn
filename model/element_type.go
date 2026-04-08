@@ -7,6 +7,7 @@ type ElementType int
 
 const (
 	ElementBusinessRuleTask ElementType = iota + 1
+	ElementCallActivity
 	ElementErrorBoundaryEvent
 	ElementErrorEndEvent
 	ElementEscalationBoundaryEvent
@@ -44,6 +45,8 @@ func MapElementType(s string) ElementType {
 	switch s {
 	case "BUSINESS_RULE_TASK":
 		return ElementBusinessRuleTask
+	case "CALL_ACTIVITY":
+		return ElementCallActivity
 	case "ERROR_BOUNDARY_EVENT":
 		return ElementErrorBoundaryEvent
 	case "ERROR_END_EVENT":
@@ -123,6 +126,8 @@ func (v ElementType) String() string {
 	switch v {
 	case ElementBusinessRuleTask:
 		return "BUSINESS_RULE_TASK"
+	case ElementCallActivity:
+		return "CALL_ACTIVITY"
 	case ElementErrorBoundaryEvent:
 		return "ERROR_BOUNDARY_EVENT"
 	case ElementErrorEndEvent:

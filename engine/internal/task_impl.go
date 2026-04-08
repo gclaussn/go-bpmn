@@ -191,14 +191,39 @@ func (t StartProcessInstanceTask) Execute(ctx Context, task *TaskEntity) error {
 	return ctx.ProcessInstances().Update(processInstance)
 }
 
+type TerminateProcessInstanceTask struct {
+}
+
+func (t TerminateProcessInstanceTask) Execute(ctx Context, task *TaskEntity) error {
+	processInstance, err := ctx.ProcessInstances().Select(task.Partition, task.ProcessInstanceId.Int32)
+	if err == pgx.ErrNoRows {
+		return engine.Error{
+			Type:   engine.ErrorBug,
+			Title:  "failed to terminate process instance",
+			Detail: fmt.Sprintf("process instance %s/%d could not be found", task.Partition.Format(time.DateOnly), task.ProcessInstanceId.Int32),
+		}
+	}
+	if err != nil {
+		return err
+	}
+	if processInstance.EndedAt.Valid {
+		task.State = engine.WorkCanceled
+		return nil
+	}
+
+	return terminateProcessInstance(ctx, processInstance)
+}
+
 // TriggerEventTask triggers start or catch events.
 //
 // In case of a start event, a new process instance is created.
 // In case of a boundary or catch event, an execution is continued.
 type TriggerEventTask struct {
-	MessageId int64         `json:",omitempty"`
-	SignalId  int64         `json:",omitempty"`
-	Timer     *engine.Timer `json:",omitempty"`
+	ErrorCode      string        `json:",omitempty"`
+	EscalationCode string        `json:",omitempty"`
+	MessageId      int64         `json:",omitempty"`
+	SignalId       int64         `json:",omitempty"`
+	Timer          *engine.Timer `json:",omitempty"`
 }
 
 func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
@@ -265,6 +290,7 @@ func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
 	var interrupting bool
 	switch bpmnElement.Type {
 	case
+		model.ElementEscalationBoundaryEvent,
 		model.ElementMessageBoundaryEvent,
 		model.ElementSignalBoundaryEvent,
 		model.ElementTimerBoundaryEvent:
@@ -272,8 +298,12 @@ func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
 	}
 
 	switch bpmnElement.Type {
+	case model.ElementErrorBoundaryEvent:
+		return ec.triggerErrorBoundaryEvent(ctx, t.ErrorCode)
 	case model.ElementErrorEndEvent:
 		return ec.triggerErrorEndEvent(ctx)
+	case model.ElementEscalationBoundaryEvent:
+		return ec.triggerEscalationBoundaryEvent(ctx, t.EscalationCode, interrupting)
 	case model.ElementEscalationEndEvent, model.ElementEscalationThrowEvent:
 		return ec.triggerEscalationThrowEvent(ctx)
 	case model.ElementMessageBoundaryEvent:

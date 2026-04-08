@@ -70,6 +70,10 @@ type BoundaryEvent struct {
 	EventDefinition EventDefinition
 }
 
+type CallActivity struct {
+	CalledElement string
+}
+
 type EndEvent struct {
 	EventDefinition EventDefinition
 }

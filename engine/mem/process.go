@@ -42,6 +42,16 @@ func (r *processRepository) SelectByBpmnProcessIdAndVersion(bpmnProcessId string
 	return nil, pgx.ErrNoRows
 }
 
+func (r *processRepository) SelectLatest(bpmnProcessId string) (*internal.ProcessEntity, error) {
+	for i := len(r.entities); i > 0; i-- {
+		e := r.entities[i-1]
+		if e.BpmnProcessId == bpmnProcessId {
+			return &e, nil
+		}
+	}
+	return nil, pgx.ErrNoRows
+}
+
 func (r *processRepository) Query(c engine.ProcessCriteria, o engine.QueryOptions) ([]engine.Process, error) {
 	var (
 		offset int

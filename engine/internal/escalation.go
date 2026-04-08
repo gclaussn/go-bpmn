@@ -8,68 +8,110 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// triggerEscalationThrowEvent continues the execution of an escalation throw or end event by either finding an appropriate escalation boundary event.
-//
-// If no escalation boundary event is found, an escalation end event behaves like a non end event.
-//
-// Please note: an escalation throw event can only trigger non-interrupting boundary events.
-// Whereas an escalation end event can only trigger interrupting boundary events that will terminate the scope.
-func (ec *executionContext) triggerEscalationThrowEvent(ctx Context) error {
-	scope := ec.executions[0]
-	execution := ec.executions[1]
+// triggerEscalationBoundaryEvent triggers the execution of an escalation boundary event -
+// only applied for escalation boundary events that are attached to a call activity.
+func (ec *executionContext) triggerEscalationBoundaryEvent(ctx Context, escalationCode string, interrupting bool) error {
+	scope, boundaryEvent := ec.executions[0], ec.executions[1]
 
-	boundaryEvents, err := ctx.ElementInstances().SelectBoundaryEvents(scope)
+	event := EventEntity{
+		Partition: boundaryEvent.Partition,
+
+		ElementInstanceId: boundaryEvent.Id,
+
+		CreatedAt:      ctx.Time(),
+		CreatedBy:      ec.engineOrWorkerId,
+		EscalationCode: pgtype.Text{String: escalationCode, Valid: true},
+	}
+
+	if err := ctx.Events().Insert(&event); err != nil {
+		return err
+	}
+
+	newBoundaryEvent, err := ec.startBoundaryEvent(ctx, interrupting)
 	if err != nil {
 		return err
 	}
 
-	escalationCode := execution.Context.String
+	if newBoundaryEvent != nil {
+		// overwrite executions to avoid completion of call activity
+		ec.executions = []*ElementInstanceEntity{scope, newBoundaryEvent, boundaryEvent}
+	}
 
-	// find escalation boundary event
-	var target *ElementInstanceEntity
-	for _, boundaryEvent := range boundaryEvents {
-		if boundaryEvent.BpmnElementType != model.ElementEscalationBoundaryEvent {
-			continue
-		}
-
-		node, err := ec.process.graph.node(boundaryEvent.BpmnElementId)
-		if err != nil {
+	if err := ec.continueExecutions(ctx); err != nil {
+		if _, ok := err.(engine.Error); ok {
 			return err
-		}
-
-		interrupting := node.bpmnElement.Model.(model.BoundaryEvent).CancelActivity
-
-		switch execution.BpmnElementType {
-		case model.ElementEscalationEndEvent:
-			if !interrupting {
-				continue // cannot trigger a non-interrupting boundary event
-			}
-		case model.ElementEscalationThrowEvent:
-			if interrupting {
-				continue // cannot trigger an interrupting boundary event
-			}
-		}
-
-		if boundaryEvent.Context.String == "" && target == nil {
-			target = boundaryEvent
-			continue
-		}
-		if boundaryEvent.Context.String == escalationCode {
-			target = boundaryEvent
-			break
+		} else {
+			return fmt.Errorf("failed to continue executions %+v: %v", ec.executions, err)
 		}
 	}
 
-	if target != nil {
-		targetScope, err := ctx.ElementInstances().Select(target.Partition, target.ParentId.Int32)
+	return nil
+}
+
+// triggerEscalationThrowEvent triggers the execution of an escalation throw or end event.
+//
+// If no appropriate escalation boundary event is found, the escalation event behaves like a none throw event or like a none end event.
+//
+// If an appropriate escalation boundary event is found, the execution continues at the escalation boundary event.
+// When the boundary event is interrupting the scope is terminated.
+// Moreover when the scope is a call activity within the parent process instance, the child process instance is terminated.
+//
+// Please note: an escalation throw event can only trigger non-interrupting boundary events.
+// Whereas an escalation end event can only trigger interrupting boundary events that will terminate the scope.
+func (ec *executionContext) triggerEscalationThrowEvent(ctx Context) error {
+	scope, execution := ec.executions[0], ec.executions[1]
+
+	escalationCode := execution.Context.String
+
+	boundaryEvent, interrupting, err := findEscalationBoundaryEvent(ctx, ec.process.graph, scope, execution.BpmnElementType, escalationCode)
+	if err != nil {
+		return err
+	}
+
+	switch {
+	case boundaryEvent != nil && boundaryEvent.ProcessInstanceId != execution.ProcessInstanceId:
+		triggerEventTask := TaskEntity{
+			Partition: boundaryEvent.Partition,
+
+			ElementId:         pgtype.Int4{Int32: boundaryEvent.ElementId, Valid: true},
+			ElementInstanceId: pgtype.Int4{Int32: boundaryEvent.Id, Valid: true},
+			ProcessId:         pgtype.Int4{Int32: boundaryEvent.ProcessId, Valid: true},
+			ProcessInstanceId: pgtype.Int4{Int32: boundaryEvent.ProcessInstanceId, Valid: true},
+
+			BpmnElementId: pgtype.Text{String: boundaryEvent.BpmnElementId, Valid: true},
+			CreatedAt:     ctx.Time(),
+			CreatedBy:     ec.engineOrWorkerId,
+			DueAt:         ctx.Time(),
+			State:         engine.WorkCreated,
+			Type:          engine.TaskTriggerEvent,
+
+			Instance: TriggerEventTask{EscalationCode: escalationCode},
+		}
+
+		if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {
+			return err
+		}
+
+		if execution.BpmnElementType == model.ElementEscalationEndEvent {
+			// mark escalation end event as completed
+			execution.State = engine.InstanceCompleted
+
+			if err := ctx.ElementInstances().Update(execution); err != nil {
+				return err
+			}
+
+			return terminateProcessInstance(ctx, ec.processInstance)
+		}
+	case boundaryEvent != nil:
+		boundaryEventScope, err := ctx.ElementInstances().Select(boundaryEvent.Partition, boundaryEvent.ParentId.Int32)
 		if err != nil {
 			return err
 		}
 
 		event := EventEntity{
-			Partition: target.Partition,
+			Partition: boundaryEvent.Partition,
 
-			ElementInstanceId: target.Id,
+			ElementInstanceId: boundaryEvent.Id,
 
 			CreatedAt:      ctx.Time(),
 			CreatedBy:      ec.engineOrWorkerId,
@@ -81,17 +123,14 @@ func (ec *executionContext) triggerEscalationThrowEvent(ctx Context) error {
 		}
 
 		// overwrite executions to fulfill startBoundaryEvent contract
-		ec.executions = []*ElementInstanceEntity{targetScope, target}
-
-		node, _ := ec.process.graph.node(target.BpmnElementId)
-		interrupting := node.bpmnElement.Model.(model.BoundaryEvent).CancelActivity
+		ec.executions = []*ElementInstanceEntity{boundaryEventScope, boundaryEvent}
 
 		if _, err := ec.startBoundaryEvent(ctx, interrupting); err != nil {
 			return err
 		}
 
 		if interrupting {
-			// overwrite execution state to indicate which element instance has triggered the escalation
+			// mark escalation end event as completed
 			for _, e := range ec.executions {
 				if e.Id == execution.Id {
 					e.State = engine.InstanceCompleted
@@ -114,20 +153,93 @@ func (ec *executionContext) triggerEscalationThrowEvent(ctx Context) error {
 	return nil
 }
 
-func findEscalationBoundaryEvent(boundaryEvents []*ElementInstanceEntity, escalationCode string) *ElementInstanceEntity {
-	var target *ElementInstanceEntity
-	for _, boundaryEvent := range boundaryEvents {
-		if boundaryEvent.BpmnElementType != model.ElementEscalationBoundaryEvent {
-			continue
+// findEscalationBoundaryEvent tries to find an escalation boundary event at the given scope.
+//
+// If no appropriate boundary event is found, the parent scopes are recursively tested.
+// When a call activity scope is reached, the recursion stops.
+//
+// sourceType is the BPMN element type of the execution that triggered the escalation. Possible types are:
+//   - any element type that can have a job of type [engine.JobExecute] - e.g. service task or message end event
+//   - escalation throw event
+//   - escalation end event
+//
+// Depending on the source type, interrupting, non-interrupting or boundary events of both types can be found.
+func findEscalationBoundaryEvent(
+	ctx Context,
+	graph *graph,
+	scope *ElementInstanceEntity,
+	sourceType model.ElementType,
+	escalationCode string,
+) (*ElementInstanceEntity, bool, error) {
+	switch scope.BpmnElementType {
+	case model.ElementProcess:
+		if !scope.ParentId.Valid {
+			return nil, false, nil
+		}
+	default:
+		boundaryEvents, err := ctx.ElementInstances().SelectBoundaryEvents(scope.Partition, scope.Id)
+		if err != nil {
+			return nil, false, err
 		}
 
-		if boundaryEvent.Context.String == "" && target == nil {
-			target = boundaryEvent
-			continue
+		var (
+			target             *ElementInstanceEntity
+			targetInterrupting bool
+		)
+		for _, boundaryEvent := range boundaryEvents {
+			if boundaryEvent.BpmnElementType != model.ElementEscalationBoundaryEvent {
+				continue
+			}
+
+			boundaryEventNode, err := graph.node(boundaryEvent.BpmnElementId)
+			if err != nil {
+				return nil, false, err
+			}
+
+			interrupting := boundaryEventNode.bpmnElement.Model.(model.BoundaryEvent).CancelActivity
+
+			switch sourceType {
+			case model.ElementEscalationEndEvent:
+				if !interrupting {
+					continue // cannot trigger a non-interrupting boundary event
+				}
+			case model.ElementEscalationThrowEvent:
+				if interrupting {
+					continue // cannot trigger an interrupting boundary event
+				}
+			}
+
+			if boundaryEvent.Context.String == "" && target == nil {
+				target = boundaryEvent
+				targetInterrupting = interrupting
+				continue
+			}
+			if boundaryEvent.Context.String == escalationCode {
+				target = boundaryEvent
+				targetInterrupting = interrupting
+				break
+			}
 		}
-		if boundaryEvent.Context.String == escalationCode {
-			return boundaryEvent
+
+		if target != nil {
+			return target, targetInterrupting, nil
 		}
 	}
-	return target
+
+	if scope.BpmnElementType == model.ElementCallActivity {
+		return nil, false, nil // stop recursion
+	}
+
+	parentScope, err := ctx.ElementInstances().Select(scope.Partition, scope.ParentId.Int32)
+	if err != nil {
+		return nil, false, err
+	}
+
+	parentProcess, err := ctx.ProcessCache().GetOrCacheById(ctx, parentScope.ProcessId)
+	if err != nil {
+		return nil, false, err
+	}
+
+	// !recursion
+	return findEscalationBoundaryEvent(ctx, parentProcess.graph, parentScope, sourceType, escalationCode)
 }

@@ -181,6 +181,8 @@ func newElementInstanceQueryCmd(cli *Cli) *cobra.Command {
 	c.Flags().Var(&partition, "partition", "Element instance partition")
 	c.Flags().Int32Var(&criteria.Id, "id", 0, "Element instance ID")
 
+	c.Flags().Int32Var(&criteria.ParentId, "parent-id", 0, "Filter, used to query children of a parent element instance")
+
 	c.Flags().Int32Var(&criteria.ProcessId, "process-id", 0, "Process ID")
 	c.Flags().Int32Var(&criteria.ProcessInstanceId, "process-instance-id", 0, "Process instance ID")
 

@@ -35,6 +35,23 @@ func (r *elementInstanceRepository) Select(partition time.Time, id int32) (*inte
 	return nil, fmt.Errorf("failed to select element instance %s/%d: %v", key, id, pgx.ErrNoRows)
 }
 
+func (r *elementInstanceRepository) SelectActive(processInstance *internal.ProcessInstanceEntity) ([]*internal.ElementInstanceEntity, error) {
+	var results []*internal.ElementInstanceEntity
+
+	key := processInstance.Partition.Format(time.DateOnly)
+	for _, e := range r.partitions[key] {
+		if e.ProcessInstanceId != processInstance.Id {
+			continue
+		}
+
+		if e.State != engine.InstanceCompleted && e.State != engine.InstanceTerminated && e.State != engine.InstanceCanceled {
+			results = append(results, &e)
+		}
+	}
+
+	return results, nil
+}
+
 func (r *elementInstanceRepository) SelectActiveChildren(parent *internal.ElementInstanceEntity) ([]*internal.ElementInstanceEntity, error) {
 	var results []*internal.ElementInstanceEntity
 
@@ -65,12 +82,12 @@ func (r *elementInstanceRepository) SelectByProcessInstanceAndState(processInsta
 	return results, nil
 }
 
-func (r *elementInstanceRepository) SelectBoundaryEvents(execution *internal.ElementInstanceEntity) ([]*internal.ElementInstanceEntity, error) {
+func (r *elementInstanceRepository) SelectBoundaryEvents(partition time.Time, id int32) ([]*internal.ElementInstanceEntity, error) {
 	var results []*internal.ElementInstanceEntity
 
-	key := execution.Partition.Format(time.DateOnly)
+	key := partition.Format(time.DateOnly)
 	for _, e := range r.partitions[key] {
-		if e.PrevId.Int32 == execution.Id && e.State == engine.InstanceCreated {
+		if e.PrevId.Int32 == id && e.State == engine.InstanceCreated {
 			results = append(results, &e)
 		}
 	}
@@ -113,6 +130,15 @@ func (r *elementInstanceRepository) Update(entity *internal.ElementInstanceEntit
 	return fmt.Errorf("failed to update element instance %s/%d: %v", key, entity.Id, pgx.ErrNoRows)
 }
 
+func (r *elementInstanceRepository) UpdateBatch(entities []*internal.ElementInstanceEntity) error {
+	for _, entity := range entities {
+		if err := r.Update(entity); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (r *elementInstanceRepository) Query(c engine.ElementInstanceCriteria, o engine.QueryOptions) ([]engine.ElementInstance, error) {
 	var (
 		offset int
@@ -139,6 +165,10 @@ func (r *elementInstanceRepository) Query(c engine.ElementInstanceCriteria, o en
 
 		for _, e := range r.partitions[keys[i]] {
 			if c.Id != 0 && c.Id != e.Id {
+				continue
+			}
+
+			if c.ParentId != 0 && c.ParentId != e.ParentId.Int32 {
 				continue
 			}
 

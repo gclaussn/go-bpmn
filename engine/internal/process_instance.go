@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
+	"github.com/gclaussn/go-bpmn/model"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -81,7 +82,7 @@ type ProcessInstanceRepository interface {
 	Query(engine.ProcessInstanceCriteria, engine.QueryOptions) ([]engine.ProcessInstance, error)
 }
 
-func CreateProcessInstance(ctx Context, cmd engine.CreateProcessInstanceCmd) (engine.ProcessInstance, error) {
+func CreateProcessInstance(ctx Context, cmd engine.CreateProcessInstanceCmd, parent *ProcessInstanceEntity, parentExecution *ElementInstanceEntity) (engine.ProcessInstance, error) {
 	process, err := ctx.ProcessCache().GetOrCache(ctx, cmd.BpmnProcessId, cmd.Version)
 	if err == pgx.ErrNoRows {
 		return engine.ProcessInstance{}, engine.Error{
@@ -122,6 +123,18 @@ func CreateProcessInstance(ctx Context, cmd engine.CreateProcessInstanceCmd) (en
 		State:          engine.InstanceStarted,
 		Tags:           pgtype.Text{String: tags, Valid: tags != ""},
 		Version:        process.Version,
+	}
+
+	if parent != nil {
+		rootId := parent.RootId
+		if !rootId.Valid {
+			rootId = pgtype.Int4{Int32: parent.Id, Valid: true}
+		}
+
+		processInstance.Partition = parent.Partition
+		processInstance.ParentId = pgtype.Int4{Int32: parent.Id, Valid: true}
+		processInstance.RootId = rootId
+		processInstance.State = parent.State // possible transition to suspended
 	}
 
 	if err := ctx.ProcessInstances().Insert(&processInstance); err != nil {
@@ -172,6 +185,10 @@ func CreateProcessInstance(ctx Context, cmd engine.CreateProcessInstanceCmd) (en
 	}
 
 	scope := process.graph.createProcessScope(&processInstance)
+
+	if parentExecution != nil {
+		scope.parent = parentExecution
+	}
 
 	execution, err := process.graph.createExecution(&scope)
 	if err != nil {
@@ -316,4 +333,73 @@ func SuspendProcessInstance(ctx Context, cmd engine.SuspendProcessInstanceCmd) e
 	processInstance.State = engine.InstanceSuspended
 
 	return ctx.ProcessInstances().Update(processInstance)
+}
+
+func terminateProcessInstance(ctx Context, processInstance *ProcessInstanceEntity) error {
+	executions, err := ctx.ElementInstances().SelectActive(processInstance)
+	if err != nil {
+		return err
+	}
+
+	now := pgtype.Timestamp{Time: ctx.Time(), Valid: true}
+
+	var terminateProcessInstanceTasks []*TaskEntity
+	for _, execution := range executions {
+		execution.EndedAt = now
+		execution.ExecutionCount = 0
+		execution.State = engine.InstanceTerminated
+
+		if execution.BpmnElementType != model.ElementCallActivity {
+			continue
+		}
+
+		children, err := ctx.ElementInstances().SelectActiveChildren(execution)
+		if err != nil {
+			return err
+		}
+
+		if len(children) == 0 {
+			continue // process scope already ended
+		}
+
+		processScope := children[0]
+
+		terminateProcessInstanceTask := TaskEntity{
+			Partition: processScope.Partition,
+
+			ProcessId:         pgtype.Int4{Int32: processScope.ProcessId, Valid: true},
+			ProcessInstanceId: pgtype.Int4{Int32: processScope.ProcessInstanceId, Valid: true},
+
+			CreatedAt: ctx.Time(),
+			CreatedBy: ctx.Options().EngineId,
+			DueAt:     ctx.Time(),
+			State:     engine.WorkCreated,
+			Type:      engine.TaskTerminateProcessInstance,
+
+			Instance: TerminateProcessInstanceTask{},
+		}
+
+		terminateProcessInstanceTasks = append(terminateProcessInstanceTasks, &terminateProcessInstanceTask)
+	}
+
+	if err := ctx.ElementInstances().UpdateBatch(executions); err != nil {
+		return err
+	}
+
+	if err := ctx.Tasks().InsertBatch(terminateProcessInstanceTasks); err != nil {
+		return err
+	}
+
+	processInstance.EndedAt = now
+	processInstance.State = engine.InstanceTerminated
+
+	if err := ctx.ProcessInstances().Update(processInstance); err != nil {
+		return err
+	}
+
+	if err := dequeueProcessInstance(ctx, processInstance, ctx.Options().EngineId); err != nil {
+		return fmt.Errorf("failed to dequeue process instance: %v", err)
+	}
+
+	return nil
 }

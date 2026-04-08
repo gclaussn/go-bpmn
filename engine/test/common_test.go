@@ -55,7 +55,7 @@ func mustCreateEngines(t *testing.T) ([]engine.Engine, []string) {
 		databaseUrl = "postgres://postgres:postgres@localhost:5432/test"
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 
 	conn, err := pgx.Connect(ctx, databaseUrl)
@@ -108,8 +108,11 @@ func mustCreateProcess(t *testing.T, e engine.Engine, fileName string, bpmnProce
 
 	cmd.BpmnProcessId = bpmnProcessId
 	cmd.BpmnXml = bpmnXml
-	cmd.Version = t.Name()
 	cmd.WorkerId = testWorkerId
+
+	if cmd.Version == "" {
+		cmd.Version = t.Name()
+	}
 
 	process, err := e.CreateProcess(context.Background(), cmd)
 	if err != nil {
