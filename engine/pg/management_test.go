@@ -11,10 +11,11 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMigrateAndPrepareDatabase(t *testing.T) {
-	assert := assert.New(t)
+	assert, require := assert.New(t), require.New(t)
 
 	e := mustCreateEngine(t)
 	defer e.Shutdown()
@@ -122,6 +123,36 @@ func TestMigrateAndPrepareDatabase(t *testing.T) {
 		}
 
 		assert.Len(results, 3)
+	})
+
+	t.Run("returns error when schema version is too old", func(t *testing.T) {
+		// given
+		if err := pgEngine.execute(func(pgCtx *pgContext) error {
+			return setSchemaVersion(pgCtx, "0.0.0")
+		}); err != nil {
+			t.Fatal(err.Error())
+		}
+
+		// when
+		err := pgEngine.migrateAndPrepareDatabase()
+		require.Error(err)
+		assert.Contains(err.Error(), "expected schema version")
+		assert.Contains(err.Error(), "but was 0.0.0")
+	})
+
+	t.Run("returns error when schema version is too new", func(t *testing.T) {
+		// given
+		if err := pgEngine.execute(func(pgCtx *pgContext) error {
+			return setSchemaVersion(pgCtx, "999.99.9")
+		}); err != nil {
+			t.Fatal(err.Error())
+		}
+
+		// when
+		err := pgEngine.migrateAndPrepareDatabase()
+		require.Error(err)
+		assert.Contains(err.Error(), "expected schema version")
+		assert.Contains(err.Error(), "but was 999.99.9")
 	})
 }
 

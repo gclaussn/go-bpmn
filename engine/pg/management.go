@@ -50,29 +50,8 @@ var partitionedTables = []string{
 //go:embed ddl migration sql
 var resources embed.FS
 
-// migrateDatabase
-func migrateDatabase(ctx *pgContext) error {
-	b, err := resources.ReadFile("migration/version.txt")
-	if err != nil {
-		return fmt.Errorf("failed to read resource migration/version.txt: %v", err)
-	}
-
-	versions := make([]string, 0, 1)
-
-	scanner := bufio.NewScanner(bytes.NewReader(b))
-	for scanner.Scan() {
-		versions = append(versions, scanner.Text())
-	}
-
-	schemaVersion, err := selectSchemaVersion(ctx)
-	if err != nil {
-		return err
-	}
-
-	if schemaVersion != "" {
-		return nil
-	}
-
+// createDatabase
+func createDatabase(ctx *pgContext, version string) error {
 	ddl, err := resources.ReadDir("ddl")
 	if err != nil {
 		return fmt.Errorf("failed to list resources under ddl: %v", err)
@@ -116,20 +95,62 @@ func migrateDatabase(ctx *pgContext) error {
 		}
 	}
 
-	commentOnTable := fmt.Sprintf("COMMENT ON TABLE task IS %s", quoteString(versions[len(versions)-1]))
-	if _, err := ctx.tx.Exec(ctx.txCtx, commentOnTable); err != nil {
-		return fmt.Errorf("failed to set schema version: %v", err)
+	return setSchemaVersion(ctx, version)
+}
+
+// migrateDatabase
+func migrateDatabase(ctx *pgContext) error {
+	versionsFile := "migration/version.txt"
+	versionsFileBytes, err := resources.ReadFile(versionsFile)
+	if err != nil {
+		return fmt.Errorf("failed to read resource %s: %v", versionsFile, err)
 	}
 
-	return nil
-}
+	versions := make([]string, 0, 2)
 
-func partitionSequence(table string, date time.Time) string {
-	return fmt.Sprintf("%s_%s_seq", table, date.Format(tablePartitionLayout))
-}
+	versionsScanner := bufio.NewScanner(bytes.NewReader(versionsFileBytes))
+	for versionsScanner.Scan() {
+		versions = append(versions, versionsScanner.Text())
+	}
 
-func partitionTable(table string, date time.Time) string {
-	return fmt.Sprintf("%s_%s", table, date.Format(tablePartitionLayout))
+	prevVersion := versions[len(versions)-2]
+	currVersion := versions[len(versions)-1]
+
+	version, err := selectSchemaVersion(ctx)
+	if err != nil {
+		return err
+	}
+
+	switch {
+	case version == "":
+		return createDatabase(ctx, currVersion)
+	case version == currVersion:
+		return nil
+	case version != prevVersion:
+		return fmt.Errorf("expected schema version %s or %s, but was %s", prevVersion, currVersion, version)
+	}
+
+	migrationFile := fmt.Sprintf("migration/%s.txt", currVersion)
+	migrationFileBytes, err := resources.ReadFile(migrationFile)
+	if err != nil {
+		return fmt.Errorf("failed to read resource %s: %v", migrationFile, err)
+	}
+
+	migrationScanner := bufio.NewScanner(bytes.NewReader(migrationFileBytes))
+	for migrationScanner.Scan() {
+		name := migrationScanner.Text()
+		b, err := resources.ReadFile(name)
+		if err != nil {
+			return fmt.Errorf("failed to read resource %s: %v", name, err)
+		}
+
+		sql := string(b)
+		if _, err := ctx.tx.Exec(ctx.txCtx, sql); err != nil {
+			return fmt.Errorf("failed to execute %s: %v", name, err)
+		}
+	}
+
+	return setSchemaVersion(ctx, currVersion)
 }
 
 // prepareDatabase
@@ -211,6 +232,22 @@ WHERE
 	}
 
 	return schemaVersion, nil
+}
+
+func setSchemaVersion(ctx *pgContext, version string) error {
+	commentOnTable := fmt.Sprintf("COMMENT ON TABLE task IS %s", quoteString(version))
+	if _, err := ctx.tx.Exec(ctx.txCtx, commentOnTable); err != nil {
+		return fmt.Errorf("failed to set schema version: %v", err)
+	}
+	return nil
+}
+
+func partitionSequence(table string, date time.Time) string {
+	return fmt.Sprintf("%s_%s_seq", table, date.Format(tablePartitionLayout))
+}
+
+func partitionTable(table string, date time.Time) string {
+	return fmt.Sprintf("%s_%s", table, date.Format(tablePartitionLayout))
 }
 
 func selectTablePartitionExists(ctx *pgContext, table string, date time.Time) (bool, error) {
