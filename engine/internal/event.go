@@ -59,7 +59,7 @@ type EventDefinitionRepository interface {
 
 	// SelectByMessageName selects a not suspended event definition for the message name.
 	//
-	// If no such event definition exists, [pgx.ErrNoRows] is returned.
+	// If no such event definition exists, nil is returned.
 	SelectByMessageName(messageName string) (*EventDefinitionEntity, error)
 
 	// SelectBySignalName selects all not suspended event definitions for the signal name.

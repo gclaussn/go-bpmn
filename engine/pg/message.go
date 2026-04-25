@@ -145,7 +145,7 @@ FOR UPDATE SKIP LOCKED
 		&entity.UniqueKey,
 	); err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, err
+			return nil, nil
 		} else {
 			return nil, fmt.Errorf("failed to select buffered message: %v", err)
 		}
@@ -329,7 +329,7 @@ FOR UPDATE SKIP LOCKED
 		&entity.CreatedBy,
 	); err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, err
+			return nil, nil
 		} else {
 			return nil, fmt.Errorf("failed to select message subscription by name %s and correlation key %s: %v", name, correlationKey, err)
 		}

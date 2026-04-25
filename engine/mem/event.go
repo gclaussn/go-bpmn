@@ -65,7 +65,7 @@ func (r *eventDefinitionRepository) SelectByMessageName(messageName string) (*in
 			return &e, nil
 		}
 	}
-	return nil, pgx.ErrNoRows
+	return nil, nil
 }
 
 func (r *eventDefinitionRepository) SelectBySignalName(signalName string) ([]*internal.EventDefinitionEntity, error) {

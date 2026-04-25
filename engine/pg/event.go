@@ -368,7 +368,7 @@ LIMIT
 		&entity.Version,
 	); err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, err
+			return nil, nil
 		} else {
 			return nil, fmt.Errorf("failed to select not suspended event definition by message name %s: %v", messageName, err)
 		}

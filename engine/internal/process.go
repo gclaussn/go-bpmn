@@ -677,7 +677,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			startMessageNames[messageName] = true
 
 			eventDefinition, err := ctx.EventDefinitions().SelectByMessageName(messageName)
-			if err != nil && err != pgx.ErrNoRows {
+			if err != nil {
 				return engine.Process{}, err
 			}
 

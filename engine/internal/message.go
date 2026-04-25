@@ -6,7 +6,6 @@ import (
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/model"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -43,7 +42,7 @@ type MessageRepository interface {
 
 	// SelectBuffered selects a buffered (not correlated and not expired) message by name and correlation key.
 	//
-	// If no such message exists, [pgx.ErrNoRows] is returned.
+	// If no such message exists, nil is returned.
 	SelectBuffered(name string, correlationKey string, now time.Time) (*MessageEntity, error)
 
 	Update(*MessageEntity) error
@@ -74,7 +73,7 @@ type MessageSubscriptionRepository interface {
 
 	// SelectByNameAndCorrelationKey selects a message subscription by name and correlation key.
 	//
-	// If no such message subscription exists, [pgx.ErrNoRows] is returned.
+	// If no such message subscription exists, nil is returned.
 	SelectByNameAndCorrelationKey(name string, correlationKey string) (*MessageSubscriptionEntity, error)
 }
 
@@ -245,7 +244,7 @@ func SendMessage(ctx Context, cmd engine.SendMessageCmd) (engine.Message, error)
 
 func findMessageSubscriber(ctx Context, cmd engine.SendMessageCmd) (*MessageSubscriptionEntity, *EventDefinitionEntity, error) {
 	messageSubscription, err := ctx.MessageSubscriptions().SelectByNameAndCorrelationKey(cmd.Name, cmd.CorrelationKey)
-	if err != nil && err != pgx.ErrNoRows {
+	if err != nil {
 		return nil, nil, err
 	}
 
@@ -254,7 +253,7 @@ func findMessageSubscriber(ctx Context, cmd engine.SendMessageCmd) (*MessageSubs
 	}
 
 	eventDefinition, err := ctx.EventDefinitions().SelectByMessageName(cmd.Name)
-	if err != nil && err != pgx.ErrNoRows {
+	if err != nil {
 		return nil, nil, err
 	}
 
@@ -303,7 +302,7 @@ func (ec *executionContext) subscribeMessage(ctx Context, job *JobEntity, jobCom
 	}
 
 	bufferedMessage, err := ctx.Messages().SelectBuffered(messageName, jobCompletion.MessageCorrelationKey, ctx.Time())
-	if err != nil && err != pgx.ErrNoRows {
+	if err != nil {
 		return err
 	}
 
@@ -433,7 +432,7 @@ func (ec *executionContext) triggerMessageBoundaryEvent(ctx Context, messageId i
 
 	if newExecution != nil {
 		bufferedMessage, err := ctx.Messages().SelectBuffered(message.Name, message.CorrelationKey, ctx.Time())
-		if err != nil && err != pgx.ErrNoRows {
+		if err != nil {
 			return err
 		}
 

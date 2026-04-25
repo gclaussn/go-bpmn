@@ -58,7 +58,7 @@ func (r *messageRepository) SelectBuffered(name string, correlationKey string, n
 			return &e, nil
 		}
 	}
-	return nil, pgx.ErrNoRows
+	return nil, nil
 }
 
 func (r *messageRepository) Update(entity *internal.MessageEntity) error {
@@ -132,7 +132,7 @@ func (r *messageSubscriptionRepository) SelectByNameAndCorrelationKey(name strin
 			return &e, nil
 		}
 	}
-	return nil, pgx.ErrNoRows
+	return nil, nil
 }
 
 type messageVariableRepository struct {
