@@ -25,6 +25,10 @@ const (
 	PathJobsQuery    = "/jobs/query"
 	PathJobsUnlock   = "/jobs/unlock"
 
+	PathMessages                   = "/messages"
+	PathMessagesQuery              = "/messages/query"
+	PathMessagesSubscriptionsQuery = "/messages/subscriptions/query"
+
 	PathProcesses        = "/processes"
 	PathProcessesBpmnXml = "/processes/{id}/bpmn-xml"
 	PathProcessesQuery   = "/processes/query"

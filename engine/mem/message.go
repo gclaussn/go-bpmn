@@ -135,6 +135,49 @@ func (r *messageSubscriptionRepository) SelectByNameAndCorrelationKey(name strin
 	return nil, nil
 }
 
+func (r *messageSubscriptionRepository) Query(c engine.MessageSubscriptionCriteria, o engine.QueryOptions) ([]engine.MessageSubscription, error) {
+	var (
+		offset int
+		limit  int
+	)
+
+	results := make([]engine.MessageSubscription, 0)
+	for _, e := range r.entities {
+		if e.Id == -1 {
+			continue // skip deleted message subscription
+		}
+
+		if !c.Partition.IsZero() && !e.Partition.Equal(time.Time(c.Partition)) {
+			continue
+		}
+
+		if c.ProcessInstanceId != 0 && c.ProcessInstanceId != e.ProcessInstanceId {
+			continue
+		}
+
+		if c.CorrelationKey != "" && c.CorrelationKey != e.CorrelationKey {
+			continue
+		}
+		if c.Name != "" && c.Name != e.Name {
+			continue
+		}
+
+		if offset < o.Offset {
+			offset++
+			continue
+		}
+
+		results = append(results, e.MessageSubscription())
+		limit++
+
+		if o.Limit > 0 && limit == o.Limit {
+			break
+		}
+	}
+
+	return results, nil
+}
+
 type messageVariableRepository struct {
 	variables map[int64][]*internal.MessageVariableEntity
 	nextId    int64

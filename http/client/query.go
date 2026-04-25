@@ -58,9 +58,20 @@ func (q *query) QueryJobs(ctx context.Context, criteria engine.JobCriteria) ([]e
 }
 
 func (q *query) QueryMessages(ctx context.Context, criteria engine.MessageCriteria) ([]engine.Message, error) {
-	path := common.PathEventsMessagesQuery + encodeQueryOptions(q.options)
+	path := common.PathMessagesQuery + encodeQueryOptions(q.options)
 
 	var resBody common.MessageRes
+	if err := q.c.doPost(ctx, path, criteria, &resBody); err != nil {
+		return nil, err
+	}
+
+	return resBody.Results, nil
+}
+
+func (q *query) QueryMessageSubscriptions(ctx context.Context, criteria engine.MessageSubscriptionCriteria) ([]engine.MessageSubscription, error) {
+	path := common.PathMessagesSubscriptionsQuery + encodeQueryOptions(q.options)
+
+	var resBody common.MessageSubscriptionRes
 	if err := q.c.doPost(ctx, path, criteria, &resBody); err != nil {
 		return nil, err
 	}

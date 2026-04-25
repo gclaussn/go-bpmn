@@ -68,6 +68,17 @@ func (q *query) QueryMessages(ctx context.Context, criteria engine.MessageCriter
 	return results, q.e.release(pgCtx, err)
 }
 
+func (q *query) QueryMessageSubscriptions(ctx context.Context, criteria engine.MessageSubscriptionCriteria) ([]engine.MessageSubscription, error) {
+	pgCtx, cancel, err := q.e.acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	defer cancel()
+	results, err := pgCtx.MessageSubscriptions().Query(criteria, q.options)
+	return results, q.e.release(pgCtx, err)
+}
+
 func (q *query) QueryProcesses(ctx context.Context, criteria engine.ProcessCriteria) ([]engine.Process, error) {
 	pgCtx, cancel, err := q.e.acquire(ctx)
 	if err != nil {

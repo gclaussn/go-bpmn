@@ -1,5 +1,6 @@
 tags:
   - Events
+  - Messages
 summary: Send message
 description: >
   Sends a message to notify a message subscriber or to buffer the message.

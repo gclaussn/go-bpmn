@@ -59,6 +59,11 @@ func TestQuery(t *testing.T) {
 		messageExpiresAt = []time.Time{now, {}, now.Add(time.Hour), {}, now.Add(time.Hour)}
 		messageNames     = []string{"a", "a", "b", "c", "c"}
 
+		// message subscriptions
+		messageSubscriptionProcessInstanceIds = []int32{10, 20, 20, 30, 30, 40}
+		messageSubscriptionCorrelationKeys    = []string{"x", "x", "y", "y", "z"}
+		messageSubscriptionNames              = []string{"a", "b", "c", "a", "b"}
+
 		// process + process instance
 		tags = []map[string]string{
 			{
@@ -140,6 +145,15 @@ func TestQuery(t *testing.T) {
 		entities = append(entities, &internal.MessageEntity{
 			ExpiresAt: pgtype.Timestamp{Time: messageExpiresAt[i], Valid: !messageExpiresAt[i].IsZero()},
 			Name:      messageNames[i],
+		})
+
+		entities = append(entities, &internal.MessageSubscriptionEntity{
+			Partition: partitions[i],
+
+			ProcessInstanceId: messageSubscriptionProcessInstanceIds[i],
+
+			CorrelationKey: messageSubscriptionCorrelationKeys[i],
+			Name:           messageSubscriptionNames[i],
 		})
 
 		entities = append(entities, &internal.ProcessEntity{
@@ -426,6 +440,52 @@ func TestQuery(t *testing.T) {
 					assert.Equal(int64(3), results[1].(engine.Message).Id)
 					assert.Equal(int64(4), results[2].(engine.Message).Id)
 					assert.Equal(int64(5), results[3].(engine.Message).Id)
+				},
+			},
+		})
+	})
+
+	t.Run("message subscription", func(t *testing.T) {
+		runQueryTests(t, e, []queryTest{
+			{
+				"by partition",
+				engine.MessageSubscriptionCriteria{Partition: engine.Partition(date)},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 3)
+					assert.Equal(engine.Partition(date), results[0].(engine.MessageSubscription).Partition)
+					assert.Equal(int64(1), results[0].(engine.MessageSubscription).Id)
+					assert.Equal(engine.Partition(date), results[1].(engine.MessageSubscription).Partition)
+					assert.Equal(int64(2), results[1].(engine.MessageSubscription).Id)
+					assert.Equal(engine.Partition(date), results[2].(engine.MessageSubscription).Partition)
+					assert.Equal(int64(3), results[2].(engine.MessageSubscription).Id)
+				},
+			},
+			{
+				"by partition and process instance ID",
+				engine.MessageSubscriptionCriteria{Partition: engine.Partition(date), ProcessInstanceId: 20},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 2)
+					assert.Equal(engine.Partition(date), results[0].(engine.MessageSubscription).Partition)
+					assert.Equal(int64(2), results[0].(engine.MessageSubscription).Id)
+					assert.Equal(engine.Partition(date), results[1].(engine.MessageSubscription).Partition)
+					assert.Equal(int64(3), results[1].(engine.MessageSubscription).Id)
+				},
+			},
+			{
+				"by correlation key",
+				engine.MessageSubscriptionCriteria{CorrelationKey: "z"},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 1)
+					assert.Equal("z", results[0].(engine.MessageSubscription).CorrelationKey)
+				},
+			},
+			{
+				"by name",
+				engine.MessageSubscriptionCriteria{Name: "a"},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 2)
+					assert.Equal("a", results[0].(engine.MessageSubscription).Name)
+					assert.Equal("a", results[1].(engine.MessageSubscription).Name)
 				},
 			},
 		})

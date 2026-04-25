@@ -239,7 +239,7 @@ func (c *client) SendMessage(ctx context.Context, cmd engine.SendMessageCmd) (en
 	defer cancel()
 
 	var message engine.Message
-	if err := c.doPost(ctx, common.PathEventsMessages, cmd, &message); err != nil {
+	if err := c.doPost(ctx, common.PathMessages, cmd, &message); err != nil {
 		return engine.Message{}, err
 	}
 	return message, nil

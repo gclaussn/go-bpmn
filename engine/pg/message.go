@@ -341,6 +341,51 @@ FOR UPDATE SKIP LOCKED
 	return &entity, nil
 }
 
+func (r messageSubscriptionRepository) Query(criteria engine.MessageSubscriptionCriteria, options engine.QueryOptions) ([]engine.MessageSubscription, error) {
+	var sql bytes.Buffer
+	if err := sqlMessageSubscriptionQuery.Execute(&sql, map[string]any{
+		"c": criteria,
+		"o": options,
+	}); err != nil {
+		return nil, fmt.Errorf("failed to execute message subscription query template: %v", err)
+	}
+
+	rows, err := r.tx.Query(r.txCtx, sql.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute message subscription query: %v", err)
+	}
+
+	defer rows.Close()
+
+	results := make([]engine.MessageSubscription, 0)
+	for rows.Next() {
+		var entity internal.MessageSubscriptionEntity
+
+		if err := rows.Scan(
+			&entity.Id,
+
+			&entity.Partition,
+
+			&entity.ElementId,
+			&entity.ElementInstanceId,
+			&entity.ProcessId,
+			&entity.ProcessInstanceId,
+
+			&entity.BpmnElementId,
+			&entity.CorrelationKey,
+			&entity.CreatedAt,
+			&entity.CreatedBy,
+			&entity.Name,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan message subscription row: %v", err)
+		}
+
+		results = append(results, entity.MessageSubscription())
+	}
+
+	return results, nil
+}
+
 type messageVariableRepository struct {
 	tx    pgx.Tx
 	txCtx context.Context

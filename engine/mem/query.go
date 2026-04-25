@@ -43,6 +43,12 @@ func (q *query) QueryMessages(_ context.Context, criteria engine.MessageCriteria
 	return memCtx.Messages().Query(criteria, q.options, memCtx.Time())
 }
 
+func (q *query) QueryMessageSubscriptions(_ context.Context, criteria engine.MessageSubscriptionCriteria) ([]engine.MessageSubscription, error) {
+	defer q.e.unlock()
+	memCtx := q.e.rlock()
+	return memCtx.MessageSubscriptions().Query(criteria, q.options)
+}
+
 func (q *query) QueryProcesses(_ context.Context, criteria engine.ProcessCriteria) ([]engine.Process, error) {
 	defer q.e.unlock()
 	memCtx := q.e.rlock()

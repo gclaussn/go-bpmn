@@ -99,6 +99,7 @@ type Query interface {
 	QueryIncidents(context.Context, IncidentCriteria) ([]Incident, error)
 	QueryJobs(context.Context, JobCriteria) ([]Job, error)
 	QueryMessages(context.Context, MessageCriteria) ([]Message, error)
+	QueryMessageSubscriptions(context.Context, MessageSubscriptionCriteria) ([]MessageSubscription, error)
 	QueryProcesses(context.Context, ProcessCriteria) ([]Process, error)
 	QueryProcessInstances(context.Context, ProcessInstanceCriteria) ([]ProcessInstance, error)
 	QueryTasks(context.Context, TaskCriteria) ([]Task, error)

@@ -67,6 +67,25 @@ type MessageSubscriptionEntity struct {
 	Name           string
 }
 
+func (e MessageSubscriptionEntity) MessageSubscription() engine.MessageSubscription {
+	return engine.MessageSubscription{
+		Id: e.Id,
+
+		Partition: engine.Partition(e.Partition),
+
+		ElementId:         e.ElementId,
+		ElementInstanceId: e.ElementInstanceId,
+		ProcessId:         e.ProcessId,
+		ProcessInstanceId: e.ProcessInstanceId,
+
+		BpmnElementId:  e.BpmnElementId,
+		CorrelationKey: e.CorrelationKey,
+		CreatedAt:      e.CreatedAt,
+		CreatedBy:      e.CreatedBy,
+		Name:           e.Name,
+	}
+}
+
 type MessageSubscriptionRepository interface {
 	Delete(*MessageSubscriptionEntity) error
 	Insert(*MessageSubscriptionEntity) error
@@ -75,6 +94,8 @@ type MessageSubscriptionRepository interface {
 	//
 	// If no such message subscription exists, nil is returned.
 	SelectByNameAndCorrelationKey(name string, correlationKey string) (*MessageSubscriptionEntity, error)
+
+	Query(engine.MessageSubscriptionCriteria, engine.QueryOptions) ([]engine.MessageSubscription, error)
 }
 
 type MessageVariableEntity struct {

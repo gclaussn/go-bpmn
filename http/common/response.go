@@ -61,6 +61,12 @@ type MessageRes struct {
 	Results []engine.Message `json:"results" validate:"required"`     // Query results.
 }
 
+// Response of a message subscription query.
+type MessageSubscriptionRes struct {
+	Count   int                          `json:"count" validate:"required,gte=0"` // Number of results.
+	Results []engine.MessageSubscription `json:"results" validate:"required"`     // Query results.
+}
+
 // Response of a process query.
 type ProcessRes struct {
 	Count   int              `json:"count" validate:"required,gte=0"` // Number of results.

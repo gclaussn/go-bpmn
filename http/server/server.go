@@ -100,6 +100,10 @@ func NewMux(e engine.Engine, setTimeEnabled bool) *http.ServeMux {
 	mux.HandleFunc("POST "+common.PathJobsQuery, h.queryJobs)
 	mux.HandleFunc("POST "+common.PathJobsUnlock, h.unlockJobs)
 
+	mux.HandleFunc("POST "+common.PathMessages, h.sendMessage)
+	mux.HandleFunc("POST "+common.PathMessagesQuery, h.queryMessages)
+	mux.HandleFunc("POST "+common.PathMessagesSubscriptionsQuery, h.queryMessageSubscriptions)
+
 	mux.HandleFunc("POST "+common.PathProcesses, h.createProcess)
 	mux.HandleFunc("GET "+common.PathProcessesBpmnXml, h.getBpmnXml)
 	mux.HandleFunc("POST "+common.PathProcessesQuery, h.queryProcesses)
@@ -756,6 +760,36 @@ func (h handler) queryMessages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resBody := common.MessageRes{
+		Count:   len(results),
+		Results: results,
+	}
+
+	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
+}
+
+func (h handler) queryMessageSubscriptions(w http.ResponseWriter, r *http.Request) {
+	options, err := parseQueryOptions(r)
+	if err != nil {
+		encodeJSONProblemResponseBody(w, r, err)
+		return
+	}
+
+	var criteria engine.MessageSubscriptionCriteria
+	if err := decodeJSONRequestBody(w, r, &criteria); err != nil {
+		encodeJSONProblemResponseBody(w, r, err)
+		return
+	}
+
+	q := h.e.CreateQuery()
+	q.SetOptions(options)
+
+	results, err := q.QueryMessageSubscriptions(r.Context(), criteria)
+	if err != nil {
+		encodeJSONProblemResponseBody(w, r, err)
+		return
+	}
+
+	resBody := common.MessageSubscriptionRes{
 		Count:   len(results),
 		Results: results,
 	}

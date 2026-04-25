@@ -25,6 +25,9 @@ tags:
   - name: Jobs
     description: >
       A job is a unit of work related to an element instance, which must be locked, executed and completed by a worker.
+  - name: Messages
+    description: >
+      A message is used to notify a message subscriber (message boundary, catch or start event) by performing a message correlation with a key.
   - name: Processes
     description: >
       A process represents a BPMN process that consists of a set of BPMN elements.

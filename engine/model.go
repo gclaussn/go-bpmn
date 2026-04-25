@@ -604,6 +604,38 @@ type MessageCriteria struct {
 	Name           string `json:"name,omitempty"` // Message name filter.
 }
 
+// MessageSubscription is a subscription of a message boundary or catch event element instance to a message name.
+type MessageSubscription struct {
+	Id int64 `json:"id" validate:"required"` // Message subscription ID.
+
+	Partition Partition `json:"partition" validate:"required"` // Partition of the subscribed element instance.
+
+	ElementId         int32 `json:"elementId" validate:"required"`         // ID of the related element.
+	ElementInstanceId int32 `json:"elementInstanceId" validate:"required"` // ID of the subscribed element instance.
+	ProcessId         int32 `json:"processId" validate:"required"`         // ID of the related process.
+	ProcessInstanceId int32 `json:"processInstanceId" validate:"required"` // ID of the enclosing process instance.
+
+	BpmnElementId  string    `json:"bpmnElementId" validate:"required"`  // Element ID within the BPMN XML.
+	CorrelationKey string    `json:"correlationKey" validate:"required"` // Key, used to correlate a message subscription with a message.
+	CreatedAt      time.Time `json:"createdAt" validate:"required"`      // Creation time.
+	CreatedBy      string    `json:"createdBy" validate:"required"`      // ID of the worker or engine that subscribed to a message.
+	Name           string    `json:"name" validate:"required"`           // Message name.
+}
+
+func (v MessageSubscription) String() string {
+	return strconv.FormatInt(v.Id, 10)
+}
+
+// MessageSubscriptionCriteria specifies the results, returned by a message subscription query.
+type MessageSubscriptionCriteria struct {
+	Partition Partition `json:"partition"` // Partition filter.
+
+	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // Process instance filter.
+
+	CorrelationKey string `json:"correlationKey,omitempty"` // Message correlation key.
+	Name           string `json:"name,omitempty"`           // Message name.
+}
+
 // Process represents a BPMN process that consists of a set of BPMN elements.
 type Process struct {
 	Id int32 `json:"id" validate:"required"` // Process ID.
