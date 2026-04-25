@@ -34,6 +34,9 @@ tags:
   - name: Process instances
     description: >
       A process instance is an instance of a BPMN process.
+  - name: Signals
+    description: >
+      Signals are used to notify signal subscribers (signal boundary, catch and start events).
   - name: Tasks
     description: >
       A task is a unit of work, which must be locked, executed and completed by an engine.

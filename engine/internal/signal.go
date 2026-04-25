@@ -52,9 +52,29 @@ type SignalSubscriptionEntity struct {
 	Name          string
 }
 
+func (e SignalSubscriptionEntity) SignalSubscription() engine.SignalSubscription {
+	return engine.SignalSubscription{
+		Id: e.Id,
+
+		Partition: engine.Partition(e.Partition),
+
+		ElementId:         e.ElementId,
+		ElementInstanceId: e.ElementInstanceId,
+		ProcessId:         e.ProcessId,
+		ProcessInstanceId: e.ProcessInstanceId,
+
+		BpmnElementId: e.BpmnElementId,
+		CreatedAt:     e.CreatedAt,
+		CreatedBy:     e.CreatedBy,
+		Name:          e.Name,
+	}
+}
+
 type SignalSubscriptionRepository interface {
 	DeleteByName(name string) ([]*SignalSubscriptionEntity, error)
 	Insert(*SignalSubscriptionEntity) error
+
+	Query(engine.SignalSubscriptionCriteria, engine.QueryOptions) ([]engine.SignalSubscription, error)
 }
 
 type SignalVariableEntity struct {

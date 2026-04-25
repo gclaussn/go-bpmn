@@ -84,6 +84,10 @@ func TestQuery(t *testing.T) {
 		processInstanceParentIds = []int32{0, 1, 2, 2, 0}
 		processInstanceRootIds   = []int32{0, 1, 1, 1, 0}
 
+		// signal subscriptions
+		signalSubscriptionProcessInstanceIds = []int32{10, 20, 20, 30, 30, 40}
+		signalSubscriptionNames              = []string{"a", "b", "c", "a", "b"}
+
 		// task
 		taskElementIds         = []int32{0, 3, 0, 5, 5}
 		taskElementInstanceIds = []int32{0, 2, 0, 3, 4}
@@ -170,6 +174,14 @@ func TestQuery(t *testing.T) {
 			ProcessId: processIds[i],
 
 			Tags: pgtype.Text{String: tagsJson, Valid: tagsJson != ""},
+		})
+
+		entities = append(entities, &internal.SignalSubscriptionEntity{
+			Partition: partitions[i],
+
+			ProcessInstanceId: signalSubscriptionProcessInstanceIds[i],
+
+			Name: signalSubscriptionNames[i],
 		})
 
 		entities = append(entities, &internal.TaskEntity{
@@ -639,6 +651,44 @@ func TestQuery(t *testing.T) {
 		})
 	})
 
+	t.Run("signal subscription", func(t *testing.T) {
+		runQueryTests(t, e, []queryTest{
+			{
+				"by partition",
+				engine.SignalSubscriptionCriteria{Partition: engine.Partition(date)},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 3)
+					assert.Equal(engine.Partition(date), results[0].(engine.SignalSubscription).Partition)
+					assert.Equal(int64(1), results[0].(engine.SignalSubscription).Id)
+					assert.Equal(engine.Partition(date), results[1].(engine.SignalSubscription).Partition)
+					assert.Equal(int64(2), results[1].(engine.SignalSubscription).Id)
+					assert.Equal(engine.Partition(date), results[2].(engine.SignalSubscription).Partition)
+					assert.Equal(int64(3), results[2].(engine.SignalSubscription).Id)
+				},
+			},
+			{
+				"by partition and process instance ID",
+				engine.SignalSubscriptionCriteria{Partition: engine.Partition(date), ProcessInstanceId: 20},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 2)
+					assert.Equal(engine.Partition(date), results[0].(engine.SignalSubscription).Partition)
+					assert.Equal(int64(2), results[0].(engine.SignalSubscription).Id)
+					assert.Equal(engine.Partition(date), results[1].(engine.SignalSubscription).Partition)
+					assert.Equal(int64(3), results[1].(engine.SignalSubscription).Id)
+				},
+			},
+			{
+				"by name",
+				engine.SignalSubscriptionCriteria{Name: "a"},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 2)
+					assert.Equal("a", results[0].(engine.SignalSubscription).Name)
+					assert.Equal("a", results[1].(engine.SignalSubscription).Name)
+				},
+			},
+		})
+	})
+
 	t.Run("task", func(t *testing.T) {
 		runQueryTests(t, e, []queryTest{
 			{
@@ -846,6 +896,12 @@ func mustQuery(t *testing.T, q engine.Query, criteria any) []any {
 			t.Fatalf("failed to query jobs: %v", err)
 		}
 		return toResults(messages)
+	case engine.MessageSubscriptionCriteria:
+		messageSubscriptions, err := q.QueryMessageSubscriptions(context.Background(), criteria)
+		if err != nil {
+			t.Fatalf("failed to query message subscriptions: %v", err)
+		}
+		return toResults(messageSubscriptions)
 	case engine.ProcessCriteria:
 		processes, err := q.QueryProcesses(context.Background(), criteria)
 		if err != nil {
@@ -858,6 +914,12 @@ func mustQuery(t *testing.T, q engine.Query, criteria any) []any {
 			t.Fatalf("failed to query process instances: %v", err)
 		}
 		return toResults(processInstances)
+	case engine.SignalSubscriptionCriteria:
+		signalSubscriptions, err := q.QuerySignalSubscriptions(context.Background(), criteria)
+		if err != nil {
+			t.Fatalf("failed to query signal subscriptions: %v", err)
+		}
+		return toResults(signalSubscriptions)
 	case engine.TaskCriteria:
 		tasks, err := q.QueryTasks(context.Background(), criteria)
 		if err != nil {

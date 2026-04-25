@@ -26,6 +26,7 @@ var (
 	sqlMessageSubscriptionQuery *template.Template = newSqlTemplate("message_subscription_query.sql")
 	sqlProcessInstanceQuery     *template.Template = newSqlTemplate("process_instance_query.sql")
 	sqlProcessQuery             *template.Template = newSqlTemplate("process_query.sql")
+	sqlSignalSubscriptionQuery  *template.Template = newSqlTemplate("signal_subscription_query.sql")
 	sqlTaskLock                 *template.Template = newSqlTemplate("task_lock.sql")
 	sqlTaskQuery                *template.Template = newSqlTemplate("task_query.sql")
 	sqlTaskUnlock               *template.Template = newSqlTemplate("task_unlock.sql")

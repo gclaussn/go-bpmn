@@ -1,9 +1,11 @@
 package pg
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 
+	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/engine/internal"
 	"github.com/jackc/pgx/v5"
 )
@@ -203,6 +205,50 @@ INSERT INTO signal_subscription (
 	}
 
 	return nil
+}
+
+func (r signalSubscriptionRepository) Query(criteria engine.SignalSubscriptionCriteria, options engine.QueryOptions) ([]engine.SignalSubscription, error) {
+	var sql bytes.Buffer
+	if err := sqlSignalSubscriptionQuery.Execute(&sql, map[string]any{
+		"c": criteria,
+		"o": options,
+	}); err != nil {
+		return nil, fmt.Errorf("failed to execute signal subscription query template: %v", err)
+	}
+
+	rows, err := r.tx.Query(r.txCtx, sql.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute signal subscription query: %v", err)
+	}
+
+	defer rows.Close()
+
+	results := make([]engine.SignalSubscription, 0)
+	for rows.Next() {
+		var entity internal.SignalSubscriptionEntity
+
+		if err := rows.Scan(
+			&entity.Id,
+
+			&entity.Partition,
+
+			&entity.ElementId,
+			&entity.ElementInstanceId,
+			&entity.ProcessId,
+			&entity.ProcessInstanceId,
+
+			&entity.BpmnElementId,
+			&entity.CreatedAt,
+			&entity.CreatedBy,
+			&entity.Name,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan signal subscription row: %v", err)
+		}
+
+		results = append(results, entity.SignalSubscription())
+	}
+
+	return results, nil
 }
 
 type signalVariableRepository struct {

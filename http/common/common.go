@@ -13,10 +13,6 @@ const (
 	PathElementInstancesQuery     = "/element-instances/query"
 	PathElementInstancesVariables = "/element-instances/{partition}/{id}/variables"
 
-	PathEventsMessages      = "/events/messages"
-	PathEventsMessagesQuery = "/events/messages/query"
-	PathEventsSignals       = "/events/signals"
-
 	PathIncidentsQuery   = "/incidents/query"
 	PathIncidentsResolve = "/incidents/{partition}/{id}/resolve"
 
@@ -38,6 +34,9 @@ const (
 	PathProcessInstancesResume    = "/process-instances/{partition}/{id}/resume"
 	PathProcessInstancesSuspend   = "/process-instances/{partition}/{id}/suspend"
 	PathProcessInstancesVariables = "/process-instances/{partition}/{id}/variables"
+
+	PathSignals                   = "/signals"
+	PathSignalsSubscriptionsQuery = "/signals/subscriptions/query"
 
 	PathTasksExecute = "/tasks/execute"
 	PathTasksQuery   = "/tasks/query"

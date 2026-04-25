@@ -150,12 +150,12 @@ func newRootCmd(cli *Cli) *cobra.Command {
 
 	c.AddCommand(newElementCmd(cli))
 	c.AddCommand(newElementInstanceCmd(cli))
-	c.AddCommand(newEventCmd(cli))
 	c.AddCommand(newIncidentCmd(cli))
 	c.AddCommand(newJobCmd(cli))
 	c.AddCommand(newMessageCmd(cli))
 	c.AddCommand(newProcessCmd(cli))
 	c.AddCommand(newProcessInstanceCmd(cli))
+	c.AddCommand(newSignalCmd(cli))
 	c.AddCommand(newTaskCmd(cli))
 	c.AddCommand(newVariableCmd(cli))
 	c.AddCommand(newSetTimeCmd(cli))

@@ -61,6 +61,12 @@ func (q *query) QueryProcessInstances(_ context.Context, criteria engine.Process
 	return memCtx.ProcessInstances().Query(criteria, q.options)
 }
 
+func (q *query) QuerySignalSubscriptions(_ context.Context, criteria engine.SignalSubscriptionCriteria) ([]engine.SignalSubscription, error) {
+	defer q.e.unlock()
+	memCtx := q.e.rlock()
+	return memCtx.SignalSubscriptions().Query(criteria, q.options)
+}
+
 func (q *query) QueryTasks(_ context.Context, criteria engine.TaskCriteria) ([]engine.Task, error) {
 	defer q.e.unlock()
 	memCtx := q.e.rlock()

@@ -250,7 +250,7 @@ func (c *client) SendSignal(ctx context.Context, cmd engine.SendSignalCmd) (engi
 	defer cancel()
 
 	var signal engine.Signal
-	if err := c.doPost(ctx, common.PathEventsSignals, cmd, &signal); err != nil {
+	if err := c.doPost(ctx, common.PathSignals, cmd, &signal); err != nil {
 		return engine.Signal{}, err
 	}
 	return signal, nil

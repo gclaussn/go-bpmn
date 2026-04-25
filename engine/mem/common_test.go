@@ -41,6 +41,8 @@ func mustInsertEntities(t *testing.T, e engine.Engine, entities []any) {
 			ctx.Processes().Insert(entity)
 		case *internal.ProcessInstanceEntity:
 			ctx.ProcessInstances().Insert(entity)
+		case *internal.SignalSubscriptionEntity:
+			ctx.SignalSubscriptions().Insert(entity)
 		case *internal.TaskEntity:
 			ctx.Tasks().Insert(entity)
 		case *internal.VariableEntity:

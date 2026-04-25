@@ -1,0 +1,45 @@
+tags:
+  - Events
+  - Signals
+summary: Query signal subscriptions
+description: >
+  Performs a signal subscription query.
+parameters:
+  - $ref: "#/components/parameters/offset"
+  - $ref: "#/components/parameters/limit"
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/SignalSubscriptionCriteria"
+responses:
+  "200":
+    description: OK
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/SignalSubscriptionRes"
+        example:
+          count: 1
+          results:
+            - id: 7
+              partition: "2025-05-01"
+              elementId: 10
+              elementInstanceId: 4259
+              processId: 2
+              processInstanceId: 576
+              bpmnElementId: signalCatchEvent
+              createdAt: "2025-05-01T19:25:42.749Z"
+              createdBy: go-bpmn
+              name: example-signal
+  "400":
+    description: Bad request
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          invalid_limit:
+            $ref: "#/components/examples/QueryLimitProblem"
+          invalid_offset:
+            $ref: "#/components/examples/QueryOffsetProblem"

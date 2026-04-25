@@ -88,10 +88,6 @@ func NewMux(e engine.Engine, setTimeEnabled bool) *http.ServeMux {
 	mux.HandleFunc("GET "+common.PathElementInstancesVariables, h.getElementVariables)
 	mux.HandleFunc("PUT "+common.PathElementInstancesVariables, h.setElementVariables)
 
-	mux.HandleFunc("POST "+common.PathEventsMessages, h.sendMessage)
-	mux.HandleFunc("POST "+common.PathEventsMessagesQuery, h.queryMessages)
-	mux.HandleFunc("POST "+common.PathEventsSignals, h.sendSignal)
-
 	mux.HandleFunc("POST "+common.PathIncidentsQuery, h.queryIncidents)
 	mux.HandleFunc("PATCH "+common.PathIncidentsResolve, h.resolveIncident)
 
@@ -114,6 +110,9 @@ func NewMux(e engine.Engine, setTimeEnabled bool) *http.ServeMux {
 	mux.HandleFunc("PATCH "+common.PathProcessInstancesSuspend, h.suspendProcessInstance)
 	mux.HandleFunc("GET "+common.PathProcessInstancesVariables, h.getProcessVariables)
 	mux.HandleFunc("PUT "+common.PathProcessInstancesVariables, h.setProcessVariables)
+
+	mux.HandleFunc("POST "+common.PathSignals, h.sendSignal)
+	mux.HandleFunc("POST "+common.PathSignalsSubscriptionsQuery, h.querySignalSubscriptions)
 
 	mux.HandleFunc("POST "+common.PathTasksExecute, h.executeTasks)
 	mux.HandleFunc("POST "+common.PathTasksQuery, h.queryTasks)
@@ -850,6 +849,36 @@ func (h handler) queryProcessInstances(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resBody := common.ProcessInstanceRes{
+		Count:   len(results),
+		Results: results,
+	}
+
+	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
+}
+
+func (h handler) querySignalSubscriptions(w http.ResponseWriter, r *http.Request) {
+	options, err := parseQueryOptions(r)
+	if err != nil {
+		encodeJSONProblemResponseBody(w, r, err)
+		return
+	}
+
+	var criteria engine.SignalSubscriptionCriteria
+	if err := decodeJSONRequestBody(w, r, &criteria); err != nil {
+		encodeJSONProblemResponseBody(w, r, err)
+		return
+	}
+
+	q := h.e.CreateQuery()
+	q.SetOptions(options)
+
+	results, err := q.QuerySignalSubscriptions(r.Context(), criteria)
+	if err != nil {
+		encodeJSONProblemResponseBody(w, r, err)
+		return
+	}
+
+	resBody := common.SignalSubscriptionRes{
 		Count:   len(results),
 		Results: results,
 	}

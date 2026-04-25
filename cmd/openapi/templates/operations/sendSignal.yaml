@@ -1,5 +1,6 @@
 tags:
   - Events
+  - Signals
 summary: Send signal
 description: >
   Sends a signal to notify signal subscribers.

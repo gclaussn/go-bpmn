@@ -723,6 +723,36 @@ func (v Signal) String() string {
 	return strconv.FormatInt(v.Id, 10)
 }
 
+// SignalSubscription is a subscription of a signal boundary or catch event element instance to a signal name.
+type SignalSubscription struct {
+	Id int64 `json:"id" validate:"required"` // Signal subscription ID.
+
+	Partition Partition `json:"partition" validate:"required"` // Partition of the subscribed element instance.
+
+	ElementId         int32 `json:"elementId" validate:"required"`         // ID of the related element.
+	ElementInstanceId int32 `json:"elementInstanceId" validate:"required"` // ID of the subscribed element instance.
+	ProcessId         int32 `json:"processId" validate:"required"`         // ID of the related process.
+	ProcessInstanceId int32 `json:"processInstanceId" validate:"required"` // ID of the enclosing process instance.
+
+	BpmnElementId string    `json:"bpmnElementId" validate:"required"` // Element ID within the BPMN XML.
+	CreatedAt     time.Time `json:"createdAt" validate:"required"`     // Creation time.
+	CreatedBy     string    `json:"createdBy" validate:"required"`     // ID of the worker or engine that subscribed to a signal.
+	Name          string    `json:"name" validate:"required"`          // Signal name.
+}
+
+func (v SignalSubscription) String() string {
+	return strconv.FormatInt(v.Id, 10)
+}
+
+// SignalSubscriptionCriteria specifies the results, returned by a signal subscription query.
+type SignalSubscriptionCriteria struct {
+	Partition Partition `json:"partition"` // Partition filter.
+
+	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // Process instance filter.
+
+	Name string `json:"name,omitempty"` // Signal name.
+}
+
 // Tag is used to tag entities like process or process instance.
 type Tag struct {
 	Name  string `json:"name" validate:"required,tag_name"` // Tag name.

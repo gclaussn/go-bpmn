@@ -101,6 +101,17 @@ func (q *query) QueryProcessInstances(ctx context.Context, criteria engine.Proce
 	return resBody.Results, nil
 }
 
+func (q *query) QuerySignalSubscriptions(ctx context.Context, criteria engine.SignalSubscriptionCriteria) ([]engine.SignalSubscription, error) {
+	path := common.PathSignalsSubscriptionsQuery + encodeQueryOptions(q.options)
+
+	var resBody common.SignalSubscriptionRes
+	if err := q.c.doPost(ctx, path, criteria, &resBody); err != nil {
+		return nil, err
+	}
+
+	return resBody.Results, nil
+}
+
 func (q *query) QueryTasks(ctx context.Context, criteria engine.TaskCriteria) ([]engine.Task, error) {
 	path := common.PathTasksQuery + encodeQueryOptions(q.options)
 

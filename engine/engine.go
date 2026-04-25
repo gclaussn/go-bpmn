@@ -102,6 +102,7 @@ type Query interface {
 	QueryMessageSubscriptions(context.Context, MessageSubscriptionCriteria) ([]MessageSubscription, error)
 	QueryProcesses(context.Context, ProcessCriteria) ([]Process, error)
 	QueryProcessInstances(context.Context, ProcessInstanceCriteria) ([]ProcessInstance, error)
+	QuerySignalSubscriptions(context.Context, SignalSubscriptionCriteria) ([]SignalSubscription, error)
 	QueryTasks(context.Context, TaskCriteria) ([]Task, error)
 	QueryVariables(context.Context, VariableCriteria) ([]Variable, error)
 

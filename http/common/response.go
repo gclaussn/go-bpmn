@@ -79,6 +79,12 @@ type ProcessInstanceRes struct {
 	Results []engine.ProcessInstance `json:"results" validate:"required"`     // Query results.
 }
 
+// Response of a signal subscription query.
+type SignalSubscriptionRes struct {
+	Count   int                         `json:"count" validate:"required,gte=0"` // Number of results.
+	Results []engine.SignalSubscription `json:"results" validate:"required"`     // Query results.
+}
+
 // Response of a task query.
 type TaskRes struct {
 	Count   int           `json:"count" validate:"required,gte=0"` // Number of results.

@@ -101,6 +101,17 @@ func (q *query) QueryProcessInstances(ctx context.Context, criteria engine.Proce
 	return results, q.e.release(pgCtx, err)
 }
 
+func (q *query) QuerySignalSubscriptions(ctx context.Context, criteria engine.SignalSubscriptionCriteria) ([]engine.SignalSubscription, error) {
+	pgCtx, cancel, err := q.e.acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	defer cancel()
+	results, err := pgCtx.SignalSubscriptions().Query(criteria, q.options)
+	return results, q.e.release(pgCtx, err)
+}
+
 func (q *query) QueryTasks(ctx context.Context, criteria engine.TaskCriteria) ([]engine.Task, error) {
 	pgCtx, cancel, err := q.e.acquire(ctx)
 	if err != nil {

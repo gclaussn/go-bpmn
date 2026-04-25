@@ -2,7 +2,9 @@ package mem
 
 import (
 	"fmt"
+	"time"
 
+	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/engine/internal"
 	"github.com/jackc/pgx/v5"
 )
@@ -62,6 +64,46 @@ func (r *signalSubscriptionRepository) Insert(entity *internal.SignalSubscriptio
 	entity.Id = int64(len(r.entities) + 1)
 	r.entities = append(r.entities, *entity)
 	return nil
+}
+
+func (r *signalSubscriptionRepository) Query(c engine.SignalSubscriptionCriteria, o engine.QueryOptions) ([]engine.SignalSubscription, error) {
+	var (
+		offset int
+		limit  int
+	)
+
+	results := make([]engine.SignalSubscription, 0)
+	for _, e := range r.entities {
+		if e.Id == -1 {
+			continue // skip deleted signal subscription
+		}
+
+		if !c.Partition.IsZero() && !e.Partition.Equal(time.Time(c.Partition)) {
+			continue
+		}
+
+		if c.ProcessInstanceId != 0 && c.ProcessInstanceId != e.ProcessInstanceId {
+			continue
+		}
+
+		if c.Name != "" && c.Name != e.Name {
+			continue
+		}
+
+		if offset < o.Offset {
+			offset++
+			continue
+		}
+
+		results = append(results, e.SignalSubscription())
+		limit++
+
+		if o.Limit > 0 && limit == o.Limit {
+			break
+		}
+	}
+
+	return results, nil
 }
 
 type signalVariableRepository struct {
