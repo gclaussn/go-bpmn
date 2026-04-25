@@ -503,6 +503,7 @@ func terminateProcessInstance(ctx Context, processInstance *ProcessInstanceEntit
 
 	now := pgtype.Timestamp{Time: ctx.Time(), Valid: true}
 
+	// terminate executions
 	var terminateProcessInstanceTasks []*TaskEntity
 	for _, execution := range executions {
 		execution.EndedAt = now
@@ -548,6 +549,30 @@ func terminateProcessInstance(ctx Context, processInstance *ProcessInstanceEntit
 
 	if err := ctx.Tasks().InsertBatch(terminateProcessInstanceTasks); err != nil {
 		return err
+	}
+
+	// cancel message subscriptions
+	messageSubscriptions, err := ctx.MessageSubscriptions().SelectByProcessInstance(processInstance)
+	if err != nil {
+		return err
+	}
+
+	for _, messageSubscription := range messageSubscriptions {
+		if err := ctx.MessageSubscriptions().Delete(messageSubscription); err != nil {
+			return err
+		}
+	}
+
+	// cancel signal subscriptions
+	signalSubscriptions, err := ctx.SignalSubscriptions().SelectByProcessInstance(processInstance)
+	if err != nil {
+		return err
+	}
+
+	for _, signalSubscription := range signalSubscriptions {
+		if err := ctx.SignalSubscriptions().Delete(signalSubscription); err != nil {
+			return err
+		}
 	}
 
 	processInstance.EndedAt = now

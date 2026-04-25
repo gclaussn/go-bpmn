@@ -328,3 +328,107 @@ func (x signalEventTest) throwDefinition(t *testing.T) {
 
 	piAssert.IsCompleted()
 }
+
+func (x signalEventTest) subscriptionCancelation(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	process, subProcess :=
+		mustCreateProcess(t, x.e, "event/signal-subscription-cancelation.bpmn", "signalSubscriptionCancelationTest", engine.CreateProcessCmd{
+			Signals: []engine.SignalDefinition{
+				{BpmnElementId: "signalBoundaryEvent", SignalName: t.Name() + "1"},
+				{BpmnElementId: "signalCatchEvent", SignalName: t.Name() + "2"},
+				{BpmnElementId: "subProcessSignalCatchEvent", SignalName: t.Name() + "3"},
+			},
+		}),
+		mustCreateProcess(t, x.e, "event/signal-catch.bpmn", "signalCatchTest", engine.CreateProcessCmd{
+			Signals: []engine.SignalDefinition{
+				{BpmnElementId: "signalCatchEvent", SignalName: t.Name() + "4"},
+			},
+		})
+
+	piAssert := mustCreateProcessInstance(t, x.e, process)
+
+	piAssert.IsWaitingAt("callActivity")
+	piAssert.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			CalledProcess: &engine.CalledProcess{
+				BpmnProcessId: subProcess.BpmnProcessId,
+				Version:       subProcess.Version,
+			},
+		},
+	})
+
+	_, err := x.e.SendSignal(context.Background(), engine.SendSignalCmd{
+		Name:     t.Name() + "1",
+		WorkerId: testWorkerId,
+	})
+	if err != nil {
+		t.Fatalf("failed to send signal: %v", err)
+	}
+
+	// when signalBoundaryEvent is triggered
+	piAssert.IsWaitingAt("signalBoundaryEvent")
+	piAssert.ExecuteTask()
+
+	// then subProcess is terminated
+	elementInstances := piAssert.ElementInstances()
+	require.Len(elementInstances, 11)
+	assert.Equal("subProcess", elementInstances[4].BpmnElementId)
+	assert.Equal(engine.InstanceTerminated, elementInstances[4].State)
+	assert.Equal("signalBoundaryEvent", elementInstances[5].BpmnElementId)
+	assert.Equal(engine.InstanceCompleted, elementInstances[5].State)
+	assert.Equal("callActivity", elementInstances[8].BpmnElementId)
+	assert.Equal(engine.InstanceTerminated, elementInstances[8].State)
+	assert.Equal("subProcessSignalCatchEvent", elementInstances[9].BpmnElementId)
+	assert.Equal(engine.InstanceTerminated, elementInstances[9].State)
+
+	query := x.e.CreateQuery()
+
+	pi := piAssert.ProcessInstance()
+
+	// then signal subscription of subProcessSignalCatchEvent is canceled
+	signalSubscriptions, err := query.QuerySignalSubscriptions(context.Background(), engine.SignalSubscriptionCriteria{
+		Partition:         pi.Partition,
+		ProcessInstanceId: pi.Id,
+	})
+	if err != nil {
+		t.Fatalf("failed to query signal subscriptions: %v", err)
+	}
+
+	require.Len(signalSubscriptions, 1)
+	assert.Equal(elementInstances[3].Id, signalSubscriptions[0].ElementInstanceId)
+	assert.Equal("signalCatchEvent", signalSubscriptions[0].BpmnElementId)
+	assert.Equal(t.Name()+"2", signalSubscriptions[0].Name)
+
+	subProcessInstances, err := query.QueryProcessInstances(context.Background(), engine.ProcessInstanceCriteria{
+		Partition: pi.Partition,
+		ParentId:  pi.Id,
+	})
+	if err != nil {
+		t.Fatalf("failed to query sub-process instance: %v", err)
+	}
+
+	if len(subProcessInstances) == 0 {
+		t.Fatal("no sub-process instance found")
+	}
+
+	subPiAssert := engine.Assert(t, x.e, subProcessInstances[0])
+
+	// when sub process instance is terminated
+	subTasks := subPiAssert.ExecuteTasks()
+
+	// then
+	require.Len(subTasks, 1)
+	assert.Equal(engine.TaskTerminateProcessInstance, subTasks[0].Type)
+
+	// then signal subscription of signalCatchEvent is canceled
+	signalSubscriptions, err = query.QuerySignalSubscriptions(context.Background(), engine.SignalSubscriptionCriteria{
+		Partition:         subProcessInstances[0].Partition,
+		ProcessInstanceId: subProcessInstances[0].Id,
+	})
+	if err != nil {
+		t.Fatalf("failed to query signal subscriptions: %v", err)
+	}
+
+	require.Empty(signalSubscriptions)
+}

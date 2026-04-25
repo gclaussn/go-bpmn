@@ -71,8 +71,10 @@ func (e SignalSubscriptionEntity) SignalSubscription() engine.SignalSubscription
 }
 
 type SignalSubscriptionRepository interface {
+	Delete(*SignalSubscriptionEntity) error
 	DeleteByName(name string) ([]*SignalSubscriptionEntity, error)
 	Insert(*SignalSubscriptionEntity) error
+	SelectByProcessInstance(*ProcessInstanceEntity) ([]*SignalSubscriptionEntity, error)
 
 	Query(engine.SignalSubscriptionCriteria, engine.QueryOptions) ([]engine.SignalSubscription, error)
 }

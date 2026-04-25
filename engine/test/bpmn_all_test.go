@@ -116,6 +116,7 @@ func TestBpmn(t *testing.T) {
 			t.Run(engineTypes[i]+"startSingleton", messageEventTest.startSingleton)
 			t.Run(engineTypes[i]+"start event definition", messageEventTest.startDefinition)
 			t.Run(engineTypes[i]+"throw", messageEventTest.throw)
+			t.Run(engineTypes[i]+"subscription cancelation", messageEventTest.subscriptionCancelation)
 		}
 	})
 
@@ -142,6 +143,7 @@ func TestBpmn(t *testing.T) {
 			t.Run(engineTypes[i]+"start event definition", signalEventTest.startEventDefinition)
 			t.Run(engineTypes[i]+"throw", signalEventTest.throw)
 			t.Run(engineTypes[i]+"throw event definition", signalEventTest.throwDefinition)
+			t.Run(engineTypes[i]+"subscription cancelation", signalEventTest.subscriptionCancelation)
 		}
 	})
 

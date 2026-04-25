@@ -692,3 +692,136 @@ func (x messageEventTest) throw(t *testing.T) {
 	piAssert.CompleteJob()
 	piAssert.IsCompleted()
 }
+
+func (x messageEventTest) subscriptionCancelation(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	process, subProcess :=
+		mustCreateProcess(t, x.e, "event/message-subscription-cancelation.bpmn", "messageSubscriptionCancelationTest", engine.CreateProcessCmd{
+			Messages: []engine.MessageDefinition{
+				{BpmnElementId: "messageBoundaryEvent", MessageName: t.Name() + "1"},
+				{BpmnElementId: "messageCatchEvent", MessageName: t.Name() + "2"},
+				{BpmnElementId: "subProcessMessageCatchEvent", MessageName: t.Name() + "3"},
+			},
+		}),
+		mustCreateProcess(t, x.e, "event/message-catch.bpmn", "messageCatchTest", engine.CreateProcessCmd{
+			Messages: []engine.MessageDefinition{
+				{BpmnElementId: "messageCatchEvent", MessageName: t.Name() + "4"},
+			},
+		})
+
+	piAssert := mustCreateProcessInstance(t, x.e, process)
+
+	piAssert.IsWaitingAt("messageBoundaryEvent")
+	piAssert.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			MessageCorrelationKey: "1",
+		},
+	})
+
+	piAssert.IsWaitingAt("messageCatchEvent")
+	piAssert.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			MessageCorrelationKey: "2",
+		},
+	})
+
+	piAssert.IsWaitingAt("subProcessMessageCatchEvent")
+	piAssert.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			MessageCorrelationKey: "3",
+		},
+	})
+
+	piAssert.IsWaitingAt("callActivity")
+	piAssert.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			CalledProcess: &engine.CalledProcess{
+				BpmnProcessId: subProcess.BpmnProcessId,
+				Version:       subProcess.Version,
+			},
+		},
+	})
+
+	query := x.e.CreateQuery()
+
+	pi := piAssert.ProcessInstance()
+
+	subProcessInstances, err := query.QueryProcessInstances(context.Background(), engine.ProcessInstanceCriteria{
+		Partition: pi.Partition,
+		ParentId:  pi.Id,
+	})
+	if err != nil {
+		t.Fatalf("failed to query sub-process instance: %v", err)
+	}
+
+	if len(subProcessInstances) == 0 {
+		t.Fatal("no sub-process instance found")
+	}
+
+	subPiAssert := engine.Assert(t, x.e, subProcessInstances[0])
+
+	subPiAssert.IsWaitingAt("messageCatchEvent")
+	subPiAssert.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			MessageCorrelationKey: "4",
+		},
+	})
+
+	_, err = x.e.SendMessage(context.Background(), engine.SendMessageCmd{
+		CorrelationKey: "1",
+		Name:           t.Name() + "1",
+		WorkerId:       testWorkerId,
+	})
+	if err != nil {
+		t.Fatalf("failed to send message: %v", err)
+	}
+
+	// when messageBoundaryEvent is triggered
+	piAssert.IsWaitingAt("messageBoundaryEvent")
+	piAssert.ExecuteTask()
+
+	// then subProcess is terminated
+	elementInstances := piAssert.ElementInstances()
+	require.Len(elementInstances, 11)
+	assert.Equal("subProcess", elementInstances[4].BpmnElementId)
+	assert.Equal(engine.InstanceTerminated, elementInstances[4].State)
+	assert.Equal("messageBoundaryEvent", elementInstances[5].BpmnElementId)
+	assert.Equal(engine.InstanceCompleted, elementInstances[5].State)
+	assert.Equal("callActivity", elementInstances[8].BpmnElementId)
+	assert.Equal(engine.InstanceTerminated, elementInstances[8].State)
+	assert.Equal("subProcessMessageCatchEvent", elementInstances[9].BpmnElementId)
+	assert.Equal(engine.InstanceTerminated, elementInstances[9].State)
+
+	// then message subscription of subProcessMessageCatchEvent is canceled
+	messageSubscriptions, err := query.QueryMessageSubscriptions(context.Background(), engine.MessageSubscriptionCriteria{
+		Partition:         pi.Partition,
+		ProcessInstanceId: pi.Id,
+	})
+	if err != nil {
+		t.Fatalf("failed to query message subscriptions: %v", err)
+	}
+
+	require.Len(messageSubscriptions, 1)
+	assert.Equal(elementInstances[3].Id, messageSubscriptions[0].ElementInstanceId)
+	assert.Equal("messageCatchEvent", messageSubscriptions[0].BpmnElementId)
+	assert.Equal(t.Name()+"2", messageSubscriptions[0].Name)
+
+	// when sub process instance is terminated
+	subTasks := subPiAssert.ExecuteTasks()
+
+	// then
+	require.Len(subTasks, 1)
+	assert.Equal(engine.TaskTerminateProcessInstance, subTasks[0].Type)
+
+	// then message subscription of messageCatchEvent is canceled
+	messageSubscriptions, err = query.QueryMessageSubscriptions(context.Background(), engine.MessageSubscriptionCriteria{
+		Partition:         subProcessInstances[0].Partition,
+		ProcessInstanceId: subProcessInstances[0].Id,
+	})
+	if err != nil {
+		t.Fatalf("failed to query message subscriptions: %v", err)
+	}
+
+	require.Empty(messageSubscriptions)
+}

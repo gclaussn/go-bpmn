@@ -544,52 +544,50 @@ func (ec *executionContext) startBoundaryEvent(ctx Context, interrupting bool) (
 	attachedTo.parent = boundaryEventScope
 	ec.addExecution(attachedTo)
 
-	// if attachedTo is a call activity, terminate descending process instances recursively
-	if attachedTo.BpmnElementType == model.ElementCallActivity {
-		children, err := ctx.ElementInstances().SelectActiveChildren(attachedTo)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(children) == 0 {
-			return nil, nil // process scope already ended
-		}
-
-		processScope := children[0]
-
-		terminateProcessInstanceTask := TaskEntity{
-			Partition: processScope.Partition,
-
-			ProcessId:         pgtype.Int4{Int32: processScope.ProcessId, Valid: true},
-			ProcessInstanceId: pgtype.Int4{Int32: processScope.ProcessInstanceId, Valid: true},
-
-			CreatedAt: ctx.Time(),
-			CreatedBy: ec.engineOrWorkerId,
-			DueAt:     ctx.Time(),
-			State:     engine.WorkCreated,
-			Type:      engine.TaskTerminateProcessInstance,
-
-			Instance: TerminateProcessInstanceTask{},
-		}
-
-		if err := ctx.Tasks().Insert(&terminateProcessInstanceTask); err != nil {
-			return nil, err
-		}
-
-		return nil, nil
-	}
-
-	// if attachedTo is a scope (e.g. sub-process), terminate descending executions recursively
 	i := len(ec.executions) - 1
 	for i < len(ec.executions) {
 		execution := ec.executions[i]
 
 		i++
 
+		// if execution is a call activity, terminate descending process instances recursively
+		if execution.BpmnElementType == model.ElementCallActivity {
+			children, err := ctx.ElementInstances().SelectActiveChildren(execution)
+			if err != nil {
+				return nil, err
+			}
+
+			if len(children) == 0 {
+				continue // process scope already ended
+			}
+
+			processScope := children[0]
+
+			terminateProcessInstanceTask := TaskEntity{
+				Partition: processScope.Partition,
+
+				ProcessId:         pgtype.Int4{Int32: processScope.ProcessId, Valid: true},
+				ProcessInstanceId: pgtype.Int4{Int32: processScope.ProcessInstanceId, Valid: true},
+
+				CreatedAt: ctx.Time(),
+				CreatedBy: ec.engineOrWorkerId,
+				DueAt:     ctx.Time(),
+				State:     engine.WorkCreated,
+				Type:      engine.TaskTerminateProcessInstance,
+
+				Instance: TerminateProcessInstanceTask{},
+			}
+
+			if err := ctx.Tasks().Insert(&terminateProcessInstanceTask); err != nil {
+				return nil, err
+			}
+		}
+
 		if execution.ExecutionCount <= 0 {
 			continue
 		}
 
+		// if attachedTo is a scope (e.g. sub-process), terminate descending executions recursively
 		children, err := ctx.ElementInstances().SelectActiveChildren(execution)
 		if err != nil {
 			return nil, err
@@ -599,6 +597,58 @@ func (ec *executionContext) startBoundaryEvent(ctx Context, interrupting bool) (
 			child.State = engine.InstanceTerminated
 			child.parent = execution
 			ec.addExecution(child)
+		}
+	}
+
+	// cancel message and signal subscriptions
+	var (
+		messageSubscriptionIds []int32
+		signalSubscriptionIds  []int32
+	)
+	for _, execution := range ec.executions {
+		if execution.State != engine.InstanceTerminated {
+			continue
+		}
+
+		switch execution.BpmnElementType {
+		case model.ElementMessageBoundaryEvent, model.ElementMessageCatchEvent:
+			messageSubscriptionIds = append(messageSubscriptionIds, execution.Id)
+		case model.ElementSignalBoundaryEvent, model.ElementSignalCatchEvent:
+			signalSubscriptionIds = append(signalSubscriptionIds, execution.Id)
+		}
+	}
+
+	if len(messageSubscriptionIds) != 0 {
+		messageSubscriptions, err := ctx.MessageSubscriptions().SelectByProcessInstance(ec.processInstance)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, messageSubscription := range messageSubscriptions {
+			if !slices.Contains(messageSubscriptionIds, messageSubscription.ElementInstanceId) {
+				continue
+			}
+
+			if err := ctx.MessageSubscriptions().Delete(messageSubscription); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if len(signalSubscriptionIds) != 0 {
+		signalSubscriptions, err := ctx.SignalSubscriptions().SelectByProcessInstance(ec.processInstance)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, signalSubscription := range signalSubscriptions {
+			if !slices.Contains(signalSubscriptionIds, signalSubscription.ElementInstanceId) {
+				continue
+			}
+
+			if err := ctx.SignalSubscriptions().Delete(signalSubscription); err != nil {
+				return nil, err
+			}
 		}
 	}
 

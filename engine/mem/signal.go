@@ -42,6 +42,13 @@ type signalSubscriptionRepository struct {
 	entities []internal.SignalSubscriptionEntity
 }
 
+func (r *signalSubscriptionRepository) Delete(entity *internal.SignalSubscriptionEntity) error {
+	e := r.entities[entity.Id-1]
+	e.Id = -1
+	r.entities[entity.Id-1] = e
+	return nil
+}
+
 func (r *signalSubscriptionRepository) DeleteByName(name string) ([]*internal.SignalSubscriptionEntity, error) {
 	var results []*internal.SignalSubscriptionEntity
 	for i, e := range r.entities {
@@ -64,6 +71,20 @@ func (r *signalSubscriptionRepository) Insert(entity *internal.SignalSubscriptio
 	entity.Id = int64(len(r.entities) + 1)
 	r.entities = append(r.entities, *entity)
 	return nil
+}
+
+func (r *signalSubscriptionRepository) SelectByProcessInstance(processInstance *internal.ProcessInstanceEntity) ([]*internal.SignalSubscriptionEntity, error) {
+	var results []*internal.SignalSubscriptionEntity
+	for _, e := range r.entities {
+		if e.Id == -1 {
+			continue // skip deleted signal subscription
+		}
+
+		if e.Partition.Equal(processInstance.Partition) && e.ProcessInstanceId == processInstance.Id {
+			results = append(results, &e)
+		}
+	}
+	return results, nil
 }
 
 func (r *signalSubscriptionRepository) Query(c engine.SignalSubscriptionCriteria, o engine.QueryOptions) ([]engine.SignalSubscription, error) {

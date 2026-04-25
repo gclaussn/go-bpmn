@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/engine/internal"
@@ -102,6 +103,13 @@ WHERE
 type signalSubscriptionRepository struct {
 	tx    pgx.Tx
 	txCtx context.Context
+}
+
+func (r signalSubscriptionRepository) Delete(entity *internal.SignalSubscriptionEntity) error {
+	if _, err := r.tx.Exec(r.txCtx, `DELETE FROM signal_subscription WHERE id = $1`, entity.Id); err != nil {
+		return fmt.Errorf("failed to delete signal subscription %+v: %v", entity, err)
+	}
+	return nil
 }
 
 func (r signalSubscriptionRepository) DeleteByName(name string) ([]*internal.SignalSubscriptionEntity, error) {
@@ -205,6 +213,65 @@ INSERT INTO signal_subscription (
 	}
 
 	return nil
+}
+
+func (r signalSubscriptionRepository) SelectByProcessInstance(processInstance *internal.ProcessInstanceEntity) ([]*internal.SignalSubscriptionEntity, error) {
+	rows, err := r.tx.Query(r.txCtx, `
+SELECT
+	id,
+
+	element_id,
+	element_instance_id,
+	process_id,
+
+	bpmn_element_id,
+	created_at,
+	created_by,
+	name
+FROM
+	signal_subscription
+WHERE
+	partition = $1 AND
+	process_instance_id = $2
+FOR UPDATE
+`, processInstance.Partition, processInstance.Id)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"failed to select signal subscriptions of process instance %s/%d: %v",
+			processInstance.Partition.Format(time.DateOnly),
+			processInstance.Id,
+			err,
+		)
+	}
+
+	defer rows.Close()
+
+	var entities []*internal.SignalSubscriptionEntity
+	for rows.Next() {
+		var entity internal.SignalSubscriptionEntity
+
+		if err := rows.Scan(
+			&entity.Id,
+
+			&entity.ElementId,
+			&entity.ElementInstanceId,
+			&entity.ProcessId,
+
+			&entity.BpmnElementId,
+			&entity.CreatedAt,
+			&entity.CreatedBy,
+			&entity.Name,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan signal subscription row: %v", err)
+		}
+
+		entity.Partition = processInstance.Partition
+		entity.ProcessInstanceId = processInstance.Id
+
+		entities = append(entities, &entity)
+	}
+
+	return entities, nil
 }
 
 func (r signalSubscriptionRepository) Query(criteria engine.SignalSubscriptionCriteria, options engine.QueryOptions) ([]engine.SignalSubscription, error) {

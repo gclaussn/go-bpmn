@@ -1,0 +1,74 @@
+<definitions id="test">
+  <process id="messageSubscriptionCancelationTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="fork" />
+    <parallelGateway id="fork">
+      <incoming>f1</incoming>
+      <outgoing>f2</outgoing>
+      <outgoing>f5</outgoing>
+    </parallelGateway>
+    <sequenceFlow id="f2" sourceRef="fork" targetRef="messageCatchEvent" />
+    <intermediateCatchEvent id="messageCatchEvent">
+      <incoming>f2</incoming>
+      <outgoing>f3</outgoing>
+      <messageEventDefinition id="messageCatchEventDefinition" />
+    </intermediateCatchEvent>
+    <sequenceFlow id="f3" sourceRef="messageCatchEvent" targetRef="join" />
+    <exclusiveGateway id="join">
+      <incoming>f12</incoming>
+      <incoming>f3</incoming>
+      <outgoing>f4</outgoing>
+    </exclusiveGateway>
+    <sequenceFlow id="f4" sourceRef="join" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f4</incoming>
+    </endEvent>
+    <sequenceFlow id="f5" sourceRef="fork" targetRef="subProcess" />
+    <subProcess id="subProcess">
+      <incoming>f5</incoming>
+      <startEvent id="subProcessStartEvent">
+        <outgoing>f6</outgoing>
+      </startEvent>
+      <sequenceFlow id="f6" sourceRef="subProcessStartEvent" targetRef="subProcessFork" />
+      <parallelGateway id="subProcessFork">
+        <incoming>f6</incoming>
+        <outgoing>f7</outgoing>
+        <outgoing>f8</outgoing>
+      </parallelGateway>
+      <sequenceFlow id="f7" sourceRef="subProcessFork" targetRef="callActivity" />
+      <callActivity id="callActivity">
+        <incoming>f7</incoming>
+        <outgoing>f9</outgoing>
+      </callActivity>
+      <sequenceFlow id="f8" sourceRef="subProcessFork" targetRef="subProcessMessageCatchEvent" />
+      <intermediateCatchEvent id="subProcessMessageCatchEvent">
+        <incoming>f8</incoming>
+        <outgoing>f10</outgoing>
+        <messageEventDefinition id="subProcessMessageCatchEventDefinition" />
+      </intermediateCatchEvent>
+      <sequenceFlow id="f9" sourceRef="callActivity" targetRef="subProcessJoin" />
+      <sequenceFlow id="f10" sourceRef="subProcessMessageCatchEvent" targetRef="subProcessJoin" />
+      <exclusiveGateway id="subProcessJoin">
+        <incoming>f9</incoming>
+        <incoming>f10</incoming>
+        <outgoing>f11</outgoing>
+      </exclusiveGateway>
+      <sequenceFlow id="f11" sourceRef="subProcessJoin" targetRef="subProcessEndEvent" />
+      <endEvent id="subProcessEndEvent">
+        <incoming>f11</incoming>
+      </endEvent>
+      <outgoing>f12</outgoing>
+    </subProcess>
+    <sequenceFlow id="f12" sourceRef="subProcess" targetRef="join" />
+    <boundaryEvent id="messageBoundaryEvent" attachedToRef="subProcess">
+      <outgoing>f13</outgoing>
+      <messageEventDefinition id="messageBoundaryEventDefinition" />
+    </boundaryEvent>
+    <sequenceFlow id="f13" sourceRef="messageBoundaryEvent" targetRef="messageEnd" />
+    <endEvent id="messageEnd">
+      <incoming>f13</incoming>
+    </endEvent>
+  </process>
+</definitions>

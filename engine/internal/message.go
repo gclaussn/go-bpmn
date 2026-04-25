@@ -95,6 +95,8 @@ type MessageSubscriptionRepository interface {
 	// If no such message subscription exists, nil is returned.
 	SelectByNameAndCorrelationKey(name string, correlationKey string) (*MessageSubscriptionEntity, error)
 
+	SelectByProcessInstance(*ProcessInstanceEntity) ([]*MessageSubscriptionEntity, error)
+
 	Query(engine.MessageSubscriptionCriteria, engine.QueryOptions) ([]engine.MessageSubscription, error)
 }
 

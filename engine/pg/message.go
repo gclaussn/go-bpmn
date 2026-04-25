@@ -341,6 +341,67 @@ FOR UPDATE SKIP LOCKED
 	return &entity, nil
 }
 
+func (r messageSubscriptionRepository) SelectByProcessInstance(processInstance *internal.ProcessInstanceEntity) ([]*internal.MessageSubscriptionEntity, error) {
+	rows, err := r.tx.Query(r.txCtx, `
+SELECT
+	id,
+
+	element_id,
+	element_instance_id,
+	process_id,
+
+	bpmn_element_id,
+	correlation_key,
+	created_at,
+	created_by,
+	name
+FROM
+	message_subscription
+WHERE
+	partition = $1 AND
+	process_instance_id = $2
+FOR UPDATE
+`, processInstance.Partition, processInstance.Id)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"failed to select message subscriptions of process instance %s/%d: %v",
+			processInstance.Partition.Format(time.DateOnly),
+			processInstance.Id,
+			err,
+		)
+	}
+
+	defer rows.Close()
+
+	var entities []*internal.MessageSubscriptionEntity
+	for rows.Next() {
+		var entity internal.MessageSubscriptionEntity
+
+		if err := rows.Scan(
+			&entity.Id,
+
+			&entity.ElementId,
+			&entity.ElementInstanceId,
+			&entity.ProcessId,
+
+			&entity.BpmnElementId,
+			&entity.CorrelationKey,
+			&entity.CreatedAt,
+			&entity.CreatedBy,
+			&entity.Name,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan message subscription row: %v", err)
+		}
+
+		entity.Partition = processInstance.Partition
+		entity.ProcessInstanceId = processInstance.Id
+
+		entities = append(entities, &entity)
+	}
+
+	return entities, nil
+}
+
 func (r messageSubscriptionRepository) Query(criteria engine.MessageSubscriptionCriteria, options engine.QueryOptions) ([]engine.MessageSubscription, error) {
 	var sql bytes.Buffer
 	if err := sqlMessageSubscriptionQuery.Execute(&sql, map[string]any{

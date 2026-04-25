@@ -135,6 +135,20 @@ func (r *messageSubscriptionRepository) SelectByNameAndCorrelationKey(name strin
 	return nil, nil
 }
 
+func (r *messageSubscriptionRepository) SelectByProcessInstance(processInstance *internal.ProcessInstanceEntity) ([]*internal.MessageSubscriptionEntity, error) {
+	var results []*internal.MessageSubscriptionEntity
+	for _, e := range r.entities {
+		if e.Id == -1 {
+			continue // skip deleted message subscription
+		}
+
+		if e.Partition.Equal(processInstance.Partition) && e.ProcessInstanceId == processInstance.Id {
+			results = append(results, &e)
+		}
+	}
+	return results, nil
+}
+
 func (r *messageSubscriptionRepository) Query(c engine.MessageSubscriptionCriteria, o engine.QueryOptions) ([]engine.MessageSubscription, error) {
 	var (
 		offset int
