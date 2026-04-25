@@ -8,10 +8,108 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// triggerEscalationBoundaryEvent triggers the execution of an escalation boundary event -
-// only applied for escalation boundary events that are attached to a call activity.
-func (ec *executionContext) triggerEscalationBoundaryEvent(ctx Context, escalationCode string, interrupting bool) error {
-	scope, boundaryEvent := ec.executions[0], ec.executions[1]
+func (ec *executionContext) executeEscalation(ctx Context, job *JobEntity, escalationCode string, retryTimer engine.ISO8601Duration) (bool, error) {
+	execution := ec.executions[1]
+
+	boundaryEvent, interrupting, err := findEscalationBoundaryEvent(ctx, ec.process.graph, execution, execution.BpmnElementType, escalationCode)
+	if err != nil {
+		return false, err
+	}
+	if boundaryEvent == nil {
+		job.Error = pgtype.Text{String: fmt.Sprintf("failed to find boundary event for escalation code %s", escalationCode), Valid: true}
+		return false, nil
+	}
+
+	if boundaryEvent.ProcessInstanceId != execution.ProcessInstanceId {
+		triggerEventTask := TaskEntity{
+			Partition: boundaryEvent.Partition,
+
+			ElementId:         pgtype.Int4{Int32: boundaryEvent.ElementId, Valid: true},
+			ElementInstanceId: pgtype.Int4{Int32: boundaryEvent.Id, Valid: true},
+			ProcessId:         pgtype.Int4{Int32: boundaryEvent.ProcessId, Valid: true},
+			ProcessInstanceId: pgtype.Int4{Int32: boundaryEvent.ProcessInstanceId, Valid: true},
+
+			BpmnElementId: pgtype.Text{String: boundaryEvent.BpmnElementId, Valid: true},
+			CreatedAt:     ctx.Time(),
+			CreatedBy:     ec.engineOrWorkerId,
+			DueAt:         ctx.Time(),
+			State:         engine.WorkCreated,
+			Type:          engine.TaskTriggerEvent,
+
+			Instance: TriggerEventTask{EscalationCode: escalationCode},
+		}
+
+		if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {
+			return false, err
+		}
+
+		if interrupting {
+			return false, terminateProcessInstance(ctx, ec.processInstance)
+		}
+
+		// retry job
+		retry := JobEntity{
+			Partition: job.Partition,
+
+			ElementId:         job.ElementId,
+			ElementInstanceId: job.ElementInstanceId,
+			ProcessId:         job.ProcessId,
+			ProcessInstanceId: job.ProcessInstanceId,
+
+			BpmnElementId:  job.BpmnElementId,
+			CorrelationKey: job.CorrelationKey,
+			CreatedAt:      ctx.Time(),
+			CreatedBy:      ec.engineOrWorkerId,
+			DueAt:          retryTimer.Calculate(ctx.Time()),
+			RetryCount:     job.RetryCount,
+			State:          engine.WorkCreated,
+			Type:           job.Type,
+		}
+
+		if err := ctx.Jobs().Insert(&retry); err != nil {
+			return false, err
+		}
+
+		return false, nil
+	}
+
+	scope := ec.executions[0]
+
+	// overwrite executions to fulfill startBoundaryEvent contract
+	ec.executions = []*ElementInstanceEntity{scope, boundaryEvent}
+
+	newBoundaryEvent, err := ec.startBoundaryEvent(ctx, interrupting)
+	if err != nil {
+		return false, err
+	}
+
+	if newBoundaryEvent != nil {
+		// retry job
+		retry := JobEntity{
+			Partition: job.Partition,
+
+			ElementId:         job.ElementId,
+			ElementInstanceId: job.ElementInstanceId,
+			ProcessId:         job.ProcessId,
+			ProcessInstanceId: job.ProcessInstanceId,
+
+			BpmnElementId:  job.BpmnElementId,
+			CorrelationKey: job.CorrelationKey,
+			CreatedAt:      ctx.Time(),
+			CreatedBy:      ec.engineOrWorkerId,
+			DueAt:          retryTimer.Calculate(ctx.Time()),
+			RetryCount:     job.RetryCount,
+			State:          engine.WorkCreated,
+			Type:           job.Type,
+		}
+
+		if err := ctx.Jobs().Insert(&retry); err != nil {
+			return false, err
+		}
+
+		// overwrite executions to avoid completion of execution (e.g. service task)
+		ec.executions = []*ElementInstanceEntity{scope, newBoundaryEvent, boundaryEvent}
+	}
 
 	event := EventEntity{
 		Partition: boundaryEvent.Partition,
@@ -24,8 +122,66 @@ func (ec *executionContext) triggerEscalationBoundaryEvent(ctx Context, escalati
 	}
 
 	if err := ctx.Events().Insert(&event); err != nil {
-		return err
+		return false, err
 	}
+
+	return true, nil
+}
+
+func (ec *executionContext) setEscalationCode(ctx Context, job *JobEntity, jobCompletion *engine.JobCompletion) error {
+	execution := ec.executions[1]
+
+	var context string
+	if jobCompletion != nil {
+		context = jobCompletion.EscalationCode
+	}
+
+	switch execution.BpmnElementType {
+	case model.ElementEscalationBoundaryEvent:
+		attachedTo, err := ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
+		if err != nil {
+			return fmt.Errorf("failed to select attached to element instance: %v", err)
+		}
+
+		attachedTo.ExecutionCount++
+		ec.addExecution(attachedTo)
+	case model.ElementEscalationEndEvent, model.ElementEscalationThrowEvent:
+		if context == "" {
+			job.Error = pgtype.Text{String: "expected an escalation code", Valid: true}
+			return nil
+		}
+
+		triggerEventTask := TaskEntity{
+			Partition: execution.Partition,
+
+			ElementId:         pgtype.Int4{Int32: execution.ElementId, Valid: true},
+			ElementInstanceId: pgtype.Int4{Int32: execution.Id, Valid: true},
+			ProcessId:         pgtype.Int4{Int32: execution.ProcessId, Valid: true},
+			ProcessInstanceId: pgtype.Int4{Int32: execution.ProcessInstanceId, Valid: true},
+
+			BpmnElementId: pgtype.Text{String: execution.BpmnElementId, Valid: true},
+			CreatedAt:     ctx.Time(),
+			CreatedBy:     ec.engineOrWorkerId,
+			DueAt:         ctx.Time(),
+			State:         engine.WorkCreated,
+			Type:          engine.TaskTriggerEvent,
+
+			Instance: TriggerEventTask{},
+		}
+
+		if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {
+			return err
+		}
+	}
+
+	execution.Context = pgtype.Text{String: context, Valid: true}
+	return nil
+}
+
+// triggerEscalationBoundaryEvent triggers the execution of an escalation boundary event -
+// only applied for escalation boundary events that are attached to a call activity.
+func (ec *executionContext) triggerEscalationBoundaryEvent(ctx Context, escalationCode string, interrupting bool) error {
+	scope, boundaryEvent := ec.executions[0], ec.executions[1]
 
 	newBoundaryEvent, err := ec.startBoundaryEvent(ctx, interrupting)
 	if err != nil {
@@ -43,6 +199,20 @@ func (ec *executionContext) triggerEscalationBoundaryEvent(ctx Context, escalati
 		} else {
 			return fmt.Errorf("failed to continue executions %+v: %v", ec.executions, err)
 		}
+	}
+
+	event := EventEntity{
+		Partition: boundaryEvent.Partition,
+
+		ElementInstanceId: boundaryEvent.Id,
+
+		CreatedAt:      ctx.Time(),
+		CreatedBy:      ec.engineOrWorkerId,
+		EscalationCode: pgtype.Text{String: escalationCode, Valid: true},
+	}
+
+	if err := ctx.Events().Insert(&event); err != nil {
+		return err
 	}
 
 	return nil
@@ -108,20 +278,6 @@ func (ec *executionContext) triggerEscalationThrowEvent(ctx Context) error {
 			return err
 		}
 
-		event := EventEntity{
-			Partition: boundaryEvent.Partition,
-
-			ElementInstanceId: boundaryEvent.Id,
-
-			CreatedAt:      ctx.Time(),
-			CreatedBy:      ec.engineOrWorkerId,
-			EscalationCode: pgtype.Text{String: escalationCode, Valid: true},
-		}
-
-		if err := ctx.Events().Insert(&event); err != nil {
-			return err
-		}
-
 		// overwrite executions to fulfill startBoundaryEvent contract
 		ec.executions = []*ElementInstanceEntity{boundaryEventScope, boundaryEvent}
 
@@ -139,6 +295,20 @@ func (ec *executionContext) triggerEscalationThrowEvent(ctx Context) error {
 		} else {
 			ec.addExecution(scope)
 			ec.addExecution(execution)
+		}
+
+		event := EventEntity{
+			Partition: boundaryEvent.Partition,
+
+			ElementInstanceId: boundaryEvent.Id,
+
+			CreatedAt:      ctx.Time(),
+			CreatedBy:      ec.engineOrWorkerId,
+			EscalationCode: pgtype.Text{String: escalationCode, Valid: true},
+		}
+
+		if err := ctx.Events().Insert(&event); err != nil {
+			return err
 		}
 	}
 

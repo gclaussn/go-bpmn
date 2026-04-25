@@ -265,6 +265,112 @@ func findMessageSubscriber(ctx Context, cmd engine.SendMessageCmd) (*MessageSubs
 	return nil, nil, nil
 }
 
+func (ec *executionContext) subscribeMessage(ctx Context, job *JobEntity, jobCompletion *engine.JobCompletion) error {
+	execution := ec.executions[1]
+
+	node, err := ec.process.graph.node(execution.BpmnElementId)
+	if err != nil {
+		job.Error = pgtype.Text{String: err.Error(), Valid: true}
+		return nil
+	}
+
+	var messageName string
+	if job.Type == engine.JobSubscribeMessage {
+		if jobCompletion == nil || jobCompletion.MessageCorrelationKey == "" || jobCompletion.MessageName == "" {
+			job.Error = pgtype.Text{String: "expected a message name and correlation key", Valid: true}
+			return nil
+		}
+		messageName = jobCompletion.MessageName
+	} else {
+		if jobCompletion == nil || jobCompletion.MessageCorrelationKey == "" {
+			job.Error = pgtype.Text{String: "expected a message correlation key", Valid: true}
+			return nil
+		}
+		messageName = node.eventDefinition.MessageName.String
+	}
+
+	var (
+		attachedTo   *ElementInstanceEntity
+		interrupting bool
+	)
+	if execution.BpmnElementType == model.ElementMessageBoundaryEvent {
+		attachedTo, err = ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
+		if err != nil {
+			return fmt.Errorf("failed to select attached to element instance: %v", err)
+		}
+
+		interrupting = node.bpmnElement.Model.(model.BoundaryEvent).CancelActivity
+	}
+
+	bufferedMessage, err := ctx.Messages().SelectBuffered(messageName, jobCompletion.MessageCorrelationKey, ctx.Time())
+	if err != nil && err != pgx.ErrNoRows {
+		return err
+	}
+
+	if bufferedMessage != nil {
+		triggerEventTask := TaskEntity{
+			Partition: execution.Partition,
+
+			ElementId:         pgtype.Int4{Int32: execution.ElementId, Valid: true},
+			ElementInstanceId: pgtype.Int4{Int32: execution.Id, Valid: true},
+			ProcessId:         pgtype.Int4{Int32: execution.ProcessId, Valid: true},
+			ProcessInstanceId: pgtype.Int4{Int32: execution.ProcessInstanceId, Valid: true},
+
+			BpmnElementId: pgtype.Text{String: execution.BpmnElementId, Valid: true},
+			CreatedAt:     ctx.Time(),
+			CreatedBy:     ec.engineOrWorkerId,
+			DueAt:         ctx.Time(),
+			State:         engine.WorkCreated,
+			Type:          engine.TaskTriggerEvent,
+
+			Instance: TriggerEventTask{MessageId: bufferedMessage.Id},
+		}
+
+		if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {
+			return err
+		}
+
+		bufferedMessage.ExpiresAt = pgtype.Timestamp{}
+		bufferedMessage.IsCorrelated = true
+
+		if err := ctx.Messages().Update(bufferedMessage); err != nil {
+			return err
+		}
+
+		if attachedTo != nil && !interrupting {
+			attachedTo.ExecutionCount++
+			ec.addExecution(attachedTo)
+		}
+	} else {
+		messageSubscription := MessageSubscriptionEntity{
+			Partition: execution.Partition,
+
+			ElementId:         execution.ElementId,
+			ElementInstanceId: execution.Id,
+			ProcessId:         execution.ProcessId,
+			ProcessInstanceId: execution.ProcessInstanceId,
+
+			BpmnElementId:  execution.BpmnElementId,
+			CorrelationKey: jobCompletion.MessageCorrelationKey,
+			CreatedAt:      ctx.Time(),
+			CreatedBy:      ec.engineOrWorkerId,
+			Name:           messageName,
+		}
+
+		if err := ctx.MessageSubscriptions().Insert(&messageSubscription); err != nil {
+			return err
+		}
+
+		if attachedTo != nil {
+			attachedTo.ExecutionCount++
+			ec.addExecution(attachedTo)
+		}
+	}
+
+	execution.Context = pgtype.Text{String: messageName, Valid: true}
+	return nil
+}
+
 func (ec *executionContext) triggerMessageBoundaryEvent(ctx Context, messageId int64, interrupting bool) error {
 	execution := ec.executions[1]
 
@@ -483,16 +589,14 @@ func (ec *executionContext) triggerMessageStartEvent(ctx Context, task *TaskEnti
 
 	var processInstance *ProcessInstanceEntity
 	if task.ProcessInstanceId.Valid {
-		selectedProcessInstance, err := ctx.ProcessInstances().Select(task.Partition, task.ProcessInstanceId.Int32)
+		processInstance, err = ctx.ProcessInstances().Select(task.Partition, task.ProcessInstanceId.Int32)
 		if err != nil {
 			return err
 		}
 
-		if selectedProcessInstance.EndedAt.Valid {
+		if processInstance.EndedAt.Valid {
 			return nil
 		}
-
-		processInstance = selectedProcessInstance
 	} else {
 		processInstance = &ProcessInstanceEntity{
 			Partition: task.Partition,

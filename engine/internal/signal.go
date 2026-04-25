@@ -201,6 +201,80 @@ func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.Signal, error) {
 	return signal.Signal(), nil
 }
 
+func (ec *executionContext) setSignalName(ctx Context, job *JobEntity, jobCompletion *engine.JobCompletion) error {
+	if jobCompletion == nil || jobCompletion.SignalName == "" {
+		job.Error = pgtype.Text{String: "expected a signal name", Valid: true}
+		return nil
+	}
+
+	execution := ec.executions[1]
+
+	triggerEventTask := TaskEntity{
+		Partition: execution.Partition,
+
+		ElementId:         pgtype.Int4{Int32: execution.ElementId, Valid: true},
+		ElementInstanceId: pgtype.Int4{Int32: execution.Id, Valid: true},
+		ProcessId:         pgtype.Int4{Int32: execution.ProcessId, Valid: true},
+		ProcessInstanceId: pgtype.Int4{Int32: execution.ProcessInstanceId, Valid: true},
+
+		BpmnElementId: pgtype.Text{String: execution.BpmnElementId, Valid: true},
+		CreatedAt:     ctx.Time(),
+		CreatedBy:     ec.engineOrWorkerId,
+		DueAt:         ctx.Time(),
+		State:         engine.WorkCreated,
+		Type:          engine.TaskTriggerEvent,
+
+		Instance: TriggerEventTask{},
+	}
+
+	if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {
+		return err
+	}
+
+	execution.Context = pgtype.Text{String: jobCompletion.SignalName, Valid: true}
+	return nil
+}
+
+func (ec *executionContext) subscribeSignal(ctx Context, job *JobEntity, jobCompletion *engine.JobCompletion) error {
+	if jobCompletion == nil || jobCompletion.SignalName == "" {
+		job.Error = pgtype.Text{String: "expected a signal name", Valid: true}
+		return nil
+	}
+
+	execution := ec.executions[1]
+
+	if execution.BpmnElementType == model.ElementSignalBoundaryEvent {
+		attachedTo, err := ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
+		if err != nil {
+			return fmt.Errorf("failed to select attached to element instance: %v", err)
+		}
+
+		attachedTo.ExecutionCount++
+		ec.addExecution(attachedTo)
+	}
+
+	signalSubscription := SignalSubscriptionEntity{
+		Partition: execution.Partition,
+
+		ElementId:         execution.ElementId,
+		ElementInstanceId: execution.Id,
+		ProcessId:         execution.ProcessId,
+		ProcessInstanceId: execution.ProcessInstanceId,
+
+		BpmnElementId: execution.BpmnElementId,
+		CreatedAt:     ctx.Time(),
+		CreatedBy:     ec.engineOrWorkerId,
+		Name:          jobCompletion.SignalName,
+	}
+
+	if err := ctx.SignalSubscriptions().Insert(&signalSubscription); err != nil {
+		return err
+	}
+
+	execution.Context = pgtype.Text{String: jobCompletion.SignalName, Valid: true}
+	return nil
+}
+
 func (ec *executionContext) triggerSignalBoundaryEvent(ctx Context, signalId int64, interrupting bool) error {
 	execution := ec.executions[1]
 
@@ -390,16 +464,14 @@ func (ec *executionContext) triggerSignalStartEvent(ctx Context, task *TaskEntit
 
 	var processInstance *ProcessInstanceEntity
 	if task.ProcessInstanceId.Valid {
-		selectedProcessInstance, err := ctx.ProcessInstances().Select(task.Partition, task.ProcessInstanceId.Int32)
+		processInstance, err = ctx.ProcessInstances().Select(task.Partition, task.ProcessInstanceId.Int32)
 		if err != nil {
 			return err
 		}
 
-		if selectedProcessInstance.EndedAt.Valid {
+		if processInstance.EndedAt.Valid {
 			return nil
 		}
-
-		processInstance = selectedProcessInstance
 	} else {
 		processInstance = &ProcessInstanceEntity{
 			Partition: task.Partition,

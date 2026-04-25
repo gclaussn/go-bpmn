@@ -8,10 +8,139 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+func (ec *executionContext) executeError(ctx Context, job *JobEntity, errorCode string) (bool, error) {
+	execution := ec.executions[1]
+
+	boundaryEvent, err := findErrorBoundaryEvent(ctx, execution, errorCode)
+	if err != nil {
+		return false, err
+	}
+
+	if boundaryEvent == nil {
+		job.Error = pgtype.Text{String: fmt.Sprintf("failed to find boundary event for error code %s", errorCode), Valid: true}
+		return false, nil
+	}
+
+	if boundaryEvent.ProcessInstanceId != execution.ProcessInstanceId {
+		triggerEventTask := TaskEntity{
+			Partition: boundaryEvent.Partition,
+
+			ElementId:         pgtype.Int4{Int32: boundaryEvent.ElementId, Valid: true},
+			ElementInstanceId: pgtype.Int4{Int32: boundaryEvent.Id, Valid: true},
+			ProcessId:         pgtype.Int4{Int32: boundaryEvent.ProcessId, Valid: true},
+			ProcessInstanceId: pgtype.Int4{Int32: boundaryEvent.ProcessInstanceId, Valid: true},
+
+			BpmnElementId: pgtype.Text{String: boundaryEvent.BpmnElementId, Valid: true},
+			CreatedAt:     ctx.Time(),
+			CreatedBy:     ec.engineOrWorkerId,
+			DueAt:         ctx.Time(),
+			State:         engine.WorkCreated,
+			Type:          engine.TaskTriggerEvent,
+
+			Instance: TriggerEventTask{ErrorCode: errorCode},
+		}
+
+		if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {
+			return false, err
+		}
+
+		return false, terminateProcessInstance(ctx, ec.processInstance)
+	}
+
+	scope := ec.executions[0]
+
+	// overwrite executions to fulfill startBoundaryEvent contract
+	ec.executions = []*ElementInstanceEntity{scope, boundaryEvent}
+
+	_, err = ec.startBoundaryEvent(ctx, true) // always interrupting
+	if err != nil {
+		return false, err
+	}
+
+	event := EventEntity{
+		Partition: boundaryEvent.Partition,
+
+		ElementInstanceId: boundaryEvent.Id,
+
+		CreatedAt: ctx.Time(),
+		CreatedBy: ec.engineOrWorkerId,
+		ErrorCode: pgtype.Text{String: errorCode, Valid: true},
+	}
+
+	if err := ctx.Events().Insert(&event); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (ec *executionContext) setErrorCode(ctx Context, job *JobEntity, jobCompletion *engine.JobCompletion) error {
+	execution := ec.executions[1]
+
+	var context string
+	if jobCompletion != nil {
+		context = jobCompletion.ErrorCode
+	}
+
+	switch execution.BpmnElementType {
+	case model.ElementErrorBoundaryEvent:
+		attachedTo, err := ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
+		if err != nil {
+			return fmt.Errorf("failed to select attached to element instance: %v", err)
+		}
+
+		attachedTo.ExecutionCount++
+		ec.addExecution(attachedTo)
+	case model.ElementErrorEndEvent:
+		if context == "" {
+			job.Error = pgtype.Text{String: "expected an error code", Valid: true}
+			return nil
+		}
+
+		triggerEventTask := TaskEntity{
+			Partition: execution.Partition,
+
+			ElementId:         pgtype.Int4{Int32: execution.ElementId, Valid: true},
+			ElementInstanceId: pgtype.Int4{Int32: execution.Id, Valid: true},
+			ProcessId:         pgtype.Int4{Int32: execution.ProcessId, Valid: true},
+			ProcessInstanceId: pgtype.Int4{Int32: execution.ProcessInstanceId, Valid: true},
+
+			BpmnElementId: pgtype.Text{String: execution.BpmnElementId, Valid: true},
+			CreatedAt:     ctx.Time(),
+			CreatedBy:     ec.engineOrWorkerId,
+			DueAt:         ctx.Time(),
+			State:         engine.WorkCreated,
+			Type:          engine.TaskTriggerEvent,
+
+			Instance: TriggerEventTask{},
+		}
+
+		if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {
+			return err
+		}
+	}
+
+	execution.Context = pgtype.Text{String: context, Valid: true}
+	return nil
+}
+
 // triggerErrorBoundaryEvent triggers the execution of an error boundary event -
 // only applied for error boundary events that are attached to a call activity.
 func (ec *executionContext) triggerErrorBoundaryEvent(ctx Context, errorCode string) error {
 	boundaryEvent := ec.executions[1]
+
+	_, err := ec.startBoundaryEvent(ctx, true) // always interrupting
+	if err != nil {
+		return err
+	}
+
+	if err := ec.continueExecutions(ctx); err != nil {
+		if _, ok := err.(engine.Error); ok {
+			return err
+		} else {
+			return fmt.Errorf("failed to continue executions %+v: %v", ec.executions, err)
+		}
+	}
 
 	event := EventEntity{
 		Partition: boundaryEvent.Partition,
@@ -25,19 +154,6 @@ func (ec *executionContext) triggerErrorBoundaryEvent(ctx Context, errorCode str
 
 	if err := ctx.Events().Insert(&event); err != nil {
 		return err
-	}
-
-	_, err := ec.startBoundaryEvent(ctx, true) // always interrupting
-	if err != nil {
-		return err
-	}
-
-	if err := ec.continueExecutions(ctx); err != nil {
-		if _, ok := err.(engine.Error); ok {
-			return err
-		} else {
-			return fmt.Errorf("failed to continue executions %+v: %v", ec.executions, err)
-		}
 	}
 
 	return nil
@@ -98,20 +214,6 @@ func (ec *executionContext) triggerErrorEndEvent(ctx Context) error {
 			return err
 		}
 
-		event := EventEntity{
-			Partition: boundaryEvent.Partition,
-
-			ElementInstanceId: boundaryEvent.Id,
-
-			CreatedAt: ctx.Time(),
-			CreatedBy: ec.engineOrWorkerId,
-			ErrorCode: pgtype.Text{String: errorCode, Valid: true},
-		}
-
-		if err := ctx.Events().Insert(&event); err != nil {
-			return err
-		}
-
 		// overwrite executions to fulfill startBoundaryEvent contract
 		ec.executions = []*ElementInstanceEntity{boundaryEventScope, boundaryEvent}
 
@@ -125,6 +227,20 @@ func (ec *executionContext) triggerErrorEndEvent(ctx Context) error {
 			if e.Id == execution.Id {
 				e.State = engine.InstanceCompleted
 			}
+		}
+
+		event := EventEntity{
+			Partition: boundaryEvent.Partition,
+
+			ElementInstanceId: boundaryEvent.Id,
+
+			CreatedAt: ctx.Time(),
+			CreatedBy: ec.engineOrWorkerId,
+			ErrorCode: pgtype.Text{String: errorCode, Valid: true},
+		}
+
+		if err := ctx.Events().Insert(&event); err != nil {
+			return err
 		}
 	}
 

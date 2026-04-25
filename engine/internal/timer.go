@@ -4,8 +4,59 @@ import (
 	"fmt"
 
 	"github.com/gclaussn/go-bpmn/engine"
+	"github.com/gclaussn/go-bpmn/model"
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+func (ec *executionContext) setTimer(ctx Context, job *JobEntity, jobCompletion *engine.JobCompletion) error {
+	if jobCompletion == nil || jobCompletion.Timer == nil {
+		job.Error = pgtype.Text{String: "expected a timer", Valid: true}
+		return nil
+	}
+
+	dueAt, err := evaluateTimer(*jobCompletion.Timer, ctx.Time())
+	if err != nil {
+		job.Error = pgtype.Text{String: fmt.Sprintf("failed to evaluate timer: %v", err), Valid: true}
+		return nil
+	}
+
+	execution := ec.executions[1]
+
+	if execution.BpmnElementType == model.ElementTimerBoundaryEvent {
+		attachedTo, err := ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
+		if err != nil {
+			return fmt.Errorf("failed to select attached to element instance: %v", err)
+		}
+
+		attachedTo.ExecutionCount++
+		ec.addExecution(attachedTo)
+	}
+
+	triggerEventTask := TaskEntity{
+		Partition: execution.Partition,
+
+		ElementId:         pgtype.Int4{Int32: execution.ElementId, Valid: true},
+		ElementInstanceId: pgtype.Int4{Int32: execution.Id, Valid: true},
+		ProcessId:         pgtype.Int4{Int32: execution.ProcessId, Valid: true},
+		ProcessInstanceId: pgtype.Int4{Int32: execution.ProcessInstanceId, Valid: true},
+
+		BpmnElementId: pgtype.Text{String: execution.BpmnElementId, Valid: true},
+		CreatedAt:     ctx.Time(),
+		CreatedBy:     ec.engineOrWorkerId,
+		DueAt:         dueAt,
+		State:         engine.WorkCreated,
+		Type:          engine.TaskTriggerEvent,
+
+		Instance: TriggerEventTask{Timer: jobCompletion.Timer},
+	}
+
+	if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {
+		return err
+	}
+
+	execution.Context = pgtype.Text{String: jobCompletion.Timer.String(), Valid: true}
+	return nil
+}
 
 func (ec *executionContext) triggerTimerBoundaryEvent(ctx Context, timer engine.Timer, interrupting bool) error {
 	execution := ec.executions[1]
@@ -113,16 +164,14 @@ func (ec *executionContext) triggerTimerStartEvent(ctx Context, task *TaskEntity
 
 	var processInstance *ProcessInstanceEntity
 	if task.ProcessInstanceId.Valid {
-		selectedProcessInstance, err := ctx.ProcessInstances().Select(task.Partition, task.ProcessInstanceId.Int32)
+		processInstance, err = ctx.ProcessInstances().Select(task.Partition, task.ProcessInstanceId.Int32)
 		if err != nil {
 			return err
 		}
 
-		if selectedProcessInstance.EndedAt.Valid {
+		if processInstance.EndedAt.Valid {
 			return nil
 		}
-
-		processInstance = selectedProcessInstance
 	} else {
 		processInstance = &ProcessInstanceEntity{
 			Partition: task.Partition,
