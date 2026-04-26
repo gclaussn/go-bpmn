@@ -117,6 +117,7 @@ func TestBpmn(t *testing.T) {
 			t.Run(engineTypes[i]+"start event definition", messageEventTest.startDefinition)
 			t.Run(engineTypes[i]+"throw", messageEventTest.throw)
 			t.Run(engineTypes[i]+"subscription cancelation", messageEventTest.subscriptionCancelation)
+			t.Run(engineTypes[i]+"trigger event task cancelation", messageEventTest.triggerEventTaskCancelation)
 		}
 	})
 
@@ -144,6 +145,7 @@ func TestBpmn(t *testing.T) {
 			t.Run(engineTypes[i]+"throw", signalEventTest.throw)
 			t.Run(engineTypes[i]+"throw event definition", signalEventTest.throwDefinition)
 			t.Run(engineTypes[i]+"subscription cancelation", signalEventTest.subscriptionCancelation)
+			t.Run(engineTypes[i]+"trigger event task cancelation", signalEventTest.triggerEventTaskCancelation)
 		}
 	})
 

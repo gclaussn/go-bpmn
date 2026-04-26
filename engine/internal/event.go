@@ -114,7 +114,7 @@ func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
 		}
 		if processInstance.EndedAt.Valid {
 			task.State = engine.WorkCanceled
-			return nil
+			break
 		}
 
 		execution, err := ctx.ElementInstances().Select(task.Partition, task.ElementInstanceId.Int32)
@@ -123,7 +123,7 @@ func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
 		}
 		if execution.EndedAt.Valid {
 			task.State = engine.WorkCanceled
-			return nil
+			break
 		}
 
 		scope, err := ctx.ElementInstances().Select(execution.Partition, execution.ParentId.Int32)
@@ -139,6 +139,31 @@ func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
 			process:          process,
 			processInstance:  processInstance,
 		}
+	}
+
+	switch {
+	case task.State != engine.WorkCanceled:
+		break // trigger event, if work not canceled
+	case t.MessageId != 0:
+		// expire message, if work canceled
+		message, err := ctx.Messages().Select(t.MessageId)
+		if err != nil {
+			return err
+		}
+
+		message.ExpiresAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
+		return ctx.Messages().Update(message)
+	case t.SignalId != 0:
+		// reduce active subscriber count, if work canceled
+		signal, err := ctx.Signals().Select(t.SignalId)
+		if err != nil {
+			return err
+		}
+
+		signal.ActiveSubscriberCount--
+		return ctx.Signals().Update(signal)
+	default:
+		return nil
 	}
 
 	var interrupting bool

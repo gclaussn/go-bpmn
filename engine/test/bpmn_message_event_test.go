@@ -825,3 +825,123 @@ func (x messageEventTest) subscriptionCancelation(t *testing.T) {
 
 	require.Empty(messageSubscriptions)
 }
+
+func (x messageEventTest) triggerEventTaskCancelation(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	process, subProcess :=
+		mustCreateProcess(t, x.e, "call-activity/message-boundary.bpmn", "callActivityMessageBoundaryTest"),
+		mustCreateProcess(t, x.e, "event/message-catch.bpmn", "messageCatchTest")
+
+	piAssert := mustCreateProcessInstance(t, x.e, process)
+
+	piAssert.IsWaitingAt("messageBoundaryEvent")
+	piAssert.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			MessageCorrelationKey: t.Name() + "1",
+			MessageName:           t.Name() + "1",
+		},
+	})
+
+	piAssert.IsWaitingAt("callActivity")
+	piAssert.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			CalledProcess: &engine.CalledProcess{
+				BpmnProcessId: subProcess.BpmnProcessId,
+				Version:       subProcess.Version,
+			},
+		},
+	})
+
+	pi := piAssert.ProcessInstance()
+
+	subProcessInstances, err := x.e.CreateQuery().QueryProcessInstances(context.Background(), engine.ProcessInstanceCriteria{
+		Partition: pi.Partition,
+		ParentId:  pi.Id,
+	})
+	if err != nil {
+		t.Fatalf("failed to query sub-process instance: %v", err)
+	}
+
+	if len(subProcessInstances) == 0 {
+		t.Fatal("no sub-process instance found")
+	}
+
+	subPiAssert := engine.Assert(t, x.e, subProcessInstances[0])
+
+	subPiAssert.IsWaitingAt("messageCatchEvent")
+	subPiAssert.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			MessageCorrelationKey: t.Name() + "2",
+			MessageName:           t.Name() + "2",
+		},
+	})
+
+	_, err = x.e.SendMessage(context.Background(), engine.SendMessageCmd{
+		CorrelationKey: t.Name() + "1",
+		Name:           t.Name() + "1",
+		WorkerId:       testWorkerId,
+	})
+	if err != nil {
+		t.Fatalf("failed to send message: %v", err)
+	}
+
+	_, err = x.e.SendMessage(context.Background(), engine.SendMessageCmd{
+		CorrelationKey: t.Name() + "2",
+		Name:           t.Name() + "2",
+		WorkerId:       testWorkerId,
+	})
+	if err != nil {
+		t.Fatalf("failed to send message: %v", err)
+	}
+
+	// when messageBoundaryEvent is triggered
+	piAssert.IsWaitingAt("messageBoundaryEvent")
+	piAssert.ExecuteTask()
+
+	tasks := subPiAssert.Tasks()
+	require.Len(tasks, 2)
+
+	assert.Equal(engine.TaskTriggerEvent, tasks[0].Type)
+	assert.Equal(engine.TaskTerminateProcessInstance, tasks[1].Type)
+
+	// when sub-process instance is terminated
+	completedTasks, failedTasks, err := x.e.ExecuteTasks(context.Background(), engine.ExecuteTasksCmd{
+		Partition: tasks[1].Partition,
+		Id:        tasks[1].Id,
+	})
+	if err != nil {
+		t.Fatalf("failed to execute task: %v", err)
+	}
+
+	// then
+	require.Len(completedTasks, 1)
+	require.Len(failedTasks, 0)
+
+	assert.Equal(engine.WorkDone, completedTasks[0].State)
+
+	// when messageCatchEvent is triggered
+	completedTasks, failedTasks, err = x.e.ExecuteTasks(context.Background(), engine.ExecuteTasksCmd{
+		Partition: tasks[0].Partition,
+		Id:        tasks[0].Id,
+	})
+	if err != nil {
+		t.Fatalf("failed to execute task: %v", err)
+	}
+
+	// then
+	require.Len(completedTasks, 1)
+	require.Len(failedTasks, 0)
+
+	assert.Equal(engine.WorkCanceled, completedTasks[0].State)
+
+	messages, err := x.e.CreateQuery().QueryMessages(context.Background(), engine.MessageCriteria{
+		Name: t.Name() + "2",
+	})
+	if err != nil {
+		t.Fatalf("failed to query message: %v", err)
+	}
+
+	require.Len(messages, 1)
+	assert.NotNil(messages[0].ExpiresAt)
+}

@@ -621,3 +621,15 @@ func (a *ProcessInstanceAssert) Task() Task {
 	a.Fatalf("expected process instance to have an active task at %s", a.bpmnElementId)
 	return Task{}
 }
+
+func (a *ProcessInstanceAssert) Tasks() []Task {
+	results, err := a.e.CreateQuery().QueryTasks(context.Background(), TaskCriteria{
+		Partition:         a.partition,
+		ProcessInstanceId: a.processInstanceId,
+	})
+	if err != nil {
+		a.Fatalf("failed to query tasks: %v", err)
+	}
+
+	return results
+}

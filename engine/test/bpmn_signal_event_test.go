@@ -432,3 +432,97 @@ func (x signalEventTest) subscriptionCancelation(t *testing.T) {
 
 	require.Empty(signalSubscriptions)
 }
+
+func (x signalEventTest) triggerEventTaskCancelation(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	process, subProcess :=
+		mustCreateProcess(t, x.e, "call-activity/signal-boundary.bpmn", "callActivitySignalBoundaryTest", engine.CreateProcessCmd{
+			Signals: []engine.SignalDefinition{
+				{BpmnElementId: "signalBoundaryEvent", SignalName: t.Name()},
+			},
+		}),
+		mustCreateProcess(t, x.e, "event/signal-catch.bpmn", "signalCatchTest", engine.CreateProcessCmd{
+			Signals: []engine.SignalDefinition{
+				{BpmnElementId: "signalCatchEvent", SignalName: t.Name()},
+			},
+		})
+
+	piAssert := mustCreateProcessInstance(t, x.e, process)
+
+	piAssert.IsWaitingAt("callActivity")
+	piAssert.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			CalledProcess: &engine.CalledProcess{
+				BpmnProcessId: subProcess.BpmnProcessId,
+				Version:       subProcess.Version,
+			},
+		},
+	})
+
+	signal, err := x.e.SendSignal(context.Background(), engine.SendSignalCmd{
+		Name:     t.Name(),
+		WorkerId: testWorkerId,
+	})
+	if err != nil {
+		t.Fatalf("failed to send signal: %v", err)
+	}
+
+	require.Equal(2, signal.SubscriberCount)
+
+	// when signalBoundaryEvent is triggered
+	piAssert.IsWaitingAt("signalBoundaryEvent")
+	piAssert.ExecuteTask()
+
+	pi := piAssert.ProcessInstance()
+
+	subProcessInstances, err := x.e.CreateQuery().QueryProcessInstances(context.Background(), engine.ProcessInstanceCriteria{
+		Partition: pi.Partition,
+		ParentId:  pi.Id,
+	})
+	if err != nil {
+		t.Fatalf("failed to query sub-process instance: %v", err)
+	}
+
+	if len(subProcessInstances) == 0 {
+		t.Fatal("no sub-process instance found")
+	}
+
+	subPiAssert := engine.Assert(t, x.e, subProcessInstances[0])
+
+	tasks := subPiAssert.Tasks()
+	require.Len(tasks, 2)
+
+	assert.Equal(engine.TaskTriggerEvent, tasks[0].Type)
+	assert.Equal(engine.TaskTerminateProcessInstance, tasks[1].Type)
+
+	// when sub-process instance is terminated
+	completedTasks, failedTasks, err := x.e.ExecuteTasks(context.Background(), engine.ExecuteTasksCmd{
+		Partition: tasks[1].Partition,
+		Id:        tasks[1].Id,
+	})
+	if err != nil {
+		t.Fatalf("failed to execute task: %v", err)
+	}
+
+	// then
+	require.Len(completedTasks, 1)
+	require.Len(failedTasks, 0)
+
+	assert.Equal(engine.WorkDone, completedTasks[0].State)
+
+	// when signalCatchEvent is triggered
+	completedTasks, failedTasks, err = x.e.ExecuteTasks(context.Background(), engine.ExecuteTasksCmd{
+		Partition: tasks[0].Partition,
+		Id:        tasks[0].Id,
+	})
+	if err != nil {
+		t.Fatalf("failed to execute task: %v", err)
+	}
+
+	// then
+	require.Len(completedTasks, 1)
+	require.Len(failedTasks, 0)
+
+	assert.Equal(engine.WorkCanceled, completedTasks[0].State)
+}
