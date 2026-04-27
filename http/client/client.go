@@ -272,11 +272,15 @@ func (c *client) SetProcessVariables(ctx context.Context, cmd engine.SetProcessV
 	return c.doPut(ctx, path, cmd, nil)
 }
 
-func (c *client) SetTime(ctx context.Context, cmd engine.SetTimeCmd) error {
+func (c *client) SetTime(ctx context.Context, cmd engine.SetTimeCmd) (time.Time, time.Time, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
 
-	return c.doPatch(ctx, common.PathTime, cmd, nil)
+	var resBody common.SetTimeRes
+	if err := c.doPatch(ctx, common.PathTime, cmd, &resBody); err != nil {
+		return time.Time{}, time.Time{}, err
+	}
+	return resBody.NewTime, resBody.OldTime, nil
 }
 
 func (c *client) SuspendProcessInstance(ctx context.Context, cmd engine.SuspendProcessInstanceCmd) error {

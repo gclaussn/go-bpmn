@@ -180,28 +180,13 @@ func (e *memEngine) SetProcessVariables(_ context.Context, cmd engine.SetProcess
 	return internal.SetProcessVariables(e.wlock(), cmd)
 }
 
-func (e *memEngine) SetTime(_ context.Context, cmd engine.SetTimeCmd) error {
+func (e *memEngine) SetTime(_ context.Context, cmd engine.SetTimeCmd) (time.Time, time.Time, error) {
 	defer e.unlock()
-	ctx := e.wlock()
-
-	old := ctx.Time()
-	new := cmd.Time.UTC().Truncate(time.Millisecond)
-
-	sub := new.Sub(old)
-	if sub.Milliseconds() < 0 {
-		return engine.Error{
-			Type:  engine.ErrorConflict,
-			Title: "failed to set time",
-			Detail: fmt.Sprintf(
-				"time %s is before engine time %s",
-				new.Format(time.RFC3339),
-				old.Format(time.RFC3339),
-			),
-		}
+	new, old, err := internal.SetTime(e.wlock(), cmd)
+	if err == nil {
+		e.offset += new.Sub(old)
 	}
-
-	e.offset = e.offset + sub
-	return nil
+	return new, old, err
 }
 
 func (e *memEngine) SuspendProcessInstance(_ context.Context, cmd engine.SuspendProcessInstanceCmd) error {

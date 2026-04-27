@@ -77,7 +77,8 @@ type Engine interface {
 	SetProcessVariables(context.Context, SetProcessVariablesCmd) error
 
 	// SetTime increases the engine's time for testing purposes.
-	SetTime(context.Context, SetTimeCmd) error
+	// It returns the engine's new and old time.
+	SetTime(context.Context, SetTimeCmd) (time.Time, time.Time, error)
 
 	// SuspendProcessInstance suspends a started process instance.
 	SuspendProcessInstance(context.Context, SuspendProcessInstanceCmd) error

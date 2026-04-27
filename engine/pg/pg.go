@@ -404,42 +404,31 @@ func (e *pgEngine) SetProcessVariables(ctx context.Context, cmd engine.SetProces
 	return e.release(pgCtx, err)
 }
 
-func (e *pgEngine) SetTime(ctx context.Context, cmd engine.SetTimeCmd) error {
+func (e *pgEngine) SetTime(ctx context.Context, cmd engine.SetTimeCmd) (time.Time, time.Time, error) {
 	e.setTimeMutex.Lock()
 	defer e.setTimeMutex.Unlock()
 
 	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
-		return err
+		return time.Time{}, time.Time{}, err
 	}
 
 	defer cancel()
 
-	old := pgCtx.Time()
-	new := cmd.Time.UTC().Truncate(time.Millisecond)
-
-	sub := new.Sub(old)
-	if sub.Milliseconds() < 0 {
-		return e.release(pgCtx, engine.Error{
-			Type:  engine.ErrorConflict,
-			Title: "failed to set time",
-			Detail: fmt.Sprintf(
-				"time %s is before engine time %s",
-				new.Format(time.RFC3339),
-				old.Format(time.RFC3339),
-			),
-		})
+	new, old, err := internal.SetTime(pgCtx, cmd)
+	if err != nil {
+		return time.Time{}, time.Time{}, e.release(pgCtx, err)
 	}
 
 	pgCtx.time = new
 
 	err = prepareDatabase(pgCtx)
 	if err := e.release(pgCtx, err); err != nil {
-		return err
+		return time.Time{}, time.Time{}, err
 	}
 
-	e.offset = e.offset + sub
-	return nil
+	e.offset += new.Sub(old)
+	return new, old, nil
 }
 
 func (e *pgEngine) SuspendProcessInstance(ctx context.Context, cmd engine.SuspendProcessInstanceCmd) error {

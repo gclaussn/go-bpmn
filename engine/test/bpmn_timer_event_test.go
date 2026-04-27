@@ -48,8 +48,8 @@ func (x timerEventTest) boundary(t *testing.T) {
 
 	piAssert.IsWaitingAt("serviceTask")
 
-	if err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
-		Time: triggerAt,
+	if _, _, err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
+		Time: &triggerAt,
 	}); err != nil {
 		t.Fatalf("failed to set time: %v", err)
 	}
@@ -98,8 +98,8 @@ func (x timerEventTest) boundaryWithTimer(t *testing.T) {
 
 	piAssert.IsWaitingAt("serviceTask")
 
-	if err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
-		Time: triggerAt,
+	if _, _, err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
+		Time: &triggerAt,
 	}); err != nil {
 		t.Fatalf("failed to set time: %v", err)
 	}
@@ -137,8 +137,9 @@ func (x timerEventTest) boundaryNonInterrupting(t *testing.T) {
 	})
 
 	// #1
-	if err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
-		Time: time.Now().Add(time.Hour),
+	plusOneHour := time.Now().Add(time.Hour)
+	if _, _, err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
+		Time: &plusOneHour,
 	}); err != nil {
 		t.Fatalf("failed to set time: %v", err)
 	}
@@ -147,8 +148,9 @@ func (x timerEventTest) boundaryNonInterrupting(t *testing.T) {
 	piAssert.ExecuteTask()
 
 	// #2
-	if err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
-		Time: time.Now().Add(time.Hour * 2),
+	plusTwoHour := time.Now().Add(time.Hour * 2)
+	if _, _, err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
+		Time: &plusTwoHour,
 	}); err != nil {
 		t.Fatalf("failed to set time: %v", err)
 	}
@@ -193,8 +195,8 @@ func (x timerEventTest) catch(t *testing.T) {
 		},
 	})
 
-	if err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
-		Time: triggerAt,
+	if _, _, err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
+		Time: &triggerAt,
 	}); err != nil {
 		t.Fatalf("failed to set time: %v", err)
 	}
@@ -226,8 +228,8 @@ func (x timerEventTest) catchWithTimer(t *testing.T) {
 
 	piAssert := mustCreateProcessInstance(t, x.e, process)
 
-	if err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
-		Time: triggerAt,
+	if _, _, err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
+		Time: &triggerAt,
 	}); err != nil {
 		t.Fatalf("failed to set time: %v", err)
 	}

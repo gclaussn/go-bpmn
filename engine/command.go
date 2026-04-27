@@ -219,7 +219,11 @@ type SetProcessVariablesCmd struct {
 // SetTimeCmd is a command for increasing the engine's time for testing purposes.
 type SetTimeCmd struct {
 	// A future point in time.
-	Time time.Time `json:"time" validate:"required"`
+	Time *time.Time `json:"time,omitempty"`
+	// CRON expression, when evaluated the next tick specifies the engine's new time.
+	TimeCycle string `json:"timeCycle,omitempty" validate:"cron"`
+	// Duration, used to calculate a future point in time.
+	TimeDuration ISO8601Duration `json:"timeDuration" validate:"iso8601_duration"`
 }
 
 // SuspendProcessInstanceCmd is a command for suspending an active process instance.

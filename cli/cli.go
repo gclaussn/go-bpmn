@@ -166,22 +166,32 @@ func newRootCmd(cli *Cli) *cobra.Command {
 
 func newSetTimeCmd(cli *Cli) *cobra.Command {
 	var (
-		timeV timeValue
-
-		cmd engine.SetTimeCmd
+		timeV        timeValue
+		timeCycle    string
+		timeDuration iso8601DurationValue
 	)
 
 	c := cobra.Command{
 		Use:   "set-time",
-		Short: "Set the engine's time",
+		Short: "Increases the engine's time for testing purposes",
 		RunE: func(c *cobra.Command, _ []string) error {
-			cmd.Time = time.Time(timeV)
+			new, old, err := cli.e.SetTime(context.Background(), engine.SetTimeCmd{
+				Time:         timeV.Time(),
+				TimeCycle:    timeCycle,
+				TimeDuration: engine.ISO8601Duration(timeDuration),
+			})
+			if err != nil {
+				return err
+			}
 
-			return cli.e.SetTime(context.Background(), cmd)
+			c.Printf("New time: %s\nOld time: %s", new.Format(time.RFC3339), old.Format(time.RFC3339))
+			return nil
 		},
 	}
 
 	c.Flags().Var(&timeV, "time", "A future point in time")
+	c.Flags().StringVar(&timeCycle, "time-cycle", "", "CRON expression, when evaluated the next tick specifies the engine's new time")
+	c.Flags().Var(&timeDuration, "time-duration", "Duration, used to calculate a future point in time")
 
 	return &c
 }

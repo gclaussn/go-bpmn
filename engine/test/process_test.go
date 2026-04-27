@@ -753,8 +753,9 @@ func TestCreateProcessWithTimer(t *testing.T) {
 				process2, err := e.CreateProcess(context.Background(), cmd2)
 				require.NoError(err, "failed to create process")
 
-				err = e.SetTime(context.Background(), engine.SetTimeCmd{
-					Time: time.Now().Add(time.Hour),
+				plusOneHour := time.Now().Add(time.Hour)
+				_, _, err = e.SetTime(context.Background(), engine.SetTimeCmd{
+					Time: &plusOneHour,
 				})
 				require.NoError(err, "failed to set time")
 

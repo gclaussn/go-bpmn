@@ -550,12 +550,18 @@ func (h handler) setTime(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.e.SetTime(r.Context(), cmd); err != nil {
+	new, old, err := h.e.SetTime(r.Context(), cmd)
+	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	resBody := common.SetTimeRes{
+		NewTime: new,
+		OldTime: old,
+	}
+
+	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
 }
 
 func (h handler) suspendProcessInstance(w http.ResponseWriter, r *http.Request) {

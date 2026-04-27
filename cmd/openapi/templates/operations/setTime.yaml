@@ -9,8 +9,15 @@ requestBody:
       example:
         time: "2025-05-10T00:00:00.000Z"
 responses:
-  "204":
-    description: Time set
+  "200":
+    description: OK
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/SetTimeRes"
+        example:
+          newTime: "2025-05-10T00:00:00Z"
+          oldTime: "2025-05-09T10:11:12Z"
   "403":
     description: Operation not enabled
   "409":
@@ -20,6 +27,13 @@ responses:
         schema:
           $ref: "#/components/schemas/Problem"
         examples:
+          validation:
+            summary: A time, time cycle or time duration must be specified
+            value:
+              status: 400
+              type: VALIDATION
+              title: failed to set time
+              detail: must specify a time, time cycle or time duration
           time_is_before_engine_time:
             summary: Time is before engine time
             value:

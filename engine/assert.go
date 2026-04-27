@@ -190,8 +190,8 @@ func AsserTimerStart(t *testing.T, e Engine, processId int32, bpmnStartElementId
 		t.Fatal("failed to find trigger event task")
 	}
 
-	if err := e.SetTime(context.Background(), SetTimeCmd{
-		Time: nextTrigger.DueAt,
+	if _, _, err := e.SetTime(context.Background(), SetTimeCmd{
+		Time: &nextTrigger.DueAt,
 	}); err != nil {
 		t.Fatalf("failed to set time: %v", err)
 	}

@@ -55,8 +55,9 @@ func TestTimerCatchEventProcess(t *testing.T) {
 	piAssert.IsWaitingAt("timerCatchEvent")
 	piAssert.ExecuteJob()
 
-	if err := e.SetTime(context.Background(), engine.SetTimeCmd{
-		Time: time.Now().Add(time.Hour * 1),
+	plusOneHour := time.Now().Add(time.Hour * 1)
+	if _, _, err := e.SetTime(context.Background(), engine.SetTimeCmd{
+		Time: &plusOneHour,
 	}); err != nil {
 		t.Fatalf("failed to set time: %v", err)
 	}

@@ -1,6 +1,10 @@
 package common
 
-import "github.com/gclaussn/go-bpmn/engine"
+import (
+	"time"
+
+	"github.com/gclaussn/go-bpmn/engine"
+)
 
 // Response of a batch operation like the unlocking of jobs or tasks.
 type CountRes struct {
@@ -27,6 +31,12 @@ type GetVariablesRes struct {
 type LockJobsRes struct {
 	Count int          `json:"count" validate:"required,gte=0"` // Number of locked jobs.
 	Jobs  []engine.Job `json:"jobs" validate:"required"`        // Locked jobs.
+}
+
+// Response when engine's time increased.
+type SetTimeRes struct {
+	NewTime time.Time `json:"newTime" validate:"required"` // The engine's new time.
+	OldTime time.Time `json:"oldTime" validate:"required"` // The engine's old time.
 }
 
 // query responses

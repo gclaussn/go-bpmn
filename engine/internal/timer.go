@@ -2,11 +2,44 @@ package internal
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/model"
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+func SetTime(ctx Context, cmd engine.SetTimeCmd) (time.Time, time.Time, error) {
+	old := ctx.Time()
+
+	new, err := evaluateTimer(engine.Timer{
+		Time:         cmd.Time,
+		TimeCycle:    cmd.TimeCycle,
+		TimeDuration: cmd.TimeDuration,
+	}, ctx.Time())
+	if err != nil {
+		return time.Time{}, time.Time{}, engine.Error{
+			Type:   engine.ErrorValidation,
+			Title:  "failed to set time",
+			Detail: err.Error(),
+		}
+	}
+
+	sub := new.Sub(old)
+	if sub.Milliseconds() < 0 {
+		return time.Time{}, time.Time{}, engine.Error{
+			Type:  engine.ErrorConflict,
+			Title: "failed to set time",
+			Detail: fmt.Sprintf(
+				"time %s is before engine time %s",
+				new.Format(time.RFC3339),
+				old.Format(time.RFC3339),
+			),
+		}
+	}
+
+	return new, old, nil
+}
 
 func (ec *executionContext) setTimer(ctx Context, job *JobEntity, jobCompletion *engine.JobCompletion) error {
 	if jobCompletion == nil || jobCompletion.Timer == nil {
