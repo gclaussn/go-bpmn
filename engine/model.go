@@ -640,12 +640,15 @@ type MessageSubscriptionCriteria struct {
 type Process struct {
 	Id int32 `json:"id" validate:"required"` // Process ID.
 
-	BpmnProcessId string    `json:"bpmnProcessId" validate:"required"`      // ID of the process element within the BPMN XML.
-	CreatedAt     time.Time `json:"createdAt" validate:"required"`          // Creation time.
-	CreatedBy     string    `json:"createdBy" validate:"required"`          // ID of the worker that created the process.
-	Parallelism   int       `json:"parallelism,omitempty" validate:"gte=0"` // Maximum number of parallel process instances being executed.
-	Tags          []Tag     `json:"tags,omitempty" validate:"max=100"`      // Tags.
-	Version       string    `json:"version" validate:"required"`            // Process version.
+	BpmnCollaborationId string    `json:"bpmnCollaborationId,omitempty"`          // ID of the BPMN collaboration.
+	BpmnParticipantId   string    `json:"bpmnParticipantId,omitempty"`            // ID of the BPMN participant.
+	BpmnParticipantName string    `json:"bpmnParticipantName,omitempty"`          // Name of the participant.
+	BpmnProcessId       string    `json:"bpmnProcessId" validate:"required"`      // ID of the process element within the BPMN XML.
+	CreatedAt           time.Time `json:"createdAt" validate:"required"`          // Creation time.
+	CreatedBy           string    `json:"createdBy" validate:"required"`          // ID of the worker that created the process.
+	Parallelism         int       `json:"parallelism,omitempty" validate:"gte=0"` // Maximum number of parallel process instances being executed.
+	Tags                []Tag     `json:"tags,omitempty" validate:"max=100"`      // Tags.
+	Version             string    `json:"version" validate:"required"`            // Process version.
 }
 
 func (v Process) String() string {

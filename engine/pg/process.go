@@ -18,6 +18,9 @@ type processRepository struct {
 func (r processRepository) Insert(entity *internal.ProcessEntity) error {
 	row := r.tx.QueryRow(r.txCtx, `
 INSERT INTO process (
+	bpmn_collaboration_id,
+	bpmn_participant_id,
+	bpmn_participant_name,
 	bpmn_process_id,
 	bpmn_xml,
 	bpmn_xml_md5,
@@ -34,9 +37,15 @@ INSERT INTO process (
 	$5,
 	$6,
 	$7,
-	$8
+	$8,
+	$9,
+	$10,
+	$11
 ) ON CONFLICT (bpmn_process_id,version) DO NOTHING RETURNING id
 `,
+		entity.BpmnCollaborationId,
+		entity.BpmnParticipantId,
+		entity.BpmnParticipantName,
 		entity.BpmnProcessId,
 		entity.BpmnXml,
 		entity.BpmnXmlMd5,
@@ -63,11 +72,9 @@ func (r processRepository) Select(id int32) (*internal.ProcessEntity, error) {
 SELECT
 	bpmn_process_id,
 	bpmn_xml,
-	bpmn_xml_md5,
 	created_at,
 	created_by,
 	parallelism,
-	tags,
 	version
 FROM
 	process
@@ -79,11 +86,9 @@ WHERE
 	if err := row.Scan(
 		&entity.BpmnProcessId,
 		&entity.BpmnXml,
-		&entity.BpmnXmlMd5,
 		&entity.CreatedAt,
 		&entity.CreatedBy,
 		&entity.Parallelism,
-		&entity.Tags,
 		&entity.Version,
 	); err != nil {
 		if err == pgx.ErrNoRows {
@@ -99,10 +104,15 @@ WHERE
 }
 
 func (r processRepository) SelectByBpmnProcessIdAndVersion(bpmnProcessId string, version string) (*internal.ProcessEntity, error) {
+	// since this method is used in case of a conflict (concurrent insert), all columns must be selected
+	// see internal.CreateProcess
 	row := r.tx.QueryRow(r.txCtx, `
 SELECT
 	id,
 
+	bpmn_collaboration_id,
+	bpmn_participant_id,
+	bpmn_participant_name,
 	bpmn_xml,
 	bpmn_xml_md5,
 	created_at,
@@ -120,6 +130,9 @@ WHERE
 	if err := row.Scan(
 		&entity.Id,
 
+		&entity.BpmnCollaborationId,
+		&entity.BpmnParticipantId,
+		&entity.BpmnParticipantName,
 		&entity.BpmnXml,
 		&entity.BpmnXmlMd5,
 		&entity.CreatedAt,
@@ -151,11 +164,9 @@ SELECT
 	id,
 
 	bpmn_xml,
-	bpmn_xml_md5,
 	created_at,
 	created_by,
 	parallelism,
-	tags,
 	version
 FROM
 	process
@@ -171,11 +182,9 @@ LIMIT 1
 		&entity.Id,
 
 		&entity.BpmnXml,
-		&entity.BpmnXmlMd5,
 		&entity.CreatedAt,
 		&entity.CreatedBy,
 		&entity.Parallelism,
-		&entity.Tags,
 		&entity.Version,
 	); err != nil {
 		if err == pgx.ErrNoRows {
@@ -213,6 +222,9 @@ func (r processRepository) Query(criteria engine.ProcessCriteria, options engine
 		if err := rows.Scan(
 			&entity.Id,
 
+			&entity.BpmnCollaborationId,
+			&entity.BpmnParticipantId,
+			&entity.BpmnParticipantName,
 			&entity.BpmnProcessId,
 			&entity.CreatedAt,
 			&entity.CreatedBy,

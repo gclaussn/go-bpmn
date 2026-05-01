@@ -1,0 +1,25 @@
+<definitions id="test">
+  <collaboration id="collaboration">
+    <participant id="a" name="participant a" processRef="collaborationATest" />
+    <participant id="b" name="participant b" />
+    <participant id="c" name="participant c" processRef="collaborationCTest" />
+  </collaboration>
+  <process id="collaborationATest" isExecutable="true">
+    <startEvent id="startEventA">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEventA" targetRef="endEventA" />
+    <endEvent id="endEventA">
+      <incoming>f1</incoming>
+    </endEvent>
+  </process>
+  <process id="collaborationCTest" isExecutable="true">
+    <startEvent id="startEventC">
+      <outgoing>f2</outgoing>
+    </startEvent>
+    <sequenceFlow id="f2" sourceRef="startEventC" targetRef="endEventC" />
+    <endEvent id="endEventC">
+      <incoming>f2</incoming>
+    </endEvent>
+  </process>
+</definitions>

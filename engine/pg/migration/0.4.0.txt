@@ -2,3 +2,4 @@ migration/0.4.0/process_instance_root_id_idx.sql
 migration/0.4.0/process_instance_parent_id_idx.sql
 migration/0.4.0/message_subscription_partition_process_instance_id_idx.sql
 migration/0.4.0/signal_subscription_partition_process_instance_id_idx.sql
+migration/0.4.0/process_collaboration.sql

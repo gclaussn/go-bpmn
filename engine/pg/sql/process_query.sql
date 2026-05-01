@@ -1,6 +1,9 @@
 SELECT
 	id,
 
+	bpmn_collaboration_id,
+	bpmn_participant_id,
+	bpmn_participant_name,
 	bpmn_process_id,
 	created_at,
 	created_by,

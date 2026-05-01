@@ -168,6 +168,36 @@ func TestServiceTask(t *testing.T) {
 	assert.Equal(noneStartEvents[0], startEvent)
 }
 
+func TestCollaboration(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	// when
+	model := mustCreateModel(t, "collaboration.bpmn")
+
+	// then
+	collaboration := model.Definitions.Collaboration
+	require.NotNil(collaboration)
+	assert.Equal("collaboration", collaboration.Id)
+
+	require.Len(collaboration.Participants, 3)
+
+	assert.Equal("a", collaboration.Participants[0].Id)
+	assert.Equal("participant a", collaboration.Participants[0].Name)
+	require.NotNil(collaboration.Participants[0].Process)
+	assert.Equal("collaborationATest", collaboration.Participants[0].Process.Id)
+	assert.Equal(ElementProcess, collaboration.Participants[0].Process.Type)
+
+	assert.Equal("b", collaboration.Participants[1].Id)
+	assert.Equal("participant b", collaboration.Participants[1].Name)
+	require.Nil(collaboration.Participants[1].Process)
+
+	assert.Equal("c", collaboration.Participants[2].Id)
+	assert.Equal("participant c", collaboration.Participants[2].Name)
+	require.NotNil(collaboration.Participants[2].Process)
+	assert.Equal("collaborationCTest", collaboration.Participants[2].Process.Id)
+	assert.Equal(ElementProcess, collaboration.Participants[2].Process.Type)
+}
+
 func TestErrorBoundaryEvent(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 

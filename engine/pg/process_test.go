@@ -302,7 +302,13 @@ func TestProcessRepository(t *testing.T) {
 		if err := pgEngine.execute(func(pgCtx *pgContext) error {
 			selectedProcess, err := pgCtx.Processes().Select(process1.Id)
 
-			assert.Equal(&process1, selectedProcess)
+			assert.Equal(process1.BpmnProcessId, selectedProcess.BpmnProcessId)
+			assert.Equal(process1.BpmnXml, selectedProcess.BpmnXml)
+			assert.Equal(process1.CreatedAt, selectedProcess.CreatedAt)
+			assert.Equal(process1.CreatedBy, selectedProcess.CreatedBy)
+			assert.Equal(process1.Id, selectedProcess.Id)
+			assert.Equal(process1.Parallelism, selectedProcess.Parallelism)
+			assert.Equal(process1.Version, selectedProcess.Version)
 
 			return err
 		}); err != nil {

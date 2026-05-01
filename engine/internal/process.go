@@ -157,14 +157,17 @@ func (c *ProcessCache) cache(ctx Context, process *ProcessEntity) error {
 type ProcessEntity struct {
 	Id int32
 
-	BpmnProcessId string
-	BpmnXml       string
-	BpmnXmlMd5    string
-	CreatedAt     time.Time
-	CreatedBy     string
-	Parallelism   int
-	Tags          pgtype.Text
-	Version       string
+	BpmnCollaborationId pgtype.Text
+	BpmnParticipantId   pgtype.Text
+	BpmnParticipantName pgtype.Text
+	BpmnProcessId       string
+	BpmnXml             string
+	BpmnXmlMd5          string
+	CreatedAt           time.Time
+	CreatedBy           string
+	Parallelism         int
+	Tags                pgtype.Text
+	Version             string
 
 	graph *graph
 }
@@ -189,12 +192,15 @@ func (e ProcessEntity) Process() engine.Process {
 	return engine.Process{
 		Id: e.Id,
 
-		BpmnProcessId: e.BpmnProcessId,
-		CreatedAt:     e.CreatedAt,
-		CreatedBy:     e.CreatedBy,
-		Parallelism:   e.Parallelism,
-		Tags:          tags,
-		Version:       e.Version,
+		BpmnCollaborationId: e.BpmnCollaborationId.String,
+		BpmnParticipantId:   e.BpmnParticipantId.String,
+		BpmnParticipantName: e.BpmnParticipantName.String,
+		BpmnProcessId:       e.BpmnProcessId,
+		CreatedAt:           e.CreatedAt,
+		CreatedBy:           e.CreatedBy,
+		Parallelism:         e.Parallelism,
+		Tags:                tags,
+		Version:             e.Version,
 	}
 }
 
@@ -506,15 +512,41 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		tags = string(b)
 	}
 
+	collaboration := bpmnModel.Definitions.Collaboration
+
+	var (
+		collaborationId string
+		participantId   string
+		participantName string
+	)
+	if collaboration != nil {
+		collaborationId = collaboration.Id
+
+		for _, participant := range collaboration.Participants {
+			if participant.Process == nil {
+				continue
+			}
+			if participant.Process.Id != cmd.BpmnProcessId {
+				continue
+			}
+
+			participantId, participantName = participant.Id, participant.Name
+			break
+		}
+	}
+
 	process := &ProcessEntity{
-		BpmnProcessId: cmd.BpmnProcessId,
-		BpmnXml:       cmd.BpmnXml,
-		BpmnXmlMd5:    bpmnXmlMd5,
-		CreatedAt:     ctx.Time(),
-		CreatedBy:     cmd.WorkerId,
-		Parallelism:   cmd.Parallelism,
-		Tags:          pgtype.Text{String: tags, Valid: tags != ""},
-		Version:       cmd.Version,
+		BpmnCollaborationId: pgtype.Text{String: collaborationId, Valid: collaborationId != ""},
+		BpmnParticipantId:   pgtype.Text{String: participantId, Valid: participantId != ""},
+		BpmnParticipantName: pgtype.Text{String: participantName, Valid: participantName != ""},
+		BpmnProcessId:       cmd.BpmnProcessId,
+		BpmnXml:             cmd.BpmnXml,
+		BpmnXmlMd5:          bpmnXmlMd5,
+		CreatedAt:           ctx.Time(),
+		CreatedBy:           cmd.WorkerId,
+		Parallelism:         cmd.Parallelism,
+		Tags:                pgtype.Text{String: tags, Valid: tags != ""},
+		Version:             cmd.Version,
 	}
 
 	var isConflict bool
@@ -533,7 +565,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	}
 
 	// compare checksums
-	if process.BpmnXmlMd5 != bpmnXmlMd5 {
+	if isConflict && process.BpmnXmlMd5 != bpmnXmlMd5 {
 		return engine.Process{}, engine.Error{
 			Type:   engine.ErrorConflict,
 			Title:  "failed to create process",

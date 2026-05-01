@@ -90,6 +90,8 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 			case "callActivity":
 				startElement(ElementCallActivity, t.Attr)
 				element.Model = CallActivity{CalledElement: getAttrValue(t.Attr, "calledElement")}
+			case "collaboration":
+				definitions.Collaboration = &Collaboration{Id: getAttrValue(t.Attr, "id")}
 			case "definitions":
 				definitions.Id = getAttrValue(t.Attr, "id")
 				definitionsParsed = true
@@ -207,6 +209,24 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				isOutgoing = true
 			case "parallelGateway":
 				startElement(ElementParallelGateway, t.Attr)
+			case "participant":
+				if definitions.Collaboration == nil {
+					continue
+				}
+
+				processRef := getAttrValue(t.Attr, "processRef")
+
+				var process *Element
+				if processRef != "" {
+					process = &Element{Id: processRef}
+				}
+
+				collaboration := definitions.Collaboration
+				collaboration.Participants = append(collaboration.Participants, &Participant{
+					Id:      getAttrValue(t.Attr, "id"),
+					Name:    getAttrValue(t.Attr, "name"),
+					Process: process,
+				})
 			case "process":
 				isExecutable, _ := strconv.ParseBool(getAttrValue(t.Attr, "isExecutable"))
 
@@ -346,6 +366,18 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 		SequenceFlows: sequenceFlows,
 	}
 
+	collaboration := definitions.Collaboration
+	if collaboration != nil {
+		for _, participant := range collaboration.Participants {
+			if participant.Process == nil {
+				continue
+			}
+
+			// replace placeholder with actual process
+			participant.Process = model.ProcessById(participant.Process.Id)
+		}
+	}
+
 	for _, element := range model.Elements {
 		if IsBoundaryEvent(element.Type) {
 			// resolve "attached to" placeholder
@@ -441,6 +473,8 @@ func (m *Model) ProcessById(id string) *Element {
 type Definitions struct {
 	Id string
 
+	Collaboration *Collaboration
+
 	Errors      []*Error
 	Escalations []*Escalation
 	Messages    []*Message
@@ -494,6 +528,17 @@ func (d *Definitions) signalById(id string) *Signal {
 	signal := &Signal{Id: id}
 	d.Signals = append(d.Signals, signal)
 	return signal
+}
+
+type Collaboration struct {
+	Id           string
+	Participants []*Participant
+}
+
+type Participant struct {
+	Id      string
+	Name    string
+	Process *Element
 }
 
 type Error struct {

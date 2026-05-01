@@ -1,6 +1,9 @@
 CREATE TABLE IF NOT EXISTS process (
 	id SERIAL PRIMARY KEY,
 
+	bpmn_collaboration_id VARCHAR,
+	bpmn_participant_id VARCHAR,
+	bpmn_participant_name VARCHAR,
 	bpmn_process_id VARCHAR NOT NULL,
 	bpmn_xml VARCHAR NOT NULL,
 	bpmn_xml_md5 VARCHAR(32) NOT NULL,

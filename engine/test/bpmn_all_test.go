@@ -44,6 +44,14 @@ func TestBpmn(t *testing.T) {
 		}
 	})
 
+	t.Run("collaboration", func(t *testing.T) {
+		for i, e := range engines {
+			collaborationTest := collaborationTest{e}
+
+			t.Run(engineTypes[i]+"start end", collaborationTest.startEnd)
+		}
+	})
+
 	t.Run("error event", func(t *testing.T) {
 		for i, e := range engines {
 			errorEventTest := newErrorEventTest(t, e)
