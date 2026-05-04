@@ -279,7 +279,7 @@ type CalledProcess struct {
 type JobCompletion struct {
 	// Information, needed for calling a sub-process as a child process instance.
 	// Applicable when job type is `CALL_PROCESS`.
-	CalledProcess *CalledProcess
+	CalledProcess *CalledProcess `json:"calledProcess,omitempty"`
 	// Code of a BPMN error, used to specify or trigger a BPMN error.
 	// Applicable when job type is `SET_ERROR_CODE` or `EXECUTE`.
 	ErrorCode string `json:"errorCode,omitempty"`
