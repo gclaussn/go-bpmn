@@ -337,14 +337,14 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			if !isEscalationCodeSet {
 				endEvent := bpmnElement.Model.(model.EndEvent)
 				if escalation := endEvent.EventDefinition.Escalation; escalation != nil {
-					escalationCodes[bpmnElement.Id] = escalation.Name
+					escalationCodes[bpmnElement.Id] = escalation.Code
 				}
 			}
 		case model.ElementEscalationThrowEvent:
 			if !isEscalationCodeSet {
 				intermediateThrowEvent := bpmnElement.Model.(model.IntermediateThrowEvent)
 				if escalation := intermediateThrowEvent.EventDefinition.Escalation; escalation != nil {
-					escalationCodes[bpmnElement.Id] = escalation.Name
+					escalationCodes[bpmnElement.Id] = escalation.Code
 				}
 			}
 		default:
