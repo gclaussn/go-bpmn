@@ -14,7 +14,7 @@
 
 ## Installation
 
-requires Go 1.24+
+requires Go 1.26+
 
 ```sh
 # process engine daemon

@@ -5,7 +5,7 @@ on:
       - "**"
       - "!master"
 env:
-  GO_VERSION: 1.24.3
+  GO_VERSION: 1.26.3
 jobs:
   test:
     runs-on: ubuntu-22.04

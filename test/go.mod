@@ -1,6 +1,6 @@
 module github.com/gclaussn/go-bpmn/test
 
-go 1.24.3
+go 1.26.3
 
 replace github.com/gclaussn/go-bpmn => ..
 
