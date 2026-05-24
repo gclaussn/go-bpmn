@@ -39,3 +39,9 @@ To preview a built documentation, run:
 ```sh
 npm run preview
 ```
+
+## Release
+
+- Update `GO_BPMN_VERSION` in [publish.yml](.github/workflows/publish.yml)
+- Update `go-bpmn-docs` version in [package.json](package.json) and [package-lock.json](package-lock.json)
+- Merge changes into **gh-page** branch
