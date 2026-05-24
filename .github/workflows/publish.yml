@@ -18,7 +18,7 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Clean install
-        run: npm ci
+        run: npm ci --ignore-scripts
       - name: Build
         run: bash ./.github/workflows/build.sh ${{ env.GO_BPMN_VERSION }}
       - name: Upload pages artifact
