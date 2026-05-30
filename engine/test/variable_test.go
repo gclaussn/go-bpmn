@@ -39,6 +39,11 @@ func TestVariables(t *testing.T) {
 						IsEncrypted: true,
 						Value:       "value-pb",
 					}},
+					{Name: "b", Data: &engine.Data{ // duplicate
+						Encoding:    "encoding-pb",
+						IsEncrypted: true,
+						Value:       "value-pb",
+					}},
 					{Name: "c", Data: &engine.Data{
 						Encoding: "encoding-pc",
 						Value:    "value-pc",
@@ -70,6 +75,11 @@ func TestVariables(t *testing.T) {
 						Encoding:    "encoding-eb",
 						IsEncrypted: true,
 						Value:       "value-eb",
+					}},
+					{Name: "b", Data: &engine.Data{ // duplicate
+						Encoding:    "encoding-eb*",
+						IsEncrypted: true,
+						Value:       "value-eb*",
 					}},
 					{Name: "c", Data: &engine.Data{
 						Encoding: "encoding-ec",

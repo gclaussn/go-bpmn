@@ -234,9 +234,10 @@ func SetElementVariables(ctx Context, cmd engine.SetElementVariablesCmd) error {
 	}
 
 	if counter != 0 {
-		// collect possible and invalid BPMN element IDs
-		bpmnElementIds := make([]string, 0, len(elementInstances)-counter)
-		invalidBpmnElementIds := make([]string, 0, counter)
+		// collect scope IDs
+		scopeIds, invalidScopeIds :=
+			make([]string, 0, len(elementInstances)-counter),
+			make([]string, 0, counter)
 
 		for bpmnElementId, elementInstance := range elementInstances {
 			if bpmnElementId == "" {
@@ -244,9 +245,9 @@ func SetElementVariables(ctx Context, cmd engine.SetElementVariablesCmd) error {
 			}
 
 			if elementInstance != nil {
-				bpmnElementIds = append(bpmnElementIds, bpmnElementId)
+				scopeIds = append(scopeIds, bpmnElementId)
 			} else {
-				invalidBpmnElementIds = append(invalidBpmnElementIds, bpmnElementId)
+				invalidScopeIds = append(invalidScopeIds, bpmnElementId)
 			}
 		}
 
@@ -254,11 +255,11 @@ func SetElementVariables(ctx Context, cmd engine.SetElementVariablesCmd) error {
 			Type:  engine.ErrorValidation,
 			Title: "failed to set element variables",
 			Detail: fmt.Sprintf(
-				"element instance %s/%d does not support following scopes [%s], but [%s]",
+				"element instance %s/%d has no such scopes [%s], but [%s]",
 				cmd.Partition,
 				cmd.ElementInstanceId,
-				strings.Join(invalidBpmnElementIds, ", "),
-				strings.Join(bpmnElementIds, ", "),
+				strings.Join(invalidScopeIds, ", "),
+				strings.Join(scopeIds, ", "),
 			),
 		}
 	}

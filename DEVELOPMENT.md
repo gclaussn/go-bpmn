@@ -4,7 +4,12 @@
 
 ```sh
 # start test database container
-docker run --rm -d -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=test postgres:15.2-alpine
+docker run --rm -d -p 5432:5432 \
+-e POSTGRES_USER=postgres \
+-e POSTGRES_PASSWORD=postgres \
+-e POSTGRES_DB=test \
+--mount type=tmpfs,destination=/var/lib/postgresql/data \
+postgres:15.2-alpine
 
 # set database URL for testing
 export GO_BPMN_TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5432/test"
@@ -18,7 +23,7 @@ go test ./... -short
 go test ./...
 
 # create coverage report
-go test -v -coverpkg=./... -coverprofile coverage.out ./...
+go test -coverpkg=./... -coverprofile coverage.out ./...
 go tool cover -html coverage.out -o coverage.html
 ```
 
