@@ -342,8 +342,8 @@ type JobContext struct {
 	w   *Worker
 	ctx context.Context
 
-	processVariables ProcessVariables
-	elementVariables ElementVariables
+	newProcessVariables *ProcessVariables
+	newElementVariables *ElementVariables
 }
 
 func (jc JobContext) Context() context.Context {
@@ -382,8 +382,18 @@ func (jc JobContext) Engine() engine.Engine {
 	return jc.w.e
 }
 
-func (jc JobContext) NewElementVariables() ElementVariables {
-	return NewElementVariables(jc.Job.BpmnElementId)
+// NewElementVariables provides a pointer to element variables, set on job completion.
+//
+// NewElementVariables is used to set or delete variables at element instance scope.
+func (jc JobContext) NewElementVariables() *ElementVariables {
+	return jc.newElementVariables
+}
+
+// NewProcessVariables provides a pointer to process variables, set on job completion.
+//
+// NewProcessVariables is used to set or delete variables at process instance scope.
+func (jc JobContext) NewProcessVariables() *ProcessVariables {
+	return jc.newProcessVariables
 }
 
 func (jc JobContext) ProcessVariables(names ...string) (ProcessVariables, error) {
@@ -412,14 +422,6 @@ func (jc JobContext) ProcessVariablesFrom(partition engine.Partition, processIns
 	}
 
 	return ProcessVariables{variables: variables}, nil
-}
-
-func (jc *JobContext) SetElementVariables(elementVariables ElementVariables) {
-	jc.elementVariables = elementVariables
-}
-
-func (jc *JobContext) SetProcessVariables(processVariables ProcessVariables) {
-	jc.processVariables = processVariables
 }
 
 type jobError struct {

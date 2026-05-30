@@ -36,7 +36,7 @@ func newSignalSendCmd(cli *Cli) *cobra.Command {
 		Use:   "send",
 		Short: "Send a signal",
 		RunE: func(c *cobra.Command, _ []string) error {
-			variables, err := mapVariables(encodingMapV, encryptedMapV, valueMapV)
+			variables, err := mapProcessVariables(encodingMapV, encryptedMapV, valueMapV)
 			if err != nil {
 				return err
 			}

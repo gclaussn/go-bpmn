@@ -36,6 +36,7 @@ func newJobCompleteCmd(cli *Cli) *cobra.Command {
 		// element variables
 		elementEncodingMap  map[string]string
 		elementEncryptedMap map[string]string
+		elementIdMap        map[string]string
 		elementValueMap     map[string]string
 
 		// process variables
@@ -50,12 +51,12 @@ func newJobCompleteCmd(cli *Cli) *cobra.Command {
 		Use:   "complete",
 		Short: "Complete a job",
 		RunE: func(c *cobra.Command, _ []string) error {
-			elementVariables, err := mapVariables(elementEncodingMap, elementEncryptedMap, elementValueMap)
+			elementVariables, err := mapElementVariables(elementIdMap, elementEncodingMap, elementEncryptedMap, elementValueMap)
 			if err != nil {
 				return err
 			}
 
-			processVariables, err := mapVariables(processEncodingMap, processEncryptedMap, processValueMap)
+			processVariables, err := mapProcessVariables(processEncodingMap, processEncryptedMap, processValueMap)
 			if err != nil {
 				return err
 			}
@@ -93,6 +94,7 @@ func newJobCompleteCmd(cli *Cli) *cobra.Command {
 
 	c.Flags().StringToStringVar(&elementEncodingMap, "element-variable-encoding", nil, "Variable to set or delete at element instance scope\nEncoding of the value - e.g. `json`")
 	c.Flags().StringToStringVar(&elementEncryptedMap, "element-variable-encrypted", nil, "Variable to set or delete at element instance scope\nDetermines if a value is encrypted before it is stored.")
+	c.Flags().StringToStringVar(&elementIdMap, "element-variable-id", nil, "Variable to set or delete at element instance scope\nBPMN element ID to determine the variable's scope")
 	c.Flags().StringToStringVar(&elementValueMap, "element-variable-value", nil, "Variable to set or delete at element instance scope\nData value, encoded as a string")
 	c.Flags().StringVar(&cmd.Error, "error", "", "Optional error string, used to fail a job due to a technical problem")
 	c.Flags().StringToStringVar(&processEncodingMap, "process-variable-encoding", nil, "Variable to set or delete at process instance scope\nEncoding of the value - e.g. `json`")

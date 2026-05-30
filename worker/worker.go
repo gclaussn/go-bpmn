@@ -174,6 +174,9 @@ func (w *Worker) ExecuteJob(ctx context.Context, job engine.Job) (engine.Job, er
 
 		w:   w,
 		ctx: ctx,
+
+		newProcessVariables: &ProcessVariables{},
+		newElementVariables: &ElementVariables{bpmnElementId: job.BpmnElementId},
 	}
 
 	bpmnElementId := job.BpmnElementId
@@ -188,12 +191,12 @@ func (w *Worker) ExecuteJob(ctx context.Context, job engine.Job) (engine.Job, er
 
 	completion, jobHandlerErr := jobHandler(jc)
 
-	elementVariables, err := jc.w.encodeElementVariables(jc.elementVariables.variables)
+	elementVariables, err := jc.w.encodeElementVariables(jc.newElementVariables.variables)
 	if err != nil {
 		return engine.Job{}, err
 	}
 
-	processVariables, err := jc.w.encodeProcessVariables(jc.processVariables.variables)
+	processVariables, err := jc.w.encodeProcessVariables(jc.newProcessVariables.variables)
 	if err != nil {
 		return engine.Job{}, err
 	}

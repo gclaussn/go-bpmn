@@ -57,16 +57,12 @@ func (h serviceTask) executeServiceTask(jc worker.JobContext) error {
 
 	assert.Equal("string", a)
 
-	newProcessVariables := worker.NewProcessVariables()
+	newProcessVariables := jc.NewProcessVariables()
 	newProcessVariables.Put("a", "string*")
 	newProcessVariables.Delete("e")
 
-	jc.SetProcessVariables(newProcessVariables)
-
 	newElementVariables := jc.NewElementVariables()
 	newElementVariables.Put("a", "string")
-
-	jc.SetElementVariables(newElementVariables)
 
 	return nil
 }

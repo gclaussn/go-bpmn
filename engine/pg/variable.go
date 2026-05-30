@@ -115,9 +115,13 @@ INSERT INTO variable (
 	return nil
 }
 
-func (r variableRepository) SelectByElementInstance(cmd engine.GetElementVariablesCmd) ([]*internal.VariableEntity, error) {
+func (r variableRepository) SelectByElementInstance(elementInstance *internal.ElementInstanceEntity, names []string) ([]*internal.VariableEntity, error) {
 	var sql bytes.Buffer
-	if err := sqlVariableElementQuery.Execute(&sql, cmd); err != nil {
+	if err := sqlVariableElementQuery.Execute(&sql, map[string]any{
+		"partition":         engine.Partition(elementInstance.Partition),
+		"elementInstanceId": elementInstance.Id,
+		"names":             names,
+	}); err != nil {
 		return nil, fmt.Errorf("failed to execute variable element query template: %v", err)
 	}
 
@@ -125,8 +129,8 @@ func (r variableRepository) SelectByElementInstance(cmd engine.GetElementVariabl
 	if err != nil {
 		return nil, fmt.Errorf(
 			"failed to select variables by element instance %s/%d: %v",
-			cmd.Partition,
-			cmd.ElementInstanceId,
+			elementInstance.Partition.Format(time.DateOnly),
+			elementInstance.Id,
 			err,
 		)
 	}

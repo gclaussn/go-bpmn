@@ -47,12 +47,10 @@ func (h callActivity) passVariables(jc worker.JobContext, subProcessInstance eng
 		return err
 	}
 
-	variables := worker.NewProcessVariables()
+	variables := jc.NewProcessVariables()
 
 	a, _ := subVariables.Get("a")
 	variables.Set(a)
-
-	jc.SetProcessVariables(variables)
 
 	return nil
 }

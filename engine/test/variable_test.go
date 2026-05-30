@@ -6,10 +6,11 @@ import (
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestVariables(t *testing.T) {
-	assert := assert.New(t)
+	assert, require := assert.New(t), require.New(t)
 
 	engines, engineTypes := mustCreateEngines(t)
 	for _, e := range engines {
@@ -93,7 +94,7 @@ func TestVariables(t *testing.T) {
 				t.Fatalf("failed to query element instance: %v", err)
 			}
 
-			assert.Lenf(results, 1, "expected on element instance")
+			require.Lenf(results, 1, "expected on element instance")
 
 			// when
 			err = e.SetElementVariables(context.Background(), engine.SetElementVariablesCmd{
@@ -136,7 +137,7 @@ func TestVariables(t *testing.T) {
 			}
 
 			// then
-			assert.Len(variables, 3)
+			require.Len(variables, 3)
 
 			assert.Equal(variables[0].Name, "a")
 			assert.Equal(variables[0].Data.Encoding, "encoding-pa")
@@ -167,7 +168,7 @@ func TestVariables(t *testing.T) {
 			}
 
 			// then
-			assert.Len(variables, 2)
+			require.Len(variables, 2)
 
 			assert.Equal("a", variables[0].Name)
 			assert.Equal("c", variables[1].Name)
@@ -199,7 +200,7 @@ func TestVariables(t *testing.T) {
 			}
 
 			// then
-			assert.Len(variables, 3)
+			require.Len(variables, 3)
 
 			assert.Equal(variables[0].Name, "a")
 			assert.Equal(variables[0].Data.Encoding, "encoding-ea")
@@ -230,7 +231,7 @@ func TestVariables(t *testing.T) {
 			}
 
 			// then
-			assert.Len(variables, 2)
+			require.Len(variables, 2)
 
 			assert.Equal("a", variables[0].Name)
 			assert.Equal("c", variables[1].Name)
@@ -279,7 +280,7 @@ func TestVariables(t *testing.T) {
 				t.Fatalf("failed to get process variables: %v", err)
 			}
 
-			assert.Len(variables, 2)
+			require.Len(variables, 2)
 
 			assert.Equal(variables[0].Name, "a")
 			assert.Equal(variables[0].Data.Encoding, "encoding-pa*")
@@ -317,7 +318,7 @@ func TestVariables(t *testing.T) {
 				t.Fatalf("failed to get element variables: %v", err)
 			}
 
-			assert.Len(variables, 2)
+			require.Len(variables, 2)
 
 			assert.Equal(variables[0].Name, "a")
 			assert.Equal(variables[0].Data.Encoding, "encoding-ea*")

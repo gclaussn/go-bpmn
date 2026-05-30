@@ -81,6 +81,7 @@ func newElementInstanceSetVariablesCmd(cli *Cli) *cobra.Command {
 		// variables
 		encodingMap  map[string]string
 		encryptedMap map[string]string
+		idMap        map[string]string
 		valueMap     map[string]string
 
 		cmd engine.SetElementVariablesCmd
@@ -90,7 +91,7 @@ func newElementInstanceSetVariablesCmd(cli *Cli) *cobra.Command {
 		Use:   "set-variables",
 		Short: "Set element variables",
 		RunE: func(c *cobra.Command, args []string) error {
-			variables, err := mapVariables(encodingMap, encryptedMap, valueMap)
+			variables, err := mapElementVariables(idMap, encodingMap, encryptedMap, valueMap)
 			if err != nil {
 				return err
 			}
@@ -108,6 +109,7 @@ func newElementInstanceSetVariablesCmd(cli *Cli) *cobra.Command {
 
 	c.Flags().StringToStringVar(&encodingMap, "variable-encoding", nil, "Variable to set or delete\nEncoding of the value - e.g. `json`")
 	c.Flags().StringToStringVar(&encryptedMap, "variable-encrypted", nil, "Variable to set or delete\nDetermines if a value is encrypted before it is stored.")
+	c.Flags().StringToStringVar(&idMap, "element-variable-id", nil, "Variable to set or delete\nBPMN element ID to determine the variable's scope")
 	c.Flags().StringToStringVar(&valueMap, "variable-value", nil, "Variable to set or delete\nData value, encoded as a string")
 
 	c.MarkFlagRequired("partition")

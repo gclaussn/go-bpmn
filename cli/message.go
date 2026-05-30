@@ -51,7 +51,7 @@ func newMessageSendCmd(cli *Cli) *cobra.Command {
 				cmd.ExpirationTimer = &expirationTimer
 			}
 
-			variables, err := mapVariables(encodingMap, encryptedMap, valueMap)
+			variables, err := mapProcessVariables(encodingMap, encryptedMap, valueMap)
 			if err != nil {
 				return err
 			}
