@@ -135,12 +135,12 @@ func (e *memEngine) GetBpmnXml(_ context.Context, cmd engine.GetBpmnXmlCmd) (str
 	return internal.GetBpmnXml(e.rlock(), cmd)
 }
 
-func (e *memEngine) GetElementVariables(_ context.Context, cmd engine.GetElementVariablesCmd) ([]engine.VariableData, error) {
+func (e *memEngine) GetElementVariables(_ context.Context, cmd engine.GetElementVariablesCmd) ([]engine.ElementVariable, error) {
 	defer e.unlock()
 	return internal.GetElementVariables(e.rlock(), cmd)
 }
 
-func (e *memEngine) GetProcessVariables(_ context.Context, cmd engine.GetProcessVariablesCmd) ([]engine.VariableData, error) {
+func (e *memEngine) GetProcessVariables(_ context.Context, cmd engine.GetProcessVariablesCmd) ([]engine.ProcessVariable, error) {
 	defer e.unlock()
 	return internal.GetProcessVariables(e.rlock(), cmd)
 }

@@ -32,7 +32,7 @@ func (x callActivityTest) startEnd(t *testing.T) {
 					{Name: "n1", Value: "v1"},
 					{Name: "n2", Value: "v2"},
 				},
-				Variables: []engine.VariableData{
+				Variables: []engine.ProcessVariable{
 					{Name: "a", Data: &engine.Data{Value: "av"}},
 					{Name: "b", Data: &engine.Data{Value: "bv"}},
 				},

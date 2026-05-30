@@ -49,7 +49,7 @@ func TestEscalationBoundaryEventProcess(t *testing.T) {
 		t.Fatalf("failed to register handler: %v", err)
 	}
 
-	processInstance, err := escalationBounaryEventProcess.CreateProcessInstance(context.Background(), worker.Variables{})
+	processInstance, err := escalationBounaryEventProcess.CreateProcessInstance(context.Background(), worker.NewProcessVariables())
 	if err != nil {
 		t.Fatalf("failed to create process instance: %v", err)
 	}

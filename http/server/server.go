@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -330,10 +331,19 @@ func (h handler) getElementVariables(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	queryValues := r.URL.Query()
+
+	var excludeParentVariables bool
+	if values, ok := queryValues[common.QueryExcludeParentVariables]; ok {
+		for _, v := range values {
+			excludeParentVariables, _ = strconv.ParseBool(v)
+		}
+	}
+
 	var names []string
-	if namesValues, ok := r.URL.Query()[common.QueryNames]; ok {
-		for _, namesValue := range namesValues {
-			names = append(names, strings.Split(namesValue, ",")...)
+	if values, ok := queryValues[common.QueryNames]; ok {
+		for _, v := range values {
+			names = append(names, strings.Split(v, ",")...)
 		}
 	}
 
@@ -341,14 +351,15 @@ func (h handler) getElementVariables(w http.ResponseWriter, r *http.Request) {
 		Partition:         partition,
 		ElementInstanceId: id,
 
-		Names: names,
+		ExcludeParentVariables: excludeParentVariables,
+		Names:                  names,
 	})
 	if err != nil {
 		encodeJSONProblemResponseBody(w, r, err)
 		return
 	}
 
-	resBody := common.GetVariablesRes{
+	resBody := common.GetElementVariablesRes{
 		Count:     len(variables),
 		Variables: variables,
 	}
@@ -381,7 +392,7 @@ func (h handler) getProcessVariables(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resBody := common.GetVariablesRes{
+	resBody := common.GetProcessVariablesRes{
 		Count:     len(variables),
 		Variables: variables,
 	}

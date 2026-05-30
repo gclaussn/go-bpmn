@@ -21,10 +21,16 @@ type ExecuteTasksRes struct {
 	FailedTasks    []engine.Task `json:"failedTasks" validate:"required"`    // Failed tasks.
 }
 
-// Process instance or element instance variable response.
-type GetVariablesRes struct {
-	Count     int                   `json:"count" validate:"required,gte=0"` // Number of variables.
-	Variables []engine.VariableData `json:"variables" validate:"required"`   // Variables, including data.
+// Element instance variable response.
+type GetElementVariablesRes struct {
+	Count     int                      `json:"count" validate:"required,gte=0"` // Number of variables.
+	Variables []engine.ElementVariable `json:"variables" validate:"required"`   // Variables, including data.
+}
+
+// Process instance variable response.
+type GetProcessVariablesRes struct {
+	Count     int                      `json:"count" validate:"required,gte=0"` // Number of variables.
+	Variables []engine.ProcessVariable `json:"variables" validate:"required"`   // Variables, including data.
 }
 
 // Response of a job locking.

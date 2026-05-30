@@ -44,7 +44,7 @@ func TestInclusiveGatewayProcess(t *testing.T) {
 		t.Fatalf("failed to register handler: %v", err)
 	}
 
-	processInstance, err := inclusiveGatewayProcess.CreateProcessInstance(context.Background(), worker.Variables{})
+	processInstance, err := inclusiveGatewayProcess.CreateProcessInstance(context.Background(), worker.NewProcessVariables())
 	if err != nil {
 		t.Fatalf("failed to create process instance: %v", err)
 	}

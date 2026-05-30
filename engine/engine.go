@@ -40,10 +40,10 @@ type Engine interface {
 	GetBpmnXml(context.Context, GetBpmnXmlCmd) (string, error)
 
 	// GetElementVariables gets variables of an active or ended element instance.
-	GetElementVariables(context.Context, GetElementVariablesCmd) ([]VariableData, error)
+	GetElementVariables(context.Context, GetElementVariablesCmd) ([]ElementVariable, error)
 
 	// GetProcessVariables gets variables of an active or ended process instance.
-	GetProcessVariables(context.Context, GetProcessVariablesCmd) ([]VariableData, error)
+	GetProcessVariables(context.Context, GetProcessVariablesCmd) ([]ProcessVariable, error)
 
 	// LockJobs locks due jobs, which match the specified conditions.
 	LockJobs(context.Context, LockJobsCmd) ([]Job, error)

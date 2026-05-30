@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
+	"github.com/gclaussn/go-bpmn/model"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -60,8 +61,8 @@ type VariableRepository interface {
 	Query(engine.VariableCriteria, engine.QueryOptions) ([]engine.Variable, error)
 }
 
-func GetElementVariables(ctx Context, cmd engine.GetElementVariablesCmd) ([]engine.VariableData, error) {
-	_, err := ctx.ProcessInstances().SelectByElementInstance(time.Time(cmd.Partition), cmd.ElementInstanceId)
+func GetElementVariables(ctx Context, cmd engine.GetElementVariablesCmd) ([]engine.ElementVariable, error) {
+	processInstance, err := ctx.ProcessInstances().SelectByElementInstance(time.Time(cmd.Partition), cmd.ElementInstanceId)
 	if err == pgx.ErrNoRows {
 		return nil, engine.Error{
 			Type:   engine.ErrorNotFound,
@@ -70,37 +71,60 @@ func GetElementVariables(ctx Context, cmd engine.GetElementVariablesCmd) ([]engi
 		}
 	}
 
-	entities, err := ctx.Variables().SelectByElementInstance(cmd)
-	if err != nil {
-		return nil, err
+	variables := make([]engine.ElementVariable, 0, 1)
+
+	elementInstanceId := cmd.ElementInstanceId
+	for {
+		elementInstance, err := ctx.ElementInstances().Select(processInstance.Partition, elementInstanceId)
+		if err != nil {
+			return nil, err
+		}
+
+		entities, err := ctx.Variables().SelectByElementInstance(cmd)
+		if err != nil {
+			return nil, err
+		}
+
+		for i, entity := range entities {
+			data := engine.Data{
+				Encoding:    entity.Encoding,
+				IsEncrypted: entity.IsEncrypted,
+				Value:       entity.Value,
+			}
+
+			if err := ctx.Options().Encryption.DecryptData(&data); err != nil {
+				return nil, fmt.Errorf("failed to decrypt element variable: %v", err)
+			}
+
+			variables[i] = engine.ElementVariable{
+				BpmnElementId: elementInstance.BpmnElementId,
+				Name:          entity.Name,
+				Data:          &data,
+			}
+		}
+
+		if !elementInstance.ParentId.Valid || elementInstance.BpmnElementType == model.ElementProcess {
+			break
+		}
+		if cmd.ExcludeParentVariables {
+			break
+		}
+
+		elementInstanceId = elementInstance.ParentId.Int32
 	}
 
-	slices.SortFunc(entities, func(a *VariableEntity, b *VariableEntity) int {
-		return strings.Compare(a.Name, b.Name)
+	slices.SortFunc(variables, func(a engine.ElementVariable, b engine.ElementVariable) int {
+		if a.Name != b.Name {
+			return strings.Compare(a.Name, b.Name)
+		} else {
+			return strings.Compare(a.BpmnElementId, b.BpmnElementId)
+		}
 	})
-
-	variables := make([]engine.VariableData, len(entities))
-	for i, entity := range entities {
-		data := engine.Data{
-			Encoding:    entity.Encoding,
-			IsEncrypted: entity.IsEncrypted,
-			Value:       entity.Value,
-		}
-
-		if err := ctx.Options().Encryption.DecryptData(&data); err != nil {
-			return nil, fmt.Errorf("failed to decrypt element variable: %v", err)
-		}
-
-		variables[i] = engine.VariableData{
-			Name: entity.Name,
-			Data: &data,
-		}
-	}
 
 	return variables, nil
 }
 
-func GetProcessVariables(ctx Context, cmd engine.GetProcessVariablesCmd) ([]engine.VariableData, error) {
+func GetProcessVariables(ctx Context, cmd engine.GetProcessVariablesCmd) ([]engine.ProcessVariable, error) {
 	_, err := ctx.ProcessInstances().Select(time.Time(cmd.Partition), cmd.ProcessInstanceId)
 	if err == pgx.ErrNoRows {
 		return nil, engine.Error{
@@ -119,7 +143,7 @@ func GetProcessVariables(ctx Context, cmd engine.GetProcessVariablesCmd) ([]engi
 		return strings.Compare(a.Name, b.Name)
 	})
 
-	variables := make([]engine.VariableData, len(entities))
+	variables := make([]engine.ProcessVariable, len(entities))
 	for i, entity := range entities {
 		data := engine.Data{
 			Encoding:    entity.Encoding,
@@ -131,7 +155,7 @@ func GetProcessVariables(ctx Context, cmd engine.GetProcessVariablesCmd) ([]engi
 			return nil, fmt.Errorf("failed to decrypt process variable: %v", err)
 		}
 
-		variables[i] = engine.VariableData{
+		variables[i] = engine.ProcessVariable{
 			Name: entity.Name,
 			Data: &data,
 		}
@@ -174,34 +198,86 @@ func SetElementVariables(ctx Context, cmd engine.SetElementVariablesCmd) error {
 		}
 	}
 
-	variableNames := make(map[string]bool, len(cmd.Variables))
+	elementInstances := make(map[string]*ElementInstanceEntity)
+
+	elementInstances[""] = elementInstance
+	elementInstances[elementInstance.BpmnElementId] = elementInstance
+
+	var counter int
 	for _, variable := range cmd.Variables {
-		if _, ok := variableNames[variable.Name]; ok {
-			continue // skip already processed variable
+		if variable.BpmnElementId == "" {
+			continue
 		}
 
-		variableNames[variable.Name] = true
+		if _, ok := elementInstances[variable.BpmnElementId]; ok {
+			continue
+		}
+
+		elementInstances[variable.BpmnElementId] = nil
+		counter++
+	}
+
+	for counter != 0 {
+		if !elementInstance.ParentId.Valid || elementInstance.BpmnElementType == model.ElementProcess {
+			break
+		}
+
+		elementInstance, err = ctx.ElementInstances().Select(elementInstance.Partition, elementInstance.ParentId.Int32)
+		if err != nil {
+			return err
+		}
+
+		if _, ok := elementInstances[elementInstance.BpmnElementId]; !ok {
+			continue
+		}
+
+		elementInstances[elementInstance.BpmnElementId] = elementInstance
+		counter--
+	}
+
+	if counter != 0 {
+		// collect invalid BPMN element IDs
+		invalidBpmnElementIds := make([]string, 0, counter)
+		for bpmnElementId, elementInstance := range elementInstances {
+			if elementInstance == nil {
+				invalidBpmnElementIds = append(invalidBpmnElementIds, bpmnElementId)
+			}
+		}
+
+		return engine.Error{
+			Type:  engine.ErrorValidation,
+			Title: "failed to set element variables",
+			Detail: fmt.Sprintf(
+				"element instance %s/%d ... [%s], but [%s]",
+				cmd.Partition,
+				cmd.ElementInstanceId,
+				strings.Join(invalidBpmnElementIds, ", "),
+				strings.Join(invalidBpmnElementIds, ", "),
+			),
+		}
+	}
+
+	encryption := ctx.Options().Encryption
+
+	entities := make([]*VariableEntity, len(cmd.Variables))
+	for i, variable := range cmd.Variables {
+		elementInstance := elementInstances[variable.BpmnElementId]
 
 		data := variable.Data
 		if data == nil {
-			variable := VariableEntity{ // with fields, needed for deletion
+			entities[i] = &VariableEntity{ // with fields, needed for deletion
 				Partition:         processInstance.Partition,
 				ElementInstanceId: pgtype.Int4{Int32: elementInstance.Id, Valid: true},
 				Name:              variable.Name,
 			}
-
-			if err := ctx.Variables().Delete(&variable); err != nil {
-				return err
-			}
-
 			continue
 		}
 
-		if err := ctx.Options().Encryption.EncryptData(data); err != nil {
+		if err := encryption.EncryptData(data); err != nil {
 			return fmt.Errorf("failed to encrypt element variable %s: %v", variable.Name, err)
 		}
 
-		variable := VariableEntity{
+		entities[i] = &VariableEntity{
 			Partition: processInstance.Partition,
 
 			ElementId:         pgtype.Int4{Int32: elementInstance.ElementId, Valid: true},
@@ -218,9 +294,17 @@ func SetElementVariables(ctx Context, cmd engine.SetElementVariablesCmd) error {
 			UpdatedBy:   cmd.WorkerId,
 			Value:       data.Value,
 		}
+	}
 
-		if err := ctx.Variables().Upsert(&variable); err != nil {
-			return err
+	for _, entity := range entities {
+		if entity.ElementId.Valid {
+			if err := ctx.Variables().Upsert(entity); err != nil {
+				return err
+			}
+		} else {
+			if err := ctx.Variables().Delete(entity); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -248,34 +332,25 @@ func SetProcessVariables(ctx Context, cmd engine.SetProcessVariablesCmd) error {
 		}
 	}
 
-	variableNames := make(map[string]bool, len(cmd.Variables))
-	for _, variable := range cmd.Variables {
-		if _, ok := variableNames[variable.Name]; ok {
-			continue // skip already processed variable
-		}
+	encryption := ctx.Options().Encryption
 
-		variableNames[variable.Name] = true
-
+	entities := make([]*VariableEntity, len(cmd.Variables))
+	for i, variable := range cmd.Variables {
 		data := variable.Data
 		if data == nil {
-			variable := VariableEntity{ // with fields, needed for deletion
+			entities[i] = &VariableEntity{ // with fields, needed for deletion
 				Partition:         processInstance.Partition,
 				ProcessInstanceId: processInstance.Id,
 				Name:              variable.Name,
 			}
-
-			if err := ctx.Variables().Delete(&variable); err != nil {
-				return err
-			}
-
 			continue
 		}
 
-		if err := ctx.Options().Encryption.EncryptData(data); err != nil {
-			return fmt.Errorf("failed to encrypt process variable %s: %v", variable.Name, err)
+		if err := encryption.EncryptData(data); err != nil {
+			return fmt.Errorf("failed to encrypt element variable %s: %v", variable.Name, err)
 		}
 
-		variable := VariableEntity{
+		entities[i] = &VariableEntity{
 			Partition: processInstance.Partition,
 
 			ProcessId:         processInstance.ProcessId,
@@ -290,9 +365,17 @@ func SetProcessVariables(ctx Context, cmd engine.SetProcessVariablesCmd) error {
 			UpdatedBy:   cmd.WorkerId,
 			Value:       data.Value,
 		}
+	}
 
-		if err := ctx.Variables().Upsert(&variable); err != nil {
-			return err
+	for _, entity := range entities {
+		if entity.ElementId.Valid {
+			if err := ctx.Variables().Upsert(entity); err != nil {
+				return err
+			}
+		} else {
+			if err := ctx.Variables().Delete(entity); err != nil {
+				return err
+			}
 		}
 	}
 

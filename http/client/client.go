@@ -171,17 +171,31 @@ func (c *client) GetBpmnXml(ctx context.Context, cmd engine.GetBpmnXmlCmd) (stri
 	return string(b), nil
 }
 
-func (c *client) GetElementVariables(ctx context.Context, cmd engine.GetElementVariablesCmd) ([]engine.VariableData, error) {
+func (c *client) GetElementVariables(ctx context.Context, cmd engine.GetElementVariablesCmd) ([]engine.ElementVariable, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
 
 	path := resolve(common.PathElementInstancesVariables, cmd.Partition, cmd.ElementInstanceId)
 
-	if len(cmd.Names) != 0 {
-		path = fmt.Sprintf("%s?%s=%s", path, common.QueryNames, strings.Join(cmd.Names, ","))
+	if cmd.ExcludeParentVariables || len(cmd.Names) != 0 {
+		var queryBuilder strings.Builder
+		queryBuilder.WriteRune('?')
+
+		if cmd.ExcludeParentVariables {
+			queryBuilder.WriteString(common.QueryExcludeParentVariables)
+			queryBuilder.WriteRune('=')
+			queryBuilder.WriteString(strconv.FormatBool(cmd.ExcludeParentVariables))
+		}
+		if len(cmd.Names) != 0 {
+			queryBuilder.WriteString(common.QueryNames)
+			queryBuilder.WriteRune('=')
+			queryBuilder.WriteString(strings.Join(cmd.Names, ","))
+		}
+
+		path += queryBuilder.String()
 	}
 
-	var resBody common.GetVariablesRes
+	var resBody common.GetElementVariablesRes
 	if err := c.doGet(ctx, path, &resBody); err != nil {
 		return nil, err
 	}
@@ -189,7 +203,7 @@ func (c *client) GetElementVariables(ctx context.Context, cmd engine.GetElementV
 	return resBody.Variables, nil
 }
 
-func (c *client) GetProcessVariables(ctx context.Context, cmd engine.GetProcessVariablesCmd) ([]engine.VariableData, error) {
+func (c *client) GetProcessVariables(ctx context.Context, cmd engine.GetProcessVariablesCmd) ([]engine.ProcessVariable, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
 
@@ -199,7 +213,7 @@ func (c *client) GetProcessVariables(ctx context.Context, cmd engine.GetProcessV
 		path = fmt.Sprintf("%s?%s=%s", path, common.QueryNames, strings.Join(cmd.Names, ","))
 	}
 
-	var resBody common.GetVariablesRes
+	var resBody common.GetProcessVariablesRes
 	if err := c.doGet(ctx, path, &resBody); err != nil {
 		return nil, err
 	}

@@ -481,6 +481,27 @@ type ElementInstanceCriteria struct {
 	States        []InstanceState `json:"states,omitempty" validate:"max=7,unique"` // States to include.
 }
 
+// ElementVariable represents a variable at element instance scope.
+type ElementVariable struct {
+	// ID of the BPMN element.
+	//
+	// When setting a variable, the BPMN element ID can be used to determine at which scope an element variable should be set.
+	// If specified, the variable is set or deleted at the element instance scope with the given BPMN element ID
+	// - could be the element instance itself, the direct or an indirect parent element instance.
+	// If not specified, the variable is set or deleted at the scope of element instance itself.
+	BpmnElementId string `json:"bpmnElementId,omitempty"`
+	Name          string `json:"name" validate:"required,variable_name"` // Variable name.
+	Data          *Data  `json:"data,omitempty"`                         // Variable data.
+}
+
+func (v ElementVariable) IsDeleted() bool {
+	return v.Data == nil
+}
+
+func (v ElementVariable) String() string {
+	return v.Name
+}
+
 // EventDefinition is a generic definition of a BPMN event, while a BPMN element has exactly one type.
 type EventDefinition struct {
 	IsSuspended bool `json:"suspended"` // Determines if an event definition is suspended.
@@ -712,6 +733,20 @@ type ProcessInstanceCriteria struct {
 	Tags []Tag `json:"tags,omitempty" validate:"max=100,dive"` // Tags, a process instance must have, to be included.
 }
 
+// ProcessVariable represents a variable at process instance scope.
+type ProcessVariable struct {
+	Name string `json:"name" validate:"required,variable_name"` // Variable name.
+	Data *Data  `json:"data,omitempty"`                         // Variable data.
+}
+
+func (v ProcessVariable) IsDeleted() bool {
+	return v.Data == nil
+}
+
+func (v ProcessVariable) String() string {
+	return v.Name
+}
+
 // Signal represents a notification of signal subscribers (signal start or catch events).
 type Signal struct {
 	Id int64 `json:"id" validate:"required"` // Signal ID.
@@ -872,14 +907,4 @@ type VariableCriteria struct {
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // Process instance filter.
 
 	Names []string `json:"names,omitempty"` // Names of variables to include.
-}
-
-// VariableData represents a named variable, including data.
-type VariableData struct {
-	Name string `json:"name" validate:"required,variable_name"` // Variable name.
-	Data *Data  `json:"data,omitempty"`                         // Variable data.
-}
-
-func (v VariableData) String() string {
-	return v.Name
 }

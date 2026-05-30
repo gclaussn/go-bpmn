@@ -28,7 +28,7 @@ func TestVariables(t *testing.T) {
 				Partition:         processInstance.Partition,
 				ProcessInstanceId: processInstance.Id,
 
-				Variables: []engine.VariableData{
+				Variables: []engine.ProcessVariable{
 					{Name: "a", Data: &engine.Data{
 						Encoding: "encoding-pa",
 						Value:    "value-pa",
@@ -60,7 +60,7 @@ func TestVariables(t *testing.T) {
 				Partition:         elementInstance.Partition,
 				ElementInstanceId: elementInstance.Id,
 
-				Variables: []engine.VariableData{
+				Variables: []engine.ElementVariable{
 					{Name: "a", Data: &engine.Data{
 						Encoding: "encoding-ea",
 						Value:    "value-ea",
@@ -257,7 +257,7 @@ func TestVariables(t *testing.T) {
 				Partition:         processInstance.Partition,
 				ProcessInstanceId: processInstance.Id,
 
-				Variables: []engine.VariableData{
+				Variables: []engine.ProcessVariable{
 					{Name: "a", Data: &engine.Data{
 						Encoding:    "encoding-pa*",
 						IsEncrypted: true,
@@ -295,7 +295,7 @@ func TestVariables(t *testing.T) {
 				Partition:         elementInstance.Partition,
 				ElementInstanceId: elementInstance.Id,
 
-				Variables: []engine.VariableData{
+				Variables: []engine.ElementVariable{
 					{Name: "a", Data: &engine.Data{
 						Encoding:    "encoding-ea*",
 						IsEncrypted: true,

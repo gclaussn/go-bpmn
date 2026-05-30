@@ -47,7 +47,8 @@ const (
 	PathReadiness = "/readiness"
 	PathTime      = "/time"
 
-	QueryLimit  = "limit"
-	QueryNames  = "names"
-	QueryOffset = "offset"
+	QueryExcludeParentVariables = "excludeParentVariables"
+	QueryLimit                  = "limit"
+	QueryNames                  = "names"
+	QueryOffset                 = "offset"
 )

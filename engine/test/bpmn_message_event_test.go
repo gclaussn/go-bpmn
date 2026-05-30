@@ -267,7 +267,7 @@ func (x messageEventTest) catch(t *testing.T) {
 
 	processInstance, err := x.e.CreateProcessInstance(context.Background(), engine.CreateProcessInstanceCmd{
 		BpmnProcessId: x.catchProcess.BpmnProcessId,
-		Variables: []engine.VariableData{
+		Variables: []engine.ProcessVariable{
 			{Name: "a", Data: &engine.Data{Encoding: "encoding-a", Value: "value-a"}},
 			{Name: "b", Data: &engine.Data{Encoding: "encoding-b", Value: "value-b"}},
 		},
@@ -292,7 +292,7 @@ func (x messageEventTest) catch(t *testing.T) {
 	message, err := x.e.SendMessage(context.Background(), engine.SendMessageCmd{
 		CorrelationKey: "catch-message-ck",
 		Name:           "catch-message",
-		Variables: []engine.VariableData{
+		Variables: []engine.ProcessVariable{
 			{Name: "a", Data: &engine.Data{Encoding: "encoding-a", Value: "value-a"}},
 			{Name: "b", Data: nil},
 			{Name: "c", Data: nil},
@@ -561,7 +561,7 @@ func (x messageEventTest) start(t *testing.T) {
 	piAssert1 := engine.AssertMessageStart(t, x.e, process.Id, engine.SendMessageCmd{
 		CorrelationKey: "start-message-ck",
 		Name:           "start-message",
-		Variables: []engine.VariableData{
+		Variables: []engine.ProcessVariable{
 			{Name: "a", Data: &engine.Data{Encoding: "encoding-a", Value: "value-a"}},
 			{Name: "b", Data: &engine.Data{Encoding: "encoding-b", Value: "value-b"}},
 			{Name: "c", Data: nil},

@@ -30,16 +30,18 @@ requestBody:
           summary: Set variable
           value:
             variables:
-              a:
-                encoding: "json"
-                encrypted: true
-                value: "{...}"
+              - name: a
+                data:
+                  encoding: "json"
+                  encrypted: true
+                  value: "{...}"
             workerId: go-bpmn
         delete_variable:
           summary: Delete variable
           value:
             variables:
-              b: null
+              - name: b
+                data: null
             workerId: go-bpmn
 responses:
   "204":

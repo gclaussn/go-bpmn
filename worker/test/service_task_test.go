@@ -44,7 +44,7 @@ func (h serviceTask) executeServiceTask(jc worker.JobContext) error {
 		return err
 	}
 
-	variableA := oldProcessVariables["a"]
+	variableA, _ := oldProcessVariables.Get("a")
 	assert.Equal("json", variableA.Encoding)
 	assert.False(variableA.IsEncrypted)
 	assert.Equal("a", variableA.Name)
@@ -57,13 +57,13 @@ func (h serviceTask) executeServiceTask(jc worker.JobContext) error {
 
 	assert.Equal("string", a)
 
-	newProcessVariables := worker.Variables{}
+	newProcessVariables := worker.NewProcessVariables()
 	newProcessVariables.Put("a", "string*")
 	newProcessVariables.Delete("e")
 
 	jc.SetProcessVariables(newProcessVariables)
 
-	newElementVariables := worker.Variables{}
+	newElementVariables := jc.NewElementVariables()
 	newElementVariables.Put("a", "string")
 
 	jc.SetElementVariables(newElementVariables)
@@ -94,7 +94,7 @@ func TestServiceTaskProcess(t *testing.T) {
 	assert.Equal("1", createProcessInstanceCmd.Version)
 	assert.Equal(worker.DefaultWorkerId, createProcessInstanceCmd.WorkerId)
 
-	variables := worker.Variables{}
+	variables := worker.NewProcessVariables()
 	variables.Put("a", "string")
 	variables.Put("b", 1)
 	variables.Put("c", true)

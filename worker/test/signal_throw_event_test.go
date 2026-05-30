@@ -44,7 +44,7 @@ func TestSignalThrowEventProcess(t *testing.T) {
 		t.Fatalf("failed to register handler: %v", err)
 	}
 
-	processInstance, err := signalThrowEventProcess.CreateProcessInstance(context.Background(), worker.Variables{})
+	processInstance, err := signalThrowEventProcess.CreateProcessInstance(context.Background(), worker.NewProcessVariables())
 	if err != nil {
 		t.Fatalf("failed to create process instance: %v", err)
 	}
