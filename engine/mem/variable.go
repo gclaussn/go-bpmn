@@ -48,20 +48,20 @@ func (r *variableRepository) Insert(entity *internal.VariableEntity) error {
 	return nil
 }
 
-func (r *variableRepository) SelectByElementInstance(cmd engine.GetElementVariablesCmd) ([]*internal.VariableEntity, error) {
+func (r *variableRepository) SelectByElementInstance(elementInstance *internal.ElementInstanceEntity, names []string) ([]*internal.VariableEntity, error) {
 	var results []*internal.VariableEntity
 
-	key := cmd.Partition.String()
+	key := elementInstance.Partition.Format(time.DateOnly)
 	for _, e := range r.partitions[key] {
 		if e.Id == -1 {
 			continue // skip deleted variable
 		}
 
-		if cmd.ElementInstanceId != 0 && cmd.ElementInstanceId != e.ElementInstanceId.Int32 {
+		if elementInstance.Id != e.ElementInstanceId.Int32 {
 			continue
 		}
 
-		if len(cmd.Names) != 0 && !slices.Contains(cmd.Names, e.Name) {
+		if len(names) != 0 && !slices.Contains(names, e.Name) {
 			continue
 		}
 

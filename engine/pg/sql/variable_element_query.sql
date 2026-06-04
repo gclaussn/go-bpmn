@@ -6,8 +6,8 @@ SELECT
 FROM
 	variable
 WHERE
-	partition = '{{.Partition}}'
-	AND element_instance_id = {{.ElementInstanceId}}
-{{if .Names}}
-	AND name IN ({{ .Names | joinString }})
+	partition = '{{.partition}}'
+	AND element_instance_id = {{.elementInstanceId}}
+{{if .names}}
+	AND name IN ({{ .names | joinString }})
 {{end}}

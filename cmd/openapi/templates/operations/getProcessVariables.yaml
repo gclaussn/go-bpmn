@@ -34,7 +34,7 @@ responses:
     content:
       application/json:
         schema:
-          $ref: "#/components/schemas/GetVariablesRes"
+          $ref: "#/components/schemas/GetProcessVariablesRes"
         example:
           count: 2
           variables:

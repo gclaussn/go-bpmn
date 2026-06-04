@@ -305,7 +305,7 @@ func (e *pgEngine) GetBpmnXml(ctx context.Context, cmd engine.GetBpmnXmlCmd) (st
 	return bpmnXml, e.release(pgCtx, err)
 }
 
-func (e *pgEngine) GetElementVariables(ctx context.Context, cmd engine.GetElementVariablesCmd) ([]engine.VariableData, error) {
+func (e *pgEngine) GetElementVariables(ctx context.Context, cmd engine.GetElementVariablesCmd) ([]engine.ElementVariable, error) {
 	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
 		return nil, err
@@ -316,7 +316,7 @@ func (e *pgEngine) GetElementVariables(ctx context.Context, cmd engine.GetElemen
 	return variables, e.release(pgCtx, err)
 }
 
-func (e *pgEngine) GetProcessVariables(ctx context.Context, cmd engine.GetProcessVariablesCmd) ([]engine.VariableData, error) {
+func (e *pgEngine) GetProcessVariables(ctx context.Context, cmd engine.GetProcessVariablesCmd) ([]engine.ProcessVariable, error) {
 	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
 		return nil, err

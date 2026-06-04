@@ -71,7 +71,7 @@ func TestExclusiveGatewayProcess(t *testing.T) {
 		t.Fatalf("failed to register handler: %v", err)
 	}
 
-	processInstance, err := exclusiveGatewayProcess.CreateProcessInstance(context.Background(), worker.Variables{})
+	processInstance, err := exclusiveGatewayProcess.CreateProcessInstance(context.Background(), worker.NewProcessVariables())
 	if err != nil {
 		t.Fatalf("failed to create process instance: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestExclusiveGatewayGenericProcess(t *testing.T) {
 		t.Fatalf("failed to register handler: %v", err)
 	}
 
-	processInstance, err := exclusiveGatewayProcess.CreateProcessInstance(context.Background(), worker.Variables{})
+	processInstance, err := exclusiveGatewayProcess.CreateProcessInstance(context.Background(), worker.NewProcessVariables())
 	if err != nil {
 		t.Fatalf("failed to create process instance: %v", err)
 	}

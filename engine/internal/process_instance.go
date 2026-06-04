@@ -141,43 +141,9 @@ func CreateProcessInstance(ctx Context, cmd engine.CreateProcessInstanceCmd, par
 		return engine.ProcessInstance{}, err
 	}
 
-	encryption := ctx.Options().Encryption
-
-	variables := make([]*VariableEntity, 0, len(cmd.Variables))
-	variableNames := make(map[string]bool, len(cmd.Variables))
-	for _, variable := range cmd.Variables {
-		if _, ok := variableNames[variable.Name]; ok {
-			continue // skip already processed variable
-		}
-
-		variableNames[variable.Name] = true
-
-		data := variable.Data
-		if data == nil {
-			continue
-		}
-
-		if err := encryption.EncryptData(data); err != nil {
-			return engine.ProcessInstance{}, fmt.Errorf("failed to encrypt variable %s: %v", variable.Name, err)
-		}
-
-		variable := VariableEntity{
-			Partition: processInstance.Partition,
-
-			ProcessId:         process.Id,
-			ProcessInstanceId: processInstance.Id,
-
-			CreatedAt:   processInstance.CreatedAt,
-			CreatedBy:   processInstance.CreatedBy,
-			Encoding:    data.Encoding,
-			IsEncrypted: data.IsEncrypted,
-			Name:        variable.Name,
-			UpdatedAt:   processInstance.CreatedAt,
-			UpdatedBy:   processInstance.CreatedBy,
-			Value:       data.Value,
-		}
-
-		variables = append(variables, &variable)
+	variables, err := mapProcessVariables(ctx, &processInstance, cmd.Variables, cmd.WorkerId)
+	if err != nil {
+		return engine.ProcessInstance{}, err
 	}
 
 	if err := enqueueProcessInstance(ctx, &processInstance); err != nil {
@@ -215,6 +181,10 @@ func CreateProcessInstance(ctx Context, cmd engine.CreateProcessInstanceCmd, par
 	}
 
 	for _, variable := range variables {
+		if variable.ProcessId == 0 {
+			continue
+		}
+
 		if err := ctx.Variables().Insert(variable); err != nil {
 			return engine.ProcessInstance{}, err
 		}

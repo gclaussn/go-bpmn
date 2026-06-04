@@ -454,14 +454,14 @@ func assertProblem(t *testing.T, err error, expectedType common.ProblemType, exp
 }
 
 type DecodeTest struct {
-	VGte             int                    `json:"vgte" validate:"gte=1"`
-	VISO8601Duration engine.ISO8601Duration `json:"viso8601Duration" validate:"iso8601_duration"`
-	VLte             int                    `json:"vlte" validate:"lte=100"`
-	VMax             []int                  `json:"vmax" validate:"max=3"`
-	VRequired        string                 `json:"vrequired" validate:"required"`
-	VTags            []engine.Tag           `json:"vtags" validate:"dive"`
-	VUnique          []int                  `json:"vunique" validate:"unique"`
-	VVariables       []*engine.VariableData `json:"vvariables" validate:"dive"`
+	VGte             int                       `json:"vgte" validate:"gte=1"`
+	VISO8601Duration engine.ISO8601Duration    `json:"viso8601Duration" validate:"iso8601_duration"`
+	VLte             int                       `json:"vlte" validate:"lte=100"`
+	VMax             []int                     `json:"vmax" validate:"max=3"`
+	VRequired        string                    `json:"vrequired" validate:"required"`
+	VTags            []engine.Tag              `json:"vtags" validate:"dive"`
+	VUnique          []int                     `json:"vunique" validate:"unique"`
+	VVariables       []*engine.ProcessVariable `json:"vvariables" validate:"dive"`
 }
 
 type DecodeTimerTest struct {

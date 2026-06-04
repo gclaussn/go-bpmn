@@ -14,11 +14,11 @@ type CompleteJobCmd struct {
 	// Optional completion, used to succeed a job.
 	Completion *JobCompletion `json:"completion,omitempty"`
 	// Variables to set or delete at element instance scope. For a variable deletion, no data must be provided.
-	ElementVariables []VariableData `json:"elementVariables,omitempty" validate:"max=100,dive"`
+	ElementVariables []ElementVariable `json:"elementVariables,omitempty" validate:"max=100,dive"`
 	// Optional error, used to fail a job due to a technical problem.
 	Error string `json:"error,omitempty"`
 	// Variables to set or delete at process instance scope. For a variable deletion, no data must be provided.
-	ProcessVariables []VariableData `json:"processVariables,omitempty" validate:"max=100,dive"`
+	ProcessVariables []ProcessVariable `json:"processVariables,omitempty" validate:"max=100,dive"`
 	// Maximum number of retries. If the retry count is less than the retry limit, a retry job is created. Otherwise, an incident is created.
 	RetryLimit int `json:"retryLimit,omitempty" validate:"gte=0"`
 	// Duration until a retry job becomes due. At this point in time a retry job can be locked by a worker.
@@ -65,7 +65,7 @@ type CreateProcessInstanceCmd struct {
 	// Tags.
 	Tags []Tag `json:"tags,omitempty" validate:"max=100,dive"`
 	// Variables to set at process instance scope.
-	Variables []VariableData `json:"variables,omitempty" validate:"max=100,dive"`
+	Variables []ProcessVariable `json:"variables,omitempty" validate:"max=100,dive"`
 	// Version of an existing process.
 	Version string `json:"version" validate:"required"`
 	// ID of the worker that created the process instance.
@@ -96,19 +96,21 @@ type GetBpmnXmlCmd struct {
 	ProcessId int32 `json:"-"`
 }
 
-// GetElementVariablesCmd is used to get the variables of a specific element instance.
+// GetElementVariablesCmd is used to get variables of a specific element instance and the direct or indirect parent element instances.
 type GetElementVariablesCmd struct {
 	// Element instance partition.
 	Partition Partition `json:"-"`
 	// Element instance ID.
 	ElementInstanceId int32 `json:"-"`
 
+	// Determines if variables of direct or indirect parent element instances are not returned.
+	ExcludeParentVariables bool `json:"-"`
 	// Names of element variables to get.
 	// If empty, all variables are included.
 	Names []string `json:"-"`
 }
 
-// GetProcessVariablesCmd is used to get the variables of a specific process instance.
+// GetProcessVariablesCmd is used to get variables of a specific process instance.
 type GetProcessVariablesCmd struct {
 	// Process instance partition.
 	Partition Partition `json:"-"`
@@ -175,7 +177,7 @@ type SendMessageCmd struct {
 	// If a message with the same name, correlation key and unique key already exists, the message is discarded.
 	UniqueKey string `json:"uniqueKey,omitempty"`
 	// Variables to set or delete at process instance scope. For a variable deletion, no data must be provided.
-	Variables []VariableData `json:"variables,omitempty" validate:"max=100,dive"`
+	Variables []ProcessVariable `json:"variables,omitempty" validate:"max=100,dive"`
 	// ID of the worker that sent the message.
 	WorkerId string `json:"workerId" validate:"required"`
 }
@@ -185,7 +187,7 @@ type SendSignalCmd struct {
 	// Signal name.
 	Name string `json:"name" validate:"required"`
 	// Variables to set or delete at process instance scope. For a variable deletion, no data must be provided.
-	Variables []VariableData `json:"variables,omitempty" validate:"max=100,dive"`
+	Variables []ProcessVariable `json:"variables,omitempty" validate:"max=100,dive"`
 	// ID of the worker that sent the signal.
 	WorkerId string `json:"workerId" validate:"required"`
 }
@@ -198,7 +200,7 @@ type SetElementVariablesCmd struct {
 	ElementInstanceId int32 `json:"-"`
 
 	// Variables to set or delete. For a variable deletion, no data must be provided.
-	Variables []VariableData `json:"variables,omitempty" validate:"max=100,dive"`
+	Variables []ElementVariable `json:"variables,omitempty" validate:"max=100,dive"`
 	// ID of the worker that set the variables.
 	WorkerId string `json:"workerId" validate:"required"`
 }
@@ -211,7 +213,7 @@ type SetProcessVariablesCmd struct {
 	ProcessInstanceId int32 `json:"-"`
 
 	// Variables to set or delete. For a variable deletion, no data must be provided.
-	Variables []VariableData `json:"variables,omitempty" validate:"max=100,dive"`
+	Variables []ProcessVariable `json:"variables,omitempty" validate:"max=100,dive"`
 	// ID of the worker that set the variables.
 	WorkerId string `json:"workerId" validate:"required"`
 }
@@ -270,7 +272,7 @@ type CalledProcess struct {
 	// Tags to apply to the child process instance.
 	Tags []Tag `json:"tags,omitempty" validate:"max=100,dive"`
 	// Variables to set at child process instance scope.
-	Variables []VariableData `json:"variables,omitempty" validate:"max=100,dive"`
+	Variables []ProcessVariable `json:"variables,omitempty" validate:"max=100,dive"`
 	// Version of the process to call.
 	Version string `json:"version"`
 }

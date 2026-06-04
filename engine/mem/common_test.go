@@ -9,6 +9,8 @@ import (
 	"github.com/gclaussn/go-bpmn/engine/internal"
 )
 
+const testWorkerId = "test-worker"
+
 func mustCreateEngine(t *testing.T) engine.Engine {
 	e, err := New()
 	if err != nil {

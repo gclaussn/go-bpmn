@@ -4,6 +4,11 @@ tags:
 summary: Set element variables
 description: >
   Sets or deletes variables of an active element instance.
+
+
+  A variable's BPMN element ID can be used to determine at which scope an element variable should be set or deleted.
+  It could be the element instance itself, the direct or an indirect parent element instance.
+  If not specified, a variable is set or deleted at the scope of element instance itself.
 parameters:
   - in: path
     name: partition
@@ -26,20 +31,31 @@ requestBody:
       schema:
         $ref: "#/components/schemas/SetElementVariablesCmd"
       examples:
-        set_variable:
-          summary: Set variable
+        set_variables:
+          summary: Set variables
           value:
             variables:
-              a:
-                encoding: "json"
-                encrypted: true
-                value: "{...}"
+              - name: a
+                data:
+                  encoding: "json"
+                  encrypted: true
+                  value: "{...}"
+              - bpmnElementId: x
+                name: c
+                data:
+                  encoding: "json"
+                  encrypted: true
+                  value: "{...}"
             workerId: go-bpmn
-        delete_variable:
-          summary: Delete variable
+        delete_variables:
+          summary: Delete variables
           value:
             variables:
-              b: null
+              - name: b
+                data: null
+              - bpmnElementId: x
+                name: d
+                data: null
             workerId: go-bpmn
 responses:
   "204":

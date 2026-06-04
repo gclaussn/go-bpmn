@@ -128,96 +128,14 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 		return job.Job(), nil
 	}
 
-	encryption := ctx.Options().Encryption
-
-	variables := make([]*VariableEntity, 0, len(cmd.ProcessVariables)+len(cmd.ElementVariables))
-
-	processVariableNames := make(map[string]bool, len(cmd.ProcessVariables))
-	for _, variable := range cmd.ProcessVariables {
-		if _, ok := processVariableNames[variable.Name]; ok {
-			continue // skip already processed variable
-		}
-
-		processVariableNames[variable.Name] = true
-
-		data := variable.Data
-		if data == nil {
-			variable := VariableEntity{ // with fields, needed for deletion
-				Partition:         job.Partition,
-				ProcessInstanceId: job.ProcessInstanceId,
-				Name:              variable.Name,
-			}
-
-			variables = append(variables, &variable)
-			continue
-		}
-
-		if err := encryption.EncryptData(data); err != nil {
-			return engine.Job{}, fmt.Errorf("failed to encrypt process variable %s: %v", variable.Name, err)
-		}
-
-		variable := VariableEntity{
-			Partition: job.Partition,
-
-			ProcessId:         job.ProcessId,
-			ProcessInstanceId: job.ProcessInstanceId,
-
-			CreatedAt:   ctx.Time(),
-			CreatedBy:   job.LockedBy.String,
-			Encoding:    data.Encoding,
-			IsEncrypted: data.IsEncrypted,
-			Name:        variable.Name,
-			UpdatedAt:   ctx.Time(),
-			UpdatedBy:   job.LockedBy.String,
-			Value:       data.Value,
-		}
-
-		variables = append(variables, &variable)
+	elementVariables, err := mapElementVariables(ctx, execution, cmd.ElementVariables, cmd.WorkerId)
+	if err != nil {
+		return engine.Job{}, err
 	}
 
-	elementVariableNames := make(map[string]bool, len(cmd.ElementVariables))
-	for _, variable := range cmd.ElementVariables {
-		if _, ok := elementVariableNames[variable.Name]; ok {
-			continue // skip already processed variable
-		}
-
-		elementVariableNames[variable.Name] = true
-
-		data := variable.Data
-		if data == nil {
-			variable := VariableEntity{ // with fields, needed for deletion
-				Partition:         job.Partition,
-				ElementInstanceId: pgtype.Int4{Int32: job.ElementInstanceId, Valid: true},
-				Name:              variable.Name,
-			}
-
-			variables = append(variables, &variable)
-			continue
-		}
-
-		if err := encryption.EncryptData(data); err != nil {
-			return engine.Job{}, fmt.Errorf("failed to encrypt element variable %s: %v", variable.Name, err)
-		}
-
-		variable := VariableEntity{
-			Partition: job.Partition,
-
-			ElementId:         pgtype.Int4{Int32: job.ElementId, Valid: true},
-			ElementInstanceId: pgtype.Int4{Int32: job.ElementInstanceId, Valid: true},
-			ProcessId:         job.ProcessId,
-			ProcessInstanceId: job.ProcessInstanceId,
-
-			CreatedAt:   ctx.Time(),
-			CreatedBy:   job.LockedBy.String,
-			Encoding:    data.Encoding,
-			IsEncrypted: data.IsEncrypted,
-			Name:        variable.Name,
-			UpdatedAt:   ctx.Time(),
-			UpdatedBy:   job.LockedBy.String,
-			Value:       data.Value,
-		}
-
-		variables = append(variables, &variable)
+	processVariables, err := mapProcessVariables(ctx, processInstance, cmd.ProcessVariables, cmd.WorkerId)
+	if err != nil {
+		return engine.Job{}, err
 	}
 
 	if cmd.Error != "" {
@@ -249,18 +167,33 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 		}
 	}
 
-	for _, variable := range variables {
-		if variable.Value == "" {
-			if err := ctx.Variables().Delete(variable); err != nil {
+	// set or delete element variables
+	for _, variable := range elementVariables {
+		if variable.ElementId.Valid {
+			if err := ctx.Variables().Upsert(variable); err != nil {
 				return engine.Job{}, err
 			}
 		} else {
-			if err := ctx.Variables().Upsert(variable); err != nil {
+			if err := ctx.Variables().Delete(variable); err != nil {
 				return engine.Job{}, err
 			}
 		}
 	}
 
+	// set or delete process variables
+	for _, variable := range processVariables {
+		if variable.ProcessId != 0 {
+			if err := ctx.Variables().Upsert(variable); err != nil {
+				return engine.Job{}, err
+			}
+		} else {
+			if err := ctx.Variables().Delete(variable); err != nil {
+				return engine.Job{}, err
+			}
+		}
+	}
+
+	// update job
 	job.CompletedAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
 
 	if !job.Error.Valid {

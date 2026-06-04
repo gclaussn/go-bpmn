@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"maps"
-
 	"github.com/gclaussn/go-bpmn/engine"
 )
 
@@ -344,15 +342,15 @@ type JobContext struct {
 	w   *Worker
 	ctx context.Context
 
-	processVariables Variables
-	elementVariables Variables
+	newProcessVariables *ProcessVariables
+	newElementVariables *ElementVariables
 }
 
 func (jc JobContext) Context() context.Context {
 	return jc.ctx
 }
 
-func (jc JobContext) ElementVariables(names ...string) (Variables, error) {
+func (jc JobContext) ElementVariables(names ...string) (ElementVariables, error) {
 	elementVariables, err := jc.w.e.GetElementVariables(jc.ctx, engine.GetElementVariablesCmd{
 		Partition:         jc.Job.Partition,
 		ElementInstanceId: jc.Job.ElementInstanceId,
@@ -360,31 +358,49 @@ func (jc JobContext) ElementVariables(names ...string) (Variables, error) {
 		Names: names,
 	})
 	if err != nil {
-		return nil, err
+		return ElementVariables{}, err
 	}
 
-	variables := make(Variables, len(elementVariables))
-	for _, variable := range elementVariables {
-		variables.Set(Variable{
-			Encoding:    variable.Data.Encoding,
-			IsEncrypted: variable.Data.IsEncrypted,
-			Name:        variable.Name,
-			Value:       variable.Data.Value,
-		})
+	variables := make([]ElementVariable, len(elementVariables))
+	for i, variable := range elementVariables {
+		variables[i] = ElementVariable{
+			BpmnElementId: variable.BpmnElementId,
+			Encoding:      variable.Data.Encoding,
+			IsEncrypted:   variable.Data.IsEncrypted,
+			Name:          variable.Name,
+			Value:         variable.Data.Value,
+		}
 	}
 
-	return variables, nil
+	return ElementVariables{
+		bpmnElementId: jc.Job.BpmnElementId,
+		variables:     variables,
+	}, nil
 }
 
 func (jc JobContext) Engine() engine.Engine {
 	return jc.w.e
 }
 
-func (jc JobContext) ProcessVariables(names ...string) (Variables, error) {
+// NewElementVariables provides a pointer to element variables, set on job completion.
+//
+// NewElementVariables is used to set or delete variables at element instance scope.
+func (jc JobContext) NewElementVariables() *ElementVariables {
+	return jc.newElementVariables
+}
+
+// NewProcessVariables provides a pointer to process variables, set on job completion.
+//
+// NewProcessVariables is used to set or delete variables at process instance scope.
+func (jc JobContext) NewProcessVariables() *ProcessVariables {
+	return jc.newProcessVariables
+}
+
+func (jc JobContext) ProcessVariables(names ...string) (ProcessVariables, error) {
 	return jc.ProcessVariablesFrom(jc.Job.Partition, jc.Job.ProcessInstanceId, names...)
 }
 
-func (jc JobContext) ProcessVariablesFrom(partition engine.Partition, processInstanceId int32, names ...string) (Variables, error) {
+func (jc JobContext) ProcessVariablesFrom(partition engine.Partition, processInstanceId int32, names ...string) (ProcessVariables, error) {
 	processVariables, err := jc.w.e.GetProcessVariables(jc.ctx, engine.GetProcessVariablesCmd{
 		Partition:         partition,
 		ProcessInstanceId: processInstanceId,
@@ -392,28 +408,20 @@ func (jc JobContext) ProcessVariablesFrom(partition engine.Partition, processIns
 		Names: names,
 	})
 	if err != nil {
-		return nil, err
+		return ProcessVariables{}, err
 	}
 
-	variables := make(Variables, len(processVariables))
-	for _, variable := range processVariables {
-		variables.Set(Variable{
+	variables := make([]ProcessVariable, len(processVariables))
+	for i, variable := range processVariables {
+		variables[i] = ProcessVariable{
 			Encoding:    variable.Data.Encoding,
 			IsEncrypted: variable.Data.IsEncrypted,
 			Name:        variable.Name,
 			Value:       variable.Data.Value,
-		})
+		}
 	}
 
-	return variables, nil
-}
-
-func (jc JobContext) SetElementVariables(elementVariables Variables) {
-	maps.Copy(jc.elementVariables, elementVariables)
-}
-
-func (jc JobContext) SetProcessVariables(processVariables Variables) {
-	maps.Copy(jc.processVariables, processVariables)
+	return ProcessVariables{variables: variables}, nil
 }
 
 type jobError struct {

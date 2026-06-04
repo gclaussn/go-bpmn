@@ -6,10 +6,11 @@ import (
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestVariables(t *testing.T) {
-	assert := assert.New(t)
+	assert, require := assert.New(t), require.New(t)
 
 	engines, engineTypes := mustCreateEngines(t)
 	for _, e := range engines {
@@ -28,12 +29,17 @@ func TestVariables(t *testing.T) {
 				Partition:         processInstance.Partition,
 				ProcessInstanceId: processInstance.Id,
 
-				Variables: []engine.VariableData{
+				Variables: []engine.ProcessVariable{
 					{Name: "a", Data: &engine.Data{
 						Encoding: "encoding-pa",
 						Value:    "value-pa",
 					}},
 					{Name: "b", Data: &engine.Data{
+						Encoding:    "encoding-pb",
+						IsEncrypted: true,
+						Value:       "value-pb",
+					}},
+					{Name: "b", Data: &engine.Data{ // duplicate
 						Encoding:    "encoding-pb",
 						IsEncrypted: true,
 						Value:       "value-pb",
@@ -60,7 +66,7 @@ func TestVariables(t *testing.T) {
 				Partition:         elementInstance.Partition,
 				ElementInstanceId: elementInstance.Id,
 
-				Variables: []engine.VariableData{
+				Variables: []engine.ElementVariable{
 					{Name: "a", Data: &engine.Data{
 						Encoding: "encoding-ea",
 						Value:    "value-ea",
@@ -69,6 +75,11 @@ func TestVariables(t *testing.T) {
 						Encoding:    "encoding-eb",
 						IsEncrypted: true,
 						Value:       "value-eb",
+					}},
+					{Name: "b", Data: &engine.Data{ // duplicate
+						Encoding:    "encoding-eb*",
+						IsEncrypted: true,
+						Value:       "value-eb*",
 					}},
 					{Name: "c", Data: &engine.Data{
 						Encoding: "encoding-ec",
@@ -93,7 +104,7 @@ func TestVariables(t *testing.T) {
 				t.Fatalf("failed to query element instance: %v", err)
 			}
 
-			assert.Lenf(results, 1, "expected on element instance")
+			require.Lenf(results, 1, "expected on element instance")
 
 			// when
 			err = e.SetElementVariables(context.Background(), engine.SetElementVariablesCmd{
@@ -136,7 +147,7 @@ func TestVariables(t *testing.T) {
 			}
 
 			// then
-			assert.Len(variables, 3)
+			require.Len(variables, 3)
 
 			assert.Equal(variables[0].Name, "a")
 			assert.Equal(variables[0].Data.Encoding, "encoding-pa")
@@ -167,7 +178,7 @@ func TestVariables(t *testing.T) {
 			}
 
 			// then
-			assert.Len(variables, 2)
+			require.Len(variables, 2)
 
 			assert.Equal("a", variables[0].Name)
 			assert.Equal("c", variables[1].Name)
@@ -199,7 +210,7 @@ func TestVariables(t *testing.T) {
 			}
 
 			// then
-			assert.Len(variables, 3)
+			require.Len(variables, 3)
 
 			assert.Equal(variables[0].Name, "a")
 			assert.Equal(variables[0].Data.Encoding, "encoding-ea")
@@ -230,7 +241,7 @@ func TestVariables(t *testing.T) {
 			}
 
 			// then
-			assert.Len(variables, 2)
+			require.Len(variables, 2)
 
 			assert.Equal("a", variables[0].Name)
 			assert.Equal("c", variables[1].Name)
@@ -257,7 +268,7 @@ func TestVariables(t *testing.T) {
 				Partition:         processInstance.Partition,
 				ProcessInstanceId: processInstance.Id,
 
-				Variables: []engine.VariableData{
+				Variables: []engine.ProcessVariable{
 					{Name: "a", Data: &engine.Data{
 						Encoding:    "encoding-pa*",
 						IsEncrypted: true,
@@ -279,7 +290,7 @@ func TestVariables(t *testing.T) {
 				t.Fatalf("failed to get process variables: %v", err)
 			}
 
-			assert.Len(variables, 2)
+			require.Len(variables, 2)
 
 			assert.Equal(variables[0].Name, "a")
 			assert.Equal(variables[0].Data.Encoding, "encoding-pa*")
@@ -295,7 +306,7 @@ func TestVariables(t *testing.T) {
 				Partition:         elementInstance.Partition,
 				ElementInstanceId: elementInstance.Id,
 
-				Variables: []engine.VariableData{
+				Variables: []engine.ElementVariable{
 					{Name: "a", Data: &engine.Data{
 						Encoding:    "encoding-ea*",
 						IsEncrypted: true,
@@ -317,7 +328,7 @@ func TestVariables(t *testing.T) {
 				t.Fatalf("failed to get element variables: %v", err)
 			}
 
-			assert.Len(variables, 2)
+			require.Len(variables, 2)
 
 			assert.Equal(variables[0].Name, "a")
 			assert.Equal(variables[0].Data.Encoding, "encoding-ea*")

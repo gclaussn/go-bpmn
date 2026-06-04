@@ -54,7 +54,7 @@ func main() {
 		for {
 			select {
 			case <-ticker.C:
-				variables := worker.Variables{}
+				variables := worker.NewProcessVariables()
 				variables.Put("a", "b")
 
 				processInstance, err := serviceTaskProcess.CreateProcessInstance(context.Background(), variables)

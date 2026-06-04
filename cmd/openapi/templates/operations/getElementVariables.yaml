@@ -21,6 +21,13 @@ parameters:
       format: int32
       min: 1
   - in: query
+    name: excludeParentVariables
+    description: >
+      Determines if variables of direct or indirect parent element instances are not returned.
+    schema:
+      type: boolean
+      default: false
+  - in: query
     name: names
     description: >
       Comma separated list of variables to include.
@@ -34,16 +41,18 @@ responses:
     content:
       application/json:
         schema:
-          $ref: "#/components/schemas/GetVariablesRes"
+          $ref: "#/components/schemas/GetElementVariablesRes"
         example:
           count: 2
           variables:
-            - name: a
+            - bpmnElementId: serviceTask
+              name: a
               data:
                 encoding: json
                 encrypted: true
                 value: "{...}"
-            - name: b
+            - bpmnElementId: serviceTask
+              name: b
               data:
                 encoding: text
                 value: any text

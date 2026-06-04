@@ -51,7 +51,7 @@ func newProcessInstanceCreateCmd(cli *Cli) *cobra.Command {
 				})
 			}
 
-			variables, err := mapVariables(encodingMap, encryptedMap, valueMap)
+			variables, err := mapProcessVariables(encodingMap, encryptedMap, valueMap)
 			if err != nil {
 				return err
 			}
@@ -177,7 +177,7 @@ func newProcessInstanceSetVariablesCmd(cli *Cli) *cobra.Command {
 		Use:   "set-variables",
 		Short: "Get process variables",
 		RunE: func(c *cobra.Command, args []string) error {
-			variables, err := mapVariables(encodingMap, encryptedMap, valueMap)
+			variables, err := mapProcessVariables(encodingMap, encryptedMap, valueMap)
 			if err != nil {
 				return err
 			}

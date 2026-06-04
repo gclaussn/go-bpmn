@@ -37,9 +37,7 @@ func (h serviceTask) Handle(mux worker.JobMux) error {
 }
 
 func (h serviceTask) executeServiceTask(jc worker.JobContext) error {
-	processVariables := worker.Variables{}
+	processVariables := jc.NewProcessVariables()
 	processVariables.Delete("a")
-
-	jc.SetProcessVariables(processVariables)
 	return nil
 }

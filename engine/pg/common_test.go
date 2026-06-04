@@ -14,6 +14,8 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+const testWorkerId = "test-worker"
+
 func mustCreateEngine(t *testing.T, customizers ...func(*Options)) engine.Engine {
 	if testing.Short() {
 		t.Skip()

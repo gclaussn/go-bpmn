@@ -159,12 +159,7 @@ func (r processInstanceRepository) SelectByElementInstance(partition time.Time, 
 		}
 	}
 
-	processInstance, err := r.Select(partition, id)
-	if err == pgx.ErrNoRows {
-		return nil, fmt.Errorf("failed to select process instance %s/%d", partition.Format(time.DateOnly), id)
-	}
-
-	return processInstance, err
+	return r.Select(partition, id)
 }
 
 func (r processInstanceRepository) SelectByJob(partition time.Time, jobId int32) (*internal.ProcessInstanceEntity, error) {
@@ -184,12 +179,7 @@ func (r processInstanceRepository) SelectByJob(partition time.Time, jobId int32)
 		}
 	}
 
-	processInstance, err := r.Select(partition, id)
-	if err == pgx.ErrNoRows {
-		return nil, fmt.Errorf("failed to select process instance %s/%d", partition.Format(time.DateOnly), id)
-	}
-
-	return processInstance, err
+	return r.Select(partition, id)
 }
 
 func (r processInstanceRepository) Update(entity *internal.ProcessInstanceEntity) error {

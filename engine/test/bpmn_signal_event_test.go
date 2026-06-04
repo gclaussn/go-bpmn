@@ -125,7 +125,7 @@ func (x signalEventTest) catch(t *testing.T) {
 
 	processInstance, err := x.e.CreateProcessInstance(context.Background(), engine.CreateProcessInstanceCmd{
 		BpmnProcessId: x.catchProcess.BpmnProcessId,
-		Variables: []engine.VariableData{
+		Variables: []engine.ProcessVariable{
 			{Name: "a", Data: &engine.Data{Encoding: "encoding-a", Value: "value-a"}},
 			{Name: "b", Data: &engine.Data{Encoding: "encoding-b", Value: "value-b"}},
 		},
@@ -148,7 +148,7 @@ func (x signalEventTest) catch(t *testing.T) {
 	// when signal sent
 	signal, err := x.e.SendSignal(context.Background(), engine.SendSignalCmd{
 		Name: "catch-signal",
-		Variables: []engine.VariableData{
+		Variables: []engine.ProcessVariable{
 			{Name: "a", Data: &engine.Data{Encoding: "encoding-a", Value: "value-a"}},
 			{Name: "b", Data: nil},
 			{Name: "c", Data: nil},
@@ -268,7 +268,7 @@ func (x signalEventTest) start(t *testing.T) {
 
 	piAssert1 := engine.AssertSignalStart(t, x.e, process.Id, engine.SendSignalCmd{
 		Name: "start-signal",
-		Variables: []engine.VariableData{
+		Variables: []engine.ProcessVariable{
 			{Name: "a", Data: &engine.Data{Encoding: "encoding-a", Value: "value-a"}},
 			{Name: "b", Data: &engine.Data{Encoding: "encoding-b", Value: "value-b"}},
 			{Name: "c", Data: nil},

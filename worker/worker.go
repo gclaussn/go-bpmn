@@ -121,8 +121,8 @@ func (h ProcessHandle) CreateProcessInstanceCmd() engine.CreateProcessInstanceCm
 	}
 }
 
-func (h ProcessHandle) CreateProcessInstance(ctx context.Context, variables Variables) (engine.ProcessInstance, error) {
-	processVariables, err := h.w.encodeVariables(variables)
+func (h ProcessHandle) CreateProcessInstance(ctx context.Context, processVariables ProcessVariables) (engine.ProcessInstance, error) {
+	variables, err := h.w.encodeProcessVariables(processVariables.variables)
 	if err != nil {
 		return engine.ProcessInstance{}, nil
 	}
@@ -130,7 +130,7 @@ func (h ProcessHandle) CreateProcessInstance(ctx context.Context, variables Vari
 	return h.w.e.CreateProcessInstance(ctx, engine.CreateProcessInstanceCmd{
 		BpmnProcessId: h.Process.BpmnProcessId,
 		Version:       h.Process.Version,
-		Variables:     processVariables,
+		Variables:     variables,
 		WorkerId:      h.w.id,
 	})
 }
@@ -175,8 +175,8 @@ func (w *Worker) ExecuteJob(ctx context.Context, job engine.Job) (engine.Job, er
 		w:   w,
 		ctx: ctx,
 
-		processVariables: Variables{},
-		elementVariables: Variables{},
+		newProcessVariables: &ProcessVariables{},
+		newElementVariables: &ElementVariables{bpmnElementId: job.BpmnElementId},
 	}
 
 	bpmnElementId := job.BpmnElementId
@@ -191,12 +191,12 @@ func (w *Worker) ExecuteJob(ctx context.Context, job engine.Job) (engine.Job, er
 
 	completion, jobHandlerErr := jobHandler(jc)
 
-	elementVariables, err := jc.w.encodeVariables(jc.elementVariables)
+	elementVariables, err := jc.w.encodeElementVariables(jc.newElementVariables.variables)
 	if err != nil {
 		return engine.Job{}, err
 	}
 
-	processVariables, err := jc.w.encodeVariables(jc.processVariables)
+	processVariables, err := jc.w.encodeProcessVariables(jc.newProcessVariables.variables)
 	if err != nil {
 		return engine.Job{}, err
 	}
@@ -303,17 +303,18 @@ func (w *Worker) Stop() {
 	}
 }
 
-func (w *Worker) encodeVariables(variables Variables) ([]engine.VariableData, error) {
+func (w *Worker) encodeElementVariables(variables []ElementVariable) ([]engine.ElementVariable, error) {
 	if len(variables) == 0 {
 		return nil, nil
 	}
 
-	encodedVariables := make([]engine.VariableData, 0, len(variables))
-	for variableName, variable := range variables {
+	encodedVariables := make([]engine.ElementVariable, len(variables))
+	for i, variable := range variables {
 		if variable.IsDeleted() {
-			encodedVariables = append(encodedVariables, engine.VariableData{
-				Name: variableName,
-			})
+			encodedVariables[i] = engine.ElementVariable{
+				BpmnElementId: variable.BpmnElementId,
+				Name:          variable.Name,
+			}
 			continue
 		}
 
@@ -329,17 +330,58 @@ func (w *Worker) encodeVariables(variables Variables) ([]engine.VariableData, er
 
 		value, err := encoder.Encode(variable.Value)
 		if err != nil {
-			return nil, fmt.Errorf("failed to encode variable %s: %v", variableName, err)
+			return nil, fmt.Errorf("failed to encode variable %s/%s: %v", variable.BpmnElementId, variable.Name, err)
 		}
 
-		encodedVariables = append(encodedVariables, engine.VariableData{
-			Name: variableName,
+		encodedVariables[i] = engine.ElementVariable{
+			BpmnElementId: variable.BpmnElementId,
+			Name:          variable.Name,
 			Data: &engine.Data{
 				Encoding:    encoding,
 				IsEncrypted: variable.IsEncrypted,
 				Value:       value,
 			},
-		})
+		}
+	}
+
+	return encodedVariables, nil
+}
+
+func (w *Worker) encodeProcessVariables(variables []ProcessVariable) ([]engine.ProcessVariable, error) {
+	if len(variables) == 0 {
+		return nil, nil
+	}
+
+	encodedVariables := make([]engine.ProcessVariable, len(variables))
+	for i, variable := range variables {
+		if variable.IsDeleted() {
+			encodedVariables[i] = engine.ProcessVariable{Name: variable.Name}
+			continue
+		}
+
+		encoding := variable.Encoding
+		if encoding == "" {
+			encoding = w.options.DefaultEncoding
+		}
+
+		encoder := w.Encoder(encoding)
+		if encoder == nil {
+			return nil, fmt.Errorf("no encoder registered for %s", encoding)
+		}
+
+		value, err := encoder.Encode(variable.Value)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode variable %s: %v", variable.Name, err)
+		}
+
+		encodedVariables[i] = engine.ProcessVariable{
+			Name: variable.Name,
+			Data: &engine.Data{
+				Encoding:    encoding,
+				IsEncrypted: variable.IsEncrypted,
+				Value:       value,
+			},
+		}
 	}
 
 	return encodedVariables, nil

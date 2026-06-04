@@ -35,7 +35,7 @@ func (h callActivity) callProcess(jc worker.JobContext) (*engine.CalledProcess, 
 	return &engine.CalledProcess{
 		BpmnProcessId: "startEndTest",
 		Version:       "1",
-		Variables: []engine.VariableData{
+		Variables: []engine.ProcessVariable{
 			{Name: "a", Data: &engine.Data{Value: "av", Encoding: "json"}},
 		},
 	}, nil
@@ -47,10 +47,10 @@ func (h callActivity) passVariables(jc worker.JobContext, subProcessInstance eng
 		return err
 	}
 
-	variables := worker.Variables{}
-	variables["a"] = subVariables["a"]
+	variables := jc.NewProcessVariables()
 
-	jc.SetProcessVariables(variables)
+	a, _ := subVariables.Get("a")
+	variables.Set(a)
 
 	return nil
 }
@@ -80,7 +80,7 @@ func TestCallActivityProcess(t *testing.T) {
 		t.Fatalf("failed to register handler: %v", err)
 	}
 
-	processInstance, err := callActivityProcess.CreateProcessInstance(context.Background(), worker.Variables{})
+	processInstance, err := callActivityProcess.CreateProcessInstance(context.Background(), worker.NewProcessVariables())
 	if err != nil {
 		t.Fatalf("failed to create process instance: %v", err)
 	}
