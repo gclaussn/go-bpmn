@@ -183,6 +183,17 @@ func TestBpmn(t *testing.T) {
 			t.Run(engineTypes[i]+"completes with error completed with BPMN esclation code", taskTest.errorBpmnEscalationCodeNotSupported)
 		}
 	})
+
+	t.Run("user task", func(t *testing.T) {
+		for i, e := range engines {
+			userTaskTest := userTaskTest{e}
+
+			t.Run(engineTypes[i]+"start end", userTaskTest.startEnd)
+			t.Run(engineTypes[i]+"error boundary", userTaskTest.errorBoundary)
+			t.Run(engineTypes[i]+"escalation boundary", userTaskTest.escalationBoundary)
+			t.Run(engineTypes[i]+"escalation boundary non-interrupting", userTaskTest.escalationBoundaryNonInterrupting)
+		}
+	})
 }
 
 func TestBpmnTimerEvent(t *testing.T) {

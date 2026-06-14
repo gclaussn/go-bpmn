@@ -1,0 +1,32 @@
+<definitions id="test">
+  <process id="userTaskEscalationBoundaryTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="userTask" />
+    <userTask id="userTask">
+      <incoming>f1</incoming>
+      <outgoing>f2</outgoing>
+    </userTask>
+    <sequenceFlow id="f2" sourceRef="userTask" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f2</incoming>
+    </endEvent>
+    <boundaryEvent id="escalationBoundaryEventNonInterrupting" cancelActivity="false" attachedToRef="userTask">
+      <outgoing>f3</outgoing>
+      <escalationEventDefinition id="escalationBoundaryEventNonInterruptingDefinition" />
+    </boundaryEvent>
+    <sequenceFlow id="f3" sourceRef="escalationBoundaryEventNonInterrupting" targetRef="escalationEndNonInterrupting" />
+    <endEvent id="escalationEndNonInterrupting">
+      <incoming>f3</incoming>
+    </endEvent>
+    <boundaryEvent id="escalationBoundaryEvent" attachedToRef="userTask">
+      <outgoing>f4</outgoing>
+      <escalationEventDefinition id="escalationBoundaryEventDefinition" />
+    </boundaryEvent>
+    <sequenceFlow id="f4" sourceRef="escalationBoundaryEvent" targetRef="escalationEndEvent" />
+    <endEvent id="escalationEndEvent">
+      <incoming>f4</incoming>
+    </endEvent>
+  </process>
+</definitions>

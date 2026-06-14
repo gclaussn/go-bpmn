@@ -119,6 +119,9 @@ func NewMux(e engine.Engine, setTimeEnabled bool) *http.ServeMux {
 	mux.HandleFunc("POST "+common.PathTasksQuery, h.queryTasks)
 	mux.HandleFunc("POST "+common.PathTasksUnlock, h.unlockTasks)
 
+	mux.HandleFunc("POST "+common.PathUserTasksQuery, h.queryUserTasks)
+	mux.HandleFunc("PATCH "+common.PathUserTasksUpdate, h.updateUserTask)
+
 	mux.HandleFunc("POST "+common.PathVariablesQuery, h.queryVariables)
 
 	mux.HandleFunc("PATCH "+common.PathTime, h.setTime)
@@ -631,6 +634,31 @@ func (h handler) unlockTasks(w http.ResponseWriter, r *http.Request) {
 	encodeJSONResponseBody(w, r, common.CountRes{Count: count}, http.StatusOK)
 }
 
+func (h handler) updateUserTask(w http.ResponseWriter, r *http.Request) {
+	partition, id, err := parsePartitionId(r)
+	if err != nil {
+		encodeJSONProblemResponseBody(w, r, err)
+		return
+	}
+
+	var cmd engine.UpdateUserTaskCmd
+	if err := decodeJSONRequestBody(w, r, &cmd); err != nil {
+		encodeJSONProblemResponseBody(w, r, err)
+		return
+	}
+
+	cmd.Partition = partition
+	cmd.Id = id
+
+	userTask, err := h.e.UpdateUserTask(r.Context(), cmd)
+	if err != nil {
+		encodeJSONProblemResponseBody(w, r, err)
+		return
+	}
+
+	encodeJSONResponseBody(w, r, userTask, http.StatusOK)
+}
+
 // query handler
 
 func (h handler) queryElements(w http.ResponseWriter, r *http.Request) {
@@ -926,6 +954,36 @@ func (h handler) queryTasks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resBody := common.TaskRes{
+		Count:   len(results),
+		Results: results,
+	}
+
+	encodeJSONResponseBody(w, r, resBody, http.StatusOK)
+}
+
+func (h handler) queryUserTasks(w http.ResponseWriter, r *http.Request) {
+	options, err := parseQueryOptions(r)
+	if err != nil {
+		encodeJSONProblemResponseBody(w, r, err)
+		return
+	}
+
+	var criteria engine.UserTaskCriteria
+	if err := decodeJSONRequestBody(w, r, &criteria); err != nil {
+		encodeJSONProblemResponseBody(w, r, err)
+		return
+	}
+
+	q := h.e.CreateQuery()
+	q.SetOptions(options)
+
+	results, err := q.QueryUserTasks(r.Context(), criteria)
+	if err != nil {
+		encodeJSONProblemResponseBody(w, r, err)
+		return
+	}
+
+	resBody := common.UserTaskRes{
 		Count:   len(results),
 		Results: results,
 	}

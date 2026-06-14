@@ -1,0 +1,75 @@
+tags:
+  - User tasks
+summary: Query user tasks
+description: >
+  Performs a user task query.
+parameters:
+  - $ref: "#/components/parameters/offset"
+  - $ref: "#/components/parameters/limit"
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/UserTaskCriteria"
+      examples:
+        by_partition_and_process_instance_id:
+          summary: By partition and process instance ID
+          value:
+            partition: "2025-04-11"
+            processInstanceId: 576
+        by_tag:
+          summary: By tag
+          value:
+            tags:
+              - name: assignee
+              - value: example-user
+responses:
+  "200":
+    description: OK
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/UserTaskRes"
+        example:
+          count: 2
+          results:
+            - partition: "2025-05-01"
+              id: 1042
+              revision: 3
+              elementId: 8
+              elementInstanceId: 2298
+              processId: 2
+              processInstanceId: 576
+              bpmnElementId: userTaskA
+              createdAt: "2025-05-01T17:44:19.997Z"
+              createdBy: go-bpmn
+              state: COMPLETED
+              tags:
+                - name: x
+                  value: y
+              updatedAt: "2025-05-01T17:59:30.657Z"
+              updatedBy: go-bpmn
+            - partition: "2025-05-01"
+              revision: 1
+              id: 1043
+              elementId: 9
+              elementInstanceId: 2299
+              processId: 2
+              processInstanceId: 576
+              bpmnElementId: userTaskB
+              createdAt: "2025-05-01T17:44:19.997Z"
+              createdBy: go-bpmn
+              state: STARTED
+              updatedAt: "2025-05-01T17:44:19.997Z"
+              updatedBy: go-bpmn
+  "400":
+    description: Bad request
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          invalid_limit:
+            $ref: "#/components/examples/QueryLimitProblem"
+          invalid_offset:
+            $ref: "#/components/examples/QueryOffsetProblem"

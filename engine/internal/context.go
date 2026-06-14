@@ -29,5 +29,6 @@ type Context interface {
 	SignalSubscriptions() SignalSubscriptionRepository
 	SignalVariables() SignalVariableRepository
 	Tasks() TaskRepository
+	UserTasks() UserTaskRepository
 	Variables() VariableRepository
 }

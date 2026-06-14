@@ -81,7 +81,7 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 		*v = MapInstanceState(s)
 	}
 	if *v == 0 {
-		return fmt.Errorf("invalid instance state data %s", s)
+		return fmt.Errorf("invalid instance state %s", s)
 	}
 	return nil
 }
@@ -199,7 +199,7 @@ func (v *JobType) UnmarshalJSON(data []byte) error {
 		*v = MapJobType(s)
 	}
 	if *v == 0 {
-		return fmt.Errorf("invalid job type data %s", s)
+		return fmt.Errorf("invalid job type %s", s)
 	}
 	return nil
 }
@@ -310,7 +310,70 @@ func (v *TaskType) UnmarshalJSON(data []byte) error {
 		*v = MapTaskType(s)
 	}
 	if *v == 0 {
-		return fmt.Errorf("invalid task type data %s", s)
+		return fmt.Errorf("invalid task type %s", s)
+	}
+	return nil
+}
+
+// UserTaskState describes possible states for user tasks.
+type UserTaskState int
+
+const (
+	UserTaskCanceled UserTaskState = iota + 1
+	UserTaskCompleted
+	UserTaskStarted
+	UserTaskTerminated
+)
+
+func MapUserTaskState(s string) UserTaskState {
+	switch s {
+	case "CANCELED":
+		return UserTaskCanceled
+	case "COMPLETED":
+		return UserTaskCompleted
+	case "STARTED":
+		return UserTaskStarted
+	case "TERMINATED":
+		return UserTaskTerminated
+	default:
+		return 0
+	}
+}
+
+func (v UserTaskState) MarshalJSON() ([]byte, error) {
+	s := v.String()
+	if s == "" {
+		return []byte("null"), nil
+	}
+	return []byte(fmt.Sprintf("%q", s)), nil
+}
+
+func (v UserTaskState) String() string {
+	switch v {
+	case UserTaskCanceled:
+		return "CANCELED"
+	case UserTaskCompleted:
+		return "COMPLETED"
+	case UserTaskStarted:
+		return "STARTED"
+	case UserTaskTerminated:
+		return "TERMINATED"
+	default:
+		return ""
+	}
+}
+
+func (v *UserTaskState) UnmarshalJSON(data []byte) error {
+	s := string(data)
+	if s == "null" {
+		return nil
+	}
+	if len(s) > 2 {
+		s = s[1 : len(s)-1]
+		*v = MapUserTaskState(s)
+	}
+	if *v == 0 {
+		return fmt.Errorf("invalid user task state %s", s)
 	}
 	return nil
 }
@@ -396,7 +459,7 @@ func (v *WorkState) UnmarshalJSON(data []byte) error {
 		*v = MapWorkState(s)
 	}
 	if *v == 0 {
-		return fmt.Errorf("invalid work state data %s", s)
+		return fmt.Errorf("invalid work state %s", s)
 	}
 	return nil
 }
@@ -785,7 +848,7 @@ type SignalSubscriptionCriteria struct {
 	Name string `json:"name,omitempty"` // Signal name.
 }
 
-// Tag is used to tag entities like process or process instance.
+// Tag is used to tag processes, process instances and user tasks.
 type Tag struct {
 	Name  string `json:"name" validate:"required,tag_name"` // Tag name.
 	Value string `json:"value,omitempty"`                   // Tag value.
@@ -868,6 +931,44 @@ func (t Timer) String() string {
 	} else {
 		return ""
 	}
+}
+
+// User task is a unit of work, which is done by a human.
+type UserTask struct {
+	Partition Partition `json:"partition" validate:"required"` // User task partition.
+	Id        int32     `json:"id" validate:"required"`        // User task ID.
+
+	Revision int32 `json:"revision" validate:"required,gte=1"` // User task revision, increased on each update.
+
+	ElementId         int32 `json:"elementId" validate:"required"`         // ID of the related element.
+	ElementInstanceId int32 `json:"elementInstanceId" validate:"required"` // ID of the related element instance.
+	ProcessId         int32 `json:"processId" validate:"required"`         // ID of the related process.
+	ProcessInstanceId int32 `json:"processInstanceId" validate:"required"` // ID of the enclosing process instance.
+
+	BpmnElementId  string        `json:"bpmnElementId" validate:"required"` // Element ID within the BPMN XML.
+	CorrelationKey string        `json:"correlationKey,omitempty"`          // Correlation key of the process instance.
+	CreatedAt      time.Time     `json:"createdAt" validate:"required"`     // Creation time.
+	CreatedBy      string        `json:"createdBy" validate:"required"`     // ID of the worker or engine that created the user task.
+	State          UserTaskState `json:"state" validate:"required"`         // Current state.
+	Tags           []Tag         `json:"tags,omitempty"`                    // Tags.
+	UpdatedAt      time.Time     `json:"updatedAt" validate:"required"`     // Update time.
+	UpdatedBy      string        `json:"updatedBy" validate:"required"`     // ID of the worker or engine that updated the user task.
+}
+
+func (v UserTask) String() string {
+	return fmt.Sprintf("%s/%d", v.Partition, v.Id)
+}
+
+// UserTaskCriteria specifies the results, returned by a user task query.
+type UserTaskCriteria struct {
+	Partition Partition `json:"partition"`    // Partition filter.
+	Id        int32     `json:"id,omitempty"` // User task filter.
+
+	ElementInstanceId int32 `json:"elementInstanceId,omitempty"` // Element instance filter.
+	ProcessId         int32 `json:"processId,omitempty"`         // Process filter.
+	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // Process instance filter.
+
+	Tags []Tag `json:"tags,omitempty" validate:"max=100,dive"` // Tags, a user task must have, to be included.
 }
 
 // Variable is data, identified by a name, that exists in the scope of a process instance or element instance.

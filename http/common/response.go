@@ -107,6 +107,12 @@ type TaskRes struct {
 	Results []engine.Task `json:"results" validate:"required"`     // Query results.
 }
 
+// Response of a user task query.
+type UserTaskRes struct {
+	Count   int               `json:"count" validate:"required,gte=0"` // Number of results.
+	Results []engine.UserTask `json:"results" validate:"required"`     // Query results.
+}
+
 // Response of variable query.
 type VariableRes struct {
 	Count   int               `json:"count" validate:"required,gte=0"` // Number of results.

@@ -45,25 +45,42 @@ func main() {
 		log.Fatalf("failed to register service task handler: %v", err)
 	}
 
+	userTaskProcess, err := w.Register(userTask{})
+	if err != nil {
+		log.Fatalf("failed to register user task handler: %v", err)
+	}
+
 	w.Start()
 
 	tickerCtx, tickerCancel := context.WithCancel(context.Background())
 	ticker := time.NewTicker(time.Second * 10)
 
 	go func() {
+		tickCount := 0
+
 		for {
 			select {
 			case <-ticker.C:
-				variables := worker.NewProcessVariables()
-				variables.Put("a", "b")
+				tickCount++
 
-				processInstance, err := serviceTaskProcess.CreateProcessInstance(context.Background(), variables)
-				if err != nil {
-					log.Printf("failed to create process instance: %v", err)
-					continue
+				if tickCount%10 == 0 {
+					processInstance, err := userTaskProcess.CreateProcessInstance(context.Background(), worker.NewProcessVariables())
+					if err != nil {
+						log.Printf("failed to create process instance: %v", err)
+					} else {
+						log.Printf("user task: created process instance %s", processInstance)
+					}
+				} else {
+					variables := worker.NewProcessVariables()
+					variables.Put("a", "b")
+
+					processInstance, err := serviceTaskProcess.CreateProcessInstance(context.Background(), variables)
+					if err != nil {
+						log.Printf("failed to create process instance: %v", err)
+					} else {
+						log.Printf("service task: created process instance %s", processInstance)
+					}
 				}
-
-				log.Printf("created process instance %s", processInstance)
 			case <-tickerCtx.Done():
 				return
 			}

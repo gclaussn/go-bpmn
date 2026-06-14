@@ -204,6 +204,11 @@ func (e *memEngine) UnlockTasks(_ context.Context, cmd engine.UnlockTasksCmd) (i
 	return internal.UnlockTasks(e.wlock(), cmd)
 }
 
+func (e *memEngine) UpdateUserTask(_ context.Context, cmd engine.UpdateUserTaskCmd) (engine.UserTask, error) {
+	defer e.unlock()
+	return internal.UpdateUserTask(e.wlock(), cmd)
+}
+
 func (e *memEngine) Shutdown() {
 	if e.taskExecutor != nil {
 		e.taskExecutor.Stop()

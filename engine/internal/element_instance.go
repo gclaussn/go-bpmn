@@ -408,9 +408,9 @@ func (ec *executionContext) execute(ctx Context, job *JobEntity, jobCompletion *
 
 	switch {
 	case isErrorCodeSet:
-		return ec.executeError(ctx, job, jobCompletion.ErrorCode)
+		return ec.throwError(ctx, jobCompletion.ErrorCode)
 	case isEscalationCodeSet:
-		return ec.executeEscalation(ctx, job, jobCompletion.EscalationCode, retryTimer)
+		return ec.escalateJob(ctx, job, jobCompletion.EscalationCode, retryTimer)
 	default:
 		return true, nil
 	}

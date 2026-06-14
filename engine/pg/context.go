@@ -100,6 +100,10 @@ func (c *pgContext) Tasks() internal.TaskRepository {
 	return &taskRepository{tx: c.tx, txCtx: c.txCtx, engineId: c.Options().EngineId}
 }
 
+func (c *pgContext) UserTasks() internal.UserTaskRepository {
+	return &userTaskRepository{tx: c.tx, txCtx: c.txCtx}
+}
+
 func (c *pgContext) Variables() internal.VariableRepository {
 	return &variableRepository{tx: c.tx, txCtx: c.txCtx}
 }

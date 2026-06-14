@@ -464,6 +464,17 @@ func (e *pgEngine) UnlockTasks(ctx context.Context, cmd engine.UnlockTasksCmd) (
 	return count, e.release(pgCtx, err)
 }
 
+func (e *pgEngine) UpdateUserTask(ctx context.Context, cmd engine.UpdateUserTaskCmd) (engine.UserTask, error) {
+	pgCtx, cancel, err := e.acquire(ctx)
+	if err != nil {
+		return engine.UserTask{}, err
+	}
+
+	defer cancel()
+	count, err := internal.UpdateUserTask(pgCtx, cmd)
+	return count, e.release(pgCtx, err)
+}
+
 func (e *pgEngine) Shutdown() {
 	e.shutdownOnce.Do(func() {
 		if e.taskExecutor != nil {

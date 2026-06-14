@@ -157,6 +157,7 @@ func newRootCmd(cli *Cli) *cobra.Command {
 	c.AddCommand(newProcessInstanceCmd(cli))
 	c.AddCommand(newSignalCmd(cli))
 	c.AddCommand(newTaskCmd(cli))
+	c.AddCommand(newUserTaskCmd(cli))
 	c.AddCommand(newVariableCmd(cli))
 	c.AddCommand(newSetTimeCmd(cli))
 	c.AddCommand(newVersionCmd(cli))

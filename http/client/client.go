@@ -327,6 +327,18 @@ func (c *client) UnlockTasks(ctx context.Context, cmd engine.UnlockTasksCmd) (in
 	return resBody.Count, nil
 }
 
+func (c *client) UpdateUserTask(ctx context.Context, cmd engine.UpdateUserTaskCmd) (engine.UserTask, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
+	defer cancel()
+
+	var userTask engine.UserTask
+	path := resolve(common.PathUserTasksUpdate, cmd.Partition, cmd.Id)
+	if err := c.doPatch(ctx, path, cmd, &userTask); err != nil {
+		return engine.UserTask{}, err
+	}
+	return userTask, nil
+}
+
 func (c *client) Shutdown() {
 	c.httpClient.CloseIdleConnections()
 }

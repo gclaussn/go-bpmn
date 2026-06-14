@@ -210,7 +210,7 @@ func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
 		return engine.Error{
 			Type:   engine.ErrorBug,
 			Title:  "failed to trigger event",
-			Detail: fmt.Sprintf("element type %s is not supported", bpmnElement.Type),
+			Detail: fmt.Sprintf("BPMN element type %s is not supported", bpmnElement.Type),
 		}
 	}
 }

@@ -42,6 +42,9 @@ const (
 	PathTasksQuery   = "/tasks/query"
 	PathTasksUnlock  = "/tasks/unlock"
 
+	PathUserTasksQuery  = "/user-tasks/query"
+	PathUserTasksUpdate = "/user-tasks/{partition}/{id}"
+
 	PathVariablesQuery = "/variables/query"
 
 	PathReadiness = "/readiness"

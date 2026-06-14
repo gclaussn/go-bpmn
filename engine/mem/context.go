@@ -25,11 +25,13 @@ func newMemContext(options Options) *memContext {
 	ctx.signalVariables.variables = make(map[int64][]*internal.SignalVariableEntity)
 	ctx.tasks.partitions = make(map[string][]internal.TaskEntity)
 	ctx.tasks.engineId = options.Common.EngineId
+	ctx.userTasks.partitions = make(map[string][]internal.UserTaskEntity)
 	ctx.variables.partitions = make(map[string][]internal.VariableEntity)
 
 	ctx.elements.eventDefinitions = ctx.eventDefinitions
 	ctx.processInstances.elementInstances = ctx.elementInstances
 	ctx.processInstances.jobs = ctx.jobs
+	ctx.processInstances.userTasks = ctx.userTasks
 
 	return &ctx
 }
@@ -55,6 +57,7 @@ type memContext struct {
 	signals               signalRepository
 	signalSubscriptions   signalSubscriptionRepository
 	signalVariables       signalVariableRepository
+	userTasks             userTaskRepository
 	tasks                 taskRepository
 	variables             variableRepository
 }
@@ -137,6 +140,10 @@ func (c *memContext) SignalVariables() internal.SignalVariableRepository {
 
 func (c *memContext) Tasks() internal.TaskRepository {
 	return &c.tasks
+}
+
+func (c *memContext) UserTasks() internal.UserTaskRepository {
+	return &c.userTasks
 }
 
 func (c *memContext) Variables() internal.VariableRepository {

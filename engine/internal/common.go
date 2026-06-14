@@ -56,7 +56,8 @@ func isTaskOrScope(elementType model.ElementType) bool {
 		model.ElementScriptTask,
 		model.ElementSendTask,
 		model.ElementServiceTask,
-		model.ElementSubProcess:
+		model.ElementSubProcess,
+		model.ElementUserTask:
 		return true
 	default:
 		return false
@@ -84,6 +85,8 @@ func marshalTags(tags []engine.Tag) (pgtype.Text, error) {
 	for _, tag := range tags {
 		if tag.Value != "" {
 			tagMap[tag.Name] = tag.Value
+		} else {
+			delete(tagMap, tag.Name)
 		}
 	}
 

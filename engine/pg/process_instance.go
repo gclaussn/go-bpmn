@@ -182,6 +182,26 @@ func (r processInstanceRepository) SelectByJob(partition time.Time, jobId int32)
 	return r.Select(partition, id)
 }
 
+func (r processInstanceRepository) SelectByUserTask(partition time.Time, userTaskId int32) (*internal.ProcessInstanceEntity, error) {
+	row := r.tx.QueryRow(r.txCtx, "SELECT process_instance_id FROM user_task WHERE partition = $1 AND id = $2", partition, userTaskId)
+
+	var id int32
+	if err := row.Scan(&id); err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, err
+		} else {
+			return nil, fmt.Errorf(
+				"failed to select process instance ID by user task %s/%d: %v",
+				partition.Format(time.DateOnly),
+				userTaskId,
+				err,
+			)
+		}
+	}
+
+	return r.Select(partition, id)
+}
+
 func (r processInstanceRepository) Update(entity *internal.ProcessInstanceEntity) error {
 	if _, err := r.tx.Exec(r.txCtx, `
 UPDATE
@@ -216,9 +236,7 @@ func (r processInstanceRepository) Query(criteria engine.ProcessInstanceCriteria
 		return nil, fmt.Errorf("failed to execute process instance query template: %v", err)
 	}
 
-	sqls := sql.String()
-
-	rows, err := r.tx.Query(r.txCtx, sqls)
+	rows, err := r.tx.Query(r.txCtx, sql.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute process instance query: %v", err)
 	}

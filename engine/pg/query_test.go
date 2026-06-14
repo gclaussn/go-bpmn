@@ -64,7 +64,7 @@ func TestQuery(t *testing.T) {
 		messageSubscriptionCorrelationKeys    = []string{"x", "x", "y", "y", "z"}
 		messageSubscriptionNames              = []string{"a", "b", "c", "a", "b"}
 
-		// process + process instance
+		// process + process instance + user task
 		tags = []map[string]string{
 			{
 				"a": "b",
@@ -195,6 +195,17 @@ func TestQuery(t *testing.T) {
 			Type: taskTypes[i],
 		})
 
+		entities = append(entities, &internal.UserTaskEntity{
+			Partition: partitions[i],
+
+			ElementId:         elementIds[i],
+			ElementInstanceId: elementInstanceIds[i],
+			ProcessId:         processIds[i],
+			ProcessInstanceId: processInstanceIds[i],
+
+			Tags: pgtype.Text{String: tagsJson, Valid: tagsJson != ""},
+		})
+
 		entities = append(entities, &internal.VariableEntity{
 			Partition: partitions[i],
 
@@ -216,6 +227,7 @@ func TestQuery(t *testing.T) {
 			engine.ProcessCriteria{},
 			engine.ProcessInstanceCriteria{},
 			engine.TaskCriteria{},
+			engine.UserTaskCriteria{},
 			engine.VariableCriteria{},
 		}
 
@@ -786,6 +798,117 @@ func TestQuery(t *testing.T) {
 		})
 	})
 
+	t.Run("user task", func(t *testing.T) {
+		runQueryTests(t, e, []queryTest{
+			{
+				"by partition",
+				engine.UserTaskCriteria{Partition: engine.Partition(date)},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 3)
+					assert.Equal(engine.Partition(date), results[0].(engine.UserTask).Partition)
+					assert.Equal(int32(1), results[0].(engine.UserTask).Id)
+					assert.Equal(engine.Partition(date), results[1].(engine.UserTask).Partition)
+					assert.Equal(int32(1), results[0].(engine.UserTask).Id)
+					assert.Equal(engine.Partition(date), results[2].(engine.UserTask).Partition)
+					assert.Equal(int32(3), results[2].(engine.UserTask).Id)
+				},
+			},
+			{
+				"by partition and ID",
+				engine.UserTaskCriteria{Partition: engine.Partition(date), Id: 1},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 1)
+					assert.Equal(engine.Partition(date), results[0].(engine.UserTask).Partition)
+					assert.Equal(int32(1), results[0].(engine.UserTask).Id)
+				},
+			},
+			{
+				"by element instance ID",
+				engine.UserTaskCriteria{ElementInstanceId: 3},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 1)
+					assert.Equal(int32(3), results[0].(engine.UserTask).ElementInstanceId)
+				},
+			},
+			{
+				"by process ID",
+				engine.UserTaskCriteria{ProcessId: 2},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 2)
+					assert.Equal(int32(2), results[0].(engine.UserTask).ProcessId)
+					assert.Equal(int32(2), results[1].(engine.UserTask).ProcessId)
+				},
+			},
+			{
+				"by process instance ID",
+				engine.UserTaskCriteria{ProcessInstanceId: 10},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 3)
+					assert.Equal(int32(10), results[0].(engine.UserTask).ProcessInstanceId)
+					assert.Equal(int32(10), results[1].(engine.UserTask).ProcessInstanceId)
+					assert.Equal(int32(10), results[2].(engine.UserTask).ProcessInstanceId)
+				},
+			},
+			{
+				"by tags",
+				engine.UserTaskCriteria{Tags: []engine.Tag{
+					{Name: "a", Value: "b"},
+				}},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 2)
+					assert.Equal(engine.Partition(date), results[0].(engine.UserTask).Partition)
+					assert.Equal(int32(1), results[0].(engine.UserTask).Id)
+					assert.Equal("a", results[0].(engine.UserTask).Tags[0].Name)
+					assert.Equal("b", results[0].(engine.UserTask).Tags[0].Value)
+					assert.Equal(engine.Partition(datePlus1), results[1].(engine.UserTask).Partition)
+					assert.Equal(int32(2), results[1].(engine.UserTask).Id)
+					assert.Equal("a", results[1].(engine.UserTask).Tags[0].Name)
+					assert.Equal("b", results[1].(engine.UserTask).Tags[0].Value)
+				},
+			},
+			{
+				"by tags not matching",
+				engine.UserTaskCriteria{Tags: []engine.Tag{
+					{Name: "c", Value: "y"},
+				}},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 0)
+				},
+			},
+			{
+				"by multiple tags",
+				engine.UserTaskCriteria{Tags: []engine.Tag{
+					{Name: "a", Value: "b"},
+					{Name: "x", Value: "y"},
+				}},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 1)
+					assert.Equal(engine.Partition(datePlus1), results[0].(engine.UserTask).Partition)
+					assert.Equal(int32(2), results[0].(engine.UserTask).Id)
+					assert.Equal("a", results[0].(engine.UserTask).Tags[0].Name)
+					assert.Equal("b", results[0].(engine.UserTask).Tags[0].Value)
+					assert.Equal("x", results[0].(engine.UserTask).Tags[1].Name)
+					assert.Equal("y", results[0].(engine.UserTask).Tags[1].Value)
+				},
+			},
+			{
+				"by tag name",
+				engine.UserTaskCriteria{Tags: []engine.Tag{
+					{Name: "a"},
+				}},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 2)
+					assert.Equal(engine.Partition(date), results[0].(engine.UserTask).Partition)
+					assert.Equal(int32(1), results[0].(engine.UserTask).Id)
+					assert.Equal("a", results[0].(engine.UserTask).Tags[0].Name)
+					assert.Equal(engine.Partition(datePlus1), results[1].(engine.UserTask).Partition)
+					assert.Equal(int32(2), results[1].(engine.UserTask).Id)
+					assert.Equal("a", results[1].(engine.UserTask).Tags[0].Name)
+				},
+			},
+		})
+	})
+
 	t.Run("variable", func(t *testing.T) {
 		runQueryTests(t, e, []queryTest{
 			{
@@ -952,6 +1075,12 @@ func mustQuery(t *testing.T, q engine.Query, criteria any) []any {
 			t.Fatalf("failed to query tasks: %v", err)
 		}
 		return toResults(tasks)
+	case engine.UserTaskCriteria:
+		userTasks, err := q.QueryUserTasks(context.Background(), criteria)
+		if err != nil {
+			t.Fatalf("failed to query user tasks: %v", err)
+		}
+		return toResults(userTasks)
 	case engine.VariableCriteria:
 		variables, err := q.QueryVariables(context.Background(), criteria)
 		if err != nil {

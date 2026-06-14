@@ -16,6 +16,7 @@ type processInstanceRepository struct {
 
 	elementInstances elementInstanceRepository
 	jobs             jobRepository
+	userTasks        userTaskRepository
 }
 
 func (r *processInstanceRepository) Insert(entity *internal.ProcessInstanceEntity) error {
@@ -77,6 +78,28 @@ func (r *processInstanceRepository) SelectByJob(partition time.Time, jobId int32
 	processInstance, err := r.Select(partition, job.ProcessInstanceId)
 	if err == pgx.ErrNoRows {
 		return nil, fmt.Errorf("failed to select process instance %s/%d", key, job.ProcessInstanceId)
+	}
+
+	return processInstance, nil
+}
+
+func (r *processInstanceRepository) SelectByUserTask(partition time.Time, userTaskId int32) (*internal.ProcessInstanceEntity, error) {
+	key := partition.Format(time.DateOnly)
+
+	var userTask *internal.UserTaskEntity
+	for _, e := range r.userTasks.partitions[key] {
+		if e.Id == userTaskId {
+			userTask = &e
+		}
+	}
+
+	if userTask == nil {
+		return nil, pgx.ErrNoRows
+	}
+
+	processInstance, err := r.Select(partition, userTask.ProcessInstanceId)
+	if err == pgx.ErrNoRows {
+		return nil, fmt.Errorf("failed to select process instance %s/%d", key, userTask.ProcessInstanceId)
 	}
 
 	return processInstance, nil

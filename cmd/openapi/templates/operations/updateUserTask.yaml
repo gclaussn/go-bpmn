@@ -1,0 +1,177 @@
+tags:
+  - User tasks
+summary: Update user task
+description: >
+  Updates a user task's state, variables and/or tags.
+  To avoid concurrent updates, the user task's current revision must be specified.
+
+
+  If a user task is completed, the execution continues and the state is changed to `COMPLETED`.
+
+
+  If a BPMN error is thrown, the execution continues at the related error boundary event and the user task is terminated - state is changed to `TERMINATED`.
+
+
+  If a user task is escalated, the execution continues at the related escalation boundary event.
+  In case the boundary event is non-interrupting, the user task remains in state `STARTED`.
+  Otherwise the user task is terminated - state is changed to `TERMINATED`.
+parameters:
+  - in: path
+    name: partition
+    description: User task partition.
+    required: true
+    schema:
+      type: string
+      format: date
+  - in: path
+    name: id
+    description: User task ID.
+    required: true
+    schema:
+      type: integer
+      format: int32
+      min: 1
+requestBody:
+  content:
+    application/json:
+      schema:
+        $ref: "#/components/schemas/UpdateUserTaskCmd"
+      examples:
+        complete_user_task:
+          summary: Complete user task
+          value:
+            revision: 1
+            completed: true
+            workerId: go-bpmn
+        throw_error:
+          summary: Throw error
+          value:
+            revision: 1
+            errorCode: example-error
+            workerId: go-bpmn
+        escalate_user_task:
+          summary: Escalate user task
+          value:
+            revision: 1
+            escalationCode: example-escalation
+            workerId: go-bpmn
+responses:
+  "200":
+    description: User task updated
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/UserTask"
+        examples:
+          completed:
+            summary: Completed
+            value:
+              partition: "2025-05-01"
+              id: 1042
+              revision: 2
+              elementId: 8
+              elementInstanceId: 2298
+              processId: 2
+              processInstanceId: 576
+              bpmnElementId: userTaskA
+              createdAt: "2025-05-01T17:44:19.997Z"
+              createdBy: go-bpmn
+              state: COMPLETED
+              tags:
+                - name: x
+                  value: y
+              updatedAt: "2025-05-01T17:59:30.657Z"
+              updatedBy: go-bpmn
+  "400":
+    description: Bad request
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          invalid_request_body:
+            summary: Invalid request body
+            value:
+              status: 400
+              type: HTTP_REQUEST_BODY
+              title: invalid request body
+              detail: failed to validate request body
+              errors:
+                - pointer: "#/revision"
+                  type: gte
+                  detail: must be greater than or equal to 1
+                  value: "0"
+                - pointer: "#/processVariables/0/name"
+                  type: variable_name
+                  detail: must match regex ^[a-zA-Z0-9_-]+$
+                  value: ","
+                - pointer: "#/processVariables/1/data/encoding"
+                  type: required
+                  detail: is required
+                - pointer: "#/tags/0/name"
+                  type: tag_name
+                  detail: must match regex ^[a-zA-Z0-9_-]+$
+                  value: ","
+          complete_throw_error_or_escalate:
+            summary: Complete user task, throw error or escalate user task
+            value:
+              status: 400
+              type: VALIDATION
+              title: failed to update user task
+              detail: expected to either complete user task, throw error or escalate user task
+  "404":
+    description: Not found
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          user_task_not_found:
+            summary: User task not found
+            value:
+              status: 404
+              type: NOT_FOUND
+              title: failed to update user task
+              detail: user task 2025-04-01/123 could not be found
+  "409":
+    description: Conflict
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          user_task_not_started:
+            summary: User task not started
+            value:
+              status: 409
+              type: CONFLICT
+              title: failed to update user task
+              detail: user task 2025-04-01/123 is not in state STARTED, but COMPLETED
+          user_task_not_in_revision:
+            summary: Job not locked
+            value:
+              status: 409
+              type: CONFLICT
+              title: failed to update user task
+              detail: user task 2025-04-01/123 is not in revision 1, but 2
+  "422":
+    description: Unprocessable entity
+    content:
+      application/problem+json:
+        schema:
+          $ref: "#/components/schemas/Problem"
+        examples:
+          error_boundary_event_not_found:
+            summary: Error boundary event not found
+            value:
+              status: 422
+              type: EXECUTION
+              title: failed to throw BPMN error
+              detail: failed to find boundary event for error code example-error
+          escalation_boundary_event_not_found:
+            summary: Escalation boundary event not found
+            value:
+              status: 422
+              type: EXECUTION
+              title: failed to escalate user task
+              detail: failed to find boundary event for escalation code example-escalation

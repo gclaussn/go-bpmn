@@ -40,6 +40,9 @@ tags:
   - name: Tasks
     description: >
       A task is a unit of work, which must be locked, executed and completed by an engine.
+  - name: User tasks
+    description: >
+      A user task is a unit of work, which is done by a human.
   - name: Variables
     description: >
       A variable is data, identified by a name, that exists in the scope of a process instance or element instance.

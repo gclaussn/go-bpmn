@@ -123,6 +123,17 @@ func (q *query) QueryTasks(ctx context.Context, criteria engine.TaskCriteria) ([
 	return results, q.e.release(pgCtx, err)
 }
 
+func (q *query) QueryUserTasks(ctx context.Context, criteria engine.UserTaskCriteria) ([]engine.UserTask, error) {
+	pgCtx, cancel, err := q.e.acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	defer cancel()
+	results, err := pgCtx.UserTasks().Query(criteria, q.options)
+	return results, q.e.release(pgCtx, err)
+}
+
 func (q *query) QueryVariables(ctx context.Context, criteria engine.VariableCriteria) ([]engine.Variable, error) {
 	pgCtx, cancel, err := q.e.acquire(ctx)
 	if err != nil {

@@ -93,6 +93,18 @@ type Engine interface {
 	// UnlockTasks locked, but uncompleted, tasks that are currently locked by a specific engine.
 	UnlockTasks(context.Context, UnlockTasksCmd) (int, error)
 
+	// UpdateUserTask updates a user task's state, variables and/or tags.
+	// To avoid concurrent updates, the user task's current revision must be specified.
+	//
+	// If a user task is completed, the execution continues and the state is changed to [UserTaskCompleted].
+	//
+	// If a BPMN error is thrown, the execution continues at the related error boundary event and the user task is terminated - state is changed to [UserTaskTerminated].
+	//
+	// If a user task is escalated, the execution continues at the related escalation boundary event.
+	// In case the boundary event is non-interrupting, the user task remains in state [UserTaskStarted].
+	// Otherwise the user task is terminated - state is changed to [UserTaskTerminated].
+	UpdateUserTask(context.Context, UpdateUserTaskCmd) (UserTask, error)
+
 	// Shutdown shuts the engine down.
 	Shutdown()
 }
@@ -109,6 +121,7 @@ type Query interface {
 	QueryProcessInstances(context.Context, ProcessInstanceCriteria) ([]ProcessInstance, error)
 	QuerySignalSubscriptions(context.Context, SignalSubscriptionCriteria) ([]SignalSubscription, error)
 	QueryTasks(context.Context, TaskCriteria) ([]Task, error)
+	QueryUserTasks(context.Context, UserTaskCriteria) ([]UserTask, error)
 	QueryVariables(context.Context, VariableCriteria) ([]Variable, error)
 
 	// SetOptions sets options that are used when performing a query.
@@ -198,7 +211,7 @@ func (p *Partition) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 	if len(s) != 12 {
-		return fmt.Errorf("invalid partition data %s", s)
+		return fmt.Errorf("invalid partition %s", s)
 	}
 
 	s = s[1 : len(s)-1]

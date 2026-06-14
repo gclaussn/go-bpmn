@@ -33,6 +33,7 @@ var Tables = []string{
 	"signal_subscription",
 	"signal_variable",
 	"task",
+	"user_task",
 	"variable",
 }
 
@@ -44,6 +45,7 @@ var partitionedTables = []string{
 	"process_instance",
 	"process_instance_queue_element",
 	"task",
+	"user_task",
 	"variable",
 }
 

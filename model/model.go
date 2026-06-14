@@ -298,6 +298,8 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				} else {
 					element.Type = ElementTimerCatchEvent
 				}
+			case "userTask":
+				startElement(ElementUserTask, t.Attr)
 			default:
 				if err := decoder.Skip(); err != nil {
 					return nil, fmt.Errorf("failed to skip XML element: %v", err)
@@ -349,7 +351,8 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				"serviceTask",
 				"startEvent",
 				"subProcess",
-				"task":
+				"task",
+				"userTask":
 				endElement()
 			}
 		}

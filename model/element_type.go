@@ -39,6 +39,7 @@ const (
 	ElementTimerBoundaryEvent
 	ElementTimerCatchEvent
 	ElementTimerStartEvent
+	ElementUserTask
 )
 
 func MapElementType(s string) ElementType {
@@ -109,6 +110,8 @@ func MapElementType(s string) ElementType {
 		return ElementTimerCatchEvent
 	case "TIMER_START_EVENT":
 		return ElementTimerStartEvent
+	case "USER_TASK":
+		return ElementUserTask
 	default:
 		return 0
 	}
@@ -190,6 +193,8 @@ func (v ElementType) String() string {
 		return "TIMER_CATCH_EVENT"
 	case ElementTimerStartEvent:
 		return "TIMER_START_EVENT"
+	case ElementUserTask:
+		return "USER_TASK"
 	default:
 		return ""
 	}
@@ -205,7 +210,7 @@ func (v *ElementType) UnmarshalJSON(data []byte) error {
 		*v = MapElementType(s)
 	}
 	if *v == 0 {
-		return fmt.Errorf("invalid element type data %s", s)
+		return fmt.Errorf("invalid element type %s", s)
 	}
 	return nil
 }

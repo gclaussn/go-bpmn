@@ -622,6 +622,27 @@ func (a *ProcessInstanceAssert) Task() Task {
 	return Task{}
 }
 
+func (a *ProcessInstanceAssert) UserTask() UserTask {
+	if a.elementInstanceId == 0 {
+		a.Fatalf("call IsWaitingAt first")
+	}
+
+	results, err := a.e.CreateQuery().QueryUserTasks(context.Background(), UserTaskCriteria{
+		Partition:         a.partition,
+		ProcessInstanceId: a.processInstanceId,
+		ElementInstanceId: a.elementInstanceId,
+	})
+	if err != nil {
+		a.Fatalf("failed to query user task: %v", err)
+	}
+
+	if len(results) == 0 {
+		a.Fatalf("expected process instance to have an user task at %s", a.bpmnElementId)
+	}
+
+	return results[0]
+}
+
 func (a *ProcessInstanceAssert) Tasks() []Task {
 	results, err := a.e.CreateQuery().QueryTasks(context.Background(), TaskCriteria{
 		Partition:         a.partition,

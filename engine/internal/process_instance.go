@@ -58,6 +58,7 @@ type ProcessInstanceRepository interface {
 	Select(partition time.Time, id int32) (*ProcessInstanceEntity, error)
 	SelectByElementInstance(partition time.Time, elementInstanceId int32) (*ProcessInstanceEntity, error)
 	SelectByJob(partition time.Time, jobId int32) (*ProcessInstanceEntity, error)
+	SelectByUserTask(partition time.Time, userTaskId int32) (*ProcessInstanceEntity, error)
 	Update(*ProcessInstanceEntity) error
 
 	Query(engine.ProcessInstanceCriteria, engine.QueryOptions) ([]engine.ProcessInstance, error)

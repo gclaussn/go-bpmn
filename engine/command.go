@@ -261,6 +261,32 @@ type UnlockTasksCmd struct {
 	EngineId string `json:"engineId" validate:"required"`
 }
 
+// UpdateUserTaskCmd specifies how to update a user task.
+type UpdateUserTaskCmd struct {
+	// User task partition.
+	Partition Partition `json:"-"`
+	// User task ID.
+	Id int32 `json:"-"`
+
+	// User task revision that should be updated.
+	Revision int32 `json:"revision" validate:"required,gte=1"`
+
+	// Variables to set or delete at element instance scope. For a variable deletion, no data must be provided.
+	ElementVariables []ElementVariable `json:"elementVariables,omitempty" validate:"max=100,dive"`
+	// Code of a BPMN error, used to throw an error.
+	ErrorCode string `json:"errorCode,omitempty"`
+	// Code of a BPMN escalation, used to escalate a user task.
+	EscalationCode string `json:"escalationCode,omitempty"`
+	// Determines if a user task is completed and the execution is continued.
+	IsCompleted bool `json:"completed,omitempty"`
+	// Variables to set or delete at process instance scope. For a variable deletion, no data must be provided.
+	ProcessVariables []ProcessVariable `json:"processVariables,omitempty" validate:"max=100,dive"`
+	// Tags. For a tag deletion, no value must be provided.
+	Tags []Tag `json:"tags,omitempty" validate:"max=100,dive"`
+	// ID of the worker that updated the user task.
+	WorkerId string `json:"workerId" validate:"required"`
+}
+
 // command related types
 
 // CalledProcess provides data for the creation of a child process instance.

@@ -95,6 +95,8 @@ func mustInsertEntities(t *testing.T, e engine.Engine, entities []any) {
 			err = pgCtx.SignalVariables().InsertBatch([]*internal.SignalVariableEntity{entity})
 		case *internal.TaskEntity:
 			err = pgCtx.Tasks().Insert(entity)
+		case *internal.UserTaskEntity:
+			err = pgCtx.UserTasks().Insert(entity)
 		case *internal.VariableEntity:
 			err = pgCtx.Variables().Insert(entity)
 		default:

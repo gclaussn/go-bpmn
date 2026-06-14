@@ -137,6 +137,29 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			jobType = engine.JobCallProcess
 
 			execution.Context = ec.processInstance.CorrelationKey // needed for the [engine.JobPassVariables] job, created when the child process instance ends
+		case model.ElementUserTask:
+			if execution.State == engine.InstanceStarted {
+				userTask := UserTaskEntity{
+					Partition: execution.Partition,
+
+					Revision: 1,
+
+					ElementId:         execution.ElementId,
+					ProcessId:         execution.ProcessId,
+					ProcessInstanceId: execution.ProcessInstanceId,
+
+					BpmnElementId:  execution.BpmnElementId,
+					CorrelationKey: ec.processInstance.CorrelationKey,
+					CreatedAt:      ctx.Time(),
+					CreatedBy:      ec.engineOrWorkerId,
+					State:          engine.UserTaskStarted,
+					UpdatedAt:      ctx.Time(),
+					UpdatedBy:      ec.engineOrWorkerId,
+				}
+
+				entities = append(entities, &userTask)
+				idx = append(idx, i)
+			}
 		// gateway
 		case model.ElementExclusiveGateway:
 			jobType = engine.JobEvaluateExclusiveGateway
@@ -235,7 +258,7 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 		default:
 			return engine.Error{
 				Type:   engine.ErrorBug,
-				Title:  "failed to define job or task",
+				Title:  "failed to continue execution",
 				Detail: fmt.Sprintf("BPMN element type %s is not supported", execution.BpmnElementType),
 			}
 		}
@@ -324,7 +347,7 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 		}
 	}
 
-	// insert jobs, task and subscriptions
+	// insert entities (jobs, tasks, etc.)
 	for i, entity := range entities {
 		execution := ec.executions[idx[i]]
 
@@ -339,6 +362,12 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			entity.ElementInstanceId = pgtype.Int4{Int32: execution.Id, Valid: true}
 
 			if err := ctx.Tasks().Insert(entity); err != nil {
+				return err
+			}
+		case *UserTaskEntity:
+			entity.ElementInstanceId = execution.Id
+
+			if err := ctx.UserTasks().Insert(entity); err != nil {
 				return err
 			}
 		case *SignalSubscriptionEntity:
@@ -471,7 +500,11 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 	}
 
 	if err != nil {
-		return err
+		if _, ok := err.(engine.Error); ok {
+			job.Error = pgtype.Text{String: err.Error(), Valid: true}
+		} else {
+			return err
+		}
 	}
 	if !continueExecution || job.Error.Valid {
 		return nil
@@ -480,6 +513,41 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 	if err := ec.continueExecutions(ctx); err != nil {
 		if _, ok := err.(engine.Error); ok {
 			job.Error = pgtype.Text{String: err.Error(), Valid: true}
+		} else {
+			return fmt.Errorf("failed to continue executions %+v: %v", ec.executions, err)
+		}
+	}
+
+	return nil
+}
+
+func (ec *executionContext) handleUserTask(ctx Context, userTask *UserTaskEntity, cmd engine.UpdateUserTaskCmd) error {
+	continueExecution := false
+
+	var err error
+	switch {
+	case cmd.IsCompleted:
+		continueExecution = true
+		userTask.State = engine.UserTaskCompleted
+	case cmd.ErrorCode != "":
+		continueExecution, err = ec.throwError(ctx, cmd.ErrorCode)
+		if continueExecution {
+			userTask.State = engine.UserTaskTerminated
+		}
+	case cmd.EscalationCode != "":
+		continueExecution, err = ec.escalateUserTask(ctx, userTask, cmd.EscalationCode)
+	}
+
+	if err != nil {
+		return err
+	}
+	if !continueExecution {
+		return nil
+	}
+
+	if err := ec.continueExecutions(ctx); err != nil {
+		if _, ok := err.(engine.Error); ok {
+			return err
 		} else {
 			return fmt.Errorf("failed to continue executions %+v: %v", ec.executions, err)
 		}

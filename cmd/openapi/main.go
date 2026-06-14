@@ -71,14 +71,17 @@ func main() {
 	instanceState, instanceStateValues := describeEnum(engine.InstanceState(0))
 	generator.generateEnum(instanceState, instanceStateValues)
 
-	jobType, jobTypeValues := describeEnum(engine.JobType(0))
-	generator.generateEnum(jobType, jobTypeValues)
+	jobType, values := describeEnum(engine.JobType(0))
+	generator.generateEnum(jobType, values)
 
-	taskType, taskTypeValues := describeEnum(engine.TaskType(0))
-	generator.generateEnum(taskType, taskTypeValues)
+	taskType, values := describeEnum(engine.TaskType(0))
+	generator.generateEnum(taskType, values)
 
-	workState, workStateValues := describeEnum(engine.WorkState(0))
-	generator.generateEnum(workState, workStateValues)
+	userTaskState, values := describeEnum(engine.UserTaskState(0))
+	generator.generateEnum(userTaskState, values)
+
+	workState, values := describeEnum(engine.WorkState(0))
+	generator.generateEnum(workState, values)
 
 	generator.generateSchemas("engine/command.go")
 	generator.generateSchemas("engine/model.go")

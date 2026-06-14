@@ -30,6 +30,7 @@ var (
 	sqlTaskLock                 *template.Template = newSqlTemplate("task_lock.sql")
 	sqlTaskQuery                *template.Template = newSqlTemplate("task_query.sql")
 	sqlTaskUnlock               *template.Template = newSqlTemplate("task_unlock.sql")
+	sqlUserTaskQuery            *template.Template = newSqlTemplate("user_task_query.sql")
 	sqlVariableElementQuery     *template.Template = newSqlTemplate("variable_element_query.sql")
 	sqlVariableProcessQuery     *template.Template = newSqlTemplate("variable_process_query.sql")
 	sqlVariableQuery            *template.Template = newSqlTemplate("variable_query.sql")

@@ -73,6 +73,12 @@ func (q *query) QueryTasks(_ context.Context, criteria engine.TaskCriteria) ([]e
 	return memCtx.Tasks().Query(criteria, q.options, memCtx.Time())
 }
 
+func (q *query) QueryUserTasks(_ context.Context, criteria engine.UserTaskCriteria) ([]engine.UserTask, error) {
+	defer q.e.unlock()
+	memCtx := q.e.rlock()
+	return memCtx.UserTasks().Query(criteria, q.options)
+}
+
 func (q *query) QueryVariables(_ context.Context, criteria engine.VariableCriteria) ([]engine.Variable, error) {
 	defer q.e.unlock()
 	memCtx := q.e.rlock()

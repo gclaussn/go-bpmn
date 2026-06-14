@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func (ec *executionContext) executeError(ctx Context, job *JobEntity, errorCode string) (bool, error) {
+func (ec *executionContext) throwError(ctx Context, errorCode string) (bool, error) {
 	execution := ec.executions[1]
 
 	boundaryEvent, err := findErrorBoundaryEvent(ctx, execution, errorCode)
@@ -17,8 +17,11 @@ func (ec *executionContext) executeError(ctx Context, job *JobEntity, errorCode 
 	}
 
 	if boundaryEvent == nil {
-		job.Error = pgtype.Text{String: fmt.Sprintf("failed to find boundary event for error code %s", errorCode), Valid: true}
-		return false, nil
+		return false, engine.Error{
+			Type:   engine.ErrorExecution,
+			Title:  "failed to throw BPMN error",
+			Detail: fmt.Sprintf("failed to find boundary event for error code %s", errorCode),
+		}
 	}
 
 	if boundaryEvent.ProcessInstanceId != execution.ProcessInstanceId {

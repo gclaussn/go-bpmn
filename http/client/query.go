@@ -123,6 +123,17 @@ func (q *query) QueryTasks(ctx context.Context, criteria engine.TaskCriteria) ([
 	return resBody.Results, nil
 }
 
+func (q *query) QueryUserTasks(ctx context.Context, criteria engine.UserTaskCriteria) ([]engine.UserTask, error) {
+	path := common.PathUserTasksQuery + encodeQueryOptions(q.options)
+
+	var resBody common.UserTaskRes
+	if err := q.c.doPost(ctx, path, criteria, &resBody); err != nil {
+		return nil, err
+	}
+
+	return resBody.Results, nil
+}
+
 func (q *query) QueryVariables(ctx context.Context, criteria engine.VariableCriteria) ([]engine.Variable, error) {
 	path := common.PathVariablesQuery + encodeQueryOptions(q.options)
 
