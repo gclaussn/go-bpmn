@@ -236,6 +236,7 @@ type ErrorType int
 const (
 	ErrorBug ErrorType = iota + 1
 	ErrorConflict
+	ErrorExecution
 	ErrorNotFound
 	ErrorProcessModel
 	ErrorQuery
@@ -248,6 +249,8 @@ func MapErrorType(s string) ErrorType {
 		return ErrorBug
 	case "CONFLICT":
 		return ErrorConflict
+	case "EXECUTION":
+		return ErrorExecution
 	case "NOT_FOUND":
 		return ErrorNotFound
 	case "PROCESS_MODEL":
@@ -267,6 +270,8 @@ func (v ErrorType) String() string {
 		return "BUG"
 	case ErrorConflict:
 		return "CONFLICT"
+	case ErrorExecution:
+		return "EXECUTION"
 	case ErrorNotFound:
 		return "NOT_FOUND"
 	case ErrorProcessModel:

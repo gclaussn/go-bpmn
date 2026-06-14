@@ -25,8 +25,12 @@ func decodeJSONResponseBody(res *http.Response, v any) error {
 
 		var errorType engine.ErrorType
 		switch problem.Type {
+		case common.ProblemBug:
+			errorType = engine.ErrorBug
 		case common.ProblemConflict:
 			errorType = engine.ErrorConflict
+		case common.ProblemExecution:
+			errorType = engine.ErrorExecution
 		case common.ProblemNotFound:
 			errorType = engine.ErrorNotFound
 		case common.ProblemProcessModel:

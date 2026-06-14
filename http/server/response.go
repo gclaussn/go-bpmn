@@ -28,9 +28,15 @@ func encodeJSONProblemResponseBody(w http.ResponseWriter, r *http.Request, err e
 			)
 
 			switch engineErr.Type {
+			case engine.ErrorBug:
+				status = http.StatusInternalServerError
+				problemType = common.ProblemBug
 			case engine.ErrorConflict:
 				status = http.StatusConflict
 				problemType = common.ProblemConflict
+			case engine.ErrorExecution:
+				status = http.StatusUnprocessableEntity
+				problemType = common.ProblemExecution
 			case engine.ErrorNotFound:
 				status = http.StatusNotFound
 				problemType = common.ProblemNotFound

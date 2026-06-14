@@ -14,7 +14,9 @@ const (
 	ProblemHttpRequestUri
 
 	// engine error types
+	ProblemBug
 	ProblemConflict
+	ProblemExecution
 	ProblemNotFound
 	ProblemProcessModel
 	ProblemQuery
@@ -29,16 +31,20 @@ func MapProblemType(s string) ProblemType {
 		return ProblemHttpRequestBody
 	case "HTTP_REQUEST_URI":
 		return ProblemHttpRequestUri
-	case "VALIDATION":
-		return ProblemValidation
+	case "BUG":
+		return ProblemBug
 	case "CONFLICT":
 		return ProblemConflict
+	case "EXECUTION":
+		return ProblemExecution
 	case "NOT_FOUND":
 		return ProblemNotFound
 	case "PROCESS_MODEL":
 		return ProblemProcessModel
 	case "QUERY":
 		return ProblemQuery
+	case "VALIDATION":
+		return ProblemValidation
 	default:
 		return 0
 	}
@@ -56,16 +62,20 @@ func (v ProblemType) String() string {
 		return "HTTP_REQUEST_BODY"
 	case ProblemHttpRequestUri:
 		return "HTTP_REQUEST_URI"
-	case ProblemValidation:
-		return "VALIDATION"
+	case ProblemBug:
+		return "BUG"
 	case ProblemConflict:
 		return "CONFLICT"
+	case ProblemExecution:
+		return "EXECUTION"
 	case ProblemNotFound:
 		return "NOT_FOUND"
 	case ProblemProcessModel:
 		return "PROCESS_MODEL"
 	case ProblemQuery:
 		return "QUERY"
+	case ProblemValidation:
+		return "VALIDATION"
 	default:
 		return "UNKNOWN"
 	}
