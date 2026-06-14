@@ -232,6 +232,7 @@ FROM
 WHERE
 	partition = $1 AND
 	process_instance_id = $2 AND
+	element_instance_id IS NULL AND
 	name = $3
 		`,
 			entity.Partition,
