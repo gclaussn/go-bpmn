@@ -1,7 +1,10 @@
 package internal
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -72,6 +75,26 @@ func isTimerEvent(elementType model.ElementType) bool {
 	}
 }
 
+func marshalTags(tags []engine.Tag) (pgtype.Text, error) {
+	if len(tags) == 0 {
+		return pgtype.Text{}, nil
+	}
+
+	tagMap := make(map[string]string, len(tags))
+	for _, tag := range tags {
+		if tag.Value != "" {
+			tagMap[tag.Name] = tag.Value
+		}
+	}
+
+	b, err := json.Marshal(tagMap)
+	if err != nil {
+		return pgtype.Text{}, fmt.Errorf("failed to marshal tags: %v", err)
+	}
+
+	return pgtype.Text{String: string(b), Valid: true}, nil
+}
+
 func timeOrNil(v pgtype.Timestamp) *time.Time {
 	if !v.Valid {
 		return nil
@@ -84,4 +107,25 @@ func toPgTimestamp(v *time.Time) pgtype.Timestamp {
 		return pgtype.Timestamp{}
 	}
 	return pgtype.Timestamp{Time: *v, Valid: true}
+}
+
+func unmarshalTags(value pgtype.Text) []engine.Tag {
+	if !value.Valid {
+		return nil
+	}
+
+	var tagMap map[string]string
+	_ = json.Unmarshal([]byte(value.String), &tagMap)
+
+	tagNames := slices.Sorted(maps.Keys(tagMap))
+
+	tags := make([]engine.Tag, len(tagNames))
+	for i, tagName := range tagNames {
+		tags[i] = engine.Tag{
+			Name:  tagName,
+			Value: tagMap[tagName],
+		}
+	}
+
+	return tags
 }

@@ -534,6 +534,17 @@ func TestQuery(t *testing.T) {
 					assert.Equal(int32(5), results[0].(engine.Process).Id)
 				},
 			},
+			{
+				"by tag name",
+				engine.ProcessCriteria{Tags: []engine.Tag{
+					{Name: "a"},
+				}},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 2)
+					assert.Equal(int32(1), results[0].(engine.Process).Id)
+					assert.Equal(int32(5), results[1].(engine.Process).Id)
+				},
+			},
 		})
 	})
 
@@ -636,6 +647,21 @@ func TestQuery(t *testing.T) {
 					assert.Equal("b", results[0].(engine.ProcessInstance).Tags[0].Value)
 					assert.Equal("x", results[0].(engine.ProcessInstance).Tags[1].Name)
 					assert.Equal("y", results[0].(engine.ProcessInstance).Tags[1].Value)
+				},
+			},
+			{
+				"by tag name",
+				engine.ProcessInstanceCriteria{Tags: []engine.Tag{
+					{Name: "a"},
+				}},
+				func(assert *assert.Assertions, results []any) {
+					assert.Len(results, 2)
+					assert.Equal(engine.Partition(date), results[0].(engine.ProcessInstance).Partition)
+					assert.Equal(int32(1), results[0].(engine.ProcessInstance).Id)
+					assert.Equal("a", results[0].(engine.ProcessInstance).Tags[0].Name)
+					assert.Equal(engine.Partition(datePlus1), results[1].(engine.ProcessInstance).Partition)
+					assert.Equal(int32(2), results[1].(engine.ProcessInstance).Id)
+					assert.Equal("a", results[1].(engine.ProcessInstance).Tags[0].Name)
 				},
 			},
 		})

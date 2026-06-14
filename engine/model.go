@@ -788,7 +788,7 @@ type SignalSubscriptionCriteria struct {
 // Tag is used to tag entities like process or process instance.
 type Tag struct {
 	Name  string `json:"name" validate:"required,tag_name"` // Tag name.
-	Value string `json:"value" validate:"required"`         // Tag value.
+	Value string `json:"value,omitempty"`                   // Tag value.
 }
 
 func (v Tag) String() string {

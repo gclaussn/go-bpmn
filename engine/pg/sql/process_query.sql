@@ -19,7 +19,11 @@ WHERE
 {{end}}
 
 {{range $tag := .c.Tags}}
+	{{- if $tag.Value}}
 	AND tags->>{{$tag.Name | quoteString}} = {{$tag.Value | quoteString}}
+	{{- else}}
+	AND tags ? {{$tag.Name | quoteString}}
+	{{- end}}
 {{end}}
 
 ORDER BY

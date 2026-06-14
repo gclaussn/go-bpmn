@@ -56,8 +56,7 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		"vtags": [
 			{"name": "", "value": "v"},
 			{"name": " ", "value": "v"},
-			{"name": ".", "value": "v"},
-			{"name": "a", "value": ""}
+			{"name": ".", "value": "v"}
 		],
 		"vunique": [1, 1, 2, 2, 3],
 		"vvariables": [
@@ -172,7 +171,7 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		assertProblem(t, err, common.ProblemHttpRequestBody, http.StatusBadRequest)
 
 		problem := err.(common.Problem)
-		assert.Len(problem.Errors, 14)
+		assert.Len(problem.Errors, 13)
 
 		findError := func(pointer string) common.Error {
 			for i := range problem.Errors {
@@ -228,10 +227,6 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		e = findError("#/vtags/2/name")
 		assert.Equal("tag_name", e.Type)
 		assert.Equal(".", e.Value)
-
-		e = findError("#/vtags/3/value")
-		assert.Equal("required", e.Type)
-		assert.Empty(e.Value)
 
 		// variable_name
 		e = findError("#/vvariables/0/name")

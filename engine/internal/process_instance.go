@@ -1,10 +1,7 @@
 package internal
 
 import (
-	"encoding/json"
 	"fmt"
-	"maps"
-	"slices"
 	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
@@ -35,22 +32,6 @@ type ProcessInstanceEntity struct {
 }
 
 func (e ProcessInstanceEntity) ProcessInstance() engine.ProcessInstance {
-	var tags []engine.Tag
-	if e.Tags.Valid {
-		var tagMap map[string]string
-		_ = json.Unmarshal([]byte(e.Tags.String), &tagMap)
-
-		tagNames := slices.Sorted(maps.Keys(tagMap))
-
-		tags = make([]engine.Tag, len(tagNames))
-		for i, tagName := range tagNames {
-			tags[i] = engine.Tag{
-				Name:  tagName,
-				Value: tagMap[tagName],
-			}
-		}
-	}
-
 	return engine.ProcessInstance{
 		Partition: engine.Partition(e.Partition),
 		Id:        e.Id,
@@ -67,7 +48,7 @@ func (e ProcessInstanceEntity) ProcessInstance() engine.ProcessInstance {
 		EndedAt:        timeOrNil(e.EndedAt),
 		StartedAt:      timeOrNil(e.StartedAt),
 		State:          e.State,
-		Tags:           tags,
+		Tags:           unmarshalTags(e.Tags),
 		Version:        e.Version,
 	}
 }
@@ -95,19 +76,9 @@ func CreateProcessInstance(ctx Context, cmd engine.CreateProcessInstanceCmd, par
 		return engine.ProcessInstance{}, err
 	}
 
-	var tags string
-	if len(cmd.Tags) != 0 {
-		tagMap := make(map[string]string, len(cmd.Tags))
-		for _, tag := range cmd.Tags {
-			tagMap[tag.Name] = tag.Value
-		}
-
-		b, err := json.Marshal(tagMap)
-		if err != nil {
-			return engine.ProcessInstance{}, fmt.Errorf("failed to marshal tags: %v", err)
-		}
-
-		tags = string(b)
+	tags, err := marshalTags(cmd.Tags)
+	if err != nil {
+		return engine.ProcessInstance{}, err
 	}
 
 	processInstance := ProcessInstanceEntity{
@@ -121,7 +92,7 @@ func CreateProcessInstance(ctx Context, cmd engine.CreateProcessInstanceCmd, par
 		CreatedBy:      cmd.WorkerId,
 		StartedAt:      pgtype.Timestamp{Time: ctx.Time(), Valid: true},
 		State:          engine.InstanceStarted,
-		Tags:           pgtype.Text{String: tags, Valid: tags != ""},
+		Tags:           tags,
 		Version:        process.Version,
 	}
 

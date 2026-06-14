@@ -3,10 +3,7 @@ package internal
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"maps"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -173,22 +170,6 @@ type ProcessEntity struct {
 }
 
 func (e ProcessEntity) Process() engine.Process {
-	var tags []engine.Tag
-	if e.Tags.Valid {
-		var tagMap map[string]string
-		_ = json.Unmarshal([]byte(e.Tags.String), &tagMap)
-
-		tagNames := slices.Sorted(maps.Keys(tagMap))
-
-		tags = make([]engine.Tag, len(tagNames))
-		for i, tagName := range tagNames {
-			tags[i] = engine.Tag{
-				Name:  tagName,
-				Value: tagMap[tagName],
-			}
-		}
-	}
-
 	return engine.Process{
 		Id: e.Id,
 
@@ -199,7 +180,7 @@ func (e ProcessEntity) Process() engine.Process {
 		CreatedAt:           e.CreatedAt,
 		CreatedBy:           e.CreatedBy,
 		Parallelism:         e.Parallelism,
-		Tags:                tags,
+		Tags:                unmarshalTags(e.Tags),
 		Version:             e.Version,
 	}
 }
@@ -497,19 +478,9 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 	}
 
 	// insert process
-	var tags string
-	if len(cmd.Tags) != 0 {
-		tagMap := make(map[string]string, len(cmd.Tags))
-		for _, tag := range cmd.Tags {
-			tagMap[tag.Name] = tag.Value
-		}
-
-		b, err := json.Marshal(tagMap)
-		if err != nil {
-			return engine.Process{}, fmt.Errorf("failed to marshal tags: %v", err)
-		}
-
-		tags = string(b)
+	tags, err := marshalTags(cmd.Tags)
+	if err != nil {
+		return engine.Process{}, err
 	}
 
 	collaboration := bpmnModel.Definitions.Collaboration
@@ -545,7 +516,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		CreatedAt:           ctx.Time(),
 		CreatedBy:           cmd.WorkerId,
 		Parallelism:         cmd.Parallelism,
-		Tags:                pgtype.Text{String: tags, Valid: tags != ""},
+		Tags:                tags,
 		Version:             cmd.Version,
 	}
 

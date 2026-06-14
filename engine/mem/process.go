@@ -77,7 +77,7 @@ func (r *processRepository) Query(c engine.ProcessCriteria, o engine.QueryOption
 			matches := true
 			for _, tag := range c.Tags {
 				value, ok := tagMap[tag.Name]
-				matches = matches && ok && value == tag.Value
+				matches = matches && ok && (tag.Value == "" || value == tag.Value)
 			}
 
 			if !matches {
