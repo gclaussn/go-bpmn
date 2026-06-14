@@ -309,7 +309,7 @@ func mapElementVariables(ctx Context, elementInstance *ElementInstanceEntity, va
 
 		elementInstances[current.BpmnElementId] = current
 
-		if current.BpmnElementType == model.ElementProcess {
+		if counter == 0 || current.BpmnElementType == model.ElementProcess {
 			break
 		}
 
