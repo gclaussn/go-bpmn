@@ -47,6 +47,7 @@ func (h serviceTask) executeServiceTask(jc worker.JobContext) error {
 	variableA, _ := oldProcessVariables.Get("a")
 	assert.Equal("json", variableA.Encoding)
 	assert.False(variableA.IsEncrypted)
+	assert.True(variableA.IsEncoded)
 	assert.Equal("a", variableA.Name)
 	assert.Equal("\"string\"", variableA.Value)
 

@@ -46,7 +46,7 @@ type JobMux map[string]func(JobContext) (*engine.JobCompletion, error)
 // CallProcess handles jobs of type [engine.JobCallProcess].
 //
 // Applicable for BPMN elements of type call activity.
-func (m JobMux) CallProcess(bpmnElementId string, jobHandler func(jc JobContext) (*engine.CalledProcess, error)) {
+func (m JobMux) CallProcess(bpmnElementId string, jobHandler func(jc JobContext) (CalledProcess, error)) {
 	m[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
 		if err := ensureJobType(jc.Job.Type, engine.JobCallProcess); err != nil {
 			return nil, err
@@ -57,8 +57,19 @@ func (m JobMux) CallProcess(bpmnElementId string, jobHandler func(jc JobContext)
 			return nil, err
 		}
 
+		variables, err := jc.w.encodeProcessVariables(calledProcess.Variables.variables)
+		if err != nil {
+			return nil, err
+		}
+
 		return &engine.JobCompletion{
-			CalledProcess: calledProcess,
+			CalledProcess: &engine.CalledProcess{
+				BpmnProcessId:  calledProcess.BpmnProcessId,
+				CorrelationKey: calledProcess.CorrelationKey,
+				Tags:           calledProcess.Tags,
+				Variables:      variables,
+				Version:        calledProcess.Version,
+			},
 		}, nil
 	}
 }
@@ -350,6 +361,9 @@ func (jc JobContext) Context() context.Context {
 	return jc.ctx
 }
 
+// ElementVariables gets variables of a job's element instance as well as direct and indirect parent element instances.
+//
+// names defines which variables to get. If empty, all variables are returned.
 func (jc JobContext) ElementVariables(names ...string) (ElementVariables, error) {
 	elementVariables, err := jc.w.e.GetElementVariables(jc.ctx, engine.GetElementVariablesCmd{
 		Partition:         jc.Job.Partition,
@@ -367,6 +381,7 @@ func (jc JobContext) ElementVariables(names ...string) (ElementVariables, error)
 			BpmnElementId: variable.BpmnElementId,
 			Encoding:      variable.Data.Encoding,
 			IsEncrypted:   variable.Data.IsEncrypted,
+			IsEncoded:     true,
 			Name:          variable.Name,
 			Value:         variable.Data.Value,
 		}
@@ -396,14 +411,13 @@ func (jc JobContext) NewProcessVariables() *ProcessVariables {
 	return jc.newProcessVariables
 }
 
+// ProcessVariables gets variables of a job's process instance.
+//
+// names defines which variables to get. If empty, all variables are returned.
 func (jc JobContext) ProcessVariables(names ...string) (ProcessVariables, error) {
-	return jc.ProcessVariablesFrom(jc.Job.Partition, jc.Job.ProcessInstanceId, names...)
-}
-
-func (jc JobContext) ProcessVariablesFrom(partition engine.Partition, processInstanceId int32, names ...string) (ProcessVariables, error) {
 	processVariables, err := jc.w.e.GetProcessVariables(jc.ctx, engine.GetProcessVariablesCmd{
-		Partition:         partition,
-		ProcessInstanceId: processInstanceId,
+		Partition:         jc.Job.Partition,
+		ProcessInstanceId: jc.Job.ProcessInstanceId,
 
 		Names: names,
 	})
@@ -416,12 +430,55 @@ func (jc JobContext) ProcessVariablesFrom(partition engine.Partition, processIns
 		variables[i] = ProcessVariable{
 			Encoding:    variable.Data.Encoding,
 			IsEncrypted: variable.Data.IsEncrypted,
+			IsEncoded:   true,
 			Name:        variable.Name,
 			Value:       variable.Data.Value,
 		}
 	}
 
 	return ProcessVariables{variables: variables}, nil
+}
+
+// SubProcessVariables gets process variables of a sub process instance.
+//
+// names defines which variables to get. If empty, all variables are returned.
+func (jc JobContext) SubProcessVariables(subProcessInstance engine.ProcessInstance, names ...string) (ProcessVariables, error) {
+	processVariables, err := jc.w.e.GetProcessVariables(jc.ctx, engine.GetProcessVariablesCmd{
+		Partition:         subProcessInstance.Partition,
+		ProcessInstanceId: subProcessInstance.Id,
+
+		Names: names,
+	})
+	if err != nil {
+		return ProcessVariables{}, err
+	}
+
+	variables := make([]ProcessVariable, len(processVariables))
+	for i, variable := range processVariables {
+		variables[i] = ProcessVariable{
+			Encoding:    variable.Data.Encoding,
+			IsEncrypted: variable.Data.IsEncrypted,
+			IsEncoded:   true,
+			Name:        variable.Name,
+			Value:       variable.Data.Value,
+		}
+	}
+
+	return ProcessVariables{variables: variables}, nil
+}
+
+// CalledProcess is used to create a child process instance.
+type CalledProcess struct {
+	// BPMN ID of the process to call.
+	BpmnProcessId string
+	// Optional key, used to correlate the child process instance with a business entity.
+	CorrelationKey string
+	// Tags to apply to the child process instance.
+	Tags []engine.Tag
+	// Variables to set at child process instance scope.
+	Variables ProcessVariables
+	// Version of the process to call.
+	Version string
 }
 
 type jobError struct {

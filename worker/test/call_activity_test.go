@@ -31,18 +31,23 @@ func (h callActivity) Handle(mux worker.JobMux) error {
 	return nil
 }
 
-func (h callActivity) callProcess(jc worker.JobContext) (*engine.CalledProcess, error) {
-	return &engine.CalledProcess{
+func (h callActivity) callProcess(jc worker.JobContext) (worker.CalledProcess, error) {
+	variables := worker.NewProcessVariables()
+	variables.Set(worker.ProcessVariable{
+		Encoding: "json",
+		Name:     "a",
+		Value:    "av",
+	})
+
+	return worker.CalledProcess{
 		BpmnProcessId: "startEndTest",
 		Version:       "1",
-		Variables: []engine.ProcessVariable{
-			{Name: "a", Data: &engine.Data{Value: "av", Encoding: "json"}},
-		},
+		Variables:     variables,
 	}, nil
 }
 
 func (h callActivity) passVariables(jc worker.JobContext, subProcessInstance engine.ProcessInstance) error {
-	subVariables, err := jc.ProcessVariablesFrom(subProcessInstance.Partition, subProcessInstance.Id)
+	subVariables, err := jc.SubProcessVariables(subProcessInstance)
 	if err != nil {
 		return err
 	}

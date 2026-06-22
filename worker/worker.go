@@ -318,6 +318,24 @@ func (w *Worker) encodeElementVariables(variables []ElementVariable) ([]engine.E
 			continue
 		}
 
+		if variable.IsEncoded {
+			value, ok := variable.Value.(string)
+			if !ok {
+				return nil, fmt.Errorf("expected value of encoded element variable %s to be a string, but is not", variable.Name)
+			}
+
+			encodedVariables[i] = engine.ElementVariable{
+				BpmnElementId: variable.BpmnElementId,
+				Name:          variable.Name,
+				Data: &engine.Data{
+					Encoding:    variable.Encoding,
+					IsEncrypted: variable.IsEncrypted,
+					Value:       value,
+				},
+			}
+			continue
+		}
+
 		encoding := variable.Encoding
 		if encoding == "" {
 			encoding = w.options.DefaultEncoding
@@ -356,6 +374,23 @@ func (w *Worker) encodeProcessVariables(variables []ProcessVariable) ([]engine.P
 	for i, variable := range variables {
 		if variable.IsDeleted() {
 			encodedVariables[i] = engine.ProcessVariable{Name: variable.Name}
+			continue
+		}
+
+		if variable.IsEncoded {
+			value, ok := variable.Value.(string)
+			if !ok {
+				return nil, fmt.Errorf("expected value of encoded process variable %s to be a string, but is not", variable.Name)
+			}
+
+			encodedVariables[i] = engine.ProcessVariable{
+				Name: variable.Name,
+				Data: &engine.Data{
+					Encoding:    variable.Encoding,
+					IsEncrypted: variable.IsEncrypted,
+					Value:       value,
+				},
+			}
 			continue
 		}
 

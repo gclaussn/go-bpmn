@@ -18,6 +18,7 @@ type ElementVariable struct {
 	BpmnElementId string
 	Encoding      string
 	IsEncrypted   bool
+	IsEncoded     bool
 	Name          string
 	Value         any
 }
@@ -30,6 +31,9 @@ type ElementVariable struct {
 func (v ElementVariable) Decode(jc JobContext, value any) error {
 	if value == nil {
 		return errors.New("value is nil")
+	}
+	if !v.IsEncoded {
+		return errors.New("value is not encoded")
 	}
 
 	decoder := jc.w.Decoder(v.Encoding)
@@ -151,6 +155,7 @@ func (v *ElementVariables) indexOf(bpmnElementId string, name string) int {
 type ProcessVariable struct {
 	Encoding    string
 	IsEncrypted bool
+	IsEncoded   bool
 	Name        string
 	Value       any
 }
@@ -163,6 +168,9 @@ type ProcessVariable struct {
 func (v ProcessVariable) Decode(jc JobContext, value any) error {
 	if value == nil {
 		return errors.New("value is nil")
+	}
+	if !v.IsEncoded {
+		return errors.New("value is not encoded")
 	}
 
 	decoder := jc.w.Decoder(v.Encoding)
