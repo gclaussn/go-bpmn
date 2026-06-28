@@ -265,14 +265,14 @@ func (ec *executionContext) subscribeSignal(ctx Context, job *JobEntity, jobComp
 
 	execution := ec.executions[1]
 
-	if execution.BpmnElementType == model.ElementSignalBoundaryEvent {
-		attachedTo, err := ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
+	if execution.PrevId.Valid { // boundary event or catch event next to event-based gateway
+		prev, err := ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
 		if err != nil {
-			return fmt.Errorf("failed to select attached to element instance: %v", err)
+			return fmt.Errorf("failed to select previous element instance: %v", err)
 		}
 
-		attachedTo.ExecutionCount++
-		ec.addExecution(attachedTo)
+		prev.ExecutionCount++
+		ec.addExecution(prev)
 	}
 
 	signalSubscription := SignalSubscriptionEntity{
@@ -409,6 +409,10 @@ func (ec *executionContext) triggerSignalCatchEvent(ctx Context, signalId int64)
 	}
 
 	ec.engineOrWorkerId = signal.CreatedBy
+
+	if execution.PrevId.Valid {
+		ec.completeEventBasedGateay(ctx)
+	}
 
 	if err := ec.continueExecutions(ctx); err != nil {
 		if _, ok := err.(engine.Error); ok {

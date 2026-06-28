@@ -1,0 +1,44 @@
+<definitions id="test">
+  <process id="eventBasedTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="eventBasedGateway" />
+    <eventBasedGateway id="eventBasedGateway">
+      <incoming>f1</incoming>
+      <outgoing>f2</outgoing>
+      <outgoing>f4</outgoing>
+      <outgoing>f6</outgoing>
+    </eventBasedGateway>
+    <sequenceFlow id="f2" sourceRef="eventBasedGateway" targetRef="messageCatchEvent" />
+    <intermediateCatchEvent id="messageCatchEvent">
+      <incoming>f2</incoming>
+      <outgoing>f3</outgoing>
+      <messageEventDefinition id="messageCatchEventDefinition" />
+    </intermediateCatchEvent>
+    <sequenceFlow id="f3" sourceRef="messageCatchEvent" targetRef="messageEnd" />
+    <endEvent id="messageEnd">
+      <incoming>f3</incoming>
+    </endEvent>
+    <sequenceFlow id="f4" sourceRef="eventBasedGateway" targetRef="signalCatchEvent" />
+    <intermediateCatchEvent id="signalCatchEvent">
+      <incoming>f4</incoming>
+      <outgoing>f5</outgoing>
+      <signalEventDefinition id="signalCatchEventDefinition" />
+    </intermediateCatchEvent>
+   <sequenceFlow id="f5" sourceRef="signalCatchEvent" targetRef="signalEnd" />
+    <endEvent id="signalEnd">
+      <incoming>f5</incoming>
+    </endEvent>
+    <sequenceFlow id="f6" sourceRef="eventBasedGateway" targetRef="timerCatchEvent" />
+    <intermediateCatchEvent id="timerCatchEvent">
+      <incoming>f6</incoming>
+      <outgoing>f7</outgoing>
+      <timerEventDefinition id="timerCatchEventDefinition" />
+    </intermediateCatchEvent>
+    <sequenceFlow id="f7" sourceRef="timerCatchEvent" targetRef="timerEnd" />
+    <endEvent id="timerEnd">
+      <incoming>f7</incoming>
+    </endEvent>
+  </process>
+</definitions>

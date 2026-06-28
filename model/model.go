@@ -155,6 +155,8 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 					model.EventDefinition = eventDefinition
 					element.Model = model
 				}
+			case "eventBasedGateway":
+				startElement(ElementEventBasedGateway, t.Attr)
 			case "exclusiveGateway":
 				startElement(ElementExclusiveGateway, t.Attr)
 				element.Model = ExclusiveGateway{Default: getAttrValue(t.Attr, "default")}
@@ -340,6 +342,7 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				"businessRuleTask",
 				"callActivity",
 				"endEvent",
+				"eventBasedGateway",
 				"exclusiveGateway",
 				"inclusiveGateway",
 				"intermediateThrowEvent",

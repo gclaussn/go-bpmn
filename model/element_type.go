@@ -13,6 +13,7 @@ const (
 	ElementEscalationBoundaryEvent
 	ElementEscalationEndEvent
 	ElementEscalationThrowEvent
+	ElementEventBasedGateway
 	ElementExclusiveGateway
 	ElementInclusiveGateway
 	ElementManualTask
@@ -58,6 +59,8 @@ func MapElementType(s string) ElementType {
 		return ElementEscalationEndEvent
 	case "ESCALATION_THROW_EVENT":
 		return ElementEscalationThrowEvent
+	case "EVENT_BASED_GATEWAY":
+		return ElementEventBasedGateway
 	case "EXCLUSIVE_GATEWAY":
 		return ElementExclusiveGateway
 	case "INCLUSIVE_GATEWAY":
@@ -141,6 +144,8 @@ func (v ElementType) String() string {
 		return "ESCALATION_END_EVENT"
 	case ElementEscalationThrowEvent:
 		return "ESCALATION_THROW_EVENT"
+	case ElementEventBasedGateway:
+		return "EVENT_BASED_GATEWAY"
 	case ElementExclusiveGateway:
 		return "EXCLUSIVE_GATEWAY"
 	case ElementInclusiveGateway:
@@ -223,6 +228,18 @@ func IsBoundaryEvent(elementType ElementType) bool {
 		ElementMessageBoundaryEvent,
 		ElementSignalBoundaryEvent,
 		ElementTimerBoundaryEvent:
+		return true
+	default:
+		return false
+	}
+}
+
+func IsCatchEvent(elementType ElementType) bool {
+	switch elementType {
+	case
+		ElementMessageCatchEvent,
+		ElementSignalCatchEvent,
+		ElementTimerCatchEvent:
 		return true
 	default:
 		return false

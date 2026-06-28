@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
-	"github.com/gclaussn/go-bpmn/model"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -55,14 +54,14 @@ func (ec *executionContext) setTimer(ctx Context, job *JobEntity, jobCompletion 
 
 	execution := ec.executions[1]
 
-	if execution.BpmnElementType == model.ElementTimerBoundaryEvent {
-		attachedTo, err := ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
+	if execution.PrevId.Valid { // boundary event or catch event next to event-based gateway
+		prev, err := ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
 		if err != nil {
-			return fmt.Errorf("failed to select attached to element instance: %v", err)
+			return fmt.Errorf("failed to previous element instance: %v", err)
 		}
 
-		attachedTo.ExecutionCount++
-		ec.addExecution(attachedTo)
+		prev.ExecutionCount++
+		ec.addExecution(prev)
 	}
 
 	triggerEventTask := TaskEntity{
@@ -158,6 +157,10 @@ func (ec *executionContext) triggerTimerBoundaryEvent(ctx Context, timer engine.
 func (ec *executionContext) triggerTimerCatchEvent(ctx Context, timer engine.Timer) error {
 	execution := ec.executions[1]
 
+	if execution.PrevId.Valid {
+		ec.completeEventBasedGateay(ctx)
+	}
+
 	if err := ec.continueExecutions(ctx); err != nil {
 		if _, ok := err.(engine.Error); ok {
 			return err
@@ -172,7 +175,7 @@ func (ec *executionContext) triggerTimerCatchEvent(ctx Context, timer engine.Tim
 		ElementInstanceId: execution.Id,
 
 		CreatedAt:    ctx.Time(),
-		CreatedBy:    ctx.Options().EngineId,
+		CreatedBy:    ec.engineOrWorkerId,
 		Time:         toPgTimestamp(timer.Time),
 		TimeCycle:    pgtype.Text{String: timer.TimeCycle, Valid: timer.TimeCycle != ""},
 		TimeDuration: pgtype.Text{String: timer.TimeDuration.String(), Valid: !timer.TimeDuration.IsZero()},

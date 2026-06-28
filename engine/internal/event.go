@@ -216,6 +216,92 @@ func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
 	}
 }
 
+// completeEventBasedGateay completes an event-based gateway by performing following actions:
+//   - triggered catch event is started
+//   - all other catch events are terminated
+//   - message and signal subscriptions are canceled
+//
+// The method expects the scope of the catch event as first and the triggered catch event as second execution.
+func (ec *executionContext) completeEventBasedGateay(ctx Context) error {
+	catchEventScope, catchEvent := ec.executions[0], ec.executions[1]
+
+	// start catch event
+	catchEvent.State = engine.InstanceStarted
+
+	eventBasedGateway, err := ctx.ElementInstances().Select(catchEvent.Partition, catchEvent.PrevId.Int32)
+	if err != nil {
+		return err
+	}
+
+	// terminate all other catch events
+	catchEvents, err := ctx.ElementInstances().SelectByPrevId(eventBasedGateway.Partition, eventBasedGateway.Id)
+	if err != nil {
+		return err
+	}
+
+	var (
+		messageSubscriptionIds []int32
+		signalSubscriptionIds  []int32
+	)
+	for _, other := range catchEvents {
+		if other.Id == catchEvent.Id {
+			continue
+		}
+
+		other.State = engine.InstanceTerminated
+		ec.addExecution(other)
+
+		switch other.BpmnElementType {
+		case model.ElementMessageCatchEvent:
+			messageSubscriptionIds = append(messageSubscriptionIds, other.Id)
+		case model.ElementSignalCatchEvent:
+			signalSubscriptionIds = append(signalSubscriptionIds, other.Id)
+		}
+	}
+
+	// complete event-based gateway
+	eventBasedGateway.State = engine.InstanceCompleted
+	eventBasedGateway.parent = catchEventScope
+	ec.addExecution(eventBasedGateway)
+
+	// cancel message and signal subscriptions
+	if len(messageSubscriptionIds) != 0 {
+		messageSubscriptions, err := ctx.MessageSubscriptions().SelectByProcessInstance(ec.processInstance)
+		if err != nil {
+			return err
+		}
+
+		for _, messageSubscription := range messageSubscriptions {
+			if !slices.Contains(messageSubscriptionIds, messageSubscription.ElementInstanceId) {
+				continue
+			}
+
+			if err := ctx.MessageSubscriptions().Delete(messageSubscription); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(signalSubscriptionIds) != 0 {
+		signalSubscriptions, err := ctx.SignalSubscriptions().SelectByProcessInstance(ec.processInstance)
+		if err != nil {
+			return err
+		}
+
+		for _, signalSubscription := range signalSubscriptions {
+			if !slices.Contains(signalSubscriptionIds, signalSubscription.ElementInstanceId) {
+				continue
+			}
+
+			if err := ctx.SignalSubscriptions().Delete(signalSubscription); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 // startBoundaryEvent starts a boundary event.
 // The method expects the scope of the boundary event as first and the boundary event as second execution.
 //

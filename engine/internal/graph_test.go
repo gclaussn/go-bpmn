@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -33,6 +34,29 @@ func TestValidateProcess(t *testing.T) {
 		assert.Equal("/startEndTest/", causes[0].Pointer)
 		assert.NotEmpty(causes[0].Type)
 		assert.Equal("element of type NONE_START_EVENT has no ID", causes[0].Detail)
+	})
+
+	t.Run("event-based gateway", func(t *testing.T) {
+		t.Run("returns cause when only 1 outgoing sequence flow exists", func(t *testing.T) {
+			causes := mustValidateProcess(t, "invalid/event-based-gateway-one.bpmn")
+			assert.Len(causes, 1)
+
+			assert.Equal("/eventBasedGatewayOneTest/eventBasedGateway", causes[0].Pointer)
+			assert.NotEmpty(causes[0].Type)
+			assert.Equal("event-based gateway eventBasedGateway must have at least 2 outgoing sequence flows", causes[0].Detail)
+		})
+
+		t.Run("returns cause when not followed by catch event", func(t *testing.T) {
+			causes := mustValidateProcess(t, "gateway/event-based.bpmn", func(processElement *model.Element) {
+				messageCatchEvent := processElement.ChildById("messageCatchEvent")
+				messageCatchEvent.Type = model.ElementMessageThrowEvent
+			})
+			assert.Len(causes, 1)
+
+			assert.Equal("/eventBasedTest/messageCatchEvent", causes[0].Pointer)
+			assert.NotEmpty(causes[0].Type)
+			assert.Equal("event-based gateway eventBasedGateway cannot be followed by MESSAGE_THROW_EVENT", causes[0].Detail)
+		})
 	})
 
 	t.Run("exclusive gateway", func(t *testing.T) {
@@ -220,7 +244,7 @@ func TestValidateProcess(t *testing.T) {
 
 					assert.Equal("/process/subProcess/otherStartEvent", causes[0].Pointer)
 					assert.NotEmpty(causes[0].Type)
-					assert.Contains(causes[0].Detail, "cannot be started by event")
+					assert.Contains(causes[0].Detail, fmt.Sprintf("sub-process subProcess cannot be started by %s", elementType))
 				})
 			}
 		})

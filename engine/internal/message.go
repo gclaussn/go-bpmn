@@ -311,17 +311,12 @@ func (ec *executionContext) subscribeMessage(ctx Context, job *JobEntity, jobCom
 		messageName = node.eventDefinition.MessageName.String
 	}
 
-	var (
-		attachedTo   *ElementInstanceEntity
-		interrupting bool
-	)
-	if execution.BpmnElementType == model.ElementMessageBoundaryEvent {
-		attachedTo, err = ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
+	var prev *ElementInstanceEntity
+	if execution.PrevId.Valid { // boundary event or catch event next to event-based gateway
+		prev, err = ctx.ElementInstances().Select(execution.Partition, execution.PrevId.Int32)
 		if err != nil {
-			return fmt.Errorf("failed to select attached to element instance: %v", err)
+			return fmt.Errorf("failed to select previous element instance: %v", err)
 		}
-
-		interrupting = node.bpmnElement.Model.(model.BoundaryEvent).CancelActivity
 	}
 
 	bufferedMessage, err := ctx.Messages().SelectBuffered(messageName, jobCompletion.MessageCorrelationKey, ctx.Time())
@@ -359,9 +354,11 @@ func (ec *executionContext) subscribeMessage(ctx Context, job *JobEntity, jobCom
 			return err
 		}
 
-		if attachedTo != nil && !interrupting {
-			attachedTo.ExecutionCount++
-			ec.addExecution(attachedTo)
+		if execution.BpmnElementType == model.ElementMessageBoundaryEvent {
+			if interrupting := node.bpmnElement.Model.(model.BoundaryEvent).CancelActivity; !interrupting {
+				prev.ExecutionCount++
+				ec.addExecution(prev)
+			}
 		}
 	} else {
 		messageSubscription := MessageSubscriptionEntity{
@@ -383,9 +380,9 @@ func (ec *executionContext) subscribeMessage(ctx Context, job *JobEntity, jobCom
 			return err
 		}
 
-		if attachedTo != nil {
-			attachedTo.ExecutionCount++
-			ec.addExecution(attachedTo)
+		if prev != nil {
+			prev.ExecutionCount++
+			ec.addExecution(prev)
 		}
 	}
 
@@ -538,6 +535,10 @@ func (ec *executionContext) triggerMessageCatchEvent(ctx Context, messageId int6
 	}
 
 	ec.engineOrWorkerId = message.CreatedBy
+
+	if execution.PrevId.Valid {
+		ec.completeEventBasedGateay(ctx)
+	}
 
 	if err := ec.continueExecutions(ctx); err != nil {
 		if _, ok := err.(engine.Error); ok {

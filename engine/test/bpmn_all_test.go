@@ -80,6 +80,15 @@ func TestBpmn(t *testing.T) {
 		}
 	})
 
+	t.Run("event-based gateway", func(t *testing.T) {
+		for i, e := range engines {
+			exclusiveGatewayTest := eventBasedGatewayTest{e}
+
+			t.Run(engineTypes[i]+"gateway", exclusiveGatewayTest.gateway)
+			t.Run(engineTypes[i]+"gateway definition", exclusiveGatewayTest.gatewayDefinition)
+		}
+	})
+
 	t.Run("exclusive gateway", func(t *testing.T) {
 		for i, e := range engines {
 			exclusiveGatewayTest := newExclusiveGatewayTest(t, e)

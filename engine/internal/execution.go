@@ -160,6 +160,8 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 				idx = append(idx, i)
 			}
 		// gateway
+		case model.ElementEventBasedGateway:
+			// nothing to do here
 		case model.ElementExclusiveGateway:
 			jobType = engine.JobEvaluateExclusiveGateway
 		case model.ElementInclusiveGateway:
@@ -329,7 +331,6 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 
 			prev := execution.prev
 			if prev != nil {
-				execution.PrevElementId = pgtype.Int4{Int32: prev.ElementId, Valid: true}
 				execution.PrevId = pgtype.Int4{Int32: prev.Id, Valid: true}
 				execution.prev = nil
 			}

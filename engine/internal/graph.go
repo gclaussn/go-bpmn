@@ -6,6 +6,7 @@ import (
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/model"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // validateProcess validates if the process and its elements can be executed.
@@ -48,6 +49,30 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 		}
 
 		switch bpmnElement.Type {
+		case model.ElementEventBasedGateway:
+			if len(bpmnElement.Outgoing) < 2 {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(bpmnElement),
+					Type:    "element",
+					Detail:  fmt.Sprintf("event-based gateway %s must have at least 2 outgoing sequence flows", bpmnElement.Id),
+				})
+			}
+
+			for _, sequenceFlow := range bpmnElement.Outgoing {
+				if sequenceFlow.Target == nil {
+					continue
+				}
+
+				if model.IsCatchEvent(sequenceFlow.Target.Type) {
+					continue
+				}
+
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(sequenceFlow.Target),
+					Type:    "element",
+					Detail:  fmt.Sprintf("event-based gateway %s cannot be followed by %s", bpmnElement.Id, sequenceFlow.Target.Type),
+				})
+			}
 		case model.ElementExclusiveGateway:
 			exclusivGateway := bpmnElement.Model.(model.ExclusiveGateway)
 			if exclusivGateway.Default != "" {
@@ -100,7 +125,7 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 					causes = append(causes, engine.ErrorCause{
 						Pointer: elementPointer(child),
 						Type:    "element",
-						Detail:  fmt.Sprintf("sub-process %s cannot be started by event %s: not a none start event", bpmnElement.Id, child.Id),
+						Detail:  fmt.Sprintf("sub-process %s cannot be started by %s: not a none start event", bpmnElement.Id, child.Type),
 					})
 				}
 			}
@@ -227,14 +252,14 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 	} else if execution.State == engine.InstanceStarted {
 		// continue branch
 		execution.State = engine.InstanceCompleted
-	} else if isTaskOrScope(execution.BpmnElementType) {
+	} else if isTaskOrScope(execution.BpmnElementType) || execution.BpmnElementType == model.ElementEventBasedGateway {
 		if execution.State == 0 {
 			if scope.State == engine.InstanceSuspended {
 				execution.State = engine.InstanceSuspended
 			} else {
 				execution.State = engine.InstanceCreated
 			}
-		} else if execution.ExecutionCount < 0 { // not all boundary events defined
+		} else if execution.ExecutionCount < 0 { // not all events defined
 			return executions, nil
 		} else if execution.State == engine.InstanceSuspended {
 			execution.State = engine.InstanceCreated
@@ -242,6 +267,8 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 			execution.State = engine.InstanceStarted
 		}
 	} else if model.IsBoundaryEvent(execution.BpmnElementType) {
+		execution.State = engine.InstanceCreated
+	} else if model.IsCatchEvent(execution.BpmnElementType) && execution.PrevElementId.Valid {
 		execution.State = engine.InstanceCreated
 	} else if scope.State == engine.InstanceSuspended {
 		switch execution.BpmnElementType {
@@ -319,11 +346,6 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 			// if set, the next execution will be part of the "element_instance_prev_id_idx" index
 			switch target.Type {
 			case
-				// required for a possible event based gateway
-				model.ElementMessageCatchEvent,
-				model.ElementSignalCatchEvent,
-				model.ElementTimerCatchEvent,
-				// required for a parallel gateway join
 				model.ElementParallelGateway:
 				prev = execution
 			}
@@ -331,6 +353,8 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 			// start branch
 			next := ElementInstanceEntity{
 				Partition: scope.Partition,
+
+				PrevElementId: pgtype.Int4{Int32: execution.ElementId, Valid: prev != nil},
 
 				ElementId:         targetNode.id,
 				ProcessId:         scope.ProcessId,
@@ -359,6 +383,8 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 				attached := ElementInstanceEntity{
 					Partition: scope.Partition,
 
+					PrevElementId: pgtype.Int4{Int32: execution.ElementId, Valid: true},
+
 					ElementId:         boundaryEventNode.id,
 					ProcessId:         scope.ProcessId,
 					ProcessInstanceId: scope.ProcessInstanceId,
@@ -375,6 +401,43 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 				}
 
 				executions = append(executions, &attached)
+				scope.ExecutionCount++
+			}
+
+			if executionCount == 0 {
+				execution.State = engine.InstanceStarted
+			} else {
+				execution.ExecutionCount = executionCount
+			}
+		} else if execution.BpmnElementType == model.ElementEventBasedGateway {
+			executionCount := 0
+
+			for _, sequenceFlow := range node.bpmnElement.Outgoing {
+				target := sequenceFlow.Target
+				targetNode := g.nodes[target.Id]
+
+				// start branch
+				next := ElementInstanceEntity{
+					Partition: scope.Partition,
+
+					PrevElementId: pgtype.Int4{Int32: execution.ElementId, Valid: true},
+
+					ElementId:         targetNode.id,
+					ProcessId:         scope.ProcessId,
+					ProcessInstanceId: scope.ProcessInstanceId,
+
+					BpmnElementId:   target.Id,
+					BpmnElementType: target.Type,
+
+					parent: scope,
+					prev:   execution,
+				}
+
+				if targetNode.eventDefinition == nil || target.Type == model.ElementMessageBoundaryEvent {
+					executionCount--
+				}
+
+				executions = append(executions, &next)
 				scope.ExecutionCount++
 			}
 
