@@ -77,9 +77,9 @@ type ElementInstanceRepository interface {
 	// Only element instances with the same state as the process instance are selected.
 	SelectByProcessInstanceAndState(*ProcessInstanceEntity) ([]*ElementInstanceEntity, error)
 
-	// SelectBoundaryEvents selects element instances, which are attached to the given element instance.
+	// SelectByPrevId selects element instances that are next to the given element instance.
 	// Only element instances with state CREATED are selected.
-	SelectBoundaryEvents(time.Time, int32) ([]*ElementInstanceEntity, error)
+	SelectByPrevId(time.Time, int32) ([]*ElementInstanceEntity, error)
 
 	// SelectParallelGateways selects element instances, which have the same
 	//  - parent element instance

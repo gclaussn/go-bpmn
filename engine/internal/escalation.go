@@ -430,7 +430,7 @@ func findEscalationBoundaryEvent(
 			return nil, false, nil
 		}
 	default:
-		boundaryEvents, err := ctx.ElementInstances().SelectBoundaryEvents(scope.Partition, scope.Id)
+		boundaryEvents, err := ctx.ElementInstances().SelectByPrevId(scope.Partition, scope.Id)
 		if err != nil {
 			return nil, false, err
 		}

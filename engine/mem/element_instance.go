@@ -82,7 +82,7 @@ func (r *elementInstanceRepository) SelectByProcessInstanceAndState(processInsta
 	return results, nil
 }
 
-func (r *elementInstanceRepository) SelectBoundaryEvents(partition time.Time, id int32) ([]*internal.ElementInstanceEntity, error) {
+func (r *elementInstanceRepository) SelectByPrevId(partition time.Time, id int32) ([]*internal.ElementInstanceEntity, error) {
 	var results []*internal.ElementInstanceEntity
 
 	key := partition.Format(time.DateOnly)

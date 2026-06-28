@@ -417,7 +417,7 @@ WHERE
 	return entities, nil
 }
 
-func (r elementInstanceRepository) SelectBoundaryEvents(partition time.Time, id int32) ([]*internal.ElementInstanceEntity, error) {
+func (r elementInstanceRepository) SelectByPrevId(partition time.Time, id int32) ([]*internal.ElementInstanceEntity, error) {
 	rows, err := r.tx.Query(r.txCtx, `
 SELECT
 	id,

@@ -2,7 +2,6 @@ package internal
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/model"
@@ -70,7 +69,7 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			node, _ := graph.node(execution.BpmnElementId)
 			if len(node.boundaryEvents) != 0 {
 				// terminate attached boundary events
-				boundaryEvents, err := ctx.ElementInstances().SelectBoundaryEvents(execution.Partition, execution.Id)
+				boundaryEvents, err := ctx.ElementInstances().SelectByPrevId(execution.Partition, execution.Id)
 				if err != nil {
 					return err
 				}
@@ -554,178 +553,4 @@ func (ec *executionContext) handleUserTask(ctx Context, userTask *UserTaskEntity
 	}
 
 	return nil
-}
-
-// startBoundaryEvent starts a boundary event.
-// The method expects the scope of the boundary event as first and the boundary event as second execution.
-//
-// If the boundary event is non-interrupting, a new boundary event execution is attached and returned.
-//
-// If the boundary event is interrupting, all other boundary events as well as the execution, the boundary is attached to, are terminated.
-func (ec *executionContext) startBoundaryEvent(ctx Context, interrupting bool) (*ElementInstanceEntity, error) {
-	boundaryEventScope, boundaryEvent := ec.executions[0], ec.executions[1]
-
-	// start boundary event
-	boundaryEvent.State = engine.InstanceStarted
-
-	if !interrupting {
-		// attach new boundary event execution
-		newBoundaryEvent, err := ec.process.graph.createExecutionAt(boundaryEventScope, boundaryEvent.BpmnElementId)
-		if err != nil {
-			return nil, err
-		}
-
-		newBoundaryEvent.ParentId = boundaryEvent.ParentId
-		newBoundaryEvent.PrevElementId = boundaryEvent.PrevElementId
-		newBoundaryEvent.PrevId = boundaryEvent.PrevId
-
-		newBoundaryEvent.Context = boundaryEvent.Context
-		newBoundaryEvent.State = engine.InstanceCreated
-
-		ec.addExecution(&newBoundaryEvent)
-
-		return &newBoundaryEvent, nil
-	}
-
-	attachedTo, err := ctx.ElementInstances().Select(boundaryEvent.Partition, boundaryEvent.PrevId.Int32)
-	if err != nil {
-		return nil, err
-	}
-
-	// terminate all other attached boundary events
-	boundaryEvents, err := ctx.ElementInstances().SelectBoundaryEvents(attachedTo.Partition, attachedTo.Id)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, other := range boundaryEvents {
-		if other.Id == boundaryEvent.Id {
-			continue
-		}
-
-		other.State = engine.InstanceTerminated
-		ec.addExecution(other)
-	}
-
-	// terminate attachedTo
-	attachedTo.State = engine.InstanceTerminated
-	attachedTo.parent = boundaryEventScope
-	ec.addExecution(attachedTo)
-
-	i := len(ec.executions) - 1
-	for i < len(ec.executions) {
-		execution := ec.executions[i]
-
-		i++
-
-		// if execution is a call activity, terminate descending process instances recursively
-		if execution.BpmnElementType == model.ElementCallActivity {
-			children, err := ctx.ElementInstances().SelectActiveChildren(execution)
-			if err != nil {
-				return nil, err
-			}
-
-			if len(children) == 0 {
-				continue // process scope already ended
-			}
-
-			processScope := children[0]
-
-			terminateProcessInstanceTask := TaskEntity{
-				Partition: processScope.Partition,
-
-				ProcessId:         pgtype.Int4{Int32: processScope.ProcessId, Valid: true},
-				ProcessInstanceId: pgtype.Int4{Int32: processScope.ProcessInstanceId, Valid: true},
-
-				CreatedAt: ctx.Time(),
-				CreatedBy: ec.engineOrWorkerId,
-				DueAt:     ctx.Time(),
-				State:     engine.WorkCreated,
-				Type:      engine.TaskTerminateProcessInstance,
-
-				Instance: TerminateProcessInstanceTask{},
-			}
-
-			if err := ctx.Tasks().Insert(&terminateProcessInstanceTask); err != nil {
-				return nil, err
-			}
-		}
-
-		if execution.ExecutionCount <= 0 {
-			continue
-		}
-
-		// if attachedTo is a scope (e.g. sub-process), terminate descending executions recursively
-		children, err := ctx.ElementInstances().SelectActiveChildren(execution)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, child := range children {
-			child.State = engine.InstanceTerminated
-			child.parent = execution
-			ec.addExecution(child)
-		}
-	}
-
-	// cancel message and signal subscriptions
-	var (
-		messageSubscriptionIds []int32
-		signalSubscriptionIds  []int32
-	)
-	for _, execution := range ec.executions {
-		if execution.State != engine.InstanceTerminated {
-			continue
-		}
-
-		switch execution.BpmnElementType {
-		case model.ElementMessageBoundaryEvent, model.ElementMessageCatchEvent:
-			messageSubscriptionIds = append(messageSubscriptionIds, execution.Id)
-		case model.ElementSignalBoundaryEvent, model.ElementSignalCatchEvent:
-			signalSubscriptionIds = append(signalSubscriptionIds, execution.Id)
-		}
-	}
-
-	if len(messageSubscriptionIds) != 0 {
-		messageSubscriptions, err := ctx.MessageSubscriptions().SelectByProcessInstance(ec.processInstance)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, messageSubscription := range messageSubscriptions {
-			if !slices.Contains(messageSubscriptionIds, messageSubscription.ElementInstanceId) {
-				continue
-			}
-
-			if err := ctx.MessageSubscriptions().Delete(messageSubscription); err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	if len(signalSubscriptionIds) != 0 {
-		signalSubscriptions, err := ctx.SignalSubscriptions().SelectByProcessInstance(ec.processInstance)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, signalSubscription := range signalSubscriptions {
-			if !slices.Contains(signalSubscriptionIds, signalSubscription.ElementInstanceId) {
-				continue
-			}
-
-			if err := ctx.SignalSubscriptions().Delete(signalSubscription); err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	// reverse execution order so that scopes are executed after their children
-	// this guarantees that the continuation will decrement the execution count of a terminated scope to 0
-	// otherwise a terminated scope might be skipped, leaving it's parent with a wrong execution count
-	slices.SortFunc(ec.executions, func(a *ElementInstanceEntity, b *ElementInstanceEntity) int {
-		return int(b.Id - a.Id)
-	})
-
-	return nil, nil
 }
