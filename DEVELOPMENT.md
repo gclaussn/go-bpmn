@@ -31,13 +31,13 @@ go tool cover -html coverage.out -o coverage.html
 
 ```sh
 # CLI
-CGO_ENABLED=0 go build -o go-bpmn ./cmd/go-bpmn
+CGO_ENABLED=0 go build -o ./build/go-bpmn ./cmd/go-bpmn
 
 # mem engine daemon
-CGO_ENABLED=0 go build -o go-bpmn-memd ./cmd/go-bpmn-memd
+CGO_ENABLED=0 go build -o ./build/go-bpmn-memd ./cmd/go-bpmn-memd
 
 # pg engine daemon
-CGO_ENABLED=0 go build -o go-bpmn-pgd ./cmd/go-bpmn-pgd
+CGO_ENABLED=0 go build -o ./build/go-bpmn-pgd ./cmd/go-bpmn-pgd
 ```
 
 ## OpenAPI
