@@ -11,6 +11,8 @@ services:
     image: postgres:15.2-alpine
     ports:
       - "5432:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
 
   engine:
     build:
@@ -37,16 +39,16 @@ services:
     command:
       - |
         if [ ! -f /conf/authorization ]; then
-          ./go-bpmn-pgd -create-api-key -secret-id test-worker > /conf/authorization
+          ./go-bpmn-pgd api-key create --secret-id test-worker > /conf/authorization
         fi
 
         if [ ! -f /conf/encryption_key ]; then
-          ./go-bpmn-pgd -create-encryption-key > /conf/encryption_key
+          ./go-bpmn-pgd create-encryption-key > /conf/encryption_key
         fi
 
         export GO_BPMN_ENCRYPTION_KEYS="$(cat /conf/encryption_key)"
 
-        ./go-bpmn-pgd
+        ./go-bpmn-pgd run
 
   worker:
     build:

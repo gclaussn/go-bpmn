@@ -51,8 +51,8 @@ func main() {
 
 	for i, build := range builds {
 		goBuild(build, "-ldflags", "-X main.version="+tagName, "-o", "./go-bpmn", "./cmd/go-bpmn")
-		goBuild(build, "-ldflags", "-X github.com/gclaussn/go-bpmn/daemon.version="+tagName, "-o", "./go-bpmn-memd", "./cmd/go-bpmn-memd")
-		goBuild(build, "-ldflags", "-X github.com/gclaussn/go-bpmn/daemon.version="+tagName, "-o", "./go-bpmn-pgd", "./cmd/go-bpmn-pgd")
+		goBuild(build, "-ldflags", "-X main.version="+tagName, "-o", "./go-bpmn-memd", "./cmd/go-bpmn-memd")
+		goBuild(build, "-ldflags", "-X main.version="+tagName, "-o", "./go-bpmn-pgd", "./cmd/go-bpmn-pgd")
 
 		createTarGz(build)
 

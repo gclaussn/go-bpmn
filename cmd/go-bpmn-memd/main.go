@@ -3,31 +3,46 @@ go-bpmn-memd is a daemon, running an in-memory process engine that is accessible
 
 Usage:
 
-	-create-encryption-key
-		create a new encryption key - used for GO_BPMN_ENCRYPTION_KEYS
-	-env value
-		set environment variables
-	-env-file value
-		read in a file of environment variables
-	-list-conf
-		list configuration
-	-list-conf-opts
-		list configuration options
-	-version
-		show version
+	go-bpmn-memd [flags]
+	go-bpmn-memd [command]
+
+Available Commands:
+
+	create-encryption-key Create a new encryption key - used for GO_BPMN_ENCRYPTION_KEYS
+	list-conf             List configuration
+	list-conf-opts        List configuration options
+	run                   Run mem engine daemon
+	version               Show version
+
+Flags:
+
+	-e, --env strings        set environment variable
+	    --env-file strings   read in a file of environment variables
+	-h, --help               help for go-bpmn-memd
+
+Use "go-bpmn-memd [command] --help" for more information about a command.
 */
 package main
 
 import (
-	"log"
 	"os"
 
-	"github.com/gclaussn/go-bpmn/daemon"
+	"github.com/gclaussn/go-bpmn/daemon/memd"
+)
+
+var (
+	version = "unknown-version"
 )
 
 func main() {
-	log.SetOutput(os.Stdout)
+	d := memd.New(version)
 
-	code := daemon.RunMem(os.Args[1:])
-	os.Exit(code)
+	rootCmd := d.RootCmd()
+	rootCmd.SetOut(os.Stdout)
+
+	if err := rootCmd.Execute(); err != nil {
+		os.Exit(1)
+	} else {
+		os.Exit(0)
+	}
 }

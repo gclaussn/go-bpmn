@@ -1,2 +1,2 @@
-// Package daemon implements a PostgreSQL based and an in-memory process engine daemon.
+// Package daemon provides common commands and basic configuration shared between daemon implementations.
 package daemon

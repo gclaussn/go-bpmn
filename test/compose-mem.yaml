@@ -27,12 +27,12 @@ services:
         fi
 
         if [ ! -f /conf/encryption_key ]; then
-          ./go-bpmn-memd -create-encryption-key > /conf/encryption_key
+          ./go-bpmn-memd create-encryption-key > /conf/encryption_key
         fi
 
         export GO_BPMN_ENCRYPTION_KEYS="$(cat /conf/encryption_key)"
 
-        ./go-bpmn-memd
+        ./go-bpmn-memd run
 
   worker:
     build:
