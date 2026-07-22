@@ -57,9 +57,9 @@ go-bpmn process create \
 go-bpmn process-instance create \
 --bpmn-process-id parallelServiceTasksTest \
 --version 1 \
---variable-value x="text x" \
+--variable x="text x" \
 --variable-encoding x=text \
 --variable-encrypted x=true \
---variable-value y="text y" \
+--variable y="text y" \
 --variable-encoding y=text
 ```

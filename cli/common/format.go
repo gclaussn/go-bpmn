@@ -1,4 +1,4 @@
-package cli
+package common
 
 import (
 	"strings"
@@ -6,37 +6,37 @@ import (
 	"unicode/utf8"
 )
 
-func formatTime(v time.Time) string {
+func FormatTime(v time.Time) string {
 	if v.IsZero() {
 		return ""
 	}
 	return v.Format(time.RFC3339)
 }
 
-func formatTimeOrNil(v *time.Time) string {
+func FormatTimeOrNil(v *time.Time) string {
 	if v == nil {
 		return ""
 	}
-	return formatTime(*v)
+	return FormatTime(*v)
 }
 
-func newTable(headers []string) table {
+func NewTable(headers []string) *Table {
 	rows := make([][]string, 2)
 	rows[0] = headers
 	rows[1] = make([]string, len(headers))
 
-	return table{rows: rows}
+	return &Table{rows: rows}
 }
 
-type table struct {
+type Table struct {
 	rows [][]string
 }
 
-func (t *table) addRow(row []string) {
+func (t *Table) AddRow(row []string) {
 	t.rows = append(t.rows, row)
 }
 
-func (t *table) format() string {
+func (t *Table) String() string {
 	rows := t.rows
 
 	columns := make([]int, len(rows[0]))

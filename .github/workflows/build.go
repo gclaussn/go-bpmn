@@ -152,6 +152,16 @@ func createTarGz(build osArch) {
 	if len(out) != 0 {
 		log.Println(string(out))
 	}
+
+	if err := os.Remove("go-bpmn"); err != nil {
+		log.Fatalf("failed to delete build: %v", err)
+	}
+	if err := os.Remove("go-bpmn-memd"); err != nil {
+		log.Fatalf("failed to delete build: %v", err)
+	}
+	if err := os.Remove("go-bpmn-pgd"); err != nil {
+		log.Fatalf("failed to delete build: %v", err)
+	}
 }
 
 func createChecksum(build osArch) string {

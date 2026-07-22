@@ -13,9 +13,21 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gclaussn/go-bpmn/cli/common"
+	"github.com/gclaussn/go-bpmn/cli/element"
+	"github.com/gclaussn/go-bpmn/cli/element_instance"
+	"github.com/gclaussn/go-bpmn/cli/incident"
+	"github.com/gclaussn/go-bpmn/cli/job"
+	"github.com/gclaussn/go-bpmn/cli/message"
+	"github.com/gclaussn/go-bpmn/cli/process"
+	"github.com/gclaussn/go-bpmn/cli/process_instance"
+	"github.com/gclaussn/go-bpmn/cli/signal"
+	"github.com/gclaussn/go-bpmn/cli/task"
+	"github.com/gclaussn/go-bpmn/cli/user_task"
+	"github.com/gclaussn/go-bpmn/cli/variable"
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/http/client"
-	"github.com/gclaussn/go-bpmn/http/common"
+	httpcommon "github.com/gclaussn/go-bpmn/http/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -23,8 +35,6 @@ import (
 const (
 	envLookupAllowed = "envLookupAllowed" // flag level annotation that allows an environment variable lookup
 	envPrefix        = "GO_BPMN_"
-	noEngineRequired = "noEngineRequired" // annotation, indicating that no engine is required to run the command
-	program          = "go-bpmn"
 
 	envAuthorization         = envPrefix + "AUTHORIZATION"
 	envHttpBasicAuthUsername = envPrefix + "HTTP_BASIC_AUTH_USERNAME"
@@ -43,41 +53,28 @@ type Cli struct {
 	version string
 
 	rootCmd *cobra.Command
-
-	e            engine.Engine
-	debugEnabled bool
-	workerId     string
 }
 
-func (c *Cli) Execute() int {
-	if err := c.rootCmd.Execute(); err != nil {
-		return 1
-	}
-	return 0
-}
-
-func (c *Cli) help(cmd *cobra.Command, args []string) error {
-	return cmd.Help()
+func (c *Cli) RootCmd() *cobra.Command {
+	return c.rootCmd
 }
 
 func newRootCmd(cli *Cli) *cobra.Command {
 	var (
-		url     string
-		timeout time.Duration
+		debugEnabled bool
+		timeout      time.Duration
+		url          string
+		workerId     string
 	)
 
 	c := cobra.Command{
-		Use:   program,
+		Use:   "go-bpmn",
 		Short: "A client for go-bpmn HTTP servers",
 		PersistentPreRunE: func(c *cobra.Command, _ []string) error {
 			c.SilenceUsage = true
 
-			if _, ok := c.Annotations[noEngineRequired]; ok {
+			if _, ok := c.Annotations[common.AnnotationEngine]; !ok {
 				return nil
-			}
-
-			if cli.e != nil {
-				return nil // skip client creation when testing
 			}
 
 			c.Flags().VisitAll(func(f *pflag.Flag) {
@@ -117,7 +114,7 @@ func newRootCmd(cli *Cli) *cobra.Command {
 			e, err := client.New(url, authorization, func(o *client.Options) {
 				o.Timeout = timeout
 
-				if cli.debugEnabled {
+				if debugEnabled {
 					o.OnRequest = debugRequest
 					o.OnResponse = debugResponse
 				}
@@ -126,73 +123,86 @@ func newRootCmd(cli *Cli) *cobra.Command {
 				return fmt.Errorf("failed to create HTTP client: %v", err)
 			}
 
-			cli.e = e
+			c.SetContext(common.SetEngineAndWorkerId(c.Context(), e, workerId))
+
 			return nil
 		},
-		RunE: cli.help,
-		PersistentPostRun: func(cmd *cobra.Command, args []string) {
-			if cli.e != nil {
-				cli.e.Shutdown()
+		RunE: common.Help,
+		PersistentPostRun: func(c *cobra.Command, args []string) {
+			if e := common.GetEngine(c); e != nil {
+				e.Shutdown()
 			}
 		},
-		Annotations: map[string]string{noEngineRequired: ""},
 	}
 
 	c.PersistentFlags().StringVar(&url, "url", "", "HTTP server URL")
-	c.PersistentFlags().StringVar(&cli.workerId, "worker-id", program, "Worker ID")
+	c.PersistentFlags().StringVar(&workerId, "worker-id", "go-bpmn", "Worker ID")
 	c.PersistentFlags().DurationVar(&timeout, "timeout", 40*time.Second, "Time limit for requests made by the HTTP client")
-	c.PersistentFlags().BoolVar(&cli.debugEnabled, "debug", false, "Log HTTP requests and responses")
+	c.PersistentFlags().BoolVar(&debugEnabled, "debug", false, "Log HTTP requests and responses")
 
 	c.PersistentFlags().SetAnnotation("url", envLookupAllowed, nil)
 	c.PersistentFlags().SetAnnotation("worker-id", envLookupAllowed, nil)
 	c.PersistentFlags().SetAnnotation("timeout", envLookupAllowed, nil)
 	c.PersistentFlags().SetAnnotation("debug", envLookupAllowed, nil)
 
-	c.AddCommand(newElementCmd(cli))
-	c.AddCommand(newElementInstanceCmd(cli))
-	c.AddCommand(newIncidentCmd(cli))
-	c.AddCommand(newJobCmd(cli))
-	c.AddCommand(newMessageCmd(cli))
-	c.AddCommand(newProcessCmd(cli))
-	c.AddCommand(newProcessInstanceCmd(cli))
-	c.AddCommand(newSignalCmd(cli))
-	c.AddCommand(newTaskCmd(cli))
-	c.AddCommand(newUserTaskCmd(cli))
-	c.AddCommand(newVariableCmd(cli))
-	c.AddCommand(newSetTimeCmd(cli))
-	c.AddCommand(newVersionCmd(cli))
+	c.AddCommand(
+		element.NewCmd(),
+		element_instance.NewCmd(),
+		incident.NewCmd(),
+		job.NewCmd(),
+		message.NewCmd(),
+		process.NewCmd(),
+		process_instance.NewCmd(),
+		signal.NewCmd(),
+		task.NewCmd(),
+		user_task.NewCmd(),
+		variable.NewCmd(),
+		newSetTimeCmd(),
+		newVersionCmd(cli),
+	)
+
+	c.SetHelpCommand(&cobra.Command{
+		Use:    "no-help",
+		Hidden: true,
+	})
+
+	c.CompletionOptions.HiddenDefaultCmd = true
+
+	c.PersistentFlags().BoolP("help", "h", false, "")
+	c.PersistentFlags().Lookup("help").Hidden = true
 
 	return &c
 }
 
-func newSetTimeCmd(cli *Cli) *cobra.Command {
-	var (
-		timeV        timeValue
-		timeCycle    string
-		timeDuration iso8601DurationValue
-	)
+func newSetTimeCmd() *cobra.Command {
+	format := time.RFC3339
+
+	var timer common.Timer
 
 	c := cobra.Command{
-		Use:   "set-time",
-		Short: "Increases the engine's time for testing purposes",
+		Use:         "set-time",
+		Short:       "Increases the engine's time for testing purposes",
+		Annotations: common.AnnotationEngineMap,
 		RunE: func(c *cobra.Command, _ []string) error {
-			new, old, err := cli.e.SetTime(context.Background(), engine.SetTimeCmd{
-				Time:         timeV.Time(),
-				TimeCycle:    timeCycle,
-				TimeDuration: engine.ISO8601Duration(timeDuration),
+			e := common.GetEngine(c)
+
+			new, old, err := e.SetTime(context.Background(), engine.SetTimeCmd{
+				Time:         timer.Time.Time(),
+				TimeCycle:    timer.TimeCycle,
+				TimeDuration: engine.ISO8601Duration(timer.TimeDuration),
 			})
 			if err != nil {
 				return err
 			}
 
-			c.Printf("New time: %s\nOld time: %s", new.Format(time.RFC3339), old.Format(time.RFC3339))
+			c.Printf("New time: %s\nOld time: %s", new.Format(format), old.Format(format))
 			return nil
 		},
 	}
 
-	c.Flags().Var(&timeV, "time", "A future point in time")
-	c.Flags().StringVar(&timeCycle, "time-cycle", "", "CRON expression, when evaluated the next tick specifies the engine's new time")
-	c.Flags().Var(&timeDuration, "time-duration", "Duration, used to calculate a future point in time")
+	c.Flags().Var(&timer.Time, "time", "A future point in time")
+	c.Flags().StringVar(&timer.TimeCycle, "time-cycle", "", "CRON expression, when evaluated the next tick specifies the engine's new time")
+	c.Flags().Var(&timer.TimeDuration, "time-duration", "Duration, used to calculate a future point in time")
 
 	return &c
 }
@@ -204,7 +214,6 @@ func newVersionCmd(cli *Cli) *cobra.Command {
 		Run: func(c *cobra.Command, _ []string) {
 			c.Println(cli.version)
 		},
-		Annotations: map[string]string{noEngineRequired: ""},
 	}
 
 	return &c
@@ -258,8 +267,8 @@ func debugResponse(res *http.Response) error {
 
 	var resBodyStr string
 
-	contentType := res.Header.Get(common.HeaderContentType)
-	if contentType == common.ContentTypeJson || contentType == common.ContentTypeProblemJson {
+	contentType := res.Header.Get(httpcommon.HeaderContentType)
+	if contentType == httpcommon.ContentTypeJson || contentType == httpcommon.ContentTypeProblemJson {
 		buf := &bytes.Buffer{}
 		if err := json.Indent(buf, b, "", "  "); err == nil {
 			resBodyStr = buf.String()
@@ -272,7 +281,7 @@ func debugResponse(res *http.Response) error {
 		res.Body = io.NopCloser(bytes.NewReader(b)) // make body readable again
 	}
 
-	if resBodyStr != "" && contentType != common.ContentTypeXml {
+	if resBodyStr != "" && contentType != httpcommon.ContentTypeXml {
 		log.Printf("response body:\n%s", resBodyStr)
 	}
 	return nil

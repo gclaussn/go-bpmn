@@ -321,12 +321,12 @@ type JobCompletion struct {
 	// Applicable when job type is `EVALUATE_INCLUSIVE_GATEWAY`.
 	InclusiveGatewayDecision []string `json:"inclusiveGatewayDecision,omitempty"`
 	// Key, used to correlate a message subscription with a message.
-	// Applicable when job type is `SUBSCRIBE_MESSAGE`.
+	// Applicable when job type is `SUBSCRIBE_MESSAGE` or `SET_MESSAGE_CORRELATION_KEY`.
 	MessageCorrelationKey string `json:"messageCorrelationKey,omitempty"`
 	// Name of the message to subscribe to.
 	// Applicable when job type is `SUBSCRIBE_MESSAGE`.
 	MessageName string `json:"messageName,omitempty"`
-	// Name of the signal, used to subscribe to or send a signal.
+	// Name of the signal, used to subscribe or to send a signal.
 	// Applicable when job type is `SUBSCRIBE_SIGNAL` or `SET_SIGNAL_NAME`.
 	SignalName string `json:"signalName,omitempty"`
 	// A timer definition.

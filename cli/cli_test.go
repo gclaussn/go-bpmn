@@ -1,43 +1,79 @@
 package cli
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestHelp(t *testing.T) {
+func TestExecute(t *testing.T) {
 	assert := assert.New(t)
 
-	e := mustCreateEngine(t)
-	defer e.Shutdown()
+	execute := func(args ...string) (string, error) {
+		buffer := bytes.NewBufferString("")
 
-	rootCmd := newRootCmd(&Cli{e: e})
+		cli := New("test")
 
-	rootCmd.SetArgs([]string{})
-	assert.NoError(rootCmd.Execute())
+		rootCmd := cli.RootCmd()
+		rootCmd.SetArgs(args)
+		rootCmd.SetErr(buffer)
+		rootCmd.SetOut(buffer)
 
-	rootCmd.SetArgs([]string{"element"})
-	assert.NoError(rootCmd.Execute())
-	rootCmd.SetArgs([]string{"element-instance"})
-	assert.NoError(rootCmd.Execute())
-	rootCmd.SetArgs([]string{"incident"})
-	assert.NoError(rootCmd.Execute())
-	rootCmd.SetArgs([]string{"job"})
-	assert.NoError(rootCmd.Execute())
-	rootCmd.SetArgs([]string{"process"})
-	assert.NoError(rootCmd.Execute())
-	rootCmd.SetArgs([]string{"process-instance"})
-	assert.NoError(rootCmd.Execute())
-	rootCmd.SetArgs([]string{"task"})
-	assert.NoError(rootCmd.Execute())
-	rootCmd.SetArgs([]string{"variable"})
-	assert.NoError(rootCmd.Execute())
-	rootCmd.SetArgs([]string{"version"})
-	assert.NoError(rootCmd.Execute())
+		err := rootCmd.Execute()
 
-	rootCmd.SetArgs([]string{"process", "create", "--help"})
-	assert.NoError(rootCmd.Execute())
-	rootCmd.SetArgs([]string{"set-time", "--help"})
-	assert.NoError(rootCmd.Execute())
+		return buffer.String(), err
+	}
+
+	t.Run("no arguments", func(t *testing.T) {
+		out, err := execute()
+		assert.Contains(out, "Usage:")
+		assert.Nil(err)
+	})
+
+	t.Run("help command", func(t *testing.T) {
+		out, err := execute("help")
+		assert.Contains(out, `Error: unknown command "help"`)
+		assert.NotNil(err)
+	})
+
+	t.Run("help flag", func(t *testing.T) {
+		out, err := execute("-h")
+		assert.Contains(out, "Usage:")
+		assert.Nil(err)
+	})
+
+	subCommands := []string{
+		"element",
+		"element-instance",
+		"incident",
+		"job",
+		"message",
+		"process",
+		"process-instance",
+		"signal",
+		"task",
+		"user-task",
+		"variable",
+	}
+
+	for _, subCommand := range subCommands {
+		t.Run(subCommand+" help", func(t *testing.T) {
+			out, err := execute(subCommand)
+			assert.Contains(out, "Usage:")
+			assert.Nil(err)
+		})
+	}
+
+	t.Run("set-time help", func(t *testing.T) {
+		out, err := execute("set-time", "-h")
+		assert.Contains(out, "Usage:")
+		assert.Nil(err)
+	})
+
+	t.Run("version", func(t *testing.T) {
+		out, err := execute("version")
+		assert.Contains(out, "test")
+		assert.Nil(err)
+	})
 }

@@ -1,37 +1,38 @@
-package cli
+package element
 
 import (
 	"context"
 	"strconv"
 
+	"github.com/gclaussn/go-bpmn/cli/common"
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/spf13/cobra"
 )
 
-func newElementCmd(cli *Cli) *cobra.Command {
+func NewCmd() *cobra.Command {
 	c := cobra.Command{
-		Use:         "element",
-		Short:       "Query elements",
-		RunE:        cli.help,
-		Annotations: map[string]string{noEngineRequired: ""},
+		Use:   "element",
+		Short: "Query elements",
+		RunE:  common.Help,
 	}
 
-	c.AddCommand(newElementQueryCmd(cli))
+	c.AddCommand(newQueryCmd())
 
 	return &c
 }
 
-func newElementQueryCmd(cli *Cli) *cobra.Command {
+func newQueryCmd() *cobra.Command {
 	var (
 		criteria engine.ElementCriteria
 		options  engine.QueryOptions
 	)
 
 	c := cobra.Command{
-		Use:   "query",
-		Short: "Query elements",
+		Use:         "query",
+		Short:       "Query elements",
+		Annotations: common.AnnotationEngineMap,
 		RunE: func(c *cobra.Command, _ []string) error {
-			q := cli.e.CreateQuery()
+			q := common.GetEngine(c).CreateQuery()
 			q.SetOptions(options)
 
 			results, err := q.QueryElements(context.Background(), criteria)
@@ -39,7 +40,7 @@ func newElementQueryCmd(cli *Cli) *cobra.Command {
 				return err
 			}
 
-			table := newTable([]string{
+			table := common.NewTable([]string{
 				"ID",
 				"PROCESS ID",
 				"BPMN ELEMENT ID",
@@ -48,7 +49,7 @@ func newElementQueryCmd(cli *Cli) *cobra.Command {
 			})
 
 			for _, result := range results {
-				table.addRow([]string{
+				table.AddRow([]string{
 					strconv.Itoa(int(result.Id)),
 					strconv.Itoa(int(result.ProcessId)),
 					result.BpmnElementId,
@@ -57,14 +58,16 @@ func newElementQueryCmd(cli *Cli) *cobra.Command {
 				})
 			}
 
-			c.Print(table.format())
+			c.Print(table.String())
 			return nil
 		},
 	}
 
-	c.Flags().Int32Var(&criteria.ProcessId, "process-id", 0, "Process ID")
+	c.Flags().Int32Var(&criteria.ProcessId, "process-id", 0, "Process filter")
 
-	flagQueryOptions(&c, &options)
+	c.Flags().StringVar(&criteria.BpmnElementId, "bpmn-element-id", "", "BPMN element ID filter")
+
+	common.FlagQueryOptions(&c, &options)
 
 	return &c
 }

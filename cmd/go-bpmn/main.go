@@ -11,14 +11,16 @@ Available Commands:
 	completion       Generate the autocompletion script for the specified shell
 	element          Query elements
 	element-instance Manage and query element instances
-	event            Create and query events
 	help             Help about any command
 	incident         Resolve and query incidents
 	job              Manage and query jobs
+	message          Send messages, query messages and subscriptions
 	process          Manage and query processes
 	process-instance Manage and query process instances
-	set-time         Set the engine's time
+	set-time         Increases the engine's time for testing purposes
+	signal           Send signals and query signal subscriptions
 	task             Manage and query tasks
+	user-task        Update and query user tasks
 	variable         Query variables
 	version          Show version
 
@@ -46,5 +48,13 @@ var (
 
 func main() {
 	cli := cli.New(version)
-	os.Exit(cli.Execute())
+
+	rootCmd := cli.RootCmd()
+	rootCmd.SetOut(os.Stdout)
+
+	if err := rootCmd.Execute(); err != nil {
+		os.Exit(1)
+	} else {
+		os.Exit(0)
+	}
 }
