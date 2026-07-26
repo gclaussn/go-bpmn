@@ -1,0 +1,42 @@
+<definitions id="test">
+  <process id="linkTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="fork" />
+    <exclusiveGateway id="fork">
+      <incoming>f1</incoming>
+      <outgoing>f2</outgoing>
+      <outgoing>f3</outgoing>
+    </exclusiveGateway>
+    <sequenceFlow id="f2" sourceRef="fork" targetRef="linkThrowEventA" />
+    <sequenceFlow id="f3" sourceRef="fork" targetRef="linkThrowEventB" />
+    <intermediateThrowEvent id="linkThrowEventA">
+      <incoming>f2</incoming>
+      <linkEventDefinition id="linkThrowEventDefinitionA" name="a" />
+    </intermediateThrowEvent>
+    <intermediateThrowEvent id="linkThrowEventB">
+      <incoming>f3</incoming>
+      <linkEventDefinition id="linkThrowEventDefinitionB" name="b" />
+    </intermediateThrowEvent>
+    <intermediateCatchEvent id="linkCatchEventA">
+      <outgoing>f4</outgoing>
+      <linkEventDefinition id="linkCatchEventDefinitionA" name="a" />
+    </intermediateCatchEvent>
+    <intermediateCatchEvent id="linkCatchEventB">
+      <outgoing>f5</outgoing>
+      <linkEventDefinition id="linkCatchEventDefinitionB" name="b" />
+    </intermediateCatchEvent>
+    <sequenceFlow id="f4" sourceRef="linkCatchEventA" targetRef="join" />
+    <sequenceFlow id="f5" sourceRef="linkCatchEventB" targetRef="join" />
+    <exclusiveGateway id="join">
+      <incoming>f4</incoming>
+      <incoming>f5</incoming>
+      <outgoing>f6</outgoing>
+    </exclusiveGateway>
+    <sequenceFlow id="f6" sourceRef="join" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f6</incoming>
+    </endEvent>
+  </process>
+</definitions>

@@ -16,6 +16,8 @@ const (
 	ElementEventBasedGateway
 	ElementExclusiveGateway
 	ElementInclusiveGateway
+	ElementLinkCatchEvent
+	ElementLinkThrowEvent
 	ElementManualTask
 	ElementMessageBoundaryEvent
 	ElementMessageCatchEvent
@@ -65,6 +67,10 @@ func MapElementType(s string) ElementType {
 		return ElementExclusiveGateway
 	case "INCLUSIVE_GATEWAY":
 		return ElementInclusiveGateway
+	case "LINK_CATCH_EVENT":
+		return ElementLinkCatchEvent
+	case "LINK_THROW_EVENT":
+		return ElementLinkThrowEvent
 	case "MANUAL_TASK":
 		return ElementManualTask
 	case "MESSAGE_BOUNDARY_EVENT":
@@ -150,6 +156,10 @@ func (v ElementType) String() string {
 		return "EXCLUSIVE_GATEWAY"
 	case ElementInclusiveGateway:
 		return "INCLUSIVE_GATEWAY"
+	case ElementLinkCatchEvent:
+		return "LINK_CATCH_EVENT"
+	case ElementLinkThrowEvent:
+		return "LINK_THROW_EVENT"
 	case ElementManualTask:
 		return "MANUAL_TASK"
 	case ElementMessageBoundaryEvent:

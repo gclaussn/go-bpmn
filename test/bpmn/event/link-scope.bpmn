@@ -1,0 +1,54 @@
+<definitions id="test">
+  <process id="linkScopeTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="fork" />
+    <exclusiveGateway id="fork">
+      <incoming>f1</incoming>
+      <outgoing>f2</outgoing>
+      <outgoing>f3</outgoing>
+    </exclusiveGateway>
+    <sequenceFlow id="f2" sourceRef="fork" targetRef="linkThrowEventA" />
+    <sequenceFlow id="f3" sourceRef="fork" targetRef="subProcess" />
+    <intermediateThrowEvent id="linkThrowEventA">
+      <incoming>f2</incoming>
+      <linkEventDefinition id="linkThrowEventDefinitionA" name="a" />
+    </intermediateThrowEvent>
+    <subProcess id="subProcess">
+      <incoming>f3</incoming>
+      <startEvent id="subProcessStartEvent">
+        <outgoing>f7</outgoing>
+      </startEvent>
+      <sequenceFlow id="f7" sourceRef="subProcessStartEvent" targetRef="linkThrowEventB" />
+      <intermediateThrowEvent id="linkThrowEventB">
+        <incoming>f7</incoming>
+        <linkEventDefinition id="linkThrowEventDefinitionB" name="b" />
+      </intermediateThrowEvent>
+      <intermediateCatchEvent id="linkCatchEventB">
+        <outgoing>f8</outgoing>
+        <linkEventDefinition id="linkCatchEventDefinitionB" name="b" />
+      </intermediateCatchEvent>
+      <sequenceFlow id="f8" sourceRef="linkCatchEventB" targetRef="subProcessEndEvent" />
+      <endEvent id="subProcessEndEvent">
+        <incoming>f8</incoming>
+      </endEvent>
+      <outgoing>f5</outgoing>
+    </subProcess>
+    <intermediateCatchEvent id="linkCatchEventA">
+      <outgoing>f4</outgoing>
+      <linkEventDefinition id="linkCatchEventDefinitionA" name="a" />
+    </intermediateCatchEvent>
+    <sequenceFlow id="f4" sourceRef="linkCatchEventA" targetRef="join" />
+    <sequenceFlow id="f5" sourceRef="subProcess" targetRef="join" />
+    <exclusiveGateway id="join">
+      <incoming>f4</incoming>
+      <incoming>f5</incoming>
+      <outgoing>f6</outgoing>
+    </exclusiveGateway>
+    <endEvent id="endEvent">
+      <incoming>f6</incoming>
+    </endEvent>
+    <sequenceFlow id="f6" sourceRef="join" targetRef="endEvent" />
+  </process>
+</definitions>

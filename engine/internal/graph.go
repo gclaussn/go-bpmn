@@ -20,7 +20,9 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 		}
 	}
 
-	process, ok := bpmnElements[0].Model.(model.Process)
+	processElement := bpmnElements[0]
+
+	process, ok := processElement.Model.(model.Process)
 	if !ok {
 		return nil, engine.Error{
 			Type:   engine.ErrorBug,
@@ -33,11 +35,25 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 
 	if !process.IsExecutable {
 		causes = append(causes, engine.ErrorCause{
-			Pointer: elementPointer(bpmnElements[0]),
+			Pointer: elementPointer(processElement),
 			Type:    "process",
-			Detail:  fmt.Sprintf("process %s is not executable", bpmnElements[0].Id),
+			Detail:  fmt.Sprintf("process %s is not executable", processElement.Id),
 		})
 	}
+
+	noneStartEvents := processElement.ChildrenByType(model.ElementNoneStartEvent)
+	if len(noneStartEvents) > 1 {
+		causes = append(causes, engine.ErrorCause{
+			Pointer: elementPointer(processElement),
+			Type:    "process",
+			Detail:  fmt.Sprintf("process %s has multiple none start events", processElement.Id),
+		})
+	}
+
+	var (
+		linkCatchEvents []*model.Element
+		linkThrowEvents []*model.Element
+	)
 
 	for _, bpmnElement := range bpmnElements {
 		if bpmnElement.Id == "" {
@@ -105,6 +121,10 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 					Detail:  fmt.Sprintf("element %s is not supported: joining inclusive gateway", bpmnElement.Id),
 				})
 			}
+		case model.ElementLinkCatchEvent:
+			linkCatchEvents = append(linkCatchEvents, bpmnElement)
+		case model.ElementLinkThrowEvent:
+			linkThrowEvents = append(linkThrowEvents, bpmnElement)
 		case model.ElementSubProcess:
 			subProcess := bpmnElement.Model.(model.SubProcess)
 			if subProcess.TriggeredByEvent {
@@ -171,13 +191,61 @@ func validateProcess(bpmnElements []*model.Element) ([]engine.ErrorCause, error)
 		}
 	}
 
-	noneStartEvents := bpmnElements[0].ChildrenByType(model.ElementNoneStartEvent)
-	if len(noneStartEvents) > 1 {
-		causes = append(causes, engine.ErrorCause{
-			Pointer: elementPointer(bpmnElements[0]),
-			Type:    "process",
-			Detail:  fmt.Sprintf("process %s has multiple none start events", bpmnElements[0].Id),
-		})
+	if len(linkCatchEvents) != 0 || len(linkThrowEvents) != 0 {
+		linkCatchMap := make(map[string]*model.Element, len(linkCatchEvents))
+
+		for _, linkCatchEvent := range linkCatchEvents {
+			intermediateCatchEvent := linkCatchEvent.Model.(model.IntermediateCatchEvent)
+			linkName := intermediateCatchEvent.EventDefinition.Link.Name
+
+			if linkName == "" {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(linkCatchEvent),
+					Type:    "element",
+					Detail:  "link name is empty",
+				})
+				continue
+			}
+
+			if _, ok := linkCatchMap[linkName]; ok {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(linkCatchEvent),
+					Type:    "element",
+					Detail:  fmt.Sprintf("link name %s must be unique", linkName),
+				})
+				continue
+			}
+
+			linkCatchMap[linkName] = linkCatchEvent
+		}
+
+		for _, linkThrowEvent := range linkThrowEvents {
+			intermediateThrowEvent := linkThrowEvent.Model.(model.IntermediateThrowEvent)
+			linkName := intermediateThrowEvent.EventDefinition.Link.Name
+
+			if linkName == "" {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(linkThrowEvent),
+					Type:    "element",
+					Detail:  "link name is empty",
+				})
+				continue
+			}
+
+			if linkCatchEvent, ok := linkCatchMap[linkName]; !ok {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(linkThrowEvent),
+					Type:    "element",
+					Detail:  fmt.Sprintf("no link catch event defined for link name %s", linkName),
+				})
+			} else if linkCatchEvent.Parent.Id != linkThrowEvent.Parent.Id {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(linkThrowEvent),
+					Type:    "element",
+					Detail:  fmt.Sprintf("no link catch event defined for link name %s in scope %s", linkName, linkThrowEvent.Parent.Id),
+				})
+			}
+		}
 	}
 
 	return causes, nil
@@ -369,6 +437,32 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 
 			executions = append(executions, &next)
 			scope.ExecutionCount++
+		}
+
+		if execution.BpmnElementType == model.ElementLinkThrowEvent {
+			scopeNode, err := g.node(scope.BpmnElementId)
+			if err != nil {
+				return executions, err
+			}
+
+			intermediateThrowEvent := node.bpmnElement.Model.(model.IntermediateThrowEvent)
+			linkNameA := intermediateThrowEvent.EventDefinition.Link.Name
+
+			linkCatchEvents := scopeNode.bpmnElement.ChildrenByType(model.ElementLinkCatchEvent)
+			for _, linkCatchEvent := range linkCatchEvents {
+				intermediateCatchEvent := linkCatchEvent.Model.(model.IntermediateCatchEvent)
+				linkNameB := intermediateCatchEvent.EventDefinition.Link.Name
+
+				if linkNameA == linkNameB {
+					next, err := g.createExecutionAt(scope, linkCatchEvent.Id)
+					if err != nil {
+						return executions, err
+					}
+
+					executions = append(executions, &next)
+					break
+				}
+			}
 		}
 
 		scope.ExecutionCount--

@@ -117,6 +117,16 @@ func TestBpmn(t *testing.T) {
 		}
 	})
 
+	t.Run("link event", func(t *testing.T) {
+		for i, e := range engines {
+			linkEventTest := linkEventTest{e}
+
+			t.Run(engineTypes[i]+"link a", linkEventTest.linkA)
+			t.Run(engineTypes[i]+"link b", linkEventTest.linkB)
+			t.Run(engineTypes[i]+"link scope", linkEventTest.linkScope)
+		}
+	})
+
 	t.Run("message event", func(t *testing.T) {
 		for i, e := range engines {
 			messageEventTest := newMessageEventTest(t, e)

@@ -13,7 +13,7 @@ import (
 )
 
 func TestValidateProcess(t *testing.T) {
-	assert := assert.New(t)
+	assert, require := assert.New(t), require.New(t)
 
 	t.Run("returns cause when process is not executable", func(t *testing.T) {
 		causes := mustValidateProcess(t, "invalid/process-not-executable.bpmn")
@@ -22,6 +22,15 @@ func TestValidateProcess(t *testing.T) {
 		assert.Equal("/processNotExecutableTest", causes[0].Pointer)
 		assert.NotEmpty(causes[0].Type)
 		assert.Contains(causes[0].Detail, "not executable")
+	})
+
+	t.Run("returns cause when process has multiple none start events", func(t *testing.T) {
+		causes := mustValidateProcess(t, "invalid/none-start-event-multiple.bpmn")
+		assert.Len(causes, 1)
+
+		assert.Equal("/noneStartEventMultipleTest", causes[0].Pointer)
+		assert.NotEmpty(causes[0].Type)
+		assert.Contains(causes[0].Detail, "multiple none start events")
 	})
 
 	t.Run("returns cause when element has no ID", func(t *testing.T) {
@@ -263,13 +272,88 @@ func TestValidateProcess(t *testing.T) {
 		assert.Contains(causes[1].Detail, "no source element")
 	})
 
-	t.Run("returns cause when process has multiple none start events", func(t *testing.T) {
-		causes := mustValidateProcess(t, "invalid/none-start-event-multiple.bpmn")
-		assert.Len(causes, 1)
+	t.Run("link event", func(t *testing.T) {
+		t.Run("returns cause when link catch name is empty", func(t *testing.T) {
+			causes := mustValidateProcess(t, "event/link.bpmn", func(processElement *model.Element) {
+				linkCatchEventA := processElement.ChildById("linkCatchEventA")
+				linkCatchEventA.Model = model.IntermediateCatchEvent{
+					EventDefinition: model.EventDefinition{
+						Link: &model.Link{Name: ""},
+					},
+				}
+			})
+			require.Len(causes, 2)
 
-		assert.Equal("/noneStartEventMultipleTest", causes[0].Pointer)
-		assert.NotEmpty(causes[0].Type)
-		assert.Contains(causes[0].Detail, "multiple none start events")
+			assert.Equal("/linkTest/linkCatchEventA", causes[0].Pointer)
+			assert.NotEmpty(causes[0].Type)
+			assert.Equal("link name is empty", causes[0].Detail)
+		})
+
+		t.Run("returns cause when link catch name not unique", func(t *testing.T) {
+			causes := mustValidateProcess(t, "event/link.bpmn", func(processElement *model.Element) {
+				linkCatchEventB := processElement.ChildById("linkCatchEventB")
+				linkCatchEventB.Model = model.IntermediateCatchEvent{
+					EventDefinition: model.EventDefinition{
+						Link: &model.Link{Name: "a"},
+					},
+				}
+			})
+			require.Len(causes, 2)
+
+			assert.Equal("/linkTest/linkCatchEventB", causes[0].Pointer)
+			assert.NotEmpty(causes[0].Type)
+			assert.Equal("link name a must be unique", causes[0].Detail)
+		})
+
+		t.Run("returns cause when link throw name is empty", func(t *testing.T) {
+			causes := mustValidateProcess(t, "event/link.bpmn", func(processElement *model.Element) {
+				linkThrowEventA := processElement.ChildById("linkThrowEventA")
+				linkThrowEventA.Model = model.IntermediateThrowEvent{
+					EventDefinition: model.EventDefinition{
+						Link: &model.Link{Name: ""},
+					},
+				}
+			})
+			require.Len(causes, 1)
+
+			assert.Equal("/linkTest/linkThrowEventA", causes[0].Pointer)
+			assert.NotEmpty(causes[0].Type)
+			assert.Equal("link name is empty", causes[0].Detail)
+		})
+
+		t.Run("returns cause when no corresponding link catch event is defined", func(t *testing.T) {
+			causes := mustValidateProcess(t, "event/link.bpmn", func(processElement *model.Element) {
+				linkThrowEventB := processElement.ChildById("linkThrowEventB")
+				linkThrowEventB.Model = model.IntermediateThrowEvent{
+					EventDefinition: model.EventDefinition{
+						Link: &model.Link{Name: "c"},
+					},
+				}
+			})
+			require.Len(causes, 1)
+
+			assert.Equal("/linkTest/linkThrowEventB", causes[0].Pointer)
+			assert.NotEmpty(causes[0].Type)
+			assert.Equal("no link catch event defined for link name c", causes[0].Detail)
+		})
+
+		t.Run("returns cause when no corresponding link catch event is defined in scope", func(t *testing.T) {
+			causes := mustValidateProcess(t, "event/link-scope.bpmn", func(processElement *model.Element) {
+				subProcess := processElement.ChildById("subProcess")
+
+				linkThrowEventB := subProcess.ChildById("linkThrowEventB")
+				linkThrowEventB.Model = model.IntermediateThrowEvent{
+					EventDefinition: model.EventDefinition{
+						Link: &model.Link{Name: "a"},
+					},
+				}
+			})
+			require.Len(causes, 1)
+
+			assert.Equal("/linkScopeTest/subProcess/linkThrowEventB", causes[0].Pointer)
+			assert.NotEmpty(causes[0].Type)
+			assert.Equal("no link catch event defined for link name a in scope subProcess", causes[0].Detail)
+		})
 	})
 }
 

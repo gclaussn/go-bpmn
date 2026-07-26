@@ -83,6 +83,7 @@ type EventDefinition struct {
 
 	Error      *Error
 	Escalation *Escalation
+	Link       *Link
 	Message    *Message
 	Signal     *Signal
 }

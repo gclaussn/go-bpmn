@@ -130,11 +130,12 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				escalation.Name = getAttrValue(t.Attr, "name")
 				escalation.Code = getAttrValue(t.Attr, "escalationCode")
 			case "escalationEventDefinition":
-				if element.Type == 0 {
+				switch element.Type {
+				case 0:
 					element.Type = ElementEscalationBoundaryEvent
-				} else if element.Type == ElementNoneEndEvent {
+				case ElementNoneEndEvent:
 					element.Type = ElementEscalationEndEvent
-				} else if element.Type == ElementNoneThrowEvent {
+				case ElementNoneThrowEvent:
 					element.Type = ElementEscalationThrowEvent
 				}
 
@@ -171,6 +172,27 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 			case "intermediateThrowEvent":
 				startElement(ElementNoneThrowEvent, t.Attr)
 				element.Model = IntermediateThrowEvent{}
+			case "linkEventDefinition":
+				if element.Type == ElementNoneThrowEvent {
+					element.Type = ElementLinkThrowEvent
+				} else {
+					element.Type = ElementLinkCatchEvent
+				}
+
+				eventDefinition := EventDefinition{
+					Id: getAttrValue(t.Attr, "id"),
+
+					Link: &Link{Name: getAttrValue(t.Attr, "name")},
+				}
+
+				switch model := element.Model.(type) {
+				case IntermediateCatchEvent:
+					model.EventDefinition = eventDefinition
+					element.Model = model
+				case IntermediateThrowEvent:
+					model.EventDefinition = eventDefinition
+					element.Model = model
+				}
 			case "manualTask":
 				startElement(ElementManualTask, t.Attr)
 			case "message":
@@ -557,6 +579,11 @@ type Escalation struct {
 	Id   string
 	Name string
 	Code string
+}
+
+// Link represents the attributes of a link event definition.
+type Link struct {
+	Name string
 }
 
 type Message struct {
