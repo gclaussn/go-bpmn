@@ -68,11 +68,10 @@ func newRootCmd(cli *Cli) *cobra.Command {
 	)
 
 	c := cobra.Command{
-		Use:   "go-bpmn",
-		Short: "A client for go-bpmn HTTP servers",
+		Use:          "go-bpmn",
+		Short:        "A client for go-bpmn HTTP servers",
+		SilenceUsage: true,
 		PersistentPreRunE: func(c *cobra.Command, _ []string) error {
-			c.SilenceUsage = true
-
 			if _, ok := c.Annotations[common.AnnotationEngine]; !ok {
 				return nil
 			}
@@ -157,6 +156,7 @@ func newRootCmd(cli *Cli) *cobra.Command {
 		task.NewCmd(),
 		user_task.NewCmd(),
 		variable.NewCmd(),
+
 		newSetTimeCmd(),
 		newVersionCmd(cli),
 	)
@@ -175,9 +175,10 @@ func newRootCmd(cli *Cli) *cobra.Command {
 }
 
 func newSetTimeCmd() *cobra.Command {
-	format := time.RFC3339
-
-	var timer common.Timer
+	var (
+		timer     common.Timer
+		formatter common.Formatter
+	)
 
 	c := cobra.Command{
 		Use:         "set-time",
@@ -195,14 +196,18 @@ func newSetTimeCmd() *cobra.Command {
 				return err
 			}
 
-			c.Printf("New time: %s\nOld time: %s", new.Format(format), old.Format(format))
-			return nil
+			return formatter.Format(c, map[string]any{
+				"new": new,
+				"old": old,
+			}, "New: {{ .new | formatTime }}\nOld: {{ .old | formatTime }}\n")
 		},
 	}
 
 	c.Flags().Var(&timer.Time, "time", "A future point in time")
 	c.Flags().StringVar(&timer.TimeCycle, "time-cycle", "", "CRON expression, when evaluated the next tick specifies the engine's new time")
 	c.Flags().Var(&timer.TimeDuration, "time-duration", "Duration, used to calculate a future point in time")
+
+	formatter.Flag(&c)
 
 	return &c
 }

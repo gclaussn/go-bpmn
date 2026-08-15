@@ -2,13 +2,19 @@ package process_instance
 
 import (
 	"context"
+	_ "embed"
 	"strconv"
-	"strings"
 
 	"github.com/gclaussn/go-bpmn/cli/common"
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/spf13/cobra"
 )
+
+//go:embed process_instance.tpl
+var processInstanceTemplate string
+
+//go:embed process_instance_variables.tpl
+var processInstanceVariablesTemplate string
 
 func NewCmd() *cobra.Command {
 	c := cobra.Command{
@@ -35,6 +41,8 @@ func newCreateCmd() *cobra.Command {
 		variables common.ProcessVariables
 
 		cmd engine.CreateProcessInstanceCmd
+
+		formatter common.Formatter
 	)
 
 	c := cobra.Command{
@@ -58,8 +66,7 @@ func newCreateCmd() *cobra.Command {
 				return err
 			}
 
-			c.Println(processInstance.Id)
-			return nil
+			return formatter.Format(c, processInstance, processInstanceTemplate)
 		},
 	}
 
@@ -70,6 +77,8 @@ func newCreateCmd() *cobra.Command {
 	c.Flags().StringToStringVar(&variables.EncryptedMap, "variable-encrypted", nil, "Variable to set at process instance scope\nDetermines if a value is encrypted before it is stored")
 	c.Flags().StringToStringVar(&variables.ValueMap, "variable", nil, "Variable to set at process instance scope\nData value, encoded as a string")
 	c.Flags().StringVar(&cmd.Version, "version", "", "Version of an existing process")
+
+	formatter.Flag(&c)
 
 	c.MarkFlagRequired("bpmn-process-id")
 	c.MarkFlagRequired("version")
@@ -82,6 +91,8 @@ func newGetVariablesCmd() *cobra.Command {
 		partition common.Partition
 
 		cmd engine.GetProcessVariablesCmd
+
+		formatter common.Formatter
 	)
 
 	c := cobra.Command{
@@ -96,24 +107,7 @@ func newGetVariablesCmd() *cobra.Command {
 				return err
 			}
 
-			var sb strings.Builder
-			for i, variable := range variables {
-				if i != 0 {
-					sb.WriteRune('\n')
-				}
-
-				sb.WriteString(variable.Name)
-				sb.WriteString(" (encoding: ")
-				sb.WriteString(variable.Data.Encoding)
-				sb.WriteString(", encrypted: ")
-				sb.WriteString(strconv.FormatBool(variable.Data.IsEncrypted))
-				sb.WriteString(")\n")
-				sb.WriteString(variable.Data.Value)
-				sb.WriteRune('\n')
-			}
-
-			c.Print(sb.String())
-			return nil
+			return formatter.Format(c, variables, processInstanceVariablesTemplate)
 		},
 	}
 
@@ -121,6 +115,8 @@ func newGetVariablesCmd() *cobra.Command {
 	c.Flags().Int32VarP(&cmd.ProcessInstanceId, "id", "i", 0, "Process instance ID")
 
 	c.Flags().StringSliceVarP(&cmd.Names, "name", "n", nil, "Names of process variables to get")
+
+	formatter.Flag(&c)
 
 	c.MarkFlagRequired("partition")
 	c.MarkFlagRequired("id")
@@ -169,7 +165,7 @@ func newSetVariablesCmd() *cobra.Command {
 
 	c := cobra.Command{
 		Use:         "set-variables",
-		Short:       "Get process variables",
+		Short:       "Set process variables",
 		Annotations: common.AnnotationEngineMap,
 		RunE: func(c *cobra.Command, args []string) error {
 			variables, err := variables.Variables()

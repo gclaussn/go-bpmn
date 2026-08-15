@@ -2,12 +2,16 @@ package signal
 
 import (
 	"context"
+	_ "embed"
 	"strconv"
 
 	"github.com/gclaussn/go-bpmn/cli/common"
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/spf13/cobra"
 )
+
+//go:embed signal.tpl
+var signalTemplate string
 
 func NewCmd() *cobra.Command {
 	c := cobra.Command{
@@ -29,6 +33,8 @@ func newSendCmd() *cobra.Command {
 		variables common.ProcessVariables
 
 		cmd engine.SendSignalCmd
+
+		formatter common.Formatter
 	)
 
 	c := cobra.Command{
@@ -51,8 +57,7 @@ func newSendCmd() *cobra.Command {
 				return err
 			}
 
-			c.Print(signal)
-			return nil
+			return formatter.Format(c, signal, signalTemplate)
 		},
 	}
 
@@ -60,6 +65,8 @@ func newSendCmd() *cobra.Command {
 	c.Flags().StringToStringVar(&variables.EncodingMap, "variable-encoding", nil, "Variable to set or delete at process instance scope\nEncoding of the value - e.g. `json`")
 	c.Flags().StringToStringVar(&variables.EncryptedMap, "variable-encrypted", nil, "Variable to set or delete at process instance scope\nDetermines if a value is encrypted before it is stored")
 	c.Flags().StringToStringVar(&variables.ValueMap, "variable", nil, "Variable to set or delete at process instance scope\nData value, encoded as a string")
+
+	formatter.Flag(&c)
 
 	c.MarkFlagRequired("name")
 

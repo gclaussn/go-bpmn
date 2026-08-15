@@ -127,6 +127,8 @@ func newUnlockCmd() *cobra.Command {
 		partition common.Partition
 
 		cmd engine.UnlockTasksCmd
+
+		formatter common.Formatter
 	)
 
 	c := cobra.Command{
@@ -141,8 +143,7 @@ func newUnlockCmd() *cobra.Command {
 				return err
 			}
 
-			c.Printf("Number of unlocked tasks: %d\n", count)
-			return nil
+			return formatter.Format(c, count, "Count: {{ . }}\n")
 		},
 	}
 
@@ -150,6 +151,8 @@ func newUnlockCmd() *cobra.Command {
 	c.Flags().Int32VarP(&cmd.Id, "id", "i", 0, "Task condition - must be used in combination with a partition")
 
 	c.Flags().StringVar(&cmd.EngineId, "engine-id", "", "Condition that restricts the tasks, to be locked by a specific engine")
+
+	formatter.Flag(&c)
 
 	c.MarkFlagRequired("engine-id")
 

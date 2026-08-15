@@ -2,14 +2,17 @@ package element_instance
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/gclaussn/go-bpmn/cli/common"
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/spf13/cobra"
 )
+
+//go:embed element_instance_variables.tpl
+var elementInstanceVariablesTemplate string
 
 func NewCmd() *cobra.Command {
 	c := cobra.Command{
@@ -32,6 +35,8 @@ func newGetVariablesCmd() *cobra.Command {
 		partition common.Partition
 
 		cmd engine.GetElementVariablesCmd
+
+		formatter common.Formatter
 	)
 
 	c := cobra.Command{
@@ -46,24 +51,7 @@ func newGetVariablesCmd() *cobra.Command {
 				return err
 			}
 
-			var sb strings.Builder
-			for i, variable := range variables {
-				if i != 0 {
-					sb.WriteRune('\n')
-				}
-
-				sb.WriteString(variable.Name)
-				sb.WriteString(" (encoding: ")
-				sb.WriteString(variable.Data.Encoding)
-				sb.WriteString(", encrypted: ")
-				sb.WriteString(strconv.FormatBool(variable.Data.IsEncrypted))
-				sb.WriteString(")\n")
-				sb.WriteString(variable.Data.Value)
-				sb.WriteRune('\n')
-			}
-
-			c.Print(sb.String())
-			return nil
+			return formatter.Format(c, variables, elementInstanceVariablesTemplate)
 		},
 	}
 
@@ -72,6 +60,8 @@ func newGetVariablesCmd() *cobra.Command {
 
 	c.Flags().BoolVar(&cmd.ExcludeParentVariables, "exclude-parent-variables", false, "Determines if variables of direct or indirect parent element instances are not returned")
 	c.Flags().StringSliceVarP(&cmd.Names, "name", "n", nil, "Names of element variables to get")
+
+	formatter.Flag(&c)
 
 	c.MarkFlagRequired("partition")
 	c.MarkFlagRequired("id")

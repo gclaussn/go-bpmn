@@ -2,6 +2,7 @@ package process
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +15,9 @@ import (
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/spf13/cobra"
 )
+
+//go:embed process.tpl
+var processTemplate string
 
 func NewCmd() *cobra.Command {
 	c := cobra.Command{
@@ -44,6 +48,8 @@ func newCreateCmd() *cobra.Command {
 		timeDurationMap map[string]string
 
 		cmd engine.CreateProcessCmd
+
+		formatter common.Formatter
 	)
 
 	c := cobra.Command{
@@ -60,7 +66,7 @@ func newCreateCmd() *cobra.Command {
 
 			bpmnXml, err := io.ReadAll(bpmnFile)
 			if err != nil {
-				return fmt.Errorf("failed to read BPMN XML: %v", err)
+				return fmt.Errorf("failed to read BPMN file %s: %v", bpmnFileName, err)
 			}
 
 			timers := make([]engine.TimerDefinition, 0, len(timeMap)+len(timeCycleMap)+len(timeDurationMap))
@@ -181,8 +187,7 @@ func newCreateCmd() *cobra.Command {
 				return err
 			}
 
-			c.Println(process.Id)
-			return nil
+			return formatter.Format(c, process, processTemplate)
 		},
 	}
 
@@ -199,6 +204,8 @@ func newCreateCmd() *cobra.Command {
 	c.Flags().StringToStringVar(&timeCycleMap, "time-cycle", nil, "CRON expression that specifies a cyclic timer event")
 	c.Flags().StringToStringVar(&timeDurationMap, "time-duration", nil, "Duration until the timer event is triggered")
 	c.Flags().StringVar(&cmd.Version, "version", "", "Any process version")
+
+	formatter.Flag(&c)
 
 	c.MarkFlagRequired("bpmn-process-id")
 	c.MarkFlagRequired("bpmn-xml-file")

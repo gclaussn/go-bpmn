@@ -20,6 +20,8 @@ func newCallProcessCmd() *cobra.Command {
 		processVariables       common.ProcessVariables
 
 		cmd engine.CompleteJobCmd
+
+		formatter common.Formatter
 	)
 
 	c := cobra.Command{
@@ -60,8 +62,7 @@ func newCallProcessCmd() *cobra.Command {
 				return err
 			}
 
-			c.Print(job)
-			return nil
+			return formatter.Format(c, job, jobTemplate)
 		},
 	}
 
@@ -78,6 +79,8 @@ func newCallProcessCmd() *cobra.Command {
 
 	flagCompleteVariables(&c, &elementVariables, &processVariables)
 
+	formatter.Flag(&c)
+
 	c.MarkFlagRequired("partition")
 	c.MarkFlagRequired("id")
 
@@ -93,6 +96,8 @@ func newEvaluateExclusiveGatewayCmd() *cobra.Command {
 		processVariables common.ProcessVariables
 
 		cmd engine.CompleteJobCmd
+
+		formatter common.Formatter
 	)
 
 	c := cobra.Command{
@@ -123,8 +128,7 @@ func newEvaluateExclusiveGatewayCmd() *cobra.Command {
 				return err
 			}
 
-			c.Print(job)
-			return nil
+			return formatter.Format(c, job, jobTemplate)
 		},
 	}
 
@@ -134,6 +138,8 @@ func newEvaluateExclusiveGatewayCmd() *cobra.Command {
 	c.Flags().StringVar(&completion.ExclusiveGatewayDecision, "decision", "", "Evaluated BPMN element ID to continue with after the exclusive gateway")
 
 	flagCompleteVariables(&c, &elementVariables, &processVariables)
+
+	formatter.Flag(&c)
 
 	c.MarkFlagRequired("partition")
 	c.MarkFlagRequired("id")
@@ -151,6 +157,8 @@ func newEvaluateInclusiveGatewayCmd() *cobra.Command {
 		processVariables common.ProcessVariables
 
 		cmd engine.CompleteJobCmd
+
+		formatter common.Formatter
 	)
 
 	c := cobra.Command{
@@ -181,8 +189,7 @@ func newEvaluateInclusiveGatewayCmd() *cobra.Command {
 				return err
 			}
 
-			c.Print(job)
-			return nil
+			return formatter.Format(c, job, jobTemplate)
 		},
 	}
 
@@ -192,6 +199,8 @@ func newEvaluateInclusiveGatewayCmd() *cobra.Command {
 	c.Flags().StringSliceVar(&completion.InclusiveGatewayDecision, "decision", nil, "Evaluated BPMN element IDs to continue with after the inclusive gateway")
 
 	flagCompleteVariables(&c, &elementVariables, &processVariables)
+
+	formatter.Flag(&c)
 
 	c.MarkFlagRequired("partition")
 	c.MarkFlagRequired("id")
@@ -209,6 +218,8 @@ func newExecuteCmd() *cobra.Command {
 		processVariables common.ProcessVariables
 
 		cmd engine.CompleteJobCmd
+
+		formatter common.Formatter
 	)
 
 	c := cobra.Command{
@@ -239,18 +250,19 @@ func newExecuteCmd() *cobra.Command {
 				return err
 			}
 
-			c.Print(job)
-			return nil
+			return formatter.Format(c, job, jobTemplate)
 		},
 	}
 
 	c.Flags().VarP(&partition, "partition", "p", "Job partition")
 	c.Flags().Int32VarP(&cmd.Id, "id", "i", 0, "Job ID")
 
-	flagCompleteVariables(&c, &elementVariables, &processVariables)
-
 	c.Flags().StringVar(&completion.ErrorCode, "error-code", "", "Code of a BPMN error to trigger")
 	c.Flags().StringVar(&completion.EscalationCode, "escalation-code", "", "Code of a BPMN escalation to trigger")
+
+	flagCompleteVariables(&c, &elementVariables, &processVariables)
+
+	formatter.Flag(&c)
 
 	c.MarkFlagRequired("partition")
 	c.MarkFlagRequired("id")
@@ -266,6 +278,8 @@ func newPassVariablesCmd() *cobra.Command {
 		processVariables common.ProcessVariables
 
 		cmd engine.CompleteJobCmd
+
+		formatter common.Formatter
 	)
 
 	c := cobra.Command{
@@ -295,8 +309,7 @@ func newPassVariablesCmd() *cobra.Command {
 				return err
 			}
 
-			c.Print(job)
-			return nil
+			return formatter.Format(c, job, jobTemplate)
 		},
 	}
 
@@ -304,6 +317,8 @@ func newPassVariablesCmd() *cobra.Command {
 	c.Flags().Int32VarP(&cmd.Id, "id", "i", 0, "Job ID")
 
 	flagCompleteVariables(&c, &elementVariables, &processVariables)
+
+	formatter.Flag(&c)
 
 	c.MarkFlagRequired("partition")
 	c.MarkFlagRequired("id")
@@ -320,6 +335,8 @@ func newSetErrorCodeCmd() *cobra.Command {
 		processVariables common.ProcessVariables
 
 		cmd engine.CompleteJobCmd
+
+		formatter common.Formatter
 	)
 
 	c := cobra.Command{
@@ -350,8 +367,7 @@ func newSetErrorCodeCmd() *cobra.Command {
 				return err
 			}
 
-			c.Print(job)
-			return nil
+			return formatter.Format(c, job, jobTemplate)
 		},
 	}
 
@@ -361,6 +377,8 @@ func newSetErrorCodeCmd() *cobra.Command {
 	c.Flags().StringVar(&completion.ErrorCode, "code", "", "Code of a BPMN error to specify")
 
 	flagCompleteVariables(&c, &elementVariables, &processVariables)
+
+	formatter.Flag(&c)
 
 	c.MarkFlagRequired("partition")
 	c.MarkFlagRequired("id")
@@ -378,6 +396,8 @@ func newSetEscalationCodeCmd() *cobra.Command {
 		processVariables common.ProcessVariables
 
 		cmd engine.CompleteJobCmd
+
+		formatter common.Formatter
 	)
 
 	c := cobra.Command{
@@ -408,8 +428,7 @@ func newSetEscalationCodeCmd() *cobra.Command {
 				return err
 			}
 
-			c.Print(job)
-			return nil
+			return formatter.Format(c, job, jobTemplate)
 		},
 	}
 
@@ -419,6 +438,8 @@ func newSetEscalationCodeCmd() *cobra.Command {
 	c.Flags().StringVar(&completion.EscalationCode, "code", "", "Code of a BPMN escalation to specify")
 
 	flagCompleteVariables(&c, &elementVariables, &processVariables)
+
+	formatter.Flag(&c)
 
 	c.MarkFlagRequired("partition")
 	c.MarkFlagRequired("id")
@@ -436,6 +457,8 @@ func newSetMessageCorrelationKeyCmd() *cobra.Command {
 		processVariables common.ProcessVariables
 
 		cmd engine.CompleteJobCmd
+
+		formatter common.Formatter
 	)
 
 	c := cobra.Command{
@@ -466,8 +489,7 @@ func newSetMessageCorrelationKeyCmd() *cobra.Command {
 				return err
 			}
 
-			c.Print(job)
-			return nil
+			return formatter.Format(c, job, jobTemplate)
 		},
 	}
 
@@ -477,6 +499,8 @@ func newSetMessageCorrelationKeyCmd() *cobra.Command {
 	c.Flags().StringVar(&completion.MessageCorrelationKey, "correlation-key", "", "Key, used to correlate a message subscription with a message")
 
 	flagCompleteVariables(&c, &elementVariables, &processVariables)
+
+	formatter.Flag(&c)
 
 	c.MarkFlagRequired("partition")
 	c.MarkFlagRequired("id")
@@ -494,6 +518,8 @@ func newSetSignalNameCmd() *cobra.Command {
 		processVariables common.ProcessVariables
 
 		cmd engine.CompleteJobCmd
+
+		formatter common.Formatter
 	)
 
 	c := cobra.Command{
@@ -524,8 +550,7 @@ func newSetSignalNameCmd() *cobra.Command {
 				return err
 			}
 
-			c.Print(job)
-			return nil
+			return formatter.Format(c, job, jobTemplate)
 		},
 	}
 
@@ -535,6 +560,8 @@ func newSetSignalNameCmd() *cobra.Command {
 	c.Flags().StringVar(&completion.SignalName, "name", "", "Name of the signal to send")
 
 	flagCompleteVariables(&c, &elementVariables, &processVariables)
+
+	formatter.Flag(&c)
 
 	c.MarkFlagRequired("partition")
 	c.MarkFlagRequired("id")
@@ -553,6 +580,8 @@ func newSetTimerCmd() *cobra.Command {
 		timer            common.Timer
 
 		cmd engine.CompleteJobCmd
+
+		formatter common.Formatter
 	)
 
 	c := cobra.Command{
@@ -585,8 +614,7 @@ func newSetTimerCmd() *cobra.Command {
 				return err
 			}
 
-			c.Print(job)
-			return nil
+			return formatter.Format(c, job, jobTemplate)
 		},
 	}
 
@@ -598,6 +626,8 @@ func newSetTimerCmd() *cobra.Command {
 	c.Flags().Var(&timer.TimeDuration, "time-duration", "Duration until the timer event is triggered")
 
 	flagCompleteVariables(&c, &elementVariables, &processVariables)
+
+	formatter.Flag(&c)
 
 	c.MarkFlagRequired("partition")
 	c.MarkFlagRequired("id")
@@ -614,6 +644,8 @@ func newSubscribeMessageCmd() *cobra.Command {
 		processVariables common.ProcessVariables
 
 		cmd engine.CompleteJobCmd
+
+		formatter common.Formatter
 	)
 
 	c := cobra.Command{
@@ -644,8 +676,7 @@ func newSubscribeMessageCmd() *cobra.Command {
 				return err
 			}
 
-			c.Print(job)
-			return nil
+			return formatter.Format(c, job, jobTemplate)
 		},
 	}
 
@@ -656,6 +687,8 @@ func newSubscribeMessageCmd() *cobra.Command {
 	c.Flags().StringVar(&completion.MessageName, "name", "", "Name of the message to subscribe to")
 
 	flagCompleteVariables(&c, &elementVariables, &processVariables)
+
+	formatter.Flag(&c)
 
 	c.MarkFlagRequired("partition")
 	c.MarkFlagRequired("id")
@@ -674,6 +707,8 @@ func newSubscribeSignalCmd() *cobra.Command {
 		processVariables common.ProcessVariables
 
 		cmd engine.CompleteJobCmd
+
+		formatter common.Formatter
 	)
 
 	c := cobra.Command{
@@ -704,8 +739,7 @@ func newSubscribeSignalCmd() *cobra.Command {
 				return err
 			}
 
-			c.Print(job)
-			return nil
+			return formatter.Format(c, job, jobTemplate)
 		},
 	}
 
@@ -715,6 +749,8 @@ func newSubscribeSignalCmd() *cobra.Command {
 	c.Flags().StringVar(&completion.SignalName, "name", "", "Name of the signal to subscribe to")
 
 	flagCompleteVariables(&c, &elementVariables, &processVariables)
+
+	formatter.Flag(&c)
 
 	c.MarkFlagRequired("partition")
 	c.MarkFlagRequired("id")

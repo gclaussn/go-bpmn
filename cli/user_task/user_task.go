@@ -2,12 +2,16 @@ package user_task
 
 import (
 	"context"
+	_ "embed"
 	"strconv"
 
 	"github.com/gclaussn/go-bpmn/cli/common"
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/spf13/cobra"
 )
+
+//go:embed user_task.tpl
+var userTaskTemplate string
 
 func NewCmd() *cobra.Command {
 	c := cobra.Command{
@@ -33,6 +37,8 @@ func newUpdateCmd() *cobra.Command {
 		tagMap           map[string]string
 
 		cmd engine.UpdateUserTaskCmd
+
+		formatter common.Formatter
 	)
 
 	c := cobra.Command{
@@ -63,8 +69,7 @@ func newUpdateCmd() *cobra.Command {
 				return err
 			}
 
-			c.Print(userTask)
-			return nil
+			return formatter.Format(c, userTask, userTaskTemplate)
 		},
 	}
 
@@ -84,6 +89,8 @@ func newUpdateCmd() *cobra.Command {
 	c.Flags().StringToStringVar(&processVariables.EncryptedMap, "pv-encrypted", nil, "Variable to set or delete at process instance scope\nDetermines if a value is encrypted before it is stored")
 	c.Flags().StringToStringVar(&processVariables.ValueMap, "pv", nil, "Variable to set or delete at process instance scope\nData value, encoded as a string")
 	c.Flags().StringToStringVarP(&tagMap, "tag", "t", nil, "Tags - for a tag deletion, no value must be provided")
+
+	formatter.Flag(&c)
 
 	c.MarkFlagRequired("partition")
 	c.MarkFlagRequired("id")

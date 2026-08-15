@@ -2,12 +2,16 @@ package job
 
 import (
 	"context"
+	_ "embed"
 	"strconv"
 
 	"github.com/gclaussn/go-bpmn/cli/common"
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/spf13/cobra"
 )
+
+//go:embed job.tpl
+var jobTemplate string
 
 func NewCmd() *cobra.Command {
 	c := cobra.Command{
@@ -61,6 +65,8 @@ func newFailCmd() *cobra.Command {
 		retryTimer       common.ISO8601Duration
 
 		cmd engine.CompleteJobCmd
+
+		formatter common.Formatter
 	)
 
 	c := cobra.Command{
@@ -91,8 +97,7 @@ func newFailCmd() *cobra.Command {
 				return err
 			}
 
-			c.Print(job)
-			return nil
+			return formatter.Format(c, job, jobTemplate)
 		},
 	}
 
@@ -104,6 +109,8 @@ func newFailCmd() *cobra.Command {
 	c.Flags().Var(&retryTimer, "retry-timer", "Duration until a retry job becomes due")
 
 	flagCompleteVariables(&c, &elementVariables, &processVariables)
+
+	formatter.Flag(&c)
 
 	c.MarkFlagRequired("partition")
 	c.MarkFlagRequired("id")
@@ -179,6 +186,8 @@ func newUnlockCmd() *cobra.Command {
 		partition common.Partition
 
 		cmd engine.UnlockJobsCmd
+
+		formatter common.Formatter
 	)
 
 	c := cobra.Command{
@@ -195,8 +204,7 @@ func newUnlockCmd() *cobra.Command {
 				return err
 			}
 
-			c.Printf("Number of unlocked jobs: %d\n", count)
-			return nil
+			return formatter.Format(c, count, "Count: {{ . }}\n")
 		},
 	}
 
@@ -204,6 +212,8 @@ func newUnlockCmd() *cobra.Command {
 	c.Flags().Int32VarP(&cmd.Id, "id", "i", 0, "Job condition - must be used in combination with a partition")
 
 	c.Flags().StringVar(&cmd.WorkerId, "worker-id", "", "Condition that restricts the jobs, to be locked by a specific worker")
+
+	formatter.Flag(&c)
 
 	c.MarkFlagRequired("worker-id")
 
