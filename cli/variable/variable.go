@@ -9,6 +9,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	allColumns     = "partition,id,elementId,elementInstanceId,processId,processInstanceId,createdAt,createdBy,encoding,encrypted,name,updatedAt,updatedBy"
+	defaultColumns = "partition,name,processInstanceId,elementInstanceId,encoding,updatedAt"
+)
+
 func NewCmd() *cobra.Command {
 	c := cobra.Command{
 		Use:   "variable",
@@ -29,6 +34,8 @@ func newQueryCmd() *cobra.Command {
 		options  engine.QueryOptions
 	)
 
+	formatter := common.NewTableFormatter(allColumns, defaultColumns)
+
 	c := cobra.Command{
 		Use:         "query",
 		Short:       "Query variables",
@@ -44,29 +51,33 @@ func newQueryCmd() *cobra.Command {
 				return err
 			}
 
-			table := common.NewTable([]string{
-				"PARTITION",
-				"NAME",
-				"PROCESS INSTANCE ID",
-				"ELEMENT INSTANCE ID",
-				"ENCODING",
-				"CREATED AT",
-				"UPDATED AT",
-			})
+			if ok, err := formatter.Format(c, results, common.Rows(results)); ok || err != nil {
+				return err
+			}
+
+			table := common.NewTable(allColumns)
 
 			for _, result := range results {
 				table.AddRow([]string{
 					result.Partition.String(),
-					result.Name,
-					strconv.Itoa(int(result.ProcessInstanceId)),
-					strconv.Itoa(int(result.ElementInstanceId)),
-					result.Encoding,
+					common.FormatId(result.Id),
+
+					common.FormatId(result.ElementId),
+					common.FormatId(result.ElementInstanceId),
+					common.FormatId(result.ProcessId),
+					common.FormatId(result.ProcessInstanceId),
+
 					common.FormatTime(result.CreatedAt),
+					result.CreatedBy,
+					result.Encoding,
+					strconv.FormatBool(result.IsEncrypted),
+					result.Name,
 					common.FormatTime(result.UpdatedAt),
+					result.UpdatedBy,
 				})
 			}
 
-			c.Print(table.String())
+			table.Format(c, formatter.SelectedColumns())
 			return nil
 		},
 	}
@@ -78,6 +89,8 @@ func newQueryCmd() *cobra.Command {
 	c.Flags().StringSliceVarP(&criteria.Names, "name", "n", nil, "Names of variables to include")
 
 	common.FlagQueryOptions(&c, &options)
+
+	formatter.Flag(&c)
 
 	return &c
 }

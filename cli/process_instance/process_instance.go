@@ -16,6 +16,11 @@ var processInstanceTemplate string
 //go:embed process_instance_variables.tpl
 var processInstanceVariablesTemplate string
 
+const (
+	allColumns     = "partition,id,parentId,rootId,processId,bpmnProcessId,correlationKey,createdAt,createdBy,endedAt,startedAt,state,tagCount,version"
+	defaultColumns = "partition,id,processId,bpmnProcessId,createdAt,endedAt,state,tagCount"
+)
+
 func NewCmd() *cobra.Command {
 	c := cobra.Command{
 		Use:   "process-instance",
@@ -236,6 +241,8 @@ func newQueryCmd() *cobra.Command {
 		options  engine.QueryOptions
 	)
 
+	formatter := common.NewTableFormatter(allColumns, defaultColumns)
+
 	c := cobra.Command{
 		Use:         "query",
 		Short:       "Query process instances",
@@ -252,29 +259,35 @@ func newQueryCmd() *cobra.Command {
 				return err
 			}
 
-			table := common.NewTable([]string{
-				"PARTITION",
-				"ID",
-				"BPMN PROCESS ID",
-				"CREATED AT",
-				"CREATED BY",
-				"ENDED AT",
-				"STATE",
-			})
+			if ok, err := formatter.Format(c, results, common.Rows(results)); ok || err != nil {
+				return err
+			}
+
+			table := common.NewTable(allColumns)
 
 			for _, result := range results {
 				table.AddRow([]string{
 					result.Partition.String(),
-					strconv.Itoa(int(result.Id)),
+					common.FormatId(result.Id),
+
+					common.FormatId(result.ParentId),
+					common.FormatId(result.RootId),
+
+					common.FormatId(result.ProcessId),
+
 					result.BpmnProcessId,
+					result.CorrelationKey,
 					common.FormatTime(result.CreatedAt),
 					result.CreatedBy,
 					common.FormatTimeOrNil(result.EndedAt),
+					common.FormatTimeOrNil(result.StartedAt),
 					result.State.String(),
+					strconv.Itoa(len(result.Tags)),
+					result.Version,
 				})
 			}
 
-			c.Print(table.String())
+			table.Format(c, formatter.SelectedColumns())
 			return nil
 		},
 	}
@@ -290,6 +303,8 @@ func newQueryCmd() *cobra.Command {
 	c.Flags().StringToStringVarP(&tagMap, "tag", "t", nil, "Tags, a process instance must have, to be included")
 
 	common.FlagQueryOptions(&c, &options)
+
+	formatter.Flag(&c)
 
 	return &c
 }

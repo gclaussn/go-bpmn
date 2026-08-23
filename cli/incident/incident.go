@@ -2,11 +2,15 @@ package incident
 
 import (
 	"context"
-	"strconv"
 
 	"github.com/gclaussn/go-bpmn/cli/common"
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/spf13/cobra"
+)
+
+const (
+	allColumns     = "partition,id,elementId,elementInstanceId,jobId,processId,processInstanceId,taskId,createdAt,createdBy,resolvedAt,resolvedBy"
+	defaultColumns = "partition,id,processId,processInstanceId,jobId,taskId,resolvedAt,resolvedBy"
 )
 
 func NewCmd() *cobra.Command {
@@ -67,6 +71,8 @@ func newQueryCmd() *cobra.Command {
 		options  engine.QueryOptions
 	)
 
+	formatter := common.NewTableFormatter(allColumns, defaultColumns)
+
 	c := cobra.Command{
 		Use:         "query",
 		Short:       "Query incidents",
@@ -82,31 +88,32 @@ func newQueryCmd() *cobra.Command {
 				return err
 			}
 
-			table := common.NewTable([]string{
-				"PARTITION",
-				"ID",
-				"PROCESS ID",
-				"PROCESS INSTANCE ID",
-				"JOB ID",
-				"TASK ID",
-				"RESOLVED AT",
-				"RESOLVED BY",
-			})
+			if ok, err := formatter.Format(c, results, common.Rows(results)); ok || err != nil {
+				return err
+			}
+
+			table := common.NewTable(allColumns)
 
 			for _, result := range results {
 				table.AddRow([]string{
 					result.Partition.String(),
-					strconv.Itoa(int(result.Id)),
-					strconv.Itoa(int(result.ProcessId)),
-					strconv.Itoa(int(result.ProcessInstanceId)),
-					strconv.Itoa(int(result.JobId)),
-					strconv.Itoa(int(result.TaskId)),
+					common.FormatId(result.Id),
+
+					common.FormatId(result.ElementId),
+					common.FormatId(result.ElementInstanceId),
+					common.FormatId(result.JobId),
+					common.FormatId(result.ProcessId),
+					common.FormatId(result.ProcessInstanceId),
+					common.FormatId(result.TaskId),
+
+					common.FormatTime(result.CreatedAt),
+					result.CreatedBy,
 					common.FormatTimeOrNil(result.ResolvedAt),
 					result.ResolvedBy,
 				})
 			}
 
-			c.Print(table.String())
+			table.Format(c, formatter.SelectedColumns())
 			return nil
 		},
 	}
@@ -119,6 +126,8 @@ func newQueryCmd() *cobra.Command {
 	c.Flags().Int32Var(&criteria.TaskId, "task-id", 0, "Task filter")
 
 	common.FlagQueryOptions(&c, &options)
+
+	formatter.Flag(&c)
 
 	return &c
 }

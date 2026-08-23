@@ -13,6 +13,13 @@ import (
 //go:embed message.tpl
 var messageTemplate string
 
+const (
+	allColumns                 = "id,correlationKey,createdAt,createdBy,expiresAt,correlated,name,uniqueKey"
+	allSubscriptionColumns     = "id,partition,elementId,elementInstanceId,processId,processInstanceId,bpmnElementId,correlationKey,createdAt,createdBy,name"
+	defaultColumns             = "id,name,correlationKey,uniqueKey,correlated,createdAt,createdBy,expiresAt"
+	defaultSubscriptionColumns = "id,partition,processInstanceId,bpmnElementId,name,correlationKey,createdAt"
+)
+
 func NewCmd() *cobra.Command {
 	c := cobra.Command{
 		Use:   "message",
@@ -88,6 +95,8 @@ func newQueryCmd() *cobra.Command {
 		options  engine.QueryOptions
 	)
 
+	formatter := common.NewTableFormatter(allColumns, defaultColumns)
+
 	c := cobra.Command{
 		Use:         "query",
 		Short:       "Query messages",
@@ -101,31 +110,27 @@ func newQueryCmd() *cobra.Command {
 				return err
 			}
 
-			table := common.NewTable([]string{
-				"ID",
-				"NAME",
-				"CORRELATION KEY",
-				"UNIQUE KEY",
-				"CORRELATED",
-				"CREATED AT",
-				"CREATED BY",
-				"EXPIRES AT",
-			})
+			if ok, err := formatter.Format(c, results, common.Rows(results)); ok || err != nil {
+				return err
+			}
+
+			table := common.NewTable(allColumns)
 
 			for _, result := range results {
 				table.AddRow([]string{
 					strconv.FormatInt(result.Id, 10),
-					result.Name,
+
 					result.CorrelationKey,
-					result.UniqueKey,
-					strconv.FormatBool(result.IsCorrelated),
 					common.FormatTime(result.CreatedAt),
 					result.CreatedBy,
 					common.FormatTimeOrNil(result.ExpiresAt),
+					strconv.FormatBool(result.IsCorrelated),
+					result.Name,
+					result.UniqueKey,
 				})
 			}
 
-			c.Print(table.String())
+			table.Format(c, formatter.SelectedColumns())
 			return nil
 		},
 	}
@@ -137,6 +142,8 @@ func newQueryCmd() *cobra.Command {
 
 	common.FlagQueryOptions(&c, &options)
 
+	formatter.Flag(&c)
+
 	return &c
 }
 
@@ -147,6 +154,8 @@ func newQuerySubscriptionsCmd() *cobra.Command {
 		criteria engine.MessageSubscriptionCriteria
 		options  engine.QueryOptions
 	)
+
+	formatter := common.NewTableFormatter(allSubscriptionColumns, defaultSubscriptionColumns)
 
 	c := cobra.Command{
 		Use:         "query-subscriptions",
@@ -163,24 +172,23 @@ func newQuerySubscriptionsCmd() *cobra.Command {
 				return err
 			}
 
-			table := common.NewTable([]string{
-				"ID",
-				"PARTITION",
-				"ELEMENT_INSTANCE_ID",
-				"PROCESS INSTANCE ID",
-				"BPMN ELEMENT ID",
-				"CORRELATION KEY",
-				"CREATED AT",
-				"CREATED BY",
-				"NAME",
-			})
+			if ok, err := formatter.Format(c, results, common.Rows(results)); ok || err != nil {
+				return err
+			}
+
+			table := common.NewTable(allSubscriptionColumns)
 
 			for _, result := range results {
 				table.AddRow([]string{
 					strconv.Itoa(int(result.Id)),
+
 					result.Partition.String(),
-					strconv.Itoa(int(result.ElementInstanceId)),
-					strconv.Itoa(int(result.ProcessInstanceId)),
+
+					common.FormatId(result.ElementId),
+					common.FormatId(result.ElementInstanceId),
+					common.FormatId(result.ProcessId),
+					common.FormatId(result.ProcessInstanceId),
+
 					result.BpmnElementId,
 					result.CorrelationKey,
 					common.FormatTime(result.CreatedAt),
@@ -189,7 +197,7 @@ func newQuerySubscriptionsCmd() *cobra.Command {
 				})
 			}
 
-			c.Print(table.String())
+			table.Format(c, formatter.SelectedColumns())
 			return nil
 		},
 	}
@@ -202,6 +210,8 @@ func newQuerySubscriptionsCmd() *cobra.Command {
 	c.Flags().StringVar(&criteria.Name, "name", "", "Message name")
 
 	common.FlagQueryOptions(&c, &options)
+
+	formatter.Flag(&c)
 
 	return &c
 }

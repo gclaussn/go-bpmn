@@ -13,6 +13,11 @@ import (
 //go:embed signal.tpl
 var signalTemplate string
 
+const (
+	allSubscriptionColumns     = "id,partition,elementId,elementInstanceId,processId,processInstanceId,bpmnElementId,createdAt,createdBy,name"
+	defaultSubscriptionColumns = "id,partition,processInstanceId,bpmnElementId,name,createdAt"
+)
+
 func NewCmd() *cobra.Command {
 	c := cobra.Command{
 		Use:   "signal",
@@ -81,6 +86,8 @@ func newQuerySubscriptionsCmd() *cobra.Command {
 		options  engine.QueryOptions
 	)
 
+	formatter := common.NewTableFormatter(allSubscriptionColumns, defaultSubscriptionColumns)
+
 	c := cobra.Command{
 		Use:         "query-subscriptions",
 		Short:       "Query signal subscriptions",
@@ -96,23 +103,23 @@ func newQuerySubscriptionsCmd() *cobra.Command {
 				return err
 			}
 
-			table := common.NewTable([]string{
-				"ID",
-				"PARTITION",
-				"ELEMENT_INSTANCE_ID",
-				"PROCESS INSTANCE ID",
-				"BPMN ELEMENT ID",
-				"CREATED AT",
-				"CREATED BY",
-				"NAME",
-			})
+			if ok, err := formatter.Format(c, results, common.Rows(results)); ok || err != nil {
+				return err
+			}
+
+			table := common.NewTable(allSubscriptionColumns)
 
 			for _, result := range results {
 				table.AddRow([]string{
 					strconv.Itoa(int(result.Id)),
+
 					result.Partition.String(),
-					strconv.Itoa(int(result.ElementInstanceId)),
-					strconv.Itoa(int(result.ProcessInstanceId)),
+
+					common.FormatId(result.ElementId),
+					common.FormatId(result.ElementInstanceId),
+					common.FormatId(result.ProcessId),
+					common.FormatId(result.ProcessInstanceId),
+
 					result.BpmnElementId,
 					common.FormatTime(result.CreatedAt),
 					result.CreatedBy,
@@ -120,7 +127,7 @@ func newQuerySubscriptionsCmd() *cobra.Command {
 				})
 			}
 
-			c.Print(table.String())
+			table.Format(c, formatter.SelectedColumns())
 			return nil
 		},
 	}
@@ -132,6 +139,8 @@ func newQuerySubscriptionsCmd() *cobra.Command {
 	c.Flags().StringVar(&criteria.Name, "name", "", "Signal name")
 
 	common.FlagQueryOptions(&c, &options)
+
+	formatter.Flag(&c)
 
 	return &c
 }

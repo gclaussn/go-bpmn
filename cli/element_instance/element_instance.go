@@ -14,6 +14,11 @@ import (
 //go:embed element_instance_variables.tpl
 var elementInstanceVariablesTemplate string
 
+const (
+	allColumns     = "partition,id,parentId,elementId,processId,processInstanceId,bpmnElementId,bpmnElementType,createdAt,createdBy,endedAt,multiInstance,startedAt,state"
+	defaultColumns = "partition,id,processId,processInstanceId,bpmnElementId,bpmnElementType,state"
+)
+
 func NewCmd() *cobra.Command {
 	c := cobra.Command{
 		Use:   "element-instance",
@@ -122,6 +127,8 @@ func newQueryCmd() *cobra.Command {
 		options  engine.QueryOptions
 	)
 
+	formatter := common.NewTableFormatter(allColumns, defaultColumns)
+
 	c := cobra.Command{
 		Use:         "query",
 		Short:       "Query element instances",
@@ -148,31 +155,35 @@ func newQueryCmd() *cobra.Command {
 				return err
 			}
 
-			table := common.NewTable([]string{
-				"PARTITION",
-				"ID",
-				"PROCESS ID",
-				"PROCESS INSTANCE ID",
-				"BPMN ELEMENT NAME",
-				"BPMN ELEMENT TYPE",
-				"ENDED AT",
-				"STATE",
-			})
+			if ok, err := formatter.Format(c, results, common.Rows(results)); ok || err != nil {
+				return err
+			}
+
+			table := common.NewTable(allColumns)
 
 			for _, result := range results {
 				table.AddRow([]string{
 					result.Partition.String(),
-					strconv.Itoa(int(result.Id)),
-					strconv.Itoa(int(result.ProcessId)),
-					strconv.Itoa(int(result.ProcessInstanceId)),
+					common.FormatId(result.Id),
+
+					common.FormatId(result.ParentId),
+
+					common.FormatId(result.ElementId),
+					common.FormatId(result.ProcessId),
+					common.FormatId(result.ProcessInstanceId),
+
 					result.BpmnElementId,
 					result.BpmnElementType.String(),
+					common.FormatTime(result.CreatedAt),
+					result.CreatedBy,
 					common.FormatTimeOrNil(result.EndedAt),
+					strconv.FormatBool(result.IsMultiInstance),
+					common.FormatTimeOrNil(result.StartedAt),
 					result.State.String(),
 				})
 			}
 
-			c.Print(table.String())
+			table.Format(c, formatter.SelectedColumns())
 			return nil
 		},
 	}
@@ -189,6 +200,8 @@ func newQueryCmd() *cobra.Command {
 	c.Flags().StringSliceVar(&stateSlice, "state", nil, "States to include")
 
 	common.FlagQueryOptions(&c, &options)
+
+	formatter.Flag(&c)
 
 	return &c
 }

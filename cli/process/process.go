@@ -19,6 +19,11 @@ import (
 //go:embed process.tpl
 var processTemplate string
 
+const (
+	allColumns     = "id,bpmnCollaborationId,bpmnParticipantId,bpmnParticipantName,bpmnProcessId,createdAt,createdBy,parallelism,tagCount,version"
+	defaultColumns = "id,bpmnProcessId,version,createdAt,createdBy,tagCount"
+)
+
 func NewCmd() *cobra.Command {
 	c := cobra.Command{
 		Use:   "process",
@@ -249,6 +254,8 @@ func newQueryCmd() *cobra.Command {
 		options  engine.QueryOptions
 	)
 
+	formatter := common.NewTableFormatter(allColumns, defaultColumns)
+
 	c := cobra.Command{
 		Use:         "query",
 		Short:       "Query processes",
@@ -264,25 +271,29 @@ func newQueryCmd() *cobra.Command {
 				return err
 			}
 
-			table := common.NewTable([]string{
-				"ID",
-				"BPMN PROCESS ID",
-				"VERSION",
-				"CREATED AT",
-				"CREATED BY",
-			})
+			if ok, err := formatter.Format(c, results, common.Rows(results)); ok || err != nil {
+				return err
+			}
+
+			table := common.NewTable(allColumns)
 
 			for _, result := range results {
 				table.AddRow([]string{
-					strconv.Itoa(int(result.Id)),
+					common.FormatId(result.Id),
+
+					result.BpmnCollaborationId,
+					result.BpmnParticipantId,
+					result.BpmnParticipantName,
 					result.BpmnProcessId,
-					result.Version,
 					common.FormatTime(result.CreatedAt),
 					result.CreatedBy,
+					strconv.Itoa(result.Parallelism),
+					strconv.Itoa(len(result.Tags)),
+					result.Version,
 				})
 			}
 
-			c.Print(table.String())
+			table.Format(c, formatter.SelectedColumns())
 			return nil
 		},
 	}
@@ -292,6 +303,8 @@ func newQueryCmd() *cobra.Command {
 	c.Flags().StringToStringVarP(&tagMap, "tag", "t", nil, "Tags, a process must have, to be included")
 
 	common.FlagQueryOptions(&c, &options)
+
+	formatter.Flag(&c)
 
 	return &c
 }

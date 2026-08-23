@@ -13,6 +13,12 @@ import (
 //go:embed job.tpl
 var jobTemplate string
 
+const (
+	allColumns         = "partition,id,elementId,elementInstanceId,processId,processInstanceId,bpmnElementId,completedAt,correlationKey,createdAt,createdBy,dueAt,hasError,error,lockedAt,lockedBy,retryCount,state,type"
+	defaultColumns     = "partition,id,processId,processInstanceId,createdAt,lockedAt,completedAt,type"
+	defaultLockColumns = "partition,id,processId,processInstanceId,bpmnElementId,createdAt,type"
+)
+
 func NewCmd() *cobra.Command {
 	c := cobra.Command{
 		Use:   "job",
@@ -126,6 +132,8 @@ func newLockCmd() *cobra.Command {
 		cmd engine.LockJobsCmd
 	)
 
+	formatter := common.NewTableFormatter(allColumns, defaultLockColumns)
+
 	c := cobra.Command{
 		Use:         "lock",
 		Short:       "Lock jobs",
@@ -141,31 +149,13 @@ func newLockCmd() *cobra.Command {
 				return err
 			}
 
-			table := common.NewTable([]string{
-				"PARTITION",
-				"ID",
-				"PROCESS ID",
-				"PROCESS INSTANCE ID",
-				"CREATED AT",
-				"LOCKED_AT",
-				"TYPE",
-			})
-
-			for i := range jobs {
-				job := jobs[i]
-
-				table.AddRow([]string{
-					job.Partition.String(),
-					strconv.Itoa(int(job.Id)),
-					strconv.Itoa(int(job.ProcessId)),
-					strconv.Itoa(int(job.ProcessInstanceId)),
-					common.FormatTime(job.CreatedAt),
-					common.FormatTimeOrNil(job.LockedAt),
-					job.Type.String(),
-				})
+			if ok, err := formatter.Format(c, jobs, common.Rows(jobs)); ok || err != nil {
+				return err
 			}
 
-			c.Print(table.String())
+			table := common.NewTable(allColumns)
+			addRows(table, jobs)
+			table.Format(c, formatter.SelectedColumns())
 			return nil
 		},
 	}
@@ -177,6 +167,8 @@ func newLockCmd() *cobra.Command {
 	c.Flags().Int32Var(&cmd.ProcessInstanceId, "process-instance-id", 0, "Process instance condition - must be used in combination with a partition")
 
 	c.Flags().IntVar(&cmd.Limit, "limit", 1, "Maximum number of jobs to lock")
+
+	formatter.Flag(&c)
 
 	return &c
 }
@@ -228,6 +220,8 @@ func newQueryCmd() *cobra.Command {
 		options  engine.QueryOptions
 	)
 
+	formatter := common.NewTableFormatter(allColumns, defaultColumns)
+
 	c := cobra.Command{
 		Use:         "query",
 		Short:       "Query jobs",
@@ -243,31 +237,13 @@ func newQueryCmd() *cobra.Command {
 				return err
 			}
 
-			table := common.NewTable([]string{
-				"PARTITION",
-				"ID",
-				"PROCESS ID",
-				"PROCESS INSTANCE ID",
-				"CREATED AT",
-				"LOCKED_AT",
-				"COMPLETED AT",
-				"TYPE",
-			})
-
-			for _, result := range results {
-				table.AddRow([]string{
-					result.Partition.String(),
-					strconv.Itoa(int(result.Id)),
-					strconv.Itoa(int(result.ProcessId)),
-					strconv.Itoa(int(result.ProcessInstanceId)),
-					common.FormatTime(result.CreatedAt),
-					common.FormatTimeOrNil(result.LockedAt),
-					common.FormatTimeOrNil(result.CompletedAt),
-					result.Type.String(),
-				})
+			if ok, err := formatter.Format(c, results, common.Rows(results)); ok || err != nil {
+				return err
 			}
 
-			c.Print(table.String())
+			table := common.NewTable(allColumns)
+			addRows(table, results)
+			table.Format(c, formatter.SelectedColumns())
 			return nil
 		},
 	}
@@ -282,5 +258,35 @@ func newQueryCmd() *cobra.Command {
 
 	common.FlagQueryOptions(&c, &options)
 
+	formatter.Flag(&c)
+
 	return &c
+}
+
+func addRows(table *common.Table, jobs []engine.Job) {
+	for _, job := range jobs {
+		table.AddRow([]string{
+			job.Partition.String(),
+			common.FormatId(job.Id),
+
+			common.FormatId(job.ElementId),
+			common.FormatId(job.ElementInstanceId),
+			common.FormatId(job.ProcessId),
+			common.FormatId(job.ProcessInstanceId),
+
+			job.BpmnElementId,
+			common.FormatTimeOrNil(job.CompletedAt),
+			job.CorrelationKey,
+			common.FormatTime(job.CreatedAt),
+			job.CreatedBy,
+			common.FormatTime(job.DueAt),
+			strconv.FormatBool(job.HasError()),
+			job.Error,
+			common.FormatTimeOrNil(job.LockedAt),
+			job.LockedBy,
+			strconv.Itoa(job.RetryCount),
+			job.State.String(),
+			job.Type.String(),
+		})
+	}
 }
