@@ -1,17 +1,33 @@
----
-const { isContainer, sm, md, lg, children } = Astro.props;
-const containerClass = isContainer ? "grid-container" : "";
-const smClass = sm ? `col-${sm}` : "";
-const mdClass = md ? `col-md-${md}` : "";
-const lgClass = lg ? `col-lg-${lg}` : "";
-const classList = [containerClass, smClass, mdClass, lgClass].join(" ").trim();
----
+<script setup>
+const {
+  isContainer,
+  sm,
+  md,
+  lg,
+} = defineProps({
+  isContainer: Boolean,
+  sm: Number,
+  md: Number,
+  lg: Number,
+})
+
+const containerClass = isContainer ? 'grid-container' : ''
+const smClass = sm ? `col-${sm}` : ''
+const mdClass = md ? `col-md-${md}` : ''
+const lgClass = lg ? `col-lg-${lg}` : ''
+const classList = [containerClass, smClass, mdClass, lgClass].join(' ').trim()
+</script>
+
+<template>
+  <div :class="classList" style="margin-top: 1rem">
+    <slot />
+  </div>
+</template>
 
 <style>
   .grid-container {
     display: grid;
     grid-template-columns: repeat(12, 1fr);
-    gap: 16px;
   }
 
   .col-1 {
@@ -129,7 +145,3 @@ const classList = [containerClass, smClass, mdClass, lgClass].join(" ").trim();
     }
   }
 </style>
-
-<div class={classList} style="margin-top: 1rem">
-  <slot />
-</div>

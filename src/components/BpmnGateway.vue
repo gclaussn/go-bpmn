@@ -1,0 +1,22 @@
+<script setup>
+const {
+  label,
+} = defineProps({
+  label: String,
+})
+</script>
+
+<template>
+  <div style="display: flex; justify-content: center">
+    <div>
+      <div>
+        <svg width="70" height="62">
+          <g transform="translate(10, 6)">
+            <slot />
+          </g>
+        </svg>
+      </div>
+      <div style="margin-top: 0; text-align: center; font-family: Arial, sans-serif; font-size: 12px; font-weight: normal">{{label}}</div>
+    </div>
+  </div>
+</template>

@@ -1,8 +1,32 @@
 ---
-title: darwin-path
+description: A guide on how to install daemon and CLI.
 ---
 
-**Install CLI**
+# darwin-arm64
+
+This guide shows how to install the go-bpmn process engine daemon and CLI.
+
+## Download release artifact
+
+```preprocess sh
+download-darwin-arm64
+```
+
+Looking for a specific version? - [View releases on Github](https://github.com/gclaussn/go-bpmn/releases)
+
+## Validate archive
+
+```preprocess sh
+validate-darwin-arm64
+```
+
+## Extract archive
+
+```preprocess sh
+extract-darwin-arm64
+```
+
+## Install CLI
 
 ```sh
 chmod +x ./go-bpmn
@@ -16,7 +40,7 @@ sudo mv ./go-bpmn /usr/local/bin/go-bpmn
 sudo chown root:root /usr/local/bin/go-bpmn
 ```
 
-**Install process engine daemon**
+## Install process engine daemon
 
 ```sh
 chmod +x ./go-bpmn-pgd
@@ -30,7 +54,8 @@ sudo mv ./go-bpmn-pgd /usr/local/bin/go-bpmn-pgd
 sudo chown root:root /usr/local/bin/go-bpmn-pgd
 ```
 
-:::note
+::: tip
+
 If you do not have root access, make the files executable and move them to a directory, which is included in `$PATH`.
 
 ```sh
@@ -44,4 +69,5 @@ mv ./go-bpmn-pgd ~/.local/bin/go-bpmn-pgd
 
 # add ~/.local/bin to $PATH
 ```
+
 :::

@@ -19,7 +19,7 @@ curl -L \
 https://github.com/gclaussn/go-bpmn/releases/download/${RELEASE_TAG_NAME}/go-bpmn-openapi.yaml
 
 # build OpenAPI docs
-npx @redocly/cli build-docs \
+npx --yes @redocly/cli build-docs \
 --title "go-bpmn HTTP API (${RELEASE_TAG_NAME})" \
 --output openapi.html \
 openapi.yaml
@@ -28,4 +28,4 @@ openapi.yaml
 npm run build
 
 # include OpenAPI docs
-mv openapi.html ./dist/
+mv openapi.html ./.vitepress/dist/

@@ -1,17 +1,23 @@
 ---
-title: BPMN 2.0 coverage
-description: Overview about the covered BPMN elements.
+description: Overview about BPMN elements and the engine's coverage.
+outline: deep
 ---
 
-import BpmnEvent from '../../../components/BpmnEvent.astro';
-import BpmnGateway from '../../../components/BpmnGateway.astro';
-import BpmnTask from '../../../components/BpmnTask.astro';
+<script setup>
+import BpmnEvent from './components/BpmnEvent.vue'
+import BpmnGateway from './components/BpmnGateway.vue'
+import BpmnTask from './components/BpmnTask.vue'
+import Grid from './components/Grid.vue'
+</script>
 
-import Grid from '../../../components/Grid.astro';
+# BPMN 2.0
 
-BPMN elements highlighted in <span style="font-weight: bold; color: green">green</span> are supported by the BPMN XML parser and implemented by the process process.
+BPMN elements highlighted in <span style="font-weight: bold; color: green">green</span> are supported by the BPMN XML parser and
+implemented by the process engine.
 
 ## Sub-processes
+
+A sub-process groups tasks, gateways and events in a logical unit.
 
 <Grid isContainer>
   <Grid sm="4" md="2">
@@ -67,6 +73,8 @@ BPMN elements highlighted in <span style="font-weight: bold; color: green">green
 </Grid>
 
 ## Tasks
+
+A task is a unit of work. Tasks can be manual, assisted by a system or application, or automated.
 
 <Grid isContainer>
   <Grid sm="4" md="2">
@@ -164,6 +172,8 @@ BPMN elements highlighted in <span style="font-weight: bold; color: green">green
 
 ## Gateways
 
+Gateways fork or join sequence flows.
+
 <Grid isContainer>
   <Grid sm="4" md="2">
     <BpmnGateway label="Exclusive">
@@ -204,6 +214,8 @@ BPMN elements highlighted in <span style="font-weight: bold; color: green">green
 ## Events
 
 ### Start
+
+A start event starts an execution of a process or sub-process.
 
 <Grid isContainer>
   <Grid sm="4" md="2">
@@ -262,6 +274,8 @@ BPMN elements highlighted in <span style="font-weight: bold; color: green">green
 
 ### End
 
+An end event ends an execution. If all executions within a scope are ended, the scope (process or sub-process) ends as well.
+
 <Grid isContainer>
   <Grid sm="4" md="2">
     <BpmnEvent label="None">
@@ -305,6 +319,8 @@ BPMN elements highlighted in <span style="font-weight: bold; color: green">green
 </Grid>
 
 ### Throw
+
+A throw event triggers a specific event.
 
 <Grid isContainer>
   <Grid sm="4" md="2">
@@ -354,6 +370,8 @@ BPMN elements highlighted in <span style="font-weight: bold; color: green">green
 </Grid>
 
 ### Catch
+
+A catch event waits for a specific event. When a catch event is triggered, the execution continues.
 
 <Grid isContainer>
   <Grid sm="4" md="2">
@@ -417,6 +435,12 @@ BPMN elements highlighted in <span style="font-weight: bold; color: green">green
 </Grid>
 
 ### Boundary
+
+Boundary events are attached to tasks or sub-processes.
+
+#### Interrupting
+
+When an interrupting boundary event is triggered, it cancels the execution of the task or sub-process, it is attached to.
 
 <Grid isContainer>
   <Grid sm="4" md="2">
@@ -488,7 +512,9 @@ BPMN elements highlighted in <span style="font-weight: bold; color: green">green
   </Grid>
 </Grid>
 
-### Boundary non-interrupting
+#### Non-interrupting
+
+When a non-interrupting boundary event is triggered, a new execution is created. The task or sub-process, it is attached to, remains active.
 
 <Grid isContainer>
   <Grid sm="4" md="2">

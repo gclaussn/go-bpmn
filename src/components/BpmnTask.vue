@@ -1,0 +1,9 @@
+<template>
+  <div style="display: flex; justify-content: center">
+    <svg width="104" height="84">
+      <g transform="translate(2, 2)">
+        <slot />
+      </g>
+    </svg>
+  </div>
+</template>

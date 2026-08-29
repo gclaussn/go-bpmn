@@ -1,7 +1,9 @@
 ---
-title: Introduction
 description: What is go-bpmn?
+outline: deep
 ---
+
+# Introduction
 
 go-bpmn is a process engine for executing and automating processes, modeled using the [Business Process Model and Notation](https://www.omg.org/spec/BPMN/2.0/) (BPMN 2.0) standard.
 
@@ -16,15 +18,15 @@ As a result, processes can be modeled, using any modeler that produces valid BPM
 
 ### Job delegation
 
-When an execution reaches a BPMN element that requires process-specific logic (e.g. an exclusive gateway, a service task or a timer event), the process engine delegates the work in form of a job.
-A job is a unit of work, which must be locked, executed and completed by a worker - an application, system or user that automates a process.
+When an execution reaches a BPMN element that requires process-specific logic (e.g. an exclusive gateway or a service task), the process engine delegates the work in form of a job.
+A job is a unit of work, which must be locked, executed and completed by a worker - a system, application or user that automates a process.
 
 Due to this design, process automation is completely independent of process modelling.
 Moreover job delegation allows to execute any logic in any language, and to scale workers without affecting the process engine.
 
 ### PostgreSQL based
 
-[PostgreSQL](https://www.postgresql.org/about/) is the most popular database management system.
+[PostgreSQL](https://www.postgresql.org/about/) is one of the most popular database management systems.
 It is well understood and known for its reliability, performance and good documentation.
 
 The process engine stores processes, execution state and data in a PostgreSQL database.
