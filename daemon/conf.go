@@ -18,12 +18,14 @@ import (
 const (
 	envPrefix = "GO_BPMN_"
 
-	optEncryptionKeys       = "ENCRYPTION_KEYS"
-	optEngineId             = "ENGINE_ID"
-	optTaskExecutorEnabled  = "TASK_EXECUTOR_ENABLED"
-	optTaskExecutorInterval = "TASK_EXECUTOR_INTERVAL"
-	optTaskExecutorLimit    = "TASK_EXECUTOR_LIMIT"
-	optTaskRetryLimit       = "TASK_RETRY_LIMIT"
+	optEncryptionKeys         = "ENCRYPTION_KEYS"
+	optEngineId               = "ENGINE_ID"
+	optProcessCacheCapacity   = "PROCESS_CACHE_CAPACITY"
+	optProcessCacheExpiration = "PROCESS_CACHE_EXPIRATION"
+	optTaskExecutorEnabled    = "TASK_EXECUTOR_ENABLED"
+	optTaskExecutorInterval   = "TASK_EXECUTOR_INTERVAL"
+	optTaskExecutorLimit      = "TASK_EXECUTOR_LIMIT"
+	optTaskRetryLimit         = "TASK_RETRY_LIMIT"
 
 	optHttpBindAddress  = "HTTP_BIND_ADDRESS"
 	optHttpReadTimeout  = "HTTP_READ_TIMEOUT"
@@ -65,13 +67,38 @@ func NewConf() Conf {
 			return o.EngineId
 		},
 		func(o *engine.Options, opt ConfOpt) error {
-			engineId := opt.Value()
-			if engineId == "" {
+			v := opt.Value()
+			if v == "" {
 				return errors.New("is empty")
 			}
 
-			o.EngineId = engineId
+			o.EngineId = v
 			return nil
+		},
+	)
+
+	conf.AddEngineOption(
+		optProcessCacheCapacity,
+		"maximum number of cached processes",
+		func(o engine.Options) string {
+			return strconv.Itoa(o.ProcessCacheCapacity)
+		},
+		func(o *engine.Options, opt ConfOpt) error {
+			v, err := strconv.ParseInt(opt.Value(), 10, 32)
+			o.ProcessCacheCapacity = int(v)
+			return err
+		},
+	)
+	conf.AddEngineOption(
+		optProcessCacheExpiration,
+		"time until a process cache entry expires",
+		func(o engine.Options) string {
+			return o.ProcessCacheExpiration.String()
+		},
+		func(o *engine.Options, opt ConfOpt) error {
+			v, err := time.ParseDuration(opt.Value())
+			o.ProcessCacheExpiration = v
+			return err
 		},
 	)
 
@@ -82,8 +109,8 @@ func NewConf() Conf {
 			return strconv.FormatBool(o.TaskExecutorEnabled)
 		},
 		func(o *engine.Options, opt ConfOpt) error {
-			taskExecutorEnabled, err := strconv.ParseBool(opt.Value())
-			o.TaskExecutorEnabled = taskExecutorEnabled
+			v, err := strconv.ParseBool(opt.Value())
+			o.TaskExecutorEnabled = v
 			return err
 		},
 	)
@@ -94,8 +121,8 @@ func NewConf() Conf {
 			return o.TaskExecutorInterval.String()
 		},
 		func(o *engine.Options, opt ConfOpt) error {
-			taskExecutorInterval, err := time.ParseDuration(opt.Value())
-			o.TaskExecutorInterval = taskExecutorInterval
+			v, err := time.ParseDuration(opt.Value())
+			o.TaskExecutorInterval = v
 			return err
 		},
 	)
@@ -106,8 +133,8 @@ func NewConf() Conf {
 			return strconv.Itoa(o.TaskExecutorLimit)
 		},
 		func(o *engine.Options, opt ConfOpt) error {
-			taskExecutorLimit, err := strconv.ParseInt(opt.Value(), 10, 32)
-			o.TaskExecutorLimit = int(taskExecutorLimit)
+			v, err := strconv.ParseInt(opt.Value(), 10, 32)
+			o.TaskExecutorLimit = int(v)
 			return err
 		},
 	)
@@ -119,8 +146,8 @@ func NewConf() Conf {
 			return strconv.Itoa(o.TaskRetryLimit)
 		},
 		func(o *engine.Options, opt ConfOpt) error {
-			taskRetryLimit, err := strconv.ParseInt(opt.Value(), 10, 32)
-			o.TaskRetryLimit = int(taskRetryLimit)
+			v, err := strconv.ParseInt(opt.Value(), 10, 32)
+			o.TaskRetryLimit = int(v)
 			return err
 		},
 	)
@@ -133,12 +160,12 @@ func NewConf() Conf {
 			return o.BindAddress
 		},
 		func(o *server.Options, opt ConfOpt) error {
-			bindAddress := opt.Value()
-			if bindAddress == "" {
+			v := opt.Value()
+			if v == "" {
 				return errors.New("is empty")
 			}
 
-			o.BindAddress = bindAddress
+			o.BindAddress = v
 			return nil
 		},
 	)
@@ -150,8 +177,8 @@ func NewConf() Conf {
 			return o.ReadTimeout.String()
 		},
 		func(o *server.Options, opt ConfOpt) error {
-			readTimeout, err := time.ParseDuration(opt.Value())
-			o.ReadTimeout = readTimeout
+			v, err := time.ParseDuration(opt.Value())
+			o.ReadTimeout = v
 			return err
 		},
 	)
@@ -163,8 +190,8 @@ func NewConf() Conf {
 			return o.WriteTimeout.String()
 		},
 		func(o *server.Options, opt ConfOpt) error {
-			writeTimeout, err := time.ParseDuration(opt.Value())
-			o.WriteTimeout = writeTimeout
+			v, err := time.ParseDuration(opt.Value())
+			o.WriteTimeout = v
 			return err
 		},
 	)
@@ -176,8 +203,8 @@ func NewConf() Conf {
 			return strconv.FormatBool(o.SetTimeEnabled)
 		},
 		func(o *server.Options, opt ConfOpt) error {
-			setTimeEnabled, err := strconv.ParseBool(opt.Value())
-			o.SetTimeEnabled = setTimeEnabled
+			v, err := strconv.ParseBool(opt.Value())
+			o.SetTimeEnabled = v
 			return err
 		},
 	)

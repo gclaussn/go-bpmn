@@ -9,8 +9,11 @@ import (
 
 func newMemContext(options Options) *memContext {
 	ctx := memContext{
-		options:      options,
-		processCache: internal.NewProcessCache(),
+		options: options,
+		processCache: internal.NewProcessCache(
+			options.Common.ProcessCacheCapacity,
+			options.Common.ProcessCacheExpiration,
+		),
 	}
 
 	ctx.elementInstances.partitions = make(map[string][]internal.ElementInstanceEntity)

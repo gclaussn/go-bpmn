@@ -20,6 +20,8 @@ func TestConf(t *testing.T) {
 
 		conf.Env[envPrefix+optEncryptionKeys] = encryptionKey
 		conf.Env[envPrefix+optEngineId] = "engine-id"
+		conf.Env[envPrefix+optProcessCacheCapacity] = "10"
+		conf.Env[envPrefix+optProcessCacheExpiration] = (30 * time.Minute).String()
 		conf.Env[envPrefix+optTaskExecutorEnabled] = "true"
 		conf.Env[envPrefix+optTaskExecutorInterval] = (30 * time.Second).String()
 		conf.Env[envPrefix+optTaskExecutorLimit] = "100"
@@ -38,6 +40,8 @@ func TestConf(t *testing.T) {
 
 		assert.False(engineOptions.Encryption.IsZero())
 		assert.Equal("engine-id", engineOptions.EngineId)
+		assert.Equal(10, engineOptions.ProcessCacheCapacity)
+		assert.Equal("30m0s", engineOptions.ProcessCacheExpiration.String())
 		assert.True(engineOptions.TaskExecutorEnabled)
 		assert.Equal("30s", engineOptions.TaskExecutorInterval.String())
 		assert.Equal(100, engineOptions.TaskExecutorLimit)
@@ -54,6 +58,8 @@ func TestConf(t *testing.T) {
 
 		conf.Env[envPrefix+optEncryptionKeys] = "invalid-encryption-key"
 		conf.Env[envPrefix+optEngineId] = ""
+		conf.Env[envPrefix+optProcessCacheCapacity] = "invalid-process-cache-capacity"
+		conf.Env[envPrefix+optProcessCacheExpiration] = "invalid-process-cache-expiration"
 		conf.Env[envPrefix+optTaskExecutorEnabled] = "invalid-task-executor-enabled"
 		conf.Env[envPrefix+optTaskExecutorInterval] = "invalid-task-executor-interval"
 		conf.Env[envPrefix+optTaskExecutorLimit] = "invalid-task-executor-limit"
@@ -70,6 +76,8 @@ func TestConf(t *testing.T) {
 
 		assert.NotNil(conf.optErrs[envPrefix+optEncryptionKeys])
 		assert.NotNil(conf.optErrs[envPrefix+optEngineId])
+		assert.NotNil(conf.optErrs[envPrefix+optProcessCacheCapacity])
+		assert.NotNil(conf.optErrs[envPrefix+optProcessCacheExpiration])
 		assert.NotNil(conf.optErrs[envPrefix+optTaskExecutorEnabled])
 		assert.NotNil(conf.optErrs[envPrefix+optTaskExecutorInterval])
 		assert.NotNil(conf.optErrs[envPrefix+optTaskExecutorLimit])
@@ -83,6 +91,8 @@ func TestConf(t *testing.T) {
 
 		assert.Contains(errors, "GO_BPMN_ENCRYPTION_KEYS=invalid-encryption-key: ")
 		assert.Contains(errors, "GO_BPMN_ENGINE_ID: ")
+		assert.Contains(errors, "GO_BPMN_PROCESS_CACHE_CAPACITY=invalid-process-cache-capacity: ")
+		assert.Contains(errors, "GO_BPMN_PROCESS_CACHE_EXPIRATION=invalid-process-cache-expiration: ")
 		assert.Contains(errors, "GO_BPMN_TASK_EXECUTOR_ENABLED=invalid-task-executor-enabled: ")
 		assert.Contains(errors, "GO_BPMN_TASK_EXECUTOR_INTERVAL=invalid-task-executor-interval: ")
 		assert.Contains(errors, "GO_BPMN_TASK_EXECUTOR_LIMIT=invalid-task-executor-limit: ")

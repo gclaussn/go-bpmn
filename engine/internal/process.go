@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"container/list"
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
@@ -14,27 +15,25 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func NewProcessCache() *ProcessCache {
+func NewProcessCache(capacity int, expiration time.Duration) *ProcessCache {
 	return &ProcessCache{
-		processes:     make(map[string]*ProcessEntity),
-		processesById: make(map[int32]*ProcessEntity),
+		capacity:   capacity,
+		expiration: expiration,
+
+		l:             list.New(),
+		processes:     make(map[string]*list.Element),
+		processesById: make(map[int32]*list.Element),
 	}
 }
 
 type ProcessCache struct {
+	capacity   int
+	expiration time.Duration
+
 	mutex         sync.RWMutex
-	processes     map[string]*ProcessEntity
-	processesById map[int32]*ProcessEntity
-}
-
-func (c *ProcessCache) Add(process *ProcessEntity) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-
-	c.processesById[process.Id] = process
-
-	key := fmt.Sprintf("%s:%s", process.BpmnProcessId, process.Version)
-	c.processes[key] = process
+	l             *list.List
+	processes     map[string]*list.Element
+	processesById map[int32]*list.Element
 }
 
 func (c *ProcessCache) Clear() {
@@ -43,27 +42,61 @@ func (c *ProcessCache) Clear() {
 
 	clear(c.processes)
 	clear(c.processesById)
+
+	for {
+		element := c.l.Front()
+		if element == nil {
+			break
+		}
+		c.l.Remove(element)
+	}
 }
 
-func (c *ProcessCache) Get(bpmnProcessId string, version string) (*ProcessEntity, bool) {
+func (c *ProcessCache) Get(ctx Context, bpmnProcessId string, version string) (*ProcessEntity, bool) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
 	key := fmt.Sprintf("%s:%s", bpmnProcessId, version)
-	process, ok := c.processes[key]
-	return process, ok
+	element, ok := c.processes[key]
+	if !ok {
+		return nil, false
+	}
+
+	entry := element.Value.(*ProcessCacheEntry)
+	if entry.IsExpired(ctx.Time()) {
+		c.l.Remove(element)
+		delete(c.processes, key)
+		delete(c.processesById, entry.process.Id)
+		return nil, false
+	}
+
+	c.l.MoveToFront(element)
+	return entry.process, true
 }
 
-func (c *ProcessCache) GetById(id int32) (*ProcessEntity, bool) {
+func (c *ProcessCache) GetById(ctx Context, id int32) (*ProcessEntity, bool) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
-	process, ok := c.processesById[id]
-	return process, ok
+	element, ok := c.processesById[id]
+	if !ok {
+		return nil, false
+	}
+
+	entry := element.Value.(*ProcessCacheEntry)
+	if entry.IsExpired(ctx.Time()) {
+		c.l.Remove(element)
+		delete(c.processes, entry.Key())
+		delete(c.processesById, entry.process.Id)
+		return nil, false
+	}
+
+	c.l.MoveToFront(element)
+	return entry.process, true
 }
 
 func (c *ProcessCache) GetOrCache(ctx Context, bpmnProcessId string, version string) (*ProcessEntity, error) {
-	if process, ok := c.Get(bpmnProcessId, version); ok {
+	if process, ok := c.Get(ctx, bpmnProcessId, version); ok {
 		return process, nil
 	}
 
@@ -84,7 +117,7 @@ func (c *ProcessCache) GetOrCache(ctx Context, bpmnProcessId string, version str
 }
 
 func (c *ProcessCache) GetOrCacheById(ctx Context, id int32) (*ProcessEntity, error) {
-	if process, ok := c.GetById(id); ok {
+	if process, ok := c.GetById(ctx, id); ok {
 		return process, nil
 	}
 
@@ -105,6 +138,42 @@ func (c *ProcessCache) GetOrCacheById(ctx Context, id int32) (*ProcessEntity, er
 	}
 
 	return process, nil
+}
+
+func (c *ProcessCache) Put(ctx Context, process *ProcessEntity) {
+	entry := &ProcessCacheEntry{
+		process:   process,
+		expiresAt: ctx.Time().Add(c.expiration),
+	}
+
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	if element, ok := c.processesById[entry.process.Id]; ok {
+		element.Value = entry
+		c.l.MoveToFront(element)
+		return
+	}
+
+	element := c.l.PushFront(entry)
+
+	c.processes[entry.Key()] = element
+	c.processesById[entry.process.Id] = element
+
+	if c.l.Len() > c.capacity {
+		oldest := c.l.Back()
+		oldestEntry := oldest.Value.(*ProcessCacheEntry)
+
+		c.l.Remove(oldest)
+		delete(c.processes, oldestEntry.Key())
+		delete(c.processesById, oldestEntry.process.Id)
+	}
+}
+
+func (c *ProcessCache) Size() int {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	return c.l.Len()
 }
 
 func (c *ProcessCache) cache(ctx Context, process *ProcessEntity) error {
@@ -146,9 +215,22 @@ func (c *ProcessCache) cache(ctx Context, process *ProcessEntity) error {
 	graph.setEventDefinitions(eventDefinitions)
 
 	process.graph = &graph
-	c.Add(process)
 
+	c.Put(ctx, process)
 	return nil
+}
+
+type ProcessCacheEntry struct {
+	process   *ProcessEntity
+	expiresAt time.Time
+}
+
+func (e ProcessCacheEntry) Key() string {
+	return fmt.Sprintf("%s:%s", e.process.BpmnProcessId, e.process.Version)
+}
+
+func (e ProcessCacheEntry) IsExpired(t time.Time) bool {
+	return !t.Before(e.expiresAt)
 }
 
 type ProcessEntity struct {
@@ -878,13 +960,13 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 
 	// cache process
 	process.graph = &graph
-	ctx.ProcessCache().Add(process)
+	ctx.ProcessCache().Put(ctx, process)
 
 	return process.Process(), nil
 }
 
 func GetBpmnXml(ctx Context, cmd engine.GetBpmnXmlCmd) (string, error) {
-	if process, ok := ctx.ProcessCache().GetById(cmd.ProcessId); ok {
+	if process, ok := ctx.ProcessCache().GetById(ctx, cmd.ProcessId); ok {
 		return process.BpmnXml, nil
 	}
 

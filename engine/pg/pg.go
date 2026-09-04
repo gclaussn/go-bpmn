@@ -50,7 +50,10 @@ func New(databaseUrl string, customizers ...func(*Options)) (engine.Engine, erro
 	pgCtxPoolSize := int(pgPoolConfig.MaxConns)
 	pgCtxPool := make(chan *pgContext, pgCtxPoolSize)
 
-	processCache := internal.NewProcessCache()
+	processCache := internal.NewProcessCache(
+		options.Common.ProcessCacheCapacity,
+		options.Common.ProcessCacheExpiration,
+	)
 
 	for range pgCtxPoolSize {
 		pgCtxPool <- &pgContext{options: options, processCache: processCache}
@@ -90,12 +93,14 @@ func New(databaseUrl string, customizers ...func(*Options)) (engine.Engine, erro
 func NewOptions() Options {
 	return Options{
 		Common: engine.Options{
-			DefaultQueryLimit:    1000,
-			EngineId:             engine.DefaultEngineId,
-			TaskExecutorEnabled:  true,
-			TaskExecutorInterval: 60 * time.Second,
-			TaskExecutorLimit:    10,
-			TaskRetryLimit:       0,
+			DefaultQueryLimit:      1000,
+			EngineId:               engine.DefaultEngineId,
+			ProcessCacheCapacity:   100,
+			ProcessCacheExpiration: 60 * time.Minute,
+			TaskExecutorEnabled:    true,
+			TaskExecutorInterval:   60 * time.Second,
+			TaskExecutorLimit:      10,
+			TaskRetryLimit:         0,
 		},
 
 		DropPartitionEnabled: true,

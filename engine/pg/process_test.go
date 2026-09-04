@@ -34,15 +34,23 @@ func TestProcessCache(t *testing.T) {
 	})
 
 	t.Run("get", func(t *testing.T) {
+		pgCtx, cancel, err := pgEngine.acquire(context.Background())
+		if err != nil {
+			t.Fatalf("failed to require context: %v", err)
+		}
+
+		defer cancel()
+		defer pgEngine.release(pgCtx, nil)
+
 		// when
-		cachedEntity, ok = processCache.Get("startEndTest", "1")
+		cachedEntity, ok = processCache.Get(pgCtx, "startEndTest", "1")
 
 		// then
 		assert.Nil(cachedEntity)
 		assert.False(ok)
 
 		// when
-		cachedEntity, ok = processCache.GetById(1)
+		cachedEntity, ok = processCache.GetById(pgCtx, 1)
 
 		// then
 		assert.Nil(cachedEntity)
@@ -85,20 +93,6 @@ func TestProcessCache(t *testing.T) {
 			t.Fatalf("failed to create process: %v", err)
 		}
 
-		// when
-		cachedEntity, ok = processCache.Get("startEndTest", "1")
-
-		// then
-		assert.NotNil(cachedEntity)
-		assert.True(ok)
-
-		// when
-		cachedEntity, ok = processCache.GetById(1)
-
-		// then
-		assert.NotNil(cachedEntity)
-		assert.True(ok)
-
 		pgCtx, cancel, err := pgEngine.acquire(context.Background())
 		if err != nil {
 			t.Fatalf("failed to require context: %v", err)
@@ -106,6 +100,20 @@ func TestProcessCache(t *testing.T) {
 
 		defer cancel()
 		defer pgEngine.release(pgCtx, nil)
+
+		// when
+		cachedEntity, ok = processCache.Get(pgCtx, "startEndTest", "1")
+
+		// then
+		assert.NotNil(cachedEntity)
+		assert.True(ok)
+
+		// when
+		cachedEntity, ok = processCache.GetById(pgCtx, 1)
+
+		// then
+		assert.NotNil(cachedEntity)
+		assert.True(ok)
 
 		// when
 		cachedEntity, err = processCache.GetOrCache(pgCtx, "startEndTest", "1")

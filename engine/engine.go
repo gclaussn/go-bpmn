@@ -130,13 +130,15 @@ type Query interface {
 
 // Options are common configuration options that are shared between engine implementations.
 type Options struct {
-	DefaultQueryLimit    int           // Default limit for queries, executed without an explicit limit.
-	Encryption           Encryption    // Encryption is needed for the encryption and decryption of variable data.
-	EngineId             string        // ID of the engine.
-	TaskExecutorEnabled  bool          // Enables or disables the engine's task executor.
-	TaskExecutorInterval time.Duration // Interval between execution of due tasks.
-	TaskExecutorLimit    int           // Maximum number of due tasks to lock and execute at once.
-	TaskRetryLimit       int           // Maximum number of task retries.
+	DefaultQueryLimit      int           // Default limit for queries, executed without an explicit limit.
+	Encryption             Encryption    // Encryption is needed for the encryption and decryption of variable data.
+	EngineId               string        // ID of the engine.
+	ProcessCacheCapacity   int           // Maximum number of cached processes.
+	ProcessCacheExpiration time.Duration // Time until a process cache entry expires.
+	TaskExecutorEnabled    bool          // Enables or disables the engine's task executor.
+	TaskExecutorInterval   time.Duration // Interval between execution of due tasks.
+	TaskExecutorLimit      int           // Maximum number of due tasks to lock and execute at once.
+	TaskRetryLimit         int           // Maximum number of task retries.
 
 	OnTaskExecutionFailure func(Task, error) // Called when the engine failed to execute a locked task.
 }
@@ -145,8 +147,14 @@ func (o Options) Validate() error {
 	if strings.TrimSpace(o.EngineId) == "" {
 		return errors.New("engine ID must not be empty or blank")
 	}
+	if o.ProcessCacheCapacity < 1 {
+		return errors.New("process cache capacity must be greater than or equal to 1")
+	}
+	if o.ProcessCacheExpiration.Seconds() < 60 {
+		return errors.New("process cache expiration must be greater than or equal to 60s")
+	}
 	if o.TaskExecutorInterval.Milliseconds() < 1000 {
-		return errors.New("task executor interval must be greater than or equal to 1000 ms")
+		return errors.New("task executor interval must be greater than or equal to 1000ms")
 	}
 	if o.TaskExecutorLimit < 1 {
 		return errors.New("task executor limit must be greater than or equal to 1")
