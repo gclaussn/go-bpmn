@@ -5,13 +5,13 @@ ElementInstanceId: {{ .ElementInstanceId }}
 ProcessId: {{ .ProcessId }}
 ProcessInstanceId: {{ .ProcessInstanceId }}
 BpmnElementId: {{ .BpmnElementId }}
-CompletedAt: {{ .CompletedAt | formatTimeOrNil }}
+CompletedAt: {{ .CompletedAt | formatTime }}
 CorrelationKey: {{ .CorrelationKey }}
 CreatedAt: {{ .CreatedAt | formatTime }}
 CreatedBy: {{ .CreatedBy }}
 DueAt: {{ .DueAt | formatTime }}
 Error: {{ .Error }}
-LockedAt: {{ .LockedAt | formatTimeOrNil }}
+LockedAt: {{ .LockedAt | formatTime }}
 LockedBy: {{ .LockedBy }}
 RetryCount: {{ .RetryCount }}
 State: {{ .State }}

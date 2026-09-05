@@ -203,10 +203,7 @@ func (p Partition) IsZero() bool {
 }
 
 func (p Partition) MarshalJSON() ([]byte, error) {
-	if p.IsZero() {
-		return []byte("null"), nil
-	}
-	return []byte(fmt.Sprintf("%q", p.String())), nil
+	return fmt.Appendf(nil, "%q", p.String()), nil
 }
 
 func (p Partition) String() string {

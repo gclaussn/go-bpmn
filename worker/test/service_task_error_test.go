@@ -67,11 +67,11 @@ func TestServiceTaskErrorProcess(t *testing.T) {
 	now := time.Now().UTC()
 
 	plusOneHour := now.Add(1 * time.Hour).Add(time.Minute)
-	e.SetTime(context.Background(), engine.SetTimeCmd{Time: &plusOneHour})
+	e.SetTime(context.Background(), engine.SetTimeCmd{Time: plusOneHour})
 	piAssert.ExecuteJobWithError()
 
 	plusTwoHour := now.Add(2 * time.Hour).Add(time.Minute)
-	e.SetTime(context.Background(), engine.SetTimeCmd{Time: &plusTwoHour})
+	e.SetTime(context.Background(), engine.SetTimeCmd{Time: plusTwoHour})
 	piAssert.ExecuteJob()
 
 	piAssert.IsCompleted()

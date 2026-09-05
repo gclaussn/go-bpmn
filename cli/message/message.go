@@ -123,7 +123,7 @@ func newQueryCmd() *cobra.Command {
 					result.CorrelationKey,
 					common.FormatTime(result.CreatedAt),
 					result.CreatedBy,
-					common.FormatTimeOrNil(result.ExpiresAt),
+					common.FormatTime(result.ExpiresAt),
 					strconv.FormatBool(result.IsCorrelated),
 					result.Name,
 					result.UniqueKey,

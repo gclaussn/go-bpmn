@@ -11,8 +11,8 @@ BpmnProcessId: {{ .BpmnProcessId }}
 CorrelationKey: {{ .CorrelationKey }}
 CreatedAt: {{ .CreatedAt | formatTime }}
 CreatedBy: {{ .CreatedBy }}
-EndedAt: {{ .EndedAt | formatTimeOrNil }}
-StartedAt: {{ .StartedAt | formatTimeOrNil }}
+EndedAt: {{ .EndedAt | formatTime }}
+StartedAt: {{ .StartedAt | formatTime }}
 State: {{ .State }}
 {{- if .Tags }}
 Tags:

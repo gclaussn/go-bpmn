@@ -336,7 +336,7 @@ func TestSetTimer(t *testing.T) {
 	assert.NotNil(completion.Timer)
 
 	timer := completion.Timer
-	assert.Equal(now, *timer.Time)
+	assert.Equal(now, timer.Time)
 	assert.Equal("0 * * * *", timer.TimeCycle)
 	assert.Equal("P1D", timer.TimeDuration.String())
 }

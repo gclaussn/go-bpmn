@@ -242,7 +242,7 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 				jobType = engine.JobSetTimer
 			} else {
 				timer := engine.Timer{
-					Time:         timeOrNil(node.eventDefinition.Time),
+					Time:         node.eventDefinition.Time.Time,
 					TimeCycle:    node.eventDefinition.TimeCycle.String,
 					TimeDuration: engine.ISO8601Duration(node.eventDefinition.TimeDuration.String),
 				}

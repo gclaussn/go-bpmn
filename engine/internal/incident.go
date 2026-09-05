@@ -40,7 +40,7 @@ func (e IncidentEntity) Incident() engine.Incident {
 
 		CreatedAt:  e.CreatedAt,
 		CreatedBy:  e.CreatedBy,
-		ResolvedAt: timeOrNil(e.ResolvedAt),
+		ResolvedAt: e.ResolvedAt.Time,
 		ResolvedBy: e.ResolvedBy.String,
 	}
 }

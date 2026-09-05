@@ -25,7 +25,7 @@ func TestSendMessage(t *testing.T) {
 			t.Errorf("failed to send message 1: %v", err1)
 		}
 
-		assert.NotNil(message1.ExpiresAt)
+		assert.NotZero(message1.ExpiresAt)
 		assert.False(message1.IsCorrelated)
 
 		message2, err2 := e.SendMessage(context.Background(), engine.SendMessageCmd{
@@ -49,7 +49,7 @@ func TestSendMessage(t *testing.T) {
 			t.Errorf("failed to send message 1: %v", err1)
 		}
 
-		assert.NotNil(message1.ExpiresAt)
+		assert.NotZero(message1.ExpiresAt)
 		assert.False(message1.IsCorrelated)
 
 		message2, err2 := e.SendMessage(context.Background(), engine.SendMessageCmd{

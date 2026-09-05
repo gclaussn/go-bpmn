@@ -155,7 +155,7 @@ func TestTimer(t *testing.T) {
 
 	timer = Timer{Time: Time(now)}
 	assert.NotNil(timer.Timer())
-	assert.Equal(now, *timer.Timer().Time)
+	assert.Equal(now, timer.Timer().Time)
 
 	timer = Timer{TimeCycle: "0 * * * *"}
 	assert.NotNil(timer.Timer())

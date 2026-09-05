@@ -2,7 +2,7 @@ Id: {{ .Id }}
 CorrelationKey: {{ .CorrelationKey }}
 CreatedAt: {{ .CreatedAt | formatTime }}
 CreatedBy: {{ .CreatedBy }}
-ExpiresAt: {{ .ExpiresAt | formatTimeOrNil }}
+ExpiresAt: {{ .ExpiresAt | formatTime }}
 IsCorrelated: {{ .IsCorrelated }}
 Name: {{ .Name }}
 UniqueKey: {{ .UniqueKey }}

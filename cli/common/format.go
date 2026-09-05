@@ -43,13 +43,6 @@ func FormatTime(v time.Time) string {
 	return v.Format(time.RFC3339)
 }
 
-func FormatTimeOrNil(v *time.Time) string {
-	if v == nil {
-		return ""
-	}
-	return FormatTime(*v)
-}
-
 func NewTable(columns string) *Table {
 	split := strings.Split(columns, ",")
 
@@ -365,8 +358,7 @@ func newTemplateFromFile(name string) (*template.Template, error) {
 
 func newTemplateFuncs() template.FuncMap {
 	return template.FuncMap{
-		"formatId":        FormatId,
-		"formatTime":      FormatTime,
-		"formatTimeOrNil": FormatTimeOrNil,
+		"formatId":   FormatId,
+		"formatTime": FormatTime,
 	}
 }

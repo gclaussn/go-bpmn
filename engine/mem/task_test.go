@@ -43,7 +43,7 @@ func TestExecuteTask(t *testing.T) {
 		assert.True(entity.Error.Valid)
 		assert.Equal("BUG: failed to map task type: type START_PROCESS_INSTANCE is not supported", entity.Error.String)
 		assert.True(entity.CompletedAt.Valid)
-		assert.False(entity.CompletedAt.Time.IsZero())
+		assert.NotZero(entity.CompletedAt.Time)
 		assert.Equal(engine.WorkCausedIncident, entity.State)
 
 		results, err := e.CreateQuery().QueryIncidents(context.Background(), engine.IncidentCriteria{TaskId: entity.Id})
@@ -93,7 +93,7 @@ func TestExecuteTask(t *testing.T) {
 		assert.True(entity.Error.Valid)
 		assert.Equal("NOT_FOUND: dummy title: dummy detail", entity.Error.String)
 		assert.True(entity.CompletedAt.Valid)
-		assert.False(entity.CompletedAt.Time.IsZero())
+		assert.NotZero(entity.CompletedAt.Time)
 		assert.Equal(engine.WorkCausedRetry, entity.State)
 
 		results, err := e.CreateQuery().QueryTasks(context.Background(), engine.TaskCriteria{Id: entity.Id + 1})

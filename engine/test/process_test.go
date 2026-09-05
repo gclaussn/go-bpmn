@@ -755,7 +755,7 @@ func TestCreateProcessWithTimer(t *testing.T) {
 
 				plusOneHour := time.Now().Add(time.Hour)
 				_, _, err = e.SetTime(context.Background(), engine.SetTimeCmd{
-					Time: &plusOneHour,
+					Time: plusOneHour,
 				})
 				require.NoError(err, "failed to set time")
 

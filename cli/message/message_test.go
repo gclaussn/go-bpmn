@@ -42,7 +42,7 @@ func TestSend(t *testing.T) {
 	cmd := e.sendMessageCmd
 	assert.Equal("test-correlation-key", cmd.CorrelationKey)
 	assert.NotNil(cmd.ExpirationTimer)
-	assert.Equal(now, *cmd.ExpirationTimer.Time)
+	assert.Equal(now, cmd.ExpirationTimer.Time)
 	assert.Equal("0 * * * *", cmd.ExpirationTimer.TimeCycle)
 	assert.Equal("P1D", cmd.ExpirationTimer.TimeDuration.String())
 	assert.Equal("test-name", cmd.Name)

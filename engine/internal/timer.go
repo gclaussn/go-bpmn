@@ -142,7 +142,7 @@ func (ec *executionContext) triggerTimerBoundaryEvent(ctx Context, timer engine.
 
 		CreatedAt:    ctx.Time(),
 		CreatedBy:    ctx.Options().EngineId,
-		Time:         toPgTimestamp(timer.Time),
+		Time:         pgtype.Timestamp{Time: timer.Time, Valid: !timer.Time.IsZero()},
 		TimeCycle:    pgtype.Text{String: timer.TimeCycle, Valid: timer.TimeCycle != ""},
 		TimeDuration: pgtype.Text{String: timer.TimeDuration.String(), Valid: !timer.TimeDuration.IsZero()},
 	}
@@ -176,7 +176,7 @@ func (ec *executionContext) triggerTimerCatchEvent(ctx Context, timer engine.Tim
 
 		CreatedAt:    ctx.Time(),
 		CreatedBy:    ec.engineOrWorkerId,
-		Time:         toPgTimestamp(timer.Time),
+		Time:         pgtype.Timestamp{Time: timer.Time, Valid: !timer.Time.IsZero()},
 		TimeCycle:    pgtype.Text{String: timer.TimeCycle, Valid: timer.TimeCycle != ""},
 		TimeDuration: pgtype.Text{String: timer.TimeDuration.String(), Valid: !timer.TimeDuration.IsZero()},
 	}

@@ -54,9 +54,9 @@ func (e ElementInstanceEntity) ElementInstance() engine.ElementInstance {
 		BpmnElementType: e.BpmnElementType,
 		CreatedAt:       e.CreatedAt,
 		CreatedBy:       e.CreatedBy,
-		EndedAt:         timeOrNil(e.EndedAt),
+		EndedAt:         e.EndedAt.Time,
 		IsMultiInstance: e.IsMultiInstance,
-		StartedAt:       timeOrNil(e.StartedAt),
+		StartedAt:       e.StartedAt.Time,
 		State:           e.State,
 	}
 }

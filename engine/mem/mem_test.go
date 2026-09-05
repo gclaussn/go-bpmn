@@ -20,7 +20,7 @@ func TestSetTime(t *testing.T) {
 		newTime := time.Now().Add(time.Second * -1)
 
 		// when
-		_, _, err := e.SetTime(context.Background(), engine.SetTimeCmd{Time: &newTime})
+		_, _, err := e.SetTime(context.Background(), engine.SetTimeCmd{Time: newTime})
 
 		// then
 		assert.IsTypef(engine.Error{}, err, "expected engine error")
@@ -42,7 +42,7 @@ func TestSetTime(t *testing.T) {
 		newTime := time.Now().Add(time.Hour)
 
 		// when
-		new, old, err := e.SetTime(context.Background(), engine.SetTimeCmd{Time: &newTime})
+		new, old, err := e.SetTime(context.Background(), engine.SetTimeCmd{Time: newTime})
 
 		// then
 		assert.Nil(err)
@@ -50,7 +50,7 @@ func TestSetTime(t *testing.T) {
 
 		// when called again
 		time.Sleep(time.Second)
-		_, _, err = e.SetTime(context.Background(), engine.SetTimeCmd{Time: &newTime})
+		_, _, err = e.SetTime(context.Background(), engine.SetTimeCmd{Time: newTime})
 
 		// then
 		assert.IsTypef(engine.Error{}, err, "expected engine error")

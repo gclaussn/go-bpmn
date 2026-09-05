@@ -108,7 +108,7 @@ func newQueryCmd() *cobra.Command {
 
 					common.FormatTime(result.CreatedAt),
 					result.CreatedBy,
-					common.FormatTimeOrNil(result.ResolvedAt),
+					common.FormatTime(result.ResolvedAt),
 					result.ResolvedBy,
 				})
 			}

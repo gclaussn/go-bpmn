@@ -50,7 +50,7 @@ func AssertMessageStart(t *testing.T, e Engine, processId int32, cmd SendMessage
 
 	var triggerEventTask Task
 	for _, task := range tasks {
-		if !task.IsCompleted() && task.CreatedAt == message.CreatedAt {
+		if !task.IsCompleted() && task.CreatedAt.Equal(message.CreatedAt) {
 			triggerEventTask = task
 			break
 		}
@@ -107,7 +107,7 @@ func AssertSignalStart(t *testing.T, e Engine, processId int32, cmd SendSignalCm
 
 	var triggerEventTask Task
 	for _, task := range tasks {
-		if !task.IsCompleted() && task.CreatedAt == signal.CreatedAt {
+		if !task.IsCompleted() && task.CreatedAt.Equal(signal.CreatedAt) {
 			triggerEventTask = task
 			break
 		}
@@ -191,7 +191,7 @@ func AsserTimerStart(t *testing.T, e Engine, processId int32, bpmnStartElementId
 	}
 
 	if _, _, err := e.SetTime(context.Background(), SetTimeCmd{
-		Time: &nextTrigger.DueAt,
+		Time: nextTrigger.DueAt,
 	}); err != nil {
 		t.Fatalf("failed to set time: %v", err)
 	}
@@ -430,15 +430,15 @@ func (a *ProcessInstanceAssert) HasPassed(bpmnElementId string) {
 	}
 
 	slices.SortFunc(results, func(a ElementInstance, b ElementInstance) int {
-		if a.EndedAt == nil {
+		if a.EndedAt.IsZero() {
 			return -1
-		} else if b.EndedAt == nil {
+		} else if b.EndedAt.IsZero() {
 			return 1
 		}
 
-		if *a.EndedAt == *b.EndedAt {
+		if a.EndedAt.Equal(b.EndedAt) {
 			return int(a.Id - b.Id)
-		} else if a.EndedAt.Before(*b.EndedAt) {
+		} else if a.EndedAt.Before(b.EndedAt) {
 			return -1
 		} else {
 			return 1

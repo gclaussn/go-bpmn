@@ -83,15 +83,15 @@ func TestCreate(t *testing.T) {
 
 	assert.Len(cmd.Timers, 3)
 	assert.Equal("timer1", cmd.Timers[0].BpmnElementId)
-	assert.Equal(now, *cmd.Timers[0].Timer.Time)
+	assert.Equal(now, cmd.Timers[0].Timer.Time)
 	assert.Empty(cmd.Timers[0].Timer.TimeCycle)
 	assert.True(cmd.Timers[0].Timer.TimeDuration.IsZero())
 	assert.Equal("timer2", cmd.Timers[1].BpmnElementId)
-	assert.Nil(cmd.Timers[1].Timer.Time)
+	assert.Zero(cmd.Timers[1].Timer.Time)
 	assert.Equal("0 * * * *", cmd.Timers[1].Timer.TimeCycle)
 	assert.True(cmd.Timers[1].Timer.TimeDuration.IsZero())
 	assert.Equal("timer3", cmd.Timers[2].BpmnElementId)
-	assert.Nil(cmd.Timers[2].Timer.Time)
+	assert.Zero(cmd.Timers[2].Timer.Time)
 	assert.Empty(cmd.Timers[2].Timer.TimeCycle)
 	assert.Equal("P1D", cmd.Timers[2].Timer.TimeDuration.String())
 }

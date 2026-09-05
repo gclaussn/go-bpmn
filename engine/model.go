@@ -43,11 +43,7 @@ func MapInstanceState(s string) InstanceState {
 }
 
 func (v InstanceState) MarshalJSON() ([]byte, error) {
-	s := v.String()
-	if s == "" {
-		return []byte("null"), nil
-	}
-	return []byte(fmt.Sprintf("%q", s)), nil
+	return fmt.Appendf(nil, "%q", v.String()), nil
 }
 
 func (v InstanceState) String() string {
@@ -151,11 +147,7 @@ func MapJobType(s string) JobType {
 }
 
 func (v JobType) MarshalJSON() ([]byte, error) {
-	s := v.String()
-	if s == "" {
-		return []byte("null"), nil
-	}
-	return []byte(fmt.Sprintf("%q", s)), nil
+	return fmt.Appendf(nil, "%q", v.String()), nil
 }
 
 func (v JobType) String() string {
@@ -265,11 +257,7 @@ func MapTaskType(s string) TaskType {
 }
 
 func (v TaskType) MarshalJSON() ([]byte, error) {
-	s := v.String()
-	if s == "" {
-		return []byte("null"), nil
-	}
-	return []byte(fmt.Sprintf("%q", s)), nil
+	return fmt.Appendf(nil, "%q", v.String()), nil
 }
 
 func (v TaskType) String() string {
@@ -341,11 +329,7 @@ func MapUserTaskState(s string) UserTaskState {
 }
 
 func (v UserTaskState) MarshalJSON() ([]byte, error) {
-	s := v.String()
-	if s == "" {
-		return []byte("null"), nil
-	}
-	return []byte(fmt.Sprintf("%q", s)), nil
+	return fmt.Appendf(nil, "%q", v.String()), nil
 }
 
 func (v UserTaskState) String() string {
@@ -421,11 +405,7 @@ func MapWorkState(s string) WorkState {
 }
 
 func (v WorkState) MarshalJSON() ([]byte, error) {
-	s := v.String()
-	if s == "" {
-		return []byte("null"), nil
-	}
-	return []byte(fmt.Sprintf("%q", s)), nil
+	return fmt.Appendf(nil, "%q", v.String()), nil
 }
 
 func (v WorkState) String() string {
@@ -512,9 +492,9 @@ type ElementInstance struct {
 	BpmnElementType model.ElementType `json:"bpmnElementType" validate:"required"` // BPMN element type.
 	CreatedAt       time.Time         `json:"createdAt" validate:"required"`       // Creation time.
 	CreatedBy       string            `json:"createdBy" validate:"required"`       // ID of the worker or engine that created the element instance.
-	EndedAt         *time.Time        `json:"endedAt,omitempty"`                   // End time.
+	EndedAt         time.Time         `json:"endedAt,omitzero"`                    // End time.
 	IsMultiInstance bool              `json:"multiInstance,omitempty"`             // Determines if the element instance is a multi instance.
-	StartedAt       *time.Time        `json:"startedAt,omitempty"`                 // Start time.
+	StartedAt       time.Time         `json:"startedAt,omitzero"`                  // Start time.
 	State           InstanceState     `json:"state" validate:"required"`           // Current state.
 }
 
@@ -523,7 +503,7 @@ func (v ElementInstance) HasParent() bool {
 }
 
 func (v ElementInstance) IsEnded() bool {
-	return v.EndedAt != nil
+	return !v.EndedAt.IsZero()
 }
 
 func (v ElementInstance) String() string {
@@ -532,8 +512,8 @@ func (v ElementInstance) String() string {
 
 // ElementInstanceCriteria specifies the results, returned by an element instance query.
 type ElementInstanceCriteria struct {
-	Partition Partition `json:"partition"`    // Partition filter.
-	Id        int32     `json:"id,omitempty"` // Element instance filter.
+	Partition Partition `json:"partition,omitzero"` // Partition filter.
+	Id        int32     `json:"id,omitempty"`       // Element instance filter.
 
 	ParentId int32 `json:"parentId,omitempty"` // Filter, used to query children of a parent element instance.
 
@@ -556,7 +536,7 @@ func (v ElementVariable) IsDeleted() bool {
 }
 
 func (v ElementVariable) String() string {
-	return v.Name
+	return fmt.Sprintf("%s/%s", v.BpmnElementId, v.Name)
 }
 
 // EventDefinition is a generic definition of a BPMN event, while a BPMN element has exactly one type.
@@ -583,14 +563,14 @@ type Incident struct {
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // ID of the enclosing process instance.
 	TaskId            int32 `json:"taskId,omitempty"`            // ID of the related task.
 
-	CreatedAt  time.Time  `json:"createdAt" validate:"required"` // Creation time
-	CreatedBy  string     `json:"createdBy" validate:"required"` // ID of the engine that created the incident.
-	ResolvedAt *time.Time `json:"resolvedAt,omitempty"`          // Resolution time.
-	ResolvedBy string     `json:"resolvedBy,omitempty"`          // ID of the worker that resolved the incident.
+	CreatedAt  time.Time `json:"createdAt" validate:"required"` // Creation time
+	CreatedBy  string    `json:"createdBy" validate:"required"` // ID of the engine that created the incident.
+	ResolvedAt time.Time `json:"resolvedAt,omitzero"`           // Resolution time.
+	ResolvedBy string    `json:"resolvedBy,omitempty"`          // ID of the worker that resolved the incident.
 }
 
 func (v Incident) IsResolved() bool {
-	return v.ResolvedAt != nil
+	return !v.ResolvedAt.IsZero()
 }
 
 func (v Incident) String() string {
@@ -599,12 +579,12 @@ func (v Incident) String() string {
 
 // IncidentCriteria specifies the results, returned by an element instance query.
 type IncidentCriteria struct {
-	Partition Partition `json:"partition"`    // Partition filter.
-	Id        int32     `json:"id,omitempty"` // Incident filter.
+	Partition Partition `json:"partition,omitzero"` // Partition filter.
+	Id        int32     `json:"id,omitempty"`       // Incident filter.
 
 	JobId             int32 `json:"jobId,omitempty"`             // Job filter.
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // Process instance filter.
-	TaskId            int32 `json:"taskId,omitempty"`            // Process filter.
+	TaskId            int32 `json:"taskId,omitempty"`            // Task filter.
 }
 
 // Job is a unit of work related to an element instance, which must be locked, executed and completed by a worker.
@@ -617,18 +597,18 @@ type Job struct {
 	ProcessId         int32 `json:"processId" validate:"required"`         // ID of the related process.
 	ProcessInstanceId int32 `json:"processInstanceId" validate:"required"` // ID of the enclosing process instance.
 
-	BpmnElementId  string     `json:"bpmnElementId" validate:"required"`    // Element ID within the BPMN XML.
-	CompletedAt    *time.Time `json:"completedAt,omitempty"`                // Completion time.
-	CorrelationKey string     `json:"correlationKey,omitempty"`             // Correlation key of the process instance.
-	CreatedAt      time.Time  `json:"createdAt" validate:"required"`        // Creation time.
-	CreatedBy      string     `json:"createdBy" validate:"required"`        // ID of the worker or engine that created the job.
-	DueAt          time.Time  `json:"dueAt" validate:"required"`            // Point in time when a job can be locked by a worker.
-	Error          string     `json:"error,omitempty"`                      // Error, indicating a technical problem.
-	LockedAt       *time.Time `json:"lockedAt,omitempty"`                   // Lock time.
-	LockedBy       string     `json:"lockedBy,omitempty"`                   // ID of the worker that locked the job.
-	RetryCount     int        `json:"retryCount" validate:"required,gte=0"` // Retry indicator, which is increased for each failed attempt.
-	State          WorkState  `json:"state" validate:"required"`            // Current state.
-	Type           JobType    `json:"type" validate:"required"`             // Job type.
+	BpmnElementId  string    `json:"bpmnElementId" validate:"required"`    // Element ID within the BPMN XML.
+	CompletedAt    time.Time `json:"completedAt,omitzero"`                 // Completion time.
+	CorrelationKey string    `json:"correlationKey,omitempty"`             // Correlation key of the process instance.
+	CreatedAt      time.Time `json:"createdAt" validate:"required"`        // Creation time.
+	CreatedBy      string    `json:"createdBy" validate:"required"`        // ID of the worker or engine that created the job.
+	DueAt          time.Time `json:"dueAt" validate:"required"`            // Point in time when a job can be locked by a worker.
+	Error          string    `json:"error,omitempty"`                      // Error, indicating a technical problem.
+	LockedAt       time.Time `json:"lockedAt,omitzero"`                    // Lock time.
+	LockedBy       string    `json:"lockedBy,omitempty"`                   // ID of the worker that locked the job.
+	RetryCount     int       `json:"retryCount" validate:"required,gte=0"` // Retry indicator, which is increased for each failed attempt.
+	State          WorkState `json:"state" validate:"required"`            // Current state.
+	Type           JobType   `json:"type" validate:"required"`             // Job type.
 }
 
 func (v Job) HasError() bool {
@@ -636,11 +616,11 @@ func (v Job) HasError() bool {
 }
 
 func (v Job) IsCompleted() bool {
-	return v.CompletedAt != nil
+	return !v.CompletedAt.IsZero()
 }
 
 func (v Job) IsLocked() bool {
-	return v.LockedAt != nil
+	return !v.LockedAt.IsZero()
 }
 
 func (v Job) String() string {
@@ -649,8 +629,8 @@ func (v Job) String() string {
 
 // JobCriteria specifies the results, returned by a job query.
 type JobCriteria struct {
-	Partition Partition `json:"partition"`    // Partition filter.
-	Id        int32     `json:"id,omitempty"` // Job filter.
+	Partition Partition `json:"partition,omitzero"` // Partition filter.
+	Id        int32     `json:"id,omitempty"`       // Job filter.
 
 	ElementId         int32 `json:"elementId,omitempty"`         // Element filter.
 	ElementInstanceId int32 `json:"elementInstanceId,omitempty"` // Element instance filter.
@@ -665,13 +645,13 @@ type JobCriteria struct {
 type Message struct {
 	Id int64 `json:"id" validate:"required"` // Message ID.
 
-	CorrelationKey string     `json:"correlationKey" validate:"required"` // Key, used to correlate a message subscription with the message.
-	CreatedAt      time.Time  `json:"createdAt" validate:"required"`      // Message sent time.
-	CreatedBy      string     `json:"createdBy" validate:"required"`      // ID of the worker that sent the message.
-	ExpiresAt      *time.Time `json:"expiresAt,omitempty"`                // Point in time, when the message expires.
-	IsCorrelated   bool       `json:"correlated" validate:"required"`     // Indicates if the message is correlated or not.
-	Name           string     `json:"name" validate:"required"`           // Message name.
-	UniqueKey      string     `json:"uniqueKey,omitempty"`                // Key that uniquely identifies the message.
+	CorrelationKey string    `json:"correlationKey" validate:"required"` // Key, used to correlate a message subscription with the message.
+	CreatedAt      time.Time `json:"createdAt" validate:"required"`      // Message sent time.
+	CreatedBy      string    `json:"createdBy" validate:"required"`      // ID of the worker that sent the message.
+	ExpiresAt      time.Time `json:"expiresAt,omitzero"`                 // Point in time, when the message expires.
+	IsCorrelated   bool      `json:"correlated" validate:"required"`     // Indicates if the message is correlated or not.
+	Name           string    `json:"name" validate:"required"`           // Message name.
+	UniqueKey      string    `json:"uniqueKey,omitempty"`                // Key that uniquely identifies the message.
 }
 
 // MessageCriteria specifies the results, returned by a message query.
@@ -706,7 +686,7 @@ func (v MessageSubscription) String() string {
 
 // MessageSubscriptionCriteria specifies the results, returned by a message subscription query.
 type MessageSubscriptionCriteria struct {
-	Partition Partition `json:"partition"` // Partition filter.
+	Partition Partition `json:"partition,omitzero"` // Partition filter.
 
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // Process instance filter.
 
@@ -754,8 +734,8 @@ type ProcessInstance struct {
 	CorrelationKey string        `json:"correlationKey,omitempty"`          // Key, used to correlate a process instance with a business entity.
 	CreatedAt      time.Time     `json:"createdAt" validate:"required"`     // Creation time.
 	CreatedBy      string        `json:"createdBy" validate:"required"`     // ID of the worker or engine that created the process instance.
-	EndedAt        *time.Time    `json:"endedAt,omitempty"`                 // End time.
-	StartedAt      *time.Time    `json:"startedAt,omitempty"`               // Start time.
+	EndedAt        time.Time     `json:"endedAt,omitzero"`                  // End time.
+	StartedAt      time.Time     `json:"startedAt,omitzero"`                // Start time.
 	State          InstanceState `json:"state" validate:"required"`         // Current state.
 	Tags           []Tag         `json:"tags,omitempty" validate:"max=100"` // Tags.
 	Version        string        `json:"version" validate:"required"`       // Process version.
@@ -766,7 +746,7 @@ func (v ProcessInstance) HasParent() bool {
 }
 
 func (v ProcessInstance) IsEnded() bool {
-	return v.EndedAt != nil
+	return !v.EndedAt.IsZero()
 }
 
 func (v ProcessInstance) IsRoot() bool {
@@ -779,8 +759,8 @@ func (v ProcessInstance) String() string {
 
 // ProcessInstanceCriteria specifies the results, returned by a process instance query.
 type ProcessInstanceCriteria struct {
-	Partition Partition `json:"partition"`    // Partition filter.
-	Id        int32     `json:"id,omitempty"` // Process instance filter.
+	Partition Partition `json:"partition,omitzero"` // Partition filter.
+	Id        int32     `json:"id,omitempty"`       // Process instance filter.
 
 	ParentId int32 `json:"parentId,omitempty"` // Filter, used to query process instances that have a specific parent process instance.
 	RootId   int32 `json:"rootId,omitempty"`   // Filter, used to query process instances descending from a root process instance (which is included)
@@ -841,7 +821,7 @@ func (v SignalSubscription) String() string {
 
 // SignalSubscriptionCriteria specifies the results, returned by a signal subscription query.
 type SignalSubscriptionCriteria struct {
-	Partition Partition `json:"partition"` // Partition filter.
+	Partition Partition `json:"partition,omitzero"` // Partition filter.
 
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // Process instance filter.
 
@@ -868,18 +848,18 @@ type Task struct {
 	ProcessId         int32 `json:"processId,omitempty"`         // ID of the related process.
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // ID of the enclosing process instance.
 
-	BpmnElementId  string     `json:"bpmnElementId,omitempty"`              // Element ID within the BPMN XML - set if task is element specific.
-	CompletedAt    *time.Time `json:"completedAt,omitempty"`                // Completion time.
-	CreatedAt      time.Time  `json:"createdAt" validate:"required"`        // Creation time.
-	CreatedBy      string     `json:"createdBy" validate:"required"`        // ID of the worker or engine that created the task.
-	DueAt          time.Time  `json:"dueAt" validate:"required"`            // Point in time when a task can be locked by an engine.
-	Error          string     `json:"error,omitempty"`                      // Error, indicating a technical problem.
-	LockedAt       *time.Time `json:"lockedAt,omitempty"`                   // Lock time.
-	LockedBy       string     `json:"lockedBy,omitempty"`                   // ID of the engine that locked the task.
-	RetryCount     int        `json:"retryCount" validate:"required,gte=0"` // Retry indicator, which is increased for each failed attempt.
-	SerializedTask string     `json:"serializedTask,omitempty"`             // JSON serialized task.
-	State          WorkState  `json:"state" validate:"required"`            // Current state.
-	Type           TaskType   `json:"type" validate:"required"`             // Task type.
+	BpmnElementId  string    `json:"bpmnElementId,omitempty"`              // Element ID within the BPMN XML - set if task is element specific.
+	CompletedAt    time.Time `json:"completedAt,omitzero"`                 // Completion time.
+	CreatedAt      time.Time `json:"createdAt" validate:"required"`        // Creation time.
+	CreatedBy      string    `json:"createdBy" validate:"required"`        // ID of the worker or engine that created the task.
+	DueAt          time.Time `json:"dueAt" validate:"required"`            // Point in time when a task can be locked by an engine.
+	Error          string    `json:"error,omitempty"`                      // Error, indicating a technical problem.
+	LockedAt       time.Time `json:"lockedAt,omitzero"`                    // Lock time.
+	LockedBy       string    `json:"lockedBy,omitempty"`                   // ID of the engine that locked the task.
+	RetryCount     int       `json:"retryCount" validate:"required,gte=0"` // Retry indicator, which is increased for each failed attempt.
+	SerializedTask string    `json:"serializedTask,omitempty"`             // JSON serialized task.
+	State          WorkState `json:"state" validate:"required"`            // Current state.
+	Type           TaskType  `json:"type" validate:"required"`             // Task type.
 }
 
 func (v Task) HasError() bool {
@@ -887,11 +867,11 @@ func (v Task) HasError() bool {
 }
 
 func (v Task) IsCompleted() bool {
-	return v.CompletedAt != nil
+	return !v.CompletedAt.IsZero()
 }
 
 func (v Task) IsLocked() bool {
-	return v.LockedAt != nil
+	return !v.LockedAt.IsZero()
 }
 
 func (v Task) String() string {
@@ -900,8 +880,8 @@ func (v Task) String() string {
 
 // TaskCriteria specifies the results, returned by a task query.
 type TaskCriteria struct {
-	Partition Partition `json:"partition"`    // Partition filter.
-	Id        int32     `json:"id,omitempty"` // Task filter.
+	Partition Partition `json:"partition,omitzero"` // Partition filter.
+	Id        int32     `json:"id,omitempty"`       // Task filter.
 
 	ElementId         int32 `json:"elementId,omitempty"`         // Element filter.
 	ElementInstanceId int32 `json:"elementInstanceId,omitempty"` // Element instance filter.
@@ -914,15 +894,15 @@ type TaskCriteria struct {
 // A timer defines a point in time using a time value, a CRON expression or a duration.
 type Timer struct {
 	// A point in time.
-	Time *time.Time `json:"time,omitempty"`
+	Time time.Time `json:"time,omitzero"`
 	// CRON expression that specifies a cyclic timer.
 	TimeCycle string `json:"timeCycle,omitempty" validate:"cron"`
 	// Duration based timer that uses the engine's time to calculate a point in time.
-	TimeDuration ISO8601Duration `json:"timeDuration" validate:"iso8601_duration"`
+	TimeDuration ISO8601Duration `json:"timeDuration,omitempty" validate:"iso8601_duration"`
 }
 
 func (t Timer) String() string {
-	if t.Time != nil && !t.Time.IsZero() {
+	if !t.Time.IsZero() {
 		return t.Time.UTC().Truncate(time.Millisecond).Format(time.RFC3339Nano)
 	} else if t.TimeCycle != "" {
 		return t.TimeCycle
@@ -961,8 +941,8 @@ func (v UserTask) String() string {
 
 // UserTaskCriteria specifies the results, returned by a user task query.
 type UserTaskCriteria struct {
-	Partition Partition `json:"partition"`    // Partition filter.
-	Id        int32     `json:"id,omitempty"` // User task filter.
+	Partition Partition `json:"partition,omitzero"` // Partition filter.
+	Id        int32     `json:"id,omitempty"`       // User task filter.
 
 	ElementInstanceId int32 `json:"elementInstanceId,omitempty"` // Element instance filter.
 	ProcessId         int32 `json:"processId,omitempty"`         // Process filter.
@@ -996,7 +976,7 @@ func (v Variable) String() string {
 
 // VariableCriteria specifies the results, returned by a variable query.
 type VariableCriteria struct {
-	Partition Partition `json:"partition"` // Partition filter.
+	Partition Partition `json:"partition,omitzero"` // Partition filter.
 
 	ElementInstanceId int32 `json:"elementInstanceId,omitempty"` // Element instance filter.
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // Process instance filter.

@@ -176,9 +176,9 @@ func newQueryCmd() *cobra.Command {
 					result.BpmnElementType.String(),
 					common.FormatTime(result.CreatedAt),
 					result.CreatedBy,
-					common.FormatTimeOrNil(result.EndedAt),
+					common.FormatTime(result.EndedAt),
 					strconv.FormatBool(result.IsMultiInstance),
-					common.FormatTimeOrNil(result.StartedAt),
+					common.FormatTime(result.StartedAt),
 					result.State.String(),
 				})
 			}

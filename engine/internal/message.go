@@ -29,7 +29,7 @@ func (e MessageEntity) Message() engine.Message {
 		CorrelationKey: e.CorrelationKey,
 		CreatedAt:      e.CreatedAt,
 		CreatedBy:      e.CreatedBy,
-		ExpiresAt:      timeOrNil(e.ExpiresAt),
+		ExpiresAt:      e.ExpiresAt.Time,
 		IsCorrelated:   e.IsCorrelated,
 		Name:           e.Name,
 		UniqueKey:      e.UniqueKey.String,

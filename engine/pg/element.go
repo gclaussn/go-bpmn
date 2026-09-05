@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/engine/internal"
@@ -169,13 +168,8 @@ func (r elementRepository) Query(criteria engine.ElementCriteria, options engine
 			var timer *engine.Timer
 			switch entity.BpmnElementType {
 			case model.ElementTimerBoundaryEvent, model.ElementTimerCatchEvent, model.ElementTimerStartEvent:
-				var t *time.Time
-				if timeV.Valid {
-					t = &timeV.Time
-				}
-
 				timer = &engine.Timer{
-					Time:         t,
+					Time:         timeV.Time,
 					TimeCycle:    timeCycle.String,
 					TimeDuration: engine.ISO8601Duration(timeDuration.String),
 				}

@@ -127,11 +127,7 @@ func MapElementType(s string) ElementType {
 }
 
 func (v ElementType) MarshalJSON() ([]byte, error) {
-	s := v.String()
-	if s == "" {
-		return []byte("null"), nil
-	}
-	return []byte(fmt.Sprintf("%q", s)), nil
+	return fmt.Appendf(nil, "%q", v.String()), nil
 }
 
 func (v ElementType) String() string {

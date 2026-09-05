@@ -202,7 +202,7 @@ func (v Timer) Timer() *engine.Timer {
 		TimeDuration: engine.ISO8601Duration(v.TimeDuration),
 	}
 
-	if timer.Time != nil || timer.TimeCycle != "" || !timer.TimeDuration.IsZero() {
+	if !timer.Time.IsZero() || timer.TimeCycle != "" || !timer.TimeDuration.IsZero() {
 		return &timer
 	}
 

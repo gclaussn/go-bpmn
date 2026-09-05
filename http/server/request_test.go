@@ -293,7 +293,7 @@ func TestDecodeJSONRequestBodyTimer(t *testing.T) {
 		err := decodeJSONRequestBody(w, r, &body)
 		assert.Nil(err)
 
-		assert.False(body.VTimer.Time.IsZero())
+		assert.NotZero(body.VTimer.Time)
 	})
 
 	t.Run("valid time cycle", func(t *testing.T) {

@@ -22,7 +22,7 @@ type CompleteJobCmd struct {
 	// Maximum number of retries. If the retry count is less than the retry limit, a retry job is created. Otherwise, an incident is created.
 	RetryLimit int `json:"retryLimit,omitempty" validate:"gte=0"`
 	// Duration until a retry job becomes due. At this point in time a retry job can be locked by a worker.
-	RetryTimer ISO8601Duration `json:"retryTimer" validate:"iso8601_duration"`
+	RetryTimer ISO8601Duration `json:"retryTimer,omitempty" validate:"iso8601_duration"`
 	// ID of the worker that locked and completed the job.
 	WorkerId string `json:"workerId" validate:"required"`
 }
@@ -75,7 +75,7 @@ type CreateProcessInstanceCmd struct {
 // ExecuteTasksCmd specifies which due tasks are locked and executed by an engine.
 type ExecuteTasksCmd struct {
 	// Partition condition.
-	Partition Partition `json:"partition"`
+	Partition Partition `json:"partition,omitzero"`
 	// Task condition - must be used in combination with a partition.
 	Id int32 `json:"id,omitempty"`
 
@@ -125,7 +125,7 @@ type GetProcessVariablesCmd struct {
 // LockJobsCmd specifies which due jobs are locked by a worker.
 type LockJobsCmd struct {
 	// Partition condition.
-	Partition Partition `json:"partition"`
+	Partition Partition `json:"partition,omitzero"`
 	// Job condition - must be used in combination with a partition.
 	Id int32 `json:"id,omitempty"`
 
@@ -148,7 +148,7 @@ type ResolveIncidentCmd struct {
 	Id int32 `json:"-"`
 
 	// Duration until the retry job or task becomes due.
-	RetryTimer ISO8601Duration `json:"retryTimer" validate:"iso8601_duration"`
+	RetryTimer ISO8601Duration `json:"retryTimer,omitempty" validate:"iso8601_duration"`
 
 	// ID of the worker that resolved the incident
 	WorkerId string `json:"workerId" validate:"required"`
@@ -221,11 +221,11 @@ type SetProcessVariablesCmd struct {
 // SetTimeCmd is a command for increasing the engine's time for testing purposes.
 type SetTimeCmd struct {
 	// A future point in time.
-	Time *time.Time `json:"time,omitempty"`
+	Time time.Time `json:"time,omitzero"`
 	// CRON expression, when evaluated the next tick specifies the engine's new time.
 	TimeCycle string `json:"timeCycle,omitempty" validate:"cron"`
 	// Duration, used to calculate a future point in time.
-	TimeDuration ISO8601Duration `json:"timeDuration" validate:"iso8601_duration"`
+	TimeDuration ISO8601Duration `json:"timeDuration,omitempty" validate:"iso8601_duration"`
 }
 
 // SuspendProcessInstanceCmd is a command for suspending an active process instance.
@@ -242,7 +242,7 @@ type SuspendProcessInstanceCmd struct {
 // UnlockJobsCmd specifies which locked, but uncompleted, jobs are unlocked.
 type UnlockJobsCmd struct {
 	// Partition condition.
-	Partition Partition `json:"partition"`
+	Partition Partition `json:"partition,omitzero"`
 	// Job condition - must be used in combination with a partition.
 	Id int32 `json:"id,omitempty"`
 
@@ -253,7 +253,7 @@ type UnlockJobsCmd struct {
 // UnlockTasksCmd specifies which locked, but uncompleted, tasks are unlocked.
 type UnlockTasksCmd struct {
 	// Partition condition.
-	Partition Partition `json:"partition"`
+	Partition Partition `json:"partition,omitzero"`
 	// Task condition - must be used in combination with a partition.
 	Id int32 `json:"id,omitempty"`
 

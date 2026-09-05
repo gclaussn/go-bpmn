@@ -16,14 +16,15 @@ import (
 )
 
 func evaluateTimer(timer engine.Timer, start time.Time) (time.Time, error) {
-	if timer.Time != nil && !timer.Time.IsZero() {
+	switch {
+	case !timer.Time.IsZero():
 		// must be UTC and truncated to millis (see engine/pg/pg.go:pgEngineWithContext#require)
 		return timer.Time.UTC().Truncate(time.Millisecond), nil
-	} else if timer.TimeCycle != "" {
+	case timer.TimeCycle != "":
 		return gronx.NextTickAfter(timer.TimeCycle, start, false)
-	} else if !timer.TimeDuration.IsZero() {
+	case !timer.TimeDuration.IsZero():
 		return timer.TimeDuration.Calculate(start), nil
-	} else {
+	default:
 		return time.Time{}, errors.New("must specify a time, time cycle or time duration")
 	}
 }
@@ -96,20 +97,6 @@ func marshalTags(tags []engine.Tag) (pgtype.Text, error) {
 	}
 
 	return pgtype.Text{String: string(b), Valid: true}, nil
-}
-
-func timeOrNil(v pgtype.Timestamp) *time.Time {
-	if !v.Valid {
-		return nil
-	}
-	return &v.Time
-}
-
-func toPgTimestamp(v *time.Time) pgtype.Timestamp {
-	if v == nil || v.IsZero() {
-		return pgtype.Timestamp{}
-	}
-	return pgtype.Timestamp{Time: *v, Valid: true}
 }
 
 func unmarshalTags(value pgtype.Text) []engine.Tag {

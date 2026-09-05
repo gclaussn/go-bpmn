@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/stretchr/testify/assert"
@@ -310,7 +311,7 @@ func (x messageEventTest) catch(t *testing.T) {
 		CorrelationKey: "catch-message-ck",
 		CreatedAt:      message.CreatedAt,
 		CreatedBy:      testWorkerId,
-		ExpiresAt:      nil,
+		ExpiresAt:      time.Time{},
 		IsCorrelated:   true,
 		Name:           "catch-message",
 		UniqueKey:      "",
@@ -332,7 +333,7 @@ func (x messageEventTest) catch(t *testing.T) {
 	}
 
 	assert.Len(messages, 1)
-	assert.NotNil(messages[0].ExpiresAt)
+	assert.NotZero(messages[0].ExpiresAt)
 	assert.True(messages[0].IsCorrelated)
 }
 
@@ -374,7 +375,7 @@ func (x messageEventTest) catchDefinition(t *testing.T) {
 		CorrelationKey: "catchMessageCk",
 		CreatedAt:      message.CreatedAt,
 		CreatedBy:      testWorkerId,
-		ExpiresAt:      nil,
+		ExpiresAt:      time.Time{},
 		IsCorrelated:   true,
 		Name:           "catchMessageName",
 		UniqueKey:      "",
@@ -393,7 +394,7 @@ func (x messageEventTest) catchDefinition(t *testing.T) {
 	}
 
 	assert.Len(messages, 1)
-	assert.NotNil(messages[0].ExpiresAt)
+	assert.NotZero(messages[0].ExpiresAt)
 	assert.True(messages[0].IsCorrelated)
 }
 
@@ -477,11 +478,11 @@ func (x messageEventTest) catchMessageSentBefore(t *testing.T) {
 	}
 
 	assert.Len(messages, 3)
-	assert.Nil(messages[0].ExpiresAt)
+	assert.Zero(messages[0].ExpiresAt)
 	assert.True(messages[0].IsCorrelated)
-	assert.NotNil(messages[1].ExpiresAt)
+	assert.NotZero(messages[1].ExpiresAt)
 	assert.False(messages[1].IsCorrelated)
-	assert.NotNil(messages[2].ExpiresAt)
+	assert.NotZero(messages[2].ExpiresAt)
 	assert.False(messages[2].IsCorrelated)
 
 	// when not correlated
@@ -500,11 +501,11 @@ func (x messageEventTest) catchMessageSentBefore(t *testing.T) {
 	}
 
 	assert.Len(messages, 3)
-	assert.Nil(messages[0].ExpiresAt)
+	assert.Zero(messages[0].ExpiresAt)
 	assert.True(messages[0].IsCorrelated)
-	assert.NotNil(messages[1].ExpiresAt)
+	assert.NotZero(messages[1].ExpiresAt)
 	assert.False(messages[1].IsCorrelated)
-	assert.NotNil(messages[2].ExpiresAt)
+	assert.NotZero(messages[2].ExpiresAt)
 	assert.False(messages[2].IsCorrelated)
 
 	// when correlated
@@ -523,11 +524,11 @@ func (x messageEventTest) catchMessageSentBefore(t *testing.T) {
 	}
 
 	assert.Len(messages, 3)
-	assert.Nil(messages[0].ExpiresAt)
+	assert.Zero(messages[0].ExpiresAt)
 	assert.True(messages[0].IsCorrelated)
-	assert.NotNil(messages[1].ExpiresAt)
+	assert.NotZero(messages[1].ExpiresAt)
 	assert.False(messages[1].IsCorrelated)
-	assert.Nil(messages[2].ExpiresAt)
+	assert.Zero(messages[2].ExpiresAt)
 	assert.True(messages[2].IsCorrelated)
 }
 
@@ -589,9 +590,9 @@ func (x messageEventTest) start(t *testing.T) {
 	}
 
 	assert.Len(messages, 2)
-	assert.NotNil(messages[0].ExpiresAt)
+	assert.NotZero(messages[0].ExpiresAt)
 	assert.True(messages[0].IsCorrelated)
-	assert.NotNil(messages[1].ExpiresAt)
+	assert.NotZero(messages[1].ExpiresAt)
 	assert.True(messages[1].IsCorrelated)
 }
 
@@ -627,7 +628,7 @@ func (x messageEventTest) startSingleton(t *testing.T) {
 	}
 
 	// then
-	assert.Nil(message.ExpiresAt)
+	assert.Zero(message.ExpiresAt)
 	assert.True(message.IsCorrelated)
 
 	// when
@@ -648,7 +649,7 @@ func (x messageEventTest) startSingleton(t *testing.T) {
 		t.Fatalf("failed to query messages: %v", err)
 	}
 
-	assert.Nil(messages[0].ExpiresAt)
+	assert.Zero(messages[0].ExpiresAt)
 
 	// when
 	processInstances, err := x.e.CreateQuery().QueryProcessInstances(context.Background(), engine.ProcessInstanceCriteria{
@@ -671,7 +672,7 @@ func (x messageEventTest) startSingleton(t *testing.T) {
 		t.Fatalf("failed to query messages: %v", err)
 	}
 
-	assert.NotNil(messages[0].ExpiresAt)
+	assert.NotZero(messages[0].ExpiresAt)
 }
 
 func (x messageEventTest) startDefinition(t *testing.T) {
@@ -943,5 +944,5 @@ func (x messageEventTest) triggerEventTaskCancelation(t *testing.T) {
 	}
 
 	require.Len(messages, 1)
-	assert.NotNil(messages[0].ExpiresAt)
+	assert.NotZero(messages[0].ExpiresAt)
 }

@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/stretchr/testify/assert"
@@ -70,16 +71,16 @@ func TestCreateProcessInstance(t *testing.T) {
 					CorrelationKey: cmd.CorrelationKey,
 					CreatedAt:      processInstance.CreatedAt,
 					CreatedBy:      cmd.WorkerId,
-					EndedAt:        nil,
-					StartedAt:      &processInstance.CreatedAt,
+					EndedAt:        time.Time{},
+					StartedAt:      processInstance.CreatedAt,
 					State:          engine.InstanceStarted,
 					Tags:           cmd.Tags,
 					Version:        process.Version,
 				}, processInstance)
 
 				assert.NotEmpty(processInstance.Id)
-				assert.NotEmpty(processInstance.CreatedAt)
-				assert.NotEmpty(processInstance.StartedAt)
+				assert.NotZero(processInstance.CreatedAt)
+				assert.NotZero(processInstance.StartedAt)
 
 				assert.False(processInstance.HasParent())
 				assert.False(processInstance.IsEnded())
@@ -100,8 +101,8 @@ func TestCreateProcessInstance(t *testing.T) {
 					CorrelationKey: cmd.CorrelationKey,
 					CreatedAt:      processInstance.CreatedAt,
 					CreatedBy:      cmd.WorkerId,
-					EndedAt:        nil,
-					StartedAt:      &processInstance.CreatedAt,
+					EndedAt:        time.Time{},
+					StartedAt:      processInstance.CreatedAt,
 					State:          engine.InstanceStarted,
 					Tags:           cmd.Tags,
 					Version:        process.Version,
@@ -152,7 +153,7 @@ func TestCreateProcessInstance(t *testing.T) {
 				}
 
 				// then
-				assert.Empty(processInstance2.StartedAt)
+				assert.Zero(processInstance2.StartedAt)
 				assert.Equal(engine.InstanceQueued, processInstance2.State)
 
 				// when process instance 3 is created
@@ -166,7 +167,7 @@ func TestCreateProcessInstance(t *testing.T) {
 				}
 
 				// then
-				assert.Empty(processInstance3.StartedAt)
+				assert.Zero(processInstance3.StartedAt)
 				assert.Equal(engine.InstanceQueued, processInstance3.State)
 
 				piAssert1 := engine.Assert(t, e, processInstance1)
@@ -199,13 +200,13 @@ func TestCreateProcessInstance(t *testing.T) {
 				piAssert1.IsCompleted()
 
 				processInstance2 = piAssert2.ProcessInstance()
-				assert.NotEmpty(processInstance2.StartedAt)
+				assert.NotZero(processInstance2.StartedAt)
 				assert.Equal(engine.InstanceCompleted, processInstance2.State)
 				assert.True(processInstance2.IsEnded())
 				piAssert2.IsCompleted()
 
 				processInstance3 = piAssert3.ProcessInstance()
-				assert.NotEmpty(processInstance3.StartedAt)
+				assert.NotZero(processInstance3.StartedAt)
 				assert.Equal(engine.InstanceStarted, processInstance3.State)
 				assert.False(processInstance3.IsEnded())
 				piAssert3.IsNotCompleted()

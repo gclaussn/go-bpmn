@@ -65,12 +65,8 @@ func (v Time) String() string {
 	return time.Time(v).Format(time.RFC3339)
 }
 
-func (v Time) Time() *time.Time {
-	t := time.Time(v)
-	if t.IsZero() {
-		return nil
-	}
-	return &t
+func (v Time) Time() time.Time {
+	return time.Time(v)
 }
 
 func (v Time) Type() string {

@@ -1,8 +1,6 @@
 package mem
 
 import (
-	"time"
-
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/engine/internal"
 	"github.com/gclaussn/go-bpmn/model"
@@ -76,13 +74,8 @@ func (r *elementRepository) getEventDefinition(elementId int32) *engine.EventDef
 	var timer *engine.Timer
 	switch entity.BpmnElementType {
 	case model.ElementTimerBoundaryEvent, model.ElementTimerCatchEvent, model.ElementTimerStartEvent:
-		var t *time.Time
-		if entity.Time.Valid {
-			t = &entity.Time.Time
-		}
-
 		timer = &engine.Timer{
-			Time:         t,
+			Time:         entity.Time.Time,
 			TimeCycle:    entity.TimeCycle.String,
 			TimeDuration: engine.ISO8601Duration(entity.TimeDuration.String),
 		}

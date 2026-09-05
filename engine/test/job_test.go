@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/stretchr/testify/assert"
@@ -199,7 +200,7 @@ func TestCompleteJob(t *testing.T) {
 				Type:           engine.JobExecute,
 			}, completedJob)
 
-			assert.NotEmpty(completedJob.CompletedAt)
+			assert.NotZero(completedJob.CompletedAt)
 
 			results, err := e.CreateQuery().QueryJobs(context.Background(), engine.JobCriteria{Partition: job.Partition, Id: job.Id})
 			if err != nil {
@@ -265,7 +266,7 @@ func TestCompleteJob(t *testing.T) {
 			}
 
 			// then
-			assert.NotEmpty(completedJob.CompletedAt)
+			assert.NotZero(completedJob.CompletedAt)
 			assert.Equal("test-error", completedJob.Error)
 
 			results, err := e.CreateQuery().QueryJobs(context.Background(), engine.JobCriteria{Partition: job.Partition, Id: job.Id + 1})
@@ -285,13 +286,13 @@ func TestCompleteJob(t *testing.T) {
 				ProcessInstanceId: job.ProcessInstanceId,
 
 				BpmnElementId:  "serviceTask",
-				CompletedAt:    nil,
+				CompletedAt:    time.Time{},
 				CorrelationKey: "ck",
-				CreatedAt:      *completedJob.CompletedAt,
+				CreatedAt:      completedJob.CompletedAt,
 				CreatedBy:      testWorkerId,
 				DueAt:          results[0].DueAt,
 				Error:          "",
-				LockedAt:       nil,
+				LockedAt:       time.Time{},
 				LockedBy:       "",
 				RetryCount:     1,
 				State:          engine.WorkCreated,
@@ -330,7 +331,7 @@ func TestCompleteJob(t *testing.T) {
 			}
 
 			// then
-			assert.NotEmpty(completedJob.CompletedAt)
+			assert.NotZero(completedJob.CompletedAt)
 			assert.Equal("test-error", completedJob.Error)
 
 			results, err := e.CreateQuery().QueryIncidents(context.Background(), engine.IncidentCriteria{Partition: job.Partition, JobId: job.Id})
@@ -351,9 +352,9 @@ func TestCompleteJob(t *testing.T) {
 				ProcessInstanceId: job.ProcessInstanceId,
 				TaskId:            0,
 
-				CreatedAt:  *completedJob.CompletedAt,
+				CreatedAt:  completedJob.CompletedAt,
 				CreatedBy:  testWorkerId,
-				ResolvedAt: nil,
+				ResolvedAt: time.Time{},
 				ResolvedBy: "",
 			}, results[0])
 
