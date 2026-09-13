@@ -414,10 +414,11 @@ func (ec *executionContext) startBoundaryEvent(ctx Context, interrupting bool) (
 		}
 	}
 
-	// cancel message and signal subscriptions
+	// cancel message and signal subscriptions, and terminate user tasks
 	var (
 		messageSubscriptionIds []int32
 		signalSubscriptionIds  []int32
+		userTaskIds            []int32
 	)
 	for _, execution := range ec.executions {
 		if execution.State != engine.InstanceTerminated {
@@ -429,6 +430,8 @@ func (ec *executionContext) startBoundaryEvent(ctx Context, interrupting bool) (
 			messageSubscriptionIds = append(messageSubscriptionIds, execution.Id)
 		case model.ElementSignalBoundaryEvent, model.ElementSignalCatchEvent:
 			signalSubscriptionIds = append(signalSubscriptionIds, execution.Id)
+		case model.ElementUserTask:
+			userTaskIds = append(userTaskIds, execution.Id)
 		}
 	}
 
@@ -461,6 +464,28 @@ func (ec *executionContext) startBoundaryEvent(ctx Context, interrupting bool) (
 			}
 
 			if err := ctx.SignalSubscriptions().Delete(signalSubscription); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if len(userTaskIds) != 0 {
+		userTasks, err := ctx.UserTasks().SelectByProcessInstance(ec.processInstance)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, userTask := range userTasks {
+			if !slices.Contains(userTaskIds, userTask.ElementInstanceId) {
+				continue
+			}
+
+			userTask.Revision++
+			userTask.State = engine.UserTaskTerminated
+			userTask.UpdatedAt = ctx.Time()
+			userTask.UpdatedBy = ec.engineOrWorkerId
+
+			if err := ctx.UserTasks().Update(userTask); err != nil {
 				return nil, err
 			}
 		}

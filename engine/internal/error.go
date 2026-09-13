@@ -47,7 +47,7 @@ func (ec *executionContext) throwError(ctx Context, errorCode string) (bool, err
 			return false, err
 		}
 
-		return false, terminateProcessInstance(ctx, ec.processInstance)
+		return false, terminateProcessInstance(ctx, ec.processInstance, ec.engineOrWorkerId)
 	}
 
 	scope := ec.executions[0]
@@ -208,7 +208,7 @@ func (ec *executionContext) triggerErrorEndEvent(ctx Context) error {
 			return err
 		}
 
-		return terminateProcessInstance(ctx, ec.processInstance)
+		return terminateProcessInstance(ctx, ec.processInstance, ec.engineOrWorkerId)
 	}
 
 	if boundaryEvent != nil {

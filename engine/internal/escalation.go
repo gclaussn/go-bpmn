@@ -47,7 +47,7 @@ func (ec *executionContext) escalateJob(ctx Context, job *JobEntity, escalationC
 		}
 
 		if interrupting {
-			return false, terminateProcessInstance(ctx, ec.processInstance)
+			return false, terminateProcessInstance(ctx, ec.processInstance, ec.engineOrWorkerId)
 		}
 
 		// retry job
@@ -171,7 +171,7 @@ func (ec *executionContext) escalateUserTask(ctx Context, userTask *UserTaskEnti
 
 		if interrupting {
 			userTask.State = engine.UserTaskTerminated
-			return false, terminateProcessInstance(ctx, ec.processInstance)
+			return false, terminateProcessInstance(ctx, ec.processInstance, ec.engineOrWorkerId)
 		}
 
 		return false, nil
@@ -353,7 +353,7 @@ func (ec *executionContext) triggerEscalationThrowEvent(ctx Context) error {
 				return err
 			}
 
-			return terminateProcessInstance(ctx, ec.processInstance)
+			return terminateProcessInstance(ctx, ec.processInstance, ec.engineOrWorkerId)
 		}
 	case boundaryEvent != nil:
 		boundaryEventScope, err := ctx.ElementInstances().Select(boundaryEvent.Partition, boundaryEvent.ParentId.Int32)

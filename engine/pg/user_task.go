@@ -144,6 +144,78 @@ WHERE
 	return &entity, nil
 }
 
+func (r userTaskRepository) SelectByProcessInstance(processInstance *internal.ProcessInstanceEntity) ([]*internal.UserTaskEntity, error) {
+	rows, err := r.tx.Query(r.txCtx, `
+SELECT
+	id,
+
+	revision,
+
+	element_id,
+	element_instance_id,
+	process_id,
+
+	bpmn_element_id,
+	correlation_key,
+	created_at,
+	created_by,
+	state,
+	tags,
+	updated_at,
+	updated_by
+FROM
+	user_task
+WHERE
+	partition = $1 AND
+	process_instance_id = $2
+`, processInstance.Partition, processInstance.Id)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"failed to select user tasks of process instance %s/%d: %v",
+			processInstance.Partition.Format(time.DateOnly),
+			processInstance.Id,
+			err,
+		)
+	}
+
+	defer rows.Close()
+
+	var entities []*internal.UserTaskEntity
+	for rows.Next() {
+		var stateValue string
+
+		var entity internal.UserTaskEntity
+		if err := rows.Scan(
+			&entity.Id,
+
+			&entity.Revision,
+
+			&entity.ElementId,
+			&entity.ElementInstanceId,
+			&entity.ProcessId,
+
+			&entity.BpmnElementId,
+			&entity.CorrelationKey,
+			&entity.CreatedAt,
+			&entity.CreatedBy,
+			&stateValue,
+			&entity.Tags,
+			&entity.UpdatedAt,
+			&entity.UpdatedBy,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan user task row: %v", err)
+		}
+
+		entity.Partition = processInstance.Partition
+		entity.ProcessInstanceId = processInstance.Id
+		entity.State = engine.MapUserTaskState(stateValue)
+
+		entities = append(entities, &entity)
+	}
+
+	return entities, nil
+}
+
 func (r userTaskRepository) Update(entity *internal.UserTaskEntity) error {
 	if _, err := r.tx.Exec(r.txCtx, `
 UPDATE

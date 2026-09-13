@@ -35,6 +35,20 @@ func (r *userTaskRepository) Select(partition time.Time, id int32) (*internal.Us
 	return nil, fmt.Errorf("failed to select user task %s/%d: %v", key, id, pgx.ErrNoRows)
 }
 
+func (r *userTaskRepository) SelectByProcessInstance(processInstance *internal.ProcessInstanceEntity) ([]*internal.UserTaskEntity, error) {
+	var results []*internal.UserTaskEntity
+
+	key := processInstance.Partition.Format(time.DateOnly)
+	entities := r.partitions[key]
+	for _, e := range entities {
+		if e.ProcessInstanceId == processInstance.Id {
+			results = append(results, &e)
+		}
+	}
+
+	return results, nil
+}
+
 func (r *userTaskRepository) Update(entity *internal.UserTaskEntity) error {
 	key := entity.Partition.Format(time.DateOnly)
 	entities := r.partitions[key]

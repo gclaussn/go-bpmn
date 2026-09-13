@@ -1,0 +1,24 @@
+<definitions id="test">
+  <process id="userTaskSignalBoundaryTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="userTask" />
+    <userTask id="userTask">
+      <incoming>f1</incoming>
+      <outgoing>f2</outgoing>
+    </userTask>
+    <sequenceFlow id="f2" sourceRef="userTask" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f2</incoming>
+    </endEvent>
+    <boundaryEvent id="signalBoundaryEvent" attachedToRef="userTask">
+      <outgoing>f3</outgoing>
+      <signalEventDefinition id="signalBoundaryEventDefinition" />
+    </boundaryEvent>
+    <sequenceFlow id="f3" sourceRef="signalBoundaryEvent" targetRef="signalEnd" />
+    <endEvent id="signalEnd">
+      <incoming>f3</incoming>
+    </endEvent>
+  </process>
+</definitions>

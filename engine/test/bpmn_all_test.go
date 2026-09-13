@@ -211,6 +211,7 @@ func TestBpmn(t *testing.T) {
 			t.Run(engineTypes[i]+"error boundary", userTaskTest.errorBoundary)
 			t.Run(engineTypes[i]+"escalation boundary", userTaskTest.escalationBoundary)
 			t.Run(engineTypes[i]+"escalation boundary non-interrupting", userTaskTest.escalationBoundaryNonInterrupting)
+			t.Run(engineTypes[i]+"signal boundary", userTaskTest.signalBoundary)
 		}
 	})
 }

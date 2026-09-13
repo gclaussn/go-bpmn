@@ -56,6 +56,7 @@ func (e UserTaskEntity) UserTask() engine.UserTask {
 type UserTaskRepository interface {
 	Insert(*UserTaskEntity) error
 	Select(partition time.Time, id int32) (*UserTaskEntity, error)
+	SelectByProcessInstance(*ProcessInstanceEntity) ([]*UserTaskEntity, error)
 	Update(*UserTaskEntity) error
 
 	Query(engine.UserTaskCriteria, engine.QueryOptions) ([]engine.UserTask, error)

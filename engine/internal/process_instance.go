@@ -434,10 +434,10 @@ func (t TerminateProcessInstanceTask) Execute(ctx Context, task *TaskEntity) err
 		return nil
 	}
 
-	return terminateProcessInstance(ctx, processInstance)
+	return terminateProcessInstance(ctx, processInstance, ctx.Options().EngineId)
 }
 
-func terminateProcessInstance(ctx Context, processInstance *ProcessInstanceEntity) error {
+func terminateProcessInstance(ctx Context, processInstance *ProcessInstanceEntity, engineOrWorkerId string) error {
 	executions, err := ctx.ElementInstances().SelectActive(processInstance)
 	if err != nil {
 		return err
@@ -513,6 +513,27 @@ func terminateProcessInstance(ctx Context, processInstance *ProcessInstanceEntit
 
 	for _, signalSubscription := range signalSubscriptions {
 		if err := ctx.SignalSubscriptions().Delete(signalSubscription); err != nil {
+			return err
+		}
+	}
+
+	// terminate user tasks
+	userTasks, err := ctx.UserTasks().SelectByProcessInstance(processInstance)
+	if err != nil {
+		return err
+	}
+
+	for _, userTask := range userTasks {
+		if userTask.State != engine.UserTaskStarted {
+			continue
+		}
+
+		userTask.Revision++
+		userTask.State = engine.UserTaskTerminated
+		userTask.UpdatedAt = now.Time
+		userTask.UpdatedBy = engineOrWorkerId
+
+		if err := ctx.UserTasks().Update(userTask); err != nil {
 			return err
 		}
 	}
