@@ -62,9 +62,6 @@ responses:
               type: variable_name
               detail: must match regex ^[a-zA-Z0-9_-]+$
               value: " "
-            - pointer: "#/variables/1/data/encoding"
-              type: required
-              detail: is required
             - pointer: "#/variables/1/data/value"
               type: required
               detail: is required
@@ -95,4 +92,4 @@ responses:
               status: 422
               type: PROCESS_MODEL
               title: failed to create execution
-              detail: scope parallelServiceTasksTest has no none start event element
+              detail: scope parallelServiceTasksTest has no none start event

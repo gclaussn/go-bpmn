@@ -174,7 +174,7 @@ type SendMessageCmd struct {
 	// Message name.
 	Name string `json:"name" validate:"required"`
 	// Optional key that uniquely identifies the message.
-	// If a message with the same name, correlation key and unique key already exists, the message is discarded.
+	// If a message with the same name, correlation key and unique key exists, the message is discarded.
 	UniqueKey string `json:"uniqueKey,omitempty"`
 	// Variables to set or delete at process instance scope. For a variable deletion, no data must be provided.
 	Variables []ProcessVariable `json:"variables,omitempty" validate:"max=100,dive"`
@@ -239,7 +239,7 @@ type SuspendProcessInstanceCmd struct {
 	WorkerId string `json:"workerId" validate:"required"`
 }
 
-// UnlockJobsCmd specifies which locked, but uncompleted, jobs are unlocked.
+// UnlockJobsCmd specifies which locked, but uncompleted jobs are unlocked.
 type UnlockJobsCmd struct {
 	// Partition condition.
 	Partition Partition `json:"partition,omitzero"`
@@ -250,7 +250,7 @@ type UnlockJobsCmd struct {
 	WorkerId string `json:"workerId" validate:"required"`
 }
 
-// UnlockTasksCmd specifies which locked, but uncompleted, tasks are unlocked.
+// UnlockTasksCmd specifies which locked, but uncompleted tasks are unlocked.
 type UnlockTasksCmd struct {
 	// Partition condition.
 	Partition Partition `json:"partition,omitzero"`

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// ProblemType determines if a problem is HTTP and engine related.
+// ProblemType specifies HTTP and engine related problems.
 type ProblemType int
 
 const (

@@ -111,12 +111,12 @@ responses:
           $ref: "#/components/schemas/Problem"
         examples:
           process_exists_with_different_bpmn_xml:
-            summary: Process already exists with a different BPMN XML
+            summary: Process exists with a different BPMN XML
             value:
               status: 409
               type: CONFLICT
               title: failed to create process
-              detail: process example:1 already exists with a different BPMN XML
+              detail: process example:1 exists with a different BPMN XML
   "422":
     description: Unprocessable entity
     content:
@@ -154,7 +154,7 @@ responses:
                   detail: element of type SERVICE_TASK has no ID
                 - pointer: example/join
                   type: element
-                  detail: "BPMN element join is not supported: joining inclusive gateway"
+                  detail: "element join is not supported: joining inclusive gateway"
                 - pointer: example/f1
                   type: sequence_flow
                   detail: sequence flow f1 has no target element

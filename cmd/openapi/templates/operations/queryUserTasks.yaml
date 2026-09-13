@@ -22,7 +22,7 @@ requestBody:
           value:
             tags:
               - name: assignee
-              - value: example-user
+                value: example-user
 responses:
   "200":
     description: OK

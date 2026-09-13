@@ -16,8 +16,7 @@ tags:
       An element represents a BPMN element of a process.
   - name: Element instances
     description: >
-      An element instance is an instance of a BPMN element in the scope of an process instance.
-  - name: Events
+      An element instance is an instance of a BPMN element, that is executed within a process instance.
   - name: Incidents
     description: >
       An incident represents a failed job or task, which has no more retries left.
@@ -27,7 +26,7 @@ tags:
       A job is a unit of work related to an element instance, which must be locked, executed and completed by a worker.
   - name: Messages
     description: >
-      A message is used to notify a message subscriber (message boundary, catch or start event) by performing a message correlation with a key.
+      A message is used to notify a message subscriber (message start, boundary or catch event) by performing a key based message correlation.
   - name: Processes
     description: >
       A process represents a BPMN process that consists of a set of BPMN elements.
@@ -36,7 +35,7 @@ tags:
       A process instance is an instance of a BPMN process.
   - name: Signals
     description: >
-      Signals are used to notify signal subscribers (signal boundary, catch and start events).
+      Signals are used to notify signal subscribers (signal start, boundary and catch events).
   - name: Tasks
     description: >
       A task is a unit of work, which must be locked, executed and completed by an engine.
@@ -46,6 +45,7 @@ tags:
   - name: Variables
     description: >
       A variable is data, identified by a name, that exists in the scope of a process instance or element instance.
+  - name: Other
 servers:
   - url: http://127.0.0.1:8080
     description: Default configuration

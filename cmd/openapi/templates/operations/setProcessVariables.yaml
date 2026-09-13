@@ -58,14 +58,11 @@ responses:
           title: invalid request body
           detail: failed to validate request body
           errors:
-            - pointer: "#/variables/,"
+            - pointer: "#/variables/0/name"
               type: variable_name
               detail: must match regex ^[a-zA-Z0-9_-]+$
               value: ","
-            - pointer: "#/variables/,/encoding"
-              type: required
-              detail: is required
-            - pointer: "#/variables/,/value"
+            - pointer: "#/variables/1/value"
               type: required
               detail: is required
   "404":

@@ -11,6 +11,11 @@ requestBody:
     application/json:
       schema:
         $ref: "#/components/schemas/ElementCriteria"
+      examples:
+        by_process_id:
+          summary: By process ID
+          value:
+            processId: 1
 responses:
   "200":
     description: OK
@@ -29,14 +34,17 @@ responses:
               processId: 1
               bpmnElementId: startEvent
               bpmnElementType: NONE_START_EVENT
+              parentBpmnElementId: serviceTest
             - id: 3
               processId: 1
               bpmnElementId: serviceTask
               bpmnElementType: SERVICE_TASK
+              parentBpmnElementId: serviceTest
             - id: 4
               processId: 1
               bpmnElementId: endEvent
               bpmnElementType: NONE_END_EVENT
+              parentBpmnElementId: serviceTest
   "400":
     description: Bad request
     content:

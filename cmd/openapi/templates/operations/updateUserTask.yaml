@@ -148,7 +148,7 @@ responses:
               title: failed to update user task
               detail: user task 2025-04-01/123 is not in state STARTED, but COMPLETED
           user_task_not_in_revision:
-            summary: Job not locked
+            summary: User task not in revision
             value:
               status: 409
               type: CONFLICT

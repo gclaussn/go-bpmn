@@ -11,6 +11,17 @@ requestBody:
     application/json:
       schema:
         $ref: "#/components/schemas/ProcessInstanceCriteria"
+      examples:
+        by_partition_and_id:
+          summary: By partition and ID
+          value:
+            partition: "2025-05-09"
+            processInstanceId: 46
+        by_tag_name:
+          summary: By tag name
+          value:
+            tags:
+              - name: x
 responses:
   "200":
     description: OK
@@ -35,7 +46,7 @@ responses:
             - partition: "2025-05-09"
               id: 48
               processId: 2
-              bpmnProcessId: parallelServiceTasksTest"
+              bpmnProcessId: parallelServiceTasksTest
               createdAt: "2025-05-09T17:43:56.392Z"
               createdBy: go-bpmn
               startedAt: "2025-05-09T17:43:56.392Z"

@@ -1,12 +1,11 @@
 tags:
-  - Events
   - Signals
 summary: Send signal
 description: >
   Sends a signal to notify signal subscribers.
 
 
-  A subscriber can be a signal start or catch event.
+  A subscriber can be a signal start, boundary or catch event.
   In case of a signal start event, a new process instance is created.
   In case of a signal boundary or catch event, an existing process instance is continued.
 requestBody:

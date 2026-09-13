@@ -1,5 +1,4 @@
 tags:
-  - Events
   - Messages
 summary: Query messages
 description: >
@@ -12,6 +11,11 @@ requestBody:
     application/json:
       schema:
         $ref: "#/components/schemas/MessageCriteria"
+      examples:
+        by_name:
+          summary: By name
+          value:
+            name: example-message
 responses:
   "200":
     description: OK

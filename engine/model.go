@@ -458,7 +458,7 @@ type ElementCriteria struct {
 	BpmnElementId string `json:"bpmnElementId,omitempty"` // BPMN element ID filter.
 }
 
-// ElementInstance is an instance of a BPMN element in the scope of an process instance.
+// ElementInstance is an instance of a BPMN element, that is executed within a process instance.
 type ElementInstance struct {
 	Partition Partition `json:"partition" validate:"required"` // Element instance partition.
 	Id        int32     `json:"id" validate:"required"`        // Element instance ID.
@@ -520,7 +520,7 @@ func (v ElementVariable) String() string {
 	return fmt.Sprintf("%s/%s", v.BpmnElementId, v.Name)
 }
 
-// EventDefinition is a generic definition of a BPMN event, while a BPMN element has exactly one type.
+// EventDefinition is a generic definition of a BPMN event (error, escalation, message, signal or timer).
 type EventDefinition struct {
 	IsSuspended bool `json:"suspended"` // Determines if an event definition is suspended.
 
@@ -619,10 +619,7 @@ type JobCriteria struct {
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // Process instance filter.
 }
 
-// Message represents a sent message.
-//
-// If a message is correlated, a message subscriber (message start or catch event) has been notified.
-// Otherwise a message is buffered (waiting to be correlated) until it expires.
+// Message is used to notify a message subscriber (message start, boundary or catch event) by performing a key based message correlation.
 type Message struct {
 	Id int64 `json:"id" validate:"required"` // Message ID.
 
@@ -671,8 +668,8 @@ type MessageSubscriptionCriteria struct {
 
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // Process instance filter.
 
-	CorrelationKey string `json:"correlationKey,omitempty"` // Message correlation key.
-	Name           string `json:"name,omitempty"`           // Message name.
+	CorrelationKey string `json:"correlationKey,omitempty"` // Message correlation key filter.
+	Name           string `json:"name,omitempty"`           // Message name filter.
 }
 
 // Process represents a BPMN process that consists of a set of BPMN elements.
@@ -743,8 +740,11 @@ type ProcessInstanceCriteria struct {
 	Partition Partition `json:"partition,omitzero"` // Partition filter.
 	Id        int32     `json:"id,omitempty"`       // Process instance filter.
 
-	ParentId int32 `json:"parentId,omitempty"` // Filter, used to query process instances that have a specific parent process instance.
-	RootId   int32 `json:"rootId,omitempty"`   // Filter, used to query process instances descending from a root process instance (which is included)
+	// Filter, used to query process instances that have a specific parent process instance.
+	ParentId int32 `json:"parentId,omitempty"`
+	// Filter, used to query process instances descending from a root process instance,
+	// which itself is included in the query results.
+	RootId int32 `json:"rootId,omitempty"`
 
 	ProcessId int32 `json:"processId,omitempty"` // Process filter.
 
@@ -765,7 +765,7 @@ func (v ProcessVariable) String() string {
 	return v.Name
 }
 
-// Signal represents a notification of signal subscribers (signal start or catch events).
+// Signal represents a notification of signal subscribers (signal start, boundary or catch events).
 type Signal struct {
 	Id int64 `json:"id" validate:"required"` // Signal ID.
 
@@ -806,7 +806,7 @@ type SignalSubscriptionCriteria struct {
 
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // Process instance filter.
 
-	Name string `json:"name,omitempty"` // Signal name.
+	Name string `json:"name,omitempty"` // Signal name filter.
 }
 
 // Tag is used to tag processes, process instances and user tasks.

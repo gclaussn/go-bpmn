@@ -1,6 +1,11 @@
+tags:
+  - Other
 summary: Set time
 description: >
   Increases the engine's time for testing purposes.
+
+
+  **Please note**: to enable the operation, set environment variable `GO_BPMN_SET_TIME_ENABLED` to `true` at the process engine daemon.
 requestBody:
   content:
     application/json:

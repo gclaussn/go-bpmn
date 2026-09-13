@@ -49,6 +49,7 @@ requestBody:
           value:
             completion:
               errorCode: example-error
+            workerId: go-bpmn
         set_timer:
           summary: SET_TIMER
           value:
@@ -105,13 +106,10 @@ responses:
               type: variable_name
               detail: must match regex ^[a-zA-Z0-9_-]+$
               value: ","
-            - pointer: "#/processVariables/1/data/encoding"
-              type: required
-              detail: is required
             - pointer: "#/processVariables/1/data/value"
               type: required
               detail: is required
-            - pointer: "#/retryCount"
+            - pointer: "#/retryLimit"
               type: gte
               detail: must be greater than or equal to 0
               value: "-1"

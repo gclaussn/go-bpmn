@@ -622,7 +622,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		return engine.Process{}, engine.Error{
 			Type:   engine.ErrorConflict,
 			Title:  "failed to create process",
-			Detail: fmt.Sprintf("process %s:%s already exists with a different BPMN XML", cmd.BpmnProcessId, cmd.Version),
+			Detail: fmt.Sprintf("process %s:%s exists with a different BPMN XML", cmd.BpmnProcessId, cmd.Version),
 		}
 	}
 

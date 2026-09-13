@@ -2,7 +2,7 @@ tags:
   - Tasks
 summary: Unlock tasks
 description: >
-  Unlocks locked, but uncompleted, tasks that are currently locked by a specific engine.
+  Unlocks locked, but uncompleted tasks that are currently locked by a specific engine.
 requestBody:
   content:
     application/json:

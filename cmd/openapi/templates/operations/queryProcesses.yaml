@@ -11,6 +11,12 @@ requestBody:
     application/json:
       schema:
         $ref: "#/components/schemas/ProcessCriteria"
+      examples:
+        by_tag_name:
+          summary: By tag name
+          value:
+            tags:
+              - name: x
 responses:
   "200":
     description: OK

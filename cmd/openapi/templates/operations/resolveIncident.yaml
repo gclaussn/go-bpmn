@@ -44,10 +44,6 @@ responses:
           title: invalid request body
           detail: failed to validate request body
           errors:
-            - pointer: "#/retryCount"
-              type: gte
-              detail: must be greater than or equal to 1
-              value: "0"
             - pointer: "#/retryTimer"
               type: iso8601_duration
               detail: is invalid

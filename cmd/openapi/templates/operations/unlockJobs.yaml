@@ -2,7 +2,7 @@ tags:
   - Jobs
 summary: Unlock jobs
 description: >
-  Unlocks locked, but uncompleted, jobs that are currently locked by a specific worker.
+  Unlocks locked, but uncompleted jobs that are currently locked by a specific worker.
 requestBody:
   content:
     application/json:

@@ -11,6 +11,12 @@ requestBody:
     application/json:
       schema:
         $ref: "#/components/schemas/IncidentCriteria"
+      examples:
+        by_partition_and_process_instance_id:
+          summary: By partition and process instance ID
+          value:
+            partition: "2025-04-11"
+            processInstanceId: 576
 responses:
   "200":
     description: OK

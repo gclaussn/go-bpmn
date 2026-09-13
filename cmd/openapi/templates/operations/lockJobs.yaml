@@ -54,14 +54,14 @@ responses:
           title: invalid request body
           detail: failed to validate request body
           errors:
-            - pointer: "#/bpmnElementIds"
-              type: unique
-              detail: must be unique
-              value: "[a b c c]"
             - pointer: "#/processIds"
               type: max
               detail: exceeds a maximum of 100
               value: "[1 2 ... 100 101]"
+            - pointer: "#/processIds"
+              type: unique
+              detail: must be unique
+              value: "[1 2 3 3]"
             - pointer: "#/limit"
               type: gte
               detail: must be greater than or equal to 1

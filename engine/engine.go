@@ -61,6 +61,9 @@ type Engine interface {
 	// A subscriber can be a message start, boundary or catch event.
 	// In case of a message start event, a new process instance is created.
 	// In case of a message boundary or catch event, an existing process instance is continued.
+	//
+	// If a message is correlated, a message subscriber has been notified.
+	// Otherwise a message is buffered (waiting to be correlated) until it expires.
 	SendMessage(context.Context, SendMessageCmd) (Message, error)
 
 	// SendSignal sends a signal to notify signal subscribers.
