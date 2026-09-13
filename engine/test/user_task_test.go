@@ -208,7 +208,7 @@ func TestUpdateUserTask(t *testing.T) {
 				assert.Equal(processInstance.Partition, userTask.Partition)
 				assert.NotEmpty(userTask.Id)
 
-				assert.Equal(int32(1), userTask.Revision)
+				assert.Equal(1, userTask.Revision)
 
 				assert.NotEmpty(userTask.ElementId)
 				assert.NotEmpty(userTask.ElementInstanceId)
@@ -259,7 +259,7 @@ func TestUpdateUserTask(t *testing.T) {
 				}
 
 				// then
-				assert.Equal(int32(2), userTask2.Revision)
+				assert.Equal(2, userTask2.Revision)
 
 				assert.Equal(engine.UserTaskStarted, userTask2.State)
 				assert.Equal("update-worker", userTask2.UpdatedBy)
@@ -316,7 +316,7 @@ func TestUpdateUserTask(t *testing.T) {
 				}
 
 				// then
-				assert.Equal(int32(3), userTask3.Revision)
+				assert.Equal(3, userTask3.Revision)
 
 				require.Len(userTask3.Tags, 2)
 				assert.Equal("a", userTask3.Tags[0].Name)

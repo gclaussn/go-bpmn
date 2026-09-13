@@ -13,7 +13,7 @@ type UserTaskEntity struct {
 	Partition time.Time
 	Id        int32
 
-	Revision int32
+	Revision int
 
 	ElementId         int32
 	ElementInstanceId int32

@@ -269,7 +269,7 @@ type UpdateUserTaskCmd struct {
 	Id int32 `json:"-"`
 
 	// User task revision that should be updated.
-	Revision int32 `json:"revision" validate:"required,gte=1"`
+	Revision int `json:"revision" validate:"required,gte=1"`
 
 	// Variables to set or delete at element instance scope. For a variable deletion, no data must be provided.
 	ElementVariables []ElementVariable `json:"elementVariables,omitempty" validate:"max=100,dive"`

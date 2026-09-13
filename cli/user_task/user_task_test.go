@@ -53,7 +53,7 @@ func TestUpdate(t *testing.T) {
 	assert.Equal("2026-07-16", cmd.Partition.String())
 	assert.Equal(int32(123), cmd.Id)
 
-	assert.Equal(int32(9), cmd.Revision)
+	assert.Equal(9, cmd.Revision)
 
 	assert.True(cmd.IsCompleted)
 	assert.Equal("test-error", cmd.ErrorCode)

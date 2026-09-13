@@ -899,7 +899,7 @@ type UserTask struct {
 	Partition Partition `json:"partition" validate:"required"` // User task partition.
 	Id        int32     `json:"id" validate:"required"`        // User task ID.
 
-	Revision int32 `json:"revision" validate:"required,gte=1"` // User task revision, increased on each update.
+	Revision int `json:"revision" validate:"required,gte=1"` // User task revision, incremented on each update.
 
 	ElementId         int32 `json:"elementId" validate:"required"`         // ID of the related element.
 	ElementInstanceId int32 `json:"elementInstanceId" validate:"required"` // ID of the related element instance.

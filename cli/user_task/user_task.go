@@ -81,7 +81,7 @@ func newUpdateCmd() *cobra.Command {
 	c.Flags().VarP(&partition, "partition", "p", "User task partition")
 	c.Flags().Int32VarP(&cmd.Id, "id", "i", 0, "User task ID")
 
-	c.Flags().Int32VarP(&cmd.Revision, "revision", "r", 0, "User task revision that should be updated")
+	c.Flags().IntVarP(&cmd.Revision, "revision", "r", 0, "User task revision that should be updated")
 
 	c.Flags().StringToStringVar(&elementVariables.BpmnElementIdMap, "ev-bpmn-element-id", nil, "Variable to set or delete at element instance scope\nBPMN element ID to determine the variable's scope")
 	c.Flags().StringToStringVar(&elementVariables.EncodingMap, "ev-encoding", nil, "Variable to set or delete at element instance scope\nEncoding of the value - e.g. `json`")
