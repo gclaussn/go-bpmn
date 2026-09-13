@@ -112,6 +112,12 @@ components:
         - {{$value}}
     {{- end}}
   {{- end}}
+  {{- if $schema.EnumDescriptions}}
+      x-enumDescriptions:
+    {{- range $i,  $description := $schema.EnumDescriptions}}
+        {{index $schema.Enum $i}}: {{$description}}
+    {{- end}}
+  {{- end}}
   {{- if $schema.Properties}}
       properties:
     {{- range $property := $schema.Properties}}

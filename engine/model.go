@@ -198,34 +198,23 @@ func (v *JobType) UnmarshalJSON(data []byte) error {
 
 // TaskType describes the different types of tasks, an engine needs to execute.
 //
-//   - [TaskDequeueProcessInstance] dequeues a queued process instance
-//   - [TaskJoinParallelGateway] continues a parallel gateway by joining executions
-//   - [TaskStartProcessInstance] starts a queued process instance
-//   - [TaskTerminateProcessInstance] terminates a process instance
-//   - [TaskTriggerEvent] triggers an event (error, escalation, message, signal or timer)
-//
-// Management related types, that are only relevant for a pg engine:
-//
-//   - [TaskCreatePartition] creates a table partition for a specific date
-//   - [TaskDetachPartition] detaches a completed table partition
-//   - [TaskDropPartition] drops a detached table partition
-//   - [TaskPurgeMessages] purges messages that are expired
-//   - [TaskPurgeSignals] purges signals that have no active subscribers anymore
+// Management related types (e.g. creating a partition or purging expired messages) are only relevant for a pg engine.
 type TaskType int
 
 const (
-	TaskDequeueProcessInstance TaskType = iota + 1
-	TaskJoinParallelGateway
-	TaskStartProcessInstance
-	TaskTerminateProcessInstance
-	TaskTriggerEvent
+	TaskDequeueProcessInstance   TaskType = iota + 1 // Dequeues a queued process instance.
+	TaskJoinParallelGateway                          // Continues a parallel gateway by joining executions.
+	TaskStartProcessInstance                         // Starts a queued process instance.
+	TaskTerminateProcessInstance                     // Terminates a process instance.
+	TaskTriggerEvent                                 // Triggers an event (error, escalation, message, signal or timer).
 
 	// management
-	TaskCreatePartition
-	TaskDetachPartition
-	TaskDropPartition
-	TaskPurgeMessages
-	TaskPurgeSignals
+
+	TaskCreatePartition // Creates a partition for a specific date.
+	TaskDetachPartition // Detaches a completed partition.
+	TaskDropPartition   // Drops a detached partition.
+	TaskPurgeMessages   // Purges messages that are expired.
+	TaskPurgeSignals    // Purges signals that have no active subscribers anymore.
 )
 
 func MapTaskType(s string) TaskType {
@@ -362,25 +351,17 @@ func (v *UserTaskState) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// WorkState describes possible states for jobs and tasks.
-//
-//   - [WorkCanceled]: canceled, because the process or element instance is ended (terminated or canceled) or the work is already done
-//   - [WorkCausedIncident]: completed with an error and no retries left, which caused the creation of an incident
-//   - [WorkCausedRetry]: completed with an error and retries left, which caused the creation of a retry job
-//   - [WorkCreated]: created as a result of an engine command
-//   - [WorkDone]: completed without an error
-//   - [WorkDue]: ready to be locked by a worker (in case of a job) or an engine (in case of a task)
-//   - [WorkLocked]: locked by a worker (in case of a job) or an engine (in case of a task)
+// WorkState describes the work related state of a job or task.
 type WorkState int
 
 const (
-	WorkCanceled WorkState = iota + 1
-	WorkCausedIncident
-	WorkCausedRetry
-	WorkCreated
-	WorkDone
-	WorkDue
-	WorkLocked
+	WorkCanceled       WorkState = iota + 1 // Canceled, because the process instance or element instance is ended (terminated or canceled).
+	WorkCausedIncident                      // Completed with an error and no retries left, which caused the creation of an incident.
+	WorkCausedRetry                         // Completed with an error and retries left, which caused the creation of a retry job or task.
+	WorkCreated                             // Created as a result of a command or task execution, but not due yet.
+	WorkDone                                // Completed without an error.
+	WorkDue                                 // Ready to be locked by a worker (in case of a job) or an engine (in case of a task).
+	WorkLocked                              // Locked by a worker (in case of a job) or an engine (in case of a task).
 )
 
 func MapWorkState(s string) WorkState {

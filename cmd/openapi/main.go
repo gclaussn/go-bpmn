@@ -86,7 +86,7 @@ func main() {
 	generator.generateSchemas("engine/command.go")
 	generator.generateSchemas("engine/model.go")
 
-	// server
+	// http
 	problemType, problemTypeValues := describeEnum(common.ProblemType(0))
 	generator.generateEnum(problemType, problemTypeValues)
 
@@ -311,6 +311,21 @@ func (g *generator) generateSchemas(name string) {
 				}
 
 				return false
+			case *ast.ValueSpec:
+				// extract enum descriptions
+				if len(schema.Enum) == 0 {
+					break
+				}
+
+				if n.Comment == nil {
+					break
+				}
+
+				for _, comment := range n.Comment.List {
+					// e.g. "// ..." -> "..."
+					description = comment.Text[3:]
+					schema.EnumDescriptions = append(schema.EnumDescriptions, description)
+				}
 			}
 			return true
 		})
@@ -335,8 +350,13 @@ func (g *generator) generateYaml(version string) string {
 			scanner := bufio.NewScanner(strings.NewReader(content))
 			for scanner.Scan() {
 				sb.WriteRune('\n')
-				sb.WriteString(indent)
-				sb.WriteString(scanner.Text())
+
+				if text := scanner.Text(); text != "" {
+					sb.WriteString(indent)
+					sb.WriteString(text)
+				} else {
+					sb.WriteRune('\n')
+				}
 			}
 
 			return sb.String()
@@ -613,10 +633,11 @@ type Property struct {
 }
 
 type Schema struct {
-	Description string
-	Enum        []string
-	Properties  []*Property
-	Type        string
+	Description      string
+	Enum             []string
+	EnumDescriptions []string
+	Properties       []*Property
+	Type             string
 }
 
 func (s *Schema) Required() []string {

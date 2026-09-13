@@ -4,8 +4,10 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"strings"
 	"testing"
 
+	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/http/common"
 	"github.com/stretchr/testify/assert"
 )
@@ -22,6 +24,20 @@ func TestGenerator(t *testing.T) {
 
 	t.Run("generateOperations", func(t *testing.T) {
 		generator.generateOperations()
+	})
+
+	t.Run("generate schema with enum descriptions", func(t *testing.T) {
+		workState, values := describeEnum(engine.WorkState(0))
+		generator.generateEnum(workState, values)
+
+		generator.generateSchemas("engine/model.go")
+
+		schema, ok := generator.schemas["engine.WorkState"]
+		assert.True(ok)
+
+		assert.NotEmpty(schema.EnumDescriptions)
+		assert.Equal(len(schema.Enum), len(schema.EnumDescriptions))
+		assert.False(strings.HasPrefix(schema.EnumDescriptions[0], "// "))
 	})
 }
 
