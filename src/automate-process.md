@@ -4,11 +4,11 @@ description: Tutorial on how to automate a prcess.
 
 # Automate a process
 
-The following tutorial shows the automation of an example process.
+This tutorial shows the automation of an example process.
 
 The process consists of an exclusive gateway and 2 service tasks.
 A decision must be made, if either service task `doX` or `doY` should be executed.
-After the gateway is evaluated, one service task must be executed to end an instance of the example process.
+After the gateway is evaluated, one service task must be executed to end the process instance.
 
 <p align="center" style="background-color: white">
   <img src="/example.svg" alt="example.bpmn"></img>
@@ -55,31 +55,28 @@ After the gateway is evaluated, one service task must be executed to end an inst
 
 :::
 
-::: warning
+::: warning Please note
 
-To reproduce this example, a running process engine and an API key is required - please have a look at the guides on how to [install](installation-all) and [run a process engine](run-process-engine).
+To reproduce this example, a running process engine and an API key are required - please refer to the **Getting started** sections [Installation](installation-all) and [Run a process engine](run-process-engine).
+
+For the `curl` and `CLI` examples, the [jq](https://jqlang.org/) command is required.
 
 :::
 
-## Create process
+## Setup
 
-To execute an instance of the example process, the process must first be created at the engine, using the BPMN 2.0 XML (see file `example.bpmn`).
+Connect to, or create an engine (in case of `go`).
 
 ::: code-group
 
 ```sh [curl]
-curl \
--H "Authorization: ${GO_BPMN_AUTHORIZATION}" \
--H "Content-Type: application/json" \
--X POST http://127.0.0.1:8080/processes \
--d "$(jq -n --arg bpmnXml "$(cat example.bpmn)" '{"bpmnProcessId": "example", "bpmnXml": $bpmnXml, "version": "1", "workerId": "curl"}')"
+export GO_BPMN_URL="http://127.0.0.1:8080"
+export GO_BPMN_AUTHORIZATION="..."
 ```
 
 ```sh [CLI]
-go-bpmn process create \
---bpmn-file example.bpmn \
---bpmn-process-id example \
---version 1
+export GO_BPMN_URL="http://127.0.0.1:8080"
+export GO_BPMN_AUTHORIZATION="..."
 ```
 
 ```go [go]
@@ -90,7 +87,32 @@ if err != nil {
 }
 
 defer e.Shutdown()
+```
 
+:::
+
+## Create process
+
+To execute an instance of the example process, the process must first be created at the engine, using the BPMN 2.0 XML (see file `example.bpmn`).
+
+::: code-group
+
+```sh [curl]
+curl -s \
+-H "Authorization: ${GO_BPMN_AUTHORIZATION}" \
+-H "Content-Type: application/json" \
+-X POST ${GO_BPMN_URL}/processes \
+-d "$(jq -n --arg bpmnXml "$(cat example.bpmn)" '{"bpmnProcessId": "example", "bpmnXml": $bpmnXml, "version": "1", "workerId": "curl"}')"
+```
+
+```sh [CLI]
+go-bpmn process create \
+--bpmn-file example.bpmn \
+--bpmn-process-id example \
+--version 2
+```
+
+```go [go]
 // read BPMN XML from file
 bpmnFile, err := os.Open("example.bpmn")
 if err != nil {
@@ -128,19 +150,21 @@ In this example, the initial process data is provided as variable `xory`, a JSON
 ::: code-group
 
 ```sh [curl]
-curl \
+curl -s \
 -H "Authorization: ${GO_BPMN_AUTHORIZATION}" \
 -H "Content-Type: application/json" \
--X POST http://127.0.0.1:8080/process-instances \
--d '{"bpmnProcessId": "example", "variables": [{"name": "xory", "data": {"encoding": "json", "value": "x"}}], "version": "1", "workerId": "curl"}'
+-X POST ${GO_BPMN_URL}/process-instances \
+-d '{"bpmnProcessId": "example", "variables": [{"name": "xory", "data": {"encoding": "json", "value": "x"}}], "version": "1", "workerId": "curl"}' \
+-o process-instance.json && cat process-instance.json
 ```
 
 ```sh [CLI]
 go-bpmn process-instance create \
 --bpmn-process-id example \
---variable-value xory="x" \
+--variable xory="x" \
 --variable-encoding xory="json" \
---version 1
+--version 2 \
+--format json > process-instance.json && cat process-instance.json
 ```
 
 ```go [go]
@@ -171,20 +195,27 @@ Lock job to allow an exclusive job execution:
 ::: code-group
 
 ```sh [curl]
-curl \
+jq '{"partition": .partition, "processInstanceId": .id, "limit": 1, "workerId": "curl"}' process-instance.json |\
+curl -s \
 -H "Authorization: ${GO_BPMN_AUTHORIZATION}" \
 -H "Content-Type: application/json" \
--X POST http://127.0.0.1:8080/jobs/lock \
--d '{"limit": 1, "workerId": "curl"}'
+-X POST ${GO_BPMN_URL}/jobs/lock \
+--json @- \
+-o locked-jobs.json && cat locked-jobs.json
 ```
 
 ```sh [CLI]
-go-bpmn job lock
+go-bpmn job lock \
+--partition $(jq -r '.partition' process-instance.json) \
+--process-instance-id $(jq '.id' process-instance.json) \
+--format json > locked-jobs.json && cat locked-jobs.json
 ```
 
 ```go [go]
 lockedJobs, err := e.LockJobs(context.Background(), engine.LockJobsCmd{
-  WorkerId: "go",
+  Partition:         processInstance.Partition,
+  ProcessInstanceId: processInstance.Id,
+  WorkerId:          "go",
 })
 if err != nil {
   log.Fatalf("failed to lock job: %v", err)
@@ -201,19 +232,21 @@ Get variables of process instance (to make an decision):
 ::: code-group
 
 ```sh [curl]
-curl \
+curl -s \
 -H "Authorization: ${GO_BPMN_AUTHORIZATION}" \
-"http://127.0.0.1:8080/process-instances/$(date -I)/1/variables"
+"${GO_BPMN_URL}/process-instances/$(jq -r '.partition' process-instance.json)/$(jq '.id' process-instance.json)/variables"
 ```
 
 ```sh [CLI]
-go-bpmn process-instance get-variables --partition $(date -I) --id 1
+go-bpmn process-instance get-variables \
+--partition $(jq -r '.partition' process-instance.json) \
+--id $(jq '.id' process-instance.json)
 ```
 
 ```go [go]
 variables, err := e.GetProcessVariables(context.Background(), engine.GetProcessVariablesCmd{
-  Partition:         engine.Partition{},
-  ProcessInstanceId: 1,
+  Partition:         processInstance.Partition,
+  ProcessInstanceId: processInstance.Id,
 })
 if err != nil {
   log.Fatalf("failed to get process variables: %v", err)
@@ -227,18 +260,18 @@ Complete job with an exclusive gateway decision:
 ::: code-group
 
 ```sh [curl]
-curl \
+curl -s \
 -H "Authorization: ${GO_BPMN_AUTHORIZATION}" \
 -H "Content-Type: application/json" \
--X PATCH http://127.0.0.1:8080/jobs/$(date -I)/1/complete \
+-X PATCH ${GO_BPMN_URL}/jobs/$(jq -r '.jobs[0].partition' locked-jobs.json)/$(jq '.jobs[0].id' locked-jobs.json)/complete \
 -d '{"completion": {"exclusiveGatewayDecision": "doX"}, "workerId": "curl"}'
 ```
 
 ```sh [CLI]
-go-bpmn job complete \
---exclusive-gateway-decision doX \
---partition $(date -I) \
---id 1
+go-bpmn job complete evaluate-exclusive-gateway \
+--decision doX \
+--partition $(jq -r '.[0].partition' locked-jobs.json) \
+--id $(jq '.[0].id' locked-jobs.json)
 ```
 
 ```go [go]
@@ -269,20 +302,27 @@ Lock job to allow an exclusive job execution:
 ::: code-group
 
 ```sh [curl]
-curl \
+jq '{"partition": .partition, "processInstanceId": .id, "limit": 1, "workerId": "curl"}' process-instance.json |\
+curl -s \
 -H "Authorization: ${GO_BPMN_AUTHORIZATION}" \
 -H "Content-Type: application/json" \
--X POST http://127.0.0.1:8080/jobs/lock \
--d '{"limit": 1, "workerId": "curl"}'
+-X POST ${GO_BPMN_URL}/jobs/lock \
+--json @- \
+-o locked-jobs.json && cat locked-jobs.json
 ```
 
 ```sh [CLI]
-go-bpmn job lock
+go-bpmn job lock \
+--partition $(jq -r '.partition' process-instance.json) \
+--process-instance-id $(jq '.id' process-instance.json) \
+--format json > locked-jobs.json && cat locked-jobs.json
 ```
 
 ```go [go]
 lockedJobs, err := e.LockJobs(context.Background(), engine.LockJobsCmd{
-  WorkerId: "go",
+  Partition:         processInstance.Partition,
+  ProcessInstanceId: processInstance.Id,
+  WorkerId:          "go",
 })
 if err != nil {
   log.Fatalf("failed to lock job: %v", err)
@@ -299,19 +339,19 @@ Complete job and set process variable `result`:
 ::: code-group
 
 ```sh [curl]
-curl \
+curl -s \
 -H "Authorization: ${GO_BPMN_AUTHORIZATION}" \
 -H "Content-Type: application/json" \
--X PATCH http://127.0.0.1:8080/jobs/$(date -I)/2/complete \
+-X PATCH ${GO_BPMN_URL}/jobs/$(jq -r '.jobs[0].partition' locked-jobs.json)/$(jq '.jobs[0].id' locked-jobs.json)/complete \
 -d '{"processVariables": [{"name": "result", "data": {"encoding": "json", "value": "x done"}}], "workerId": "curl"}'
 ```
 
 ```sh [CLI]
-go-bpmn job complete \
---partition $(date -I) \
---process-variable-value result="x done" \
---process-variable-encoding result="json" \
---id 2
+go-bpmn job complete execute \
+--partition $(jq -r '.[0].partition' locked-jobs.json) \
+--id $(jq '.[0].id' locked-jobs.json) \
+--pv result="x done" \
+--pv-encoding result="json"
 ```
 
 ```go [go]
@@ -335,23 +375,26 @@ Verify that process instance is in state `COMPLETED`:
 ::: code-group
 
 ```sh [curl]
-curl \
+jq '{"partition": .partition, "id": .id}' process-instance.json |\
+curl -s \
 -H "Authorization: ${GO_BPMN_AUTHORIZATION}" \
 -H "Content-Type: application/json" \
--X POST http://127.0.0.1:8080/process-instances/query \
--d '{}'
+-X POST ${GO_BPMN_URL}/process-instances/query \
+--json @-
 ```
 
 ```sh [CLI]
-go-bpmn process-instance query
+go-bpmn process-instance query \
+--partition $(jq -r '.partition' process-instance.json) \
+--id $(jq '.id' process-instance.json)
 ```
 
 ```go [go]
 q := e.CreateQuery()
 
 results, err := q.QueryProcessInstances(context.Background(), engine.ProcessInstanceCriteria{
-  Partition: engine.Partition{},
-  Id:        1,
+  Partition: processInstance.Partition,
+  Id:        processInstance.Id,
 })
 if err != nil {
   log.Fatalf("failed to query process instance: %v", err)

@@ -49,11 +49,25 @@ A sub-process groups tasks, gateways and events in a logical unit.
       <g>
         <rect x="0" y="0" width="100" height="80" rx="10" ry="10" style="stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 2.5px; fill: white; fill-opacity: 0.95; stroke-dasharray: 0, 5.5;"></rect>
         <text lineHeight="1.2" style="font-family: Arial, sans-serif; font-size: 12px; font-weight: normal; fill: rgb(34, 36, 42);">
-          <tspan x="34.32421875" y="36.4">Event</tspan>
-          <tspan x="16.3125" y="50.8">Sub-process</tspan>
+          <tspan x="34.6572265625" y="36.4">Event</tspan>
+          <tspan x="17.3193359375" y="50.8">sub-process</tspan>
         </text>
         <rect x="0" y="0" width="14" height="14" rx="0" ry="0" style="stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 1px; fill: white;" transform="matrix(1 0 0 1 42.5 60)"></rect>
         <path data-marker="sub-process" d="m42.5,60 m 7,2 l 0,10 m -5,-5 l 10,0" style="fill: white; stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 2px;"></path>
+      </g>
+    </BpmnTask>
+  </Grid>
+  <Grid sm="4" md="2">
+    <BpmnTask>
+      <g>
+        <rect x="0" y="0" width="100" height="80" rx="10" ry="10" style="stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 2px; fill: white; fill-opacity: 0.95;"></rect>
+        <text lineHeight="1.2" style="font-family: Arial, sans-serif; font-size: 12px; font-weight: normal; fill: rgb(34, 36, 42);">
+          <tspan x="30.9892578125" y="36.4">Ad-hoc</tspan>
+          <tspan x="17.3193359375" y="50.8">sub-process</tspan>
+        </text>
+        <rect x="0" y="0" width="14" height="14" rx="0" ry="0" style="stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 1px; fill: white;" transform="matrix(1 0 0 1 42.5 60)"></rect>
+        <path data-marker="sub-process" d="m42.5,60 m 7,2 l 0,10 m -5,-5 l 10,0" style="fill: white; stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 2px;"></path>
+        <path data-marker="adhoc" d="m 60,65 m 0.84461,2.64411 c 1.05533,-1.23780996 2.64337,-2.07882 4.29653,-1.97997996 2.05163,0.0805 3.85579,1.15803 5.76082,1.79107 1.06385,0.34139996 2.24454,0.1438 3.18759,-0.43767 0.61743,-0.33642 1.2775,-0.64078 1.7542,-1.17511 0,0.56023 0,1.12046 0,1.6807 -0.98706,0.96237996 -2.29792,1.62393996 -3.6918,1.66181996 -1.24459,0.0927 -2.46671,-0.2491 -3.59505,-0.74812 -1.35789,-0.55965 -2.75133,-1.33436996 -4.27027,-1.18121996 -1.37741,0.14601 -2.41842,1.13685996 -3.44288,1.96782996 z" style="fill: rgb(34, 36, 42); stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 1px;"></path>
       </g>
     </BpmnTask>
   </Grid>
@@ -160,11 +174,11 @@ A task is a unit of work. Tasks can be manual, assisted by a system or applicati
   <Grid sm="4" md="2">
     <BpmnTask>
       <g>
-        <rect width="100" height="80" rx="10" ry="10" style="stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 2px; fill: white; fill-opacity: 0.95;"></rect>
-        <text lineHeight="1.2" style="font-family: Arial, sans-serif; font-size: 12px; font-weight: normal; fill: rgb(34, 36, 42);">
+        <rect width="100" height="80" rx="10" ry="10" style="stroke-linecap: round; stroke-linejoin: round; stroke: green; stroke-width: 2px; fill: white; fill-opacity: 0.95;"></rect>
+        <text lineHeight="1.2" style="font-family: Arial, sans-serif; font-size: 12px; font-weight: normal; fill: green;">
           <tspan x="22.9365234375" y="43.599999999999994">User Task</tspan>
         </text>
-        <path d="m 15,12 c 0.909,-0.845 1.594,-2.049 1.594,-3.385 0,-2.554 -1.805,-4.62199999 -4.357,-4.62199999 -2.55199998,0 -4.28799998,2.06799999 -4.28799998,4.62199999 0,1.348 0.974,2.562 1.89599998,3.405 -0.52899998,0.187 -5.669,2.097 -5.794,4.7560005 v 6.718 h 17 v -6.718 c 0,-2.2980005 -5.5279996,-4.5950005 -6.0509996,-4.7760005 zm -8,6 l 0,5.5 m 11,0 l 0,-5" style="fill: white; stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 0.5px;"></path><path d="m 15,12 m 2.162,1.009 c 0,2.4470005 -2.158,4.4310005 -4.821,4.4310005 -2.66499998,0 -4.822,-1.981 -4.822,-4.4310005 " style="fill: white; stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 0.5px;"></path><path d="m 15,12 m -6.9,-3.80 c 0,0 2.25099998,-2.358 4.27399998,-1.177 2.024,1.181 4.221,1.537 4.124,0.965 -0.098,-0.57 -0.117,-3.79099999 -4.191,-4.13599999 -3.57499998,0.001 -4.20799998,3.36699999 -4.20699998,4.34799999 z" style="fill: rgb(34, 36, 42); stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 0.5px;"></path>
+        <path d="m 15,12 c 0.909,-0.845 1.594,-2.049 1.594,-3.385 0,-2.554 -1.805,-4.62199999 -4.357,-4.62199999 -2.55199998,0 -4.28799998,2.06799999 -4.28799998,4.62199999 0,1.348 0.974,2.562 1.89599998,3.405 -0.52899998,0.187 -5.669,2.097 -5.794,4.7560005 v 6.718 h 17 v -6.718 c 0,-2.2980005 -5.5279996,-4.5950005 -6.0509996,-4.7760005 zm -8,6 l 0,5.5 m 11,0 l 0,-5" style="fill: white; stroke-linecap: round; stroke-linejoin: round; stroke: green; stroke-width: 0.5px;"></path><path d="m 15,12 m 2.162,1.009 c 0,2.4470005 -2.158,4.4310005 -4.821,4.4310005 -2.66499998,0 -4.822,-1.981 -4.822,-4.4310005 " style="fill: white; stroke-linecap: round; stroke-linejoin: round; stroke: green; stroke-width: 0.5px;"></path><path d="m 15,12 m -6.9,-3.80 c 0,0 2.25099998,-2.358 4.27399998,-1.177 2.024,1.181 4.221,1.537 4.124,0.965 -0.098,-0.57 -0.117,-3.79099999 -4.191,-4.13599999 -3.57499998,0.001 -4.20799998,3.36699999 -4.20699998,4.34799999 z" style="fill: green; stroke-linecap: round; stroke-linejoin: round; stroke: green; stroke-width: 0.5px;"></path>
       </g>
     </BpmnTask>
   </Grid>
@@ -202,10 +216,18 @@ Gateways fork or join sequence flows.
   <Grid sm="4" md="2">
     <BpmnGateway label="Event-based">
       <g>
+        <polygon points="25,0 50,25 25,50 0,25" style="stroke-linecap: round; stroke-linejoin: round; stroke: green; stroke-width: 2px; fill: white; fill-opacity: 0.95;"></polygon>
+        <circle cx="25" cy="25" r="15" style="stroke-linecap: round; stroke-linejoin: round; stroke: green; stroke-width: 1px; fill: none;"></circle>
+        <circle cx="25" cy="25" r="12" style="stroke-linecap: round; stroke-linejoin: round; stroke: green; stroke-width: 1px; fill: none;"></circle>
+        <path d="m 18,22 7.363636363636364,-4.909090909090909 7.363636363636364,4.909090909090909 -2.4545454545454546,9.818181818181818 -9.818181818181818,0 z" style="fill: none; stroke-linecap: round; stroke-linejoin: round; stroke: green; stroke-width: 2px;"></path>
+      </g>
+    </BpmnGateway>
+  </Grid>
+  <Grid sm="4" md="2">
+    <BpmnGateway label="Complex">
+      <g>
         <polygon points="25,0 50,25 25,50 0,25" style="stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 2px; fill: white; fill-opacity: 0.95;"></polygon>
-        <circle cx="25" cy="25" r="15" style="stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 1px; fill: none;"></circle>
-        <circle cx="25" cy="25" r="12" style="stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 1px; fill: none;"></circle>
-        <path d="m 18,22 7.363636363636364,-4.909090909090909 7.363636363636364,4.909090909090909 -2.4545454545454546,9.818181818181818 -9.818181818181818,0 z" style="fill: none; stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 2px;"></path>
+        <path d="m 23,13 0,7.116788321167883 -5.018248175182482,-5.018248175182482 -3.102189781021898,3.102189781021898 5.018248175182482,5.018248175182482 -7.116788321167883,0 0,4.37956204379562 7.116788321167883,0  -5.018248175182482,5.018248175182482 l 3.102189781021898,3.102189781021898 5.018248175182482,-5.018248175182482 0,7.116788321167883 4.37956204379562,0 0,-7.116788321167883 5.018248175182482,5.018248175182482 3.102189781021898,-3.102189781021898 -5.018248175182482,-5.018248175182482 7.116788321167883,0 0,-4.37956204379562 -7.116788321167883,0 5.018248175182482,-5.018248175182482 -3.102189781021898,-3.102189781021898 -5.018248175182482,5.018248175182482 0,-7.116788321167883 -4.37956204379562,0 z" style="fill: rgb(34, 36, 42); stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 1px;"></path>
       </g>
     </BpmnGateway>
   </Grid>
@@ -343,9 +365,9 @@ A throw event triggers a specific event.
   <Grid sm="4" md="2">
     <BpmnEvent label="Link">
       <g>
-        <circle cx="18" cy="18" r="18" style="stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 1.5px; fill: white; fill-opacity: 0.95;"></circle>
-        <circle cx="18" cy="18" r="15" style="stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 1.5px; fill: none;"></circle>
-        <path d="m 20.52,9.468 0,4.4375 -13.5,0 0,6.75 13.5,0 0,4.4375 9.84375,-7.8125 -9.84375,-7.8125 z" style="fill: rgb(34, 36, 42); stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 1px;"></path>
+        <circle cx="18" cy="18" r="18" style="stroke-linecap: round; stroke-linejoin: round; stroke: green; stroke-width: 1.5px; fill: white; fill-opacity: 0.95;"></circle>
+        <circle cx="18" cy="18" r="15" style="stroke-linecap: round; stroke-linejoin: round; stroke: green; stroke-width: 1.5px; fill: none;"></circle>
+        <path d="m 20.52,9.468 0,4.4375 -13.5,0 0,6.75 13.5,0 0,4.4375 9.84375,-7.8125 -9.84375,-7.8125 z" style="fill: green; stroke-linecap: round; stroke-linejoin: round; stroke: green; stroke-width: 1px;"></path>
       </g>
     </BpmnEvent>
   </Grid>
@@ -386,9 +408,9 @@ A catch event waits for a specific event. When a catch event is triggered, the e
   <Grid sm="4" md="2">
     <BpmnEvent label="Link">
       <g>
-        <circle cx="18" cy="18" r="18" style="stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 1.5px; fill: white; fill-opacity: 0.95;"></circle>
-        <circle cx="18" cy="18" r="15" style="stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 1.5px; fill: none;"></circle>
-        <path d="m 20.52,9.468 0,4.4375 -13.5,0 0,6.75 13.5,0 0,4.4375 9.84375,-7.8125 -9.84375,-7.8125 z" style="fill: white; stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 1px;"></path>
+        <circle cx="18" cy="18" r="18" style="stroke-linecap: round; stroke-linejoin: round; stroke: green; stroke-width: 1.5px; fill: white; fill-opacity: 0.95;"></circle>
+        <circle cx="18" cy="18" r="15" style="stroke-linecap: round; stroke-linejoin: round; stroke: green; stroke-width: 1.5px; fill: none;"></circle>
+        <path d="m 20.52,9.468 0,4.4375 -13.5,0 0,6.75 13.5,0 0,4.4375 9.84375,-7.8125 -9.84375,-7.8125 z" style="fill: white; stroke-linecap: round; stroke-linejoin: round; stroke: green; stroke-width: 1px;"></path>
       </g>
     </BpmnEvent>
   </Grid>
@@ -574,5 +596,47 @@ When a non-interrupting boundary event is triggered, a new execution is created.
         <path transform="rotate(330,18,18)" d="M 18,18 m 0,7.5 l -0,2.25 " style="fill: none; stroke-linecap: round; stroke-linejoin: round; stroke: green; stroke-width: 1px;"></path>
       </g>
     </BpmnEvent>
+  </Grid>
+</Grid>
+
+## Markers
+
+Markers are used to add behavior (e.g. multi-instance characteristics) to [sub-processes](#sub-processes) and [tasks](#tasks).
+
+<Grid isContainer>
+  <Grid sm="4" md="2">
+    <BpmnTask>
+      <g>
+        <rect x="0" y="0" width="100" height="80" rx="10" ry="10" style="stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 2px; fill: white; fill-opacity: 0.95;"></rect>
+        <text lineHeight="1.2" style="font-family: Arial, sans-serif; font-size: 12px; font-weight: normal; fill: rgb(34, 36, 42);">
+          <tspan x="29.990234375" y="36.4">Parallel</tspan>
+          <tspan x="12.986328125" y="50.8">multi-instance</tspan>
+        </text>
+        <path data-marker="parallel" d="m44,60 m 3,2 l 0,10 m 3,-10 l 0,10 m 3,-10 l 0,10" style="fill: white; stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 2px;"></path>
+      </g>
+    </BpmnTask>
+  </Grid>
+  <Grid sm="4" md="2">
+    <BpmnTask>
+      <g>
+        <rect x="0" y="0" width="100" height="80" rx="10" ry="10" style="stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 2px; fill: white; fill-opacity: 0.95;"></rect>
+        <text lineHeight="1.2" style="font-family: Arial, sans-serif; font-size: 12px; font-weight: normal; fill: rgb(34, 36, 42);">
+          <tspan x="21.6435546875" y="36.4">Sequential</tspan>
+          <tspan x="12.986328125" y="50.8">multi-instance</tspan>
+        </text>
+        <path data-marker="sequential" d="m45,61 m 0,3 l 10,0 m -10,3 l 10,0 m -10,3 l 10,0" style="fill: white; stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 2px;"></path>
+      </g>
+    </BpmnTask>
+  </Grid>
+  <Grid sm="4" md="2">
+    <BpmnTask>
+      <g>
+        <rect x="0" y="0" width="100" height="80" rx="10" ry="10" style="stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 2px; fill: white; fill-opacity: 0.95;"></rect>
+        <text lineHeight="1.2" style="font-family: Arial, sans-serif; font-size: 12px; font-weight: normal; fill: rgb(34, 36, 42);">
+          <tspan x="36.65234375" y="43.599999999999994">Loop</tspan>
+        </text>
+        <path data-marker="loop" d="m 50,73 c 3.526979,0 6.386161,-2.829858 6.386161,-6.320661 0,-3.490806 -2.859182,-6.320661 -6.386161,-6.320661 -3.526978,0 -6.38616,2.829855 -6.38616,6.320661 0,1.745402 0.714797,3.325567 1.870463,4.469381 0.577834,0.571908 1.265885,1.034728 2.029916,1.35457 l -0.718163,-3.909793 m 0.718163,3.909793 -3.885211,0.802902" style="fill: none; stroke-linecap: round; stroke-linejoin: round; stroke: rgb(34, 36, 42); stroke-width: 1.5px; stroke-miterlimit: 0.5;"></path>
+      </g>
+    </BpmnTask>
   </Grid>
 </Grid>

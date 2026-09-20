@@ -12,8 +12,6 @@ This guide shows how to install the go-bpmn process engine daemon and CLI.
 download-darwin-arm64
 ```
 
-Looking for a specific version? - [View releases on Github](https://github.com/gclaussn/go-bpmn/releases)
-
 ## Validate archive
 
 ```preprocess sh
@@ -37,7 +35,7 @@ sudo mv ./go-bpmn /usr/local/bin/go-bpmn
 ```
 
 ```sh
-sudo chown root:root /usr/local/bin/go-bpmn
+sudo chown root:wheel /usr/local/bin/go-bpmn
 ```
 
 ## Install process engine daemon
@@ -51,7 +49,7 @@ sudo mv ./go-bpmn-pgd /usr/local/bin/go-bpmn-pgd
 ```
 
 ```sh
-sudo chown root:root /usr/local/bin/go-bpmn-pgd
+sudo chown root:wheel /usr/local/bin/go-bpmn-pgd
 ```
 
 ::: tip

@@ -1,5 +1,5 @@
 ---
-description: A guide on how to run a process engine.
+description: How to run a process engine?
 ---
 
 # Run a process engine
@@ -10,12 +10,12 @@ For running a process engine, only a connection to a PostgreSQL database is requ
 export GO_BPMN_PG_DATABASE_URL="postgres://username:password@127.0.0.1:5432/database?search_path=schema"
 ```
 
-Connection string examples and connection pool variables can be found in the [pgxpool](https://pkg.go.dev/github.com/jackc/pgx/v5/pgxpool@v5.7.4#ParseConfig) Go package documentation.
+Connection string examples and connection pool variables can be found in the [pgxpool](https://pkg.go.dev/github.com/jackc/pgx/v5/pgxpool@v5.9.2#ParseConfig) Go package documentation.
 
 After a PostgreSQL database connection is configured, the daemon can be started:
 
 ```sh
-go-bpmn-pgd
+go-bpmn-pgd run
 ```
 
 ## Configuration
@@ -25,23 +25,25 @@ A process engine daemon is configured via environment variables and/or environme
 List all available configuration options:
 
 ```sh
-go-bpmn-pgd -list-conf-opts
+go-bpmn-pgd list-conf-opts
 ```
 
 To display the current configuration, considering environment variables and specified environment variable files, run following command:
 
 ```sh
-go-bpmn-pgd -list-conf
+go-bpmn-pgd list-conf
 ```
 
-:::tip How to create a custom configuration?
+::: tip How to create a custom configuration?
+
 As a starting point, the daemon's default configuration can be used to create an `env` file.
+
 :::
 
 ```sh
-go-bpmn-pgd -list-conf > ~/go-bpmn-pgd.env
+go-bpmn-pgd list-conf > go-bpmn-pgd.env
 
-# edit ~/go-bpmn-pgd.env
+# edit go-bpmn-pgd.env
 
-go-bpmn-pgd -env-file ~/go-bpmn-pgd.env
+go-bpmn-pgd run --env-file go-bpmn-pgd.env
 ```

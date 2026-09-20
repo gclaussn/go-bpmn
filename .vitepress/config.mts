@@ -78,13 +78,6 @@ function sidebar(): DefaultTheme.SidebarItem[] {
       collapsed: false,
       items: [
         { text: 'Introduction', link: 'introduction' },
-        { text: 'Automate a process', link: 'automate-process' },
-      ]
-    },
-    {
-      text: 'Guides',
-      collapsed: false,
-      items: [
         {
           text: 'Installation',
           link: 'all',
@@ -99,6 +92,13 @@ function sidebar(): DefaultTheme.SidebarItem[] {
         },
         { text: 'Run a process engine', link: 'run-process-engine' },
         { text: 'Using CLI', link: 'using-cli' },
+      ]
+    },
+    {
+      text: 'Guides',
+      collapsed: false,
+      items: [
+        { text: 'Automate a process', link: 'automate-process' },
       ]
     },
     {
@@ -123,6 +123,10 @@ function preprocessCode() {
       code[`download-${artifact.osarch}`] = `curl -L -o go-bpmn-${artifact.osarch}.tar.gz ${githubUrl}/releases/download/${release.version}/go-bpmn-${artifact.osarch}.tar.gz`
       code[`validate-${artifact.osarch}`] = `echo "${artifact.checksum} go-bpmn-${artifact.osarch}.tar.gz" | sha256sum -c`
       code[`extract-${artifact.osarch}`]  = `tar -xvzf go-bpmn-${artifact.osarch}.tar.gz`
+    }
+
+    if (artifact.os == 'darwin') {
+      code[`validate-${artifact.osarch}`] = `echo "${artifact.checksum}  go-bpmn-${artifact.osarch}.tar.gz" | shasum -a 256 -c`
     }
   }
   

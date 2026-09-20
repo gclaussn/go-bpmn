@@ -1,32 +1,34 @@
 ---
-description: A guide on how to connect and use the CLI.
+description: How to connect and use the CLI?
 ---
 
 # Using CLI
 
-To use the `go-bpmn` command-line interface, the URL of a process engine HTTP API as well as an API key is required.
+To use the `go-bpmn` command-line interface, the URL of a process engine HTTP API as well as an API key are required.
 
-The URL's host and port are specified in the environment variable `GO_BPMN_HTTP_BIND_ADDRESS` of the process engine daemon. The default value is `127.0.0.1:8080`.
+The configuration (environment variable `GO_BPMN_HTTP_BIND_ADDRESS`) of a process engine daemon defines the URL's host and port.
+The default bind address is `127.0.0.1:8080`.
 
-An API key must be created, using following command:
+An API key must be created, using the daemon's CLI:
 
 ```sh
-go-bpmn-pgd -create-api-key -secret-id test-worker > ~/test-worker-authorization
+go-bpmn-pgd api-key create --secret-id example > example-authorization
 ```
 
-::: danger
+::: danger Please note
 
 The result of the command is an authorization string - a **secret** that is printed only **once**.
 
 :::
 
-When done, the CLI must be configured.
+## Configuration
+
 The URL can be provided as environment or as global CLI option `--url`.
 Whereas the authorization string must be configured per an environment variable.
 
 ```sh
 export GO_BPMN_URL="http://127.0.0.1:8080"
-export GO_BPMN_AUTHORIZATION="$(cat ~/test-worker-authorization)"
+export GO_BPMN_AUTHORIZATION="$(cat example-authorization)"
 ```
 
 After URL and authorization string are set, the CLI can be used:
@@ -37,10 +39,10 @@ go-bpmn [command] [flags]
 
 ## Debugging
 
-The `--debug` option allows to debug the HTTP communication. To enabled debugging for every command, set environment variable `GO_BPMN_DEBUG` to `true`.
+The `--debug` option allows to debug the HTTP communication. To enable debugging for every command, set environment variable `GO_BPMN_DEBUG` to `true`.
 
 ```sh
-go-bpmn --debug process-instance create --bpmn-process-id test --version 1
+go-bpmn --debug process-instance create --bpmn-process-id example --version 1
 ```
 
 The debug output, includes HTTP method, URL, request body, status code, response headers and response body: 
@@ -49,7 +51,7 @@ The debug output, includes HTTP method, URL, request body, status code, response
 2025/05/24 13:15:15 POST http://localhost:8080/process-instances
 2025/05/24 13:15:15 request body:
 {
-  "bpmnProcessId": "test",
+  "bpmnProcessId": "example",
   "version": "1",
   "workerId": "go-bpmn"
 }
@@ -63,7 +65,7 @@ The debug output, includes HTTP method, URL, request body, status code, response
   "status": 404,
   "type": "NOT_FOUND",
   "title": "failed to create process instance",
-  "detail": "process test:1 could not be found"
+  "detail": "process example:1 could not be found"
 }
-Error: failed to create process instance: process test:1 could not be found
+Error: failed to create process instance: process example:1 could not be found
 ```

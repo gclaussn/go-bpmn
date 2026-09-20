@@ -12,8 +12,6 @@ This guide shows how to install the go-bpmn process engine daemon and CLI.
 download-linux-arm64
 ```
 
-Looking for a specific version? - [View releases on Github](https://github.com/gclaussn/go-bpmn/releases)
-
 ## Validate archive
 
 ```preprocess sh
