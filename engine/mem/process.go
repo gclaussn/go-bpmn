@@ -12,16 +12,17 @@ type processRepository struct {
 	entities []internal.ProcessEntity
 }
 
-func (r *processRepository) Insert(entity *internal.ProcessEntity) error {
+func (r *processRepository) Insert(entity *internal.ProcessEntity) (bool, error) {
 	for _, e := range r.entities {
 		if e.BpmnProcessId == entity.BpmnProcessId && e.Version == entity.Version {
-			return pgx.ErrNoRows // indicates a conflict
+			*entity = e
+			return true, nil
 		}
 	}
 
 	entity.Id = int32(len(r.entities) + 1)
 	r.entities = append(r.entities, *entity)
-	return nil
+	return false, nil
 }
 
 func (r *processRepository) Select(id int32) (*internal.ProcessEntity, error) {

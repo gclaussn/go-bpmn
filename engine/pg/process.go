@@ -15,7 +15,18 @@ type processRepository struct {
 	txCtx context.Context
 }
 
-func (r processRepository) Insert(entity *internal.ProcessEntity) error {
+func (r processRepository) Insert(entity *internal.ProcessEntity) (bool, error) {
+	// avoid to consume sequence number by executing insert on conflict, if entity already exists
+	existingEntity, err := r.SelectByBpmnProcessIdAndVersion(entity.BpmnProcessId, entity.Version)
+	if err == nil {
+		*entity = *existingEntity
+		return true, nil
+	}
+
+	if err != pgx.ErrNoRows {
+		return false, err
+	}
+
 	row := r.tx.QueryRow(r.txCtx, `
 INSERT INTO process (
 	bpmn_collaboration_id,
@@ -56,15 +67,23 @@ INSERT INTO process (
 		entity.Version,
 	)
 
-	if err := row.Scan(&entity.Id); err != nil {
-		if err == pgx.ErrNoRows { // indicates a conflict
-			return err
-		} else {
-			return fmt.Errorf("failed to insert process %+v: %v", entity, err)
-		}
+	err = row.Scan(&entity.Id)
+	if err == nil {
+		return false, nil
 	}
 
-	return nil
+	if err != pgx.ErrNoRows {
+		return false, fmt.Errorf("failed to insert process %+v: %v", entity, err)
+	}
+
+	// select concurrently inserted entity due to conflict
+	insertedEntity, err := r.SelectByBpmnProcessIdAndVersion(entity.BpmnProcessId, entity.Version)
+	if err != nil {
+		return false, err
+	}
+
+	*entity = *insertedEntity
+	return true, nil
 }
 
 func (r processRepository) Select(id int32) (*internal.ProcessEntity, error) {
@@ -104,8 +123,7 @@ WHERE
 }
 
 func (r processRepository) SelectByBpmnProcessIdAndVersion(bpmnProcessId string, version string) (*internal.ProcessEntity, error) {
-	// since this method is used in case of a conflict (concurrent insert), all columns must be selected
-	// see internal.CreateProcess
+	// all columns must be selected, because method is used in case of conflicting insert
 	row := r.tx.QueryRow(r.txCtx, `
 SELECT
 	id,

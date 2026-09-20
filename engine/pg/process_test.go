@@ -6,7 +6,6 @@ import (
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/engine/internal"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
 )
@@ -283,17 +282,24 @@ func TestProcessRepository(t *testing.T) {
 		insert1Ctx, insert1Cancel := context.WithCancel(context.Background())
 		insert2Ctx, insert2Cancel := context.WithCancel(context.Background())
 
-		var insertErr1 error
-		var insertErr2 error
+		var (
+			isConflict1 bool
+			insertErr1  error
+
+			isConflict2 bool
+			insertErr2  error
+		)
 		go func() {
-			insertErr1 = pgCtx1.Processes().Insert(&process1)
+			isConflict1, insertErr1 = pgCtx1.Processes().Insert(&process1)
 			insert1Cancel()
 
-			insertErr2 = pgCtx2.Processes().Insert(&process2)
+			isConflict2, insertErr2 = pgCtx2.Processes().Insert(&process2)
 			insert2Cancel()
 		}()
 
 		<-insert1Ctx.Done()
+
+		assert.False(isConflict1)
 
 		if insertErr1 != nil {
 			t.Errorf("failed to insert process 1: %v", insertErr1)
@@ -303,7 +309,8 @@ func TestProcessRepository(t *testing.T) {
 
 		<-insert2Ctx.Done()
 
-		assert.Equal(pgx.ErrNoRows, insertErr2)
+		assert.True(isConflict2)
+		assert.NoError(insertErr2)
 
 		pgEngine.release(pgCtx2, insertErr2)
 

@@ -268,10 +268,16 @@ func (e ProcessEntity) Process() engine.Process {
 }
 
 type ProcessRepository interface {
-	// Insert inserts a process.
+	// Insert inserts a process entity. BPMN process ID and version must be unique.
 	//
-	// If a concurrent insert caused an conflict (BPMN process ID and version must be unique), [pgx.ErrNoRows] is returned.
-	Insert(*ProcessEntity) error
+	// If a process with the same BPMN process ID and version exists,
+	// the entity's pointer value is replaced with the value of the already existing entity.
+	//
+	// If a concurrent insert caused a conflict,
+	// the entity's pointer value is replaced with the value of the concurrently inserted entity.
+	//
+	// In both cases, true is returned to indicate a conflict.
+	Insert(*ProcessEntity) (bool, error)
 
 	Select(id int32) (*ProcessEntity, error)
 
@@ -602,19 +608,9 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		Version:             cmd.Version,
 	}
 
-	var isConflict bool
-	if err := ctx.Processes().Insert(process); err != nil {
-		if err != pgx.ErrNoRows {
-			return engine.Process{}, err
-		}
-
-		isConflict = true
-
-		// select the concurrently inserted entity due to a conflict
-		process, err = ctx.Processes().SelectByBpmnProcessIdAndVersion(cmd.BpmnProcessId, cmd.Version)
-		if err != nil {
-			return engine.Process{}, err
-		}
+	isConflict, err := ctx.Processes().Insert(process)
+	if err != nil {
+		return engine.Process{}, err
 	}
 
 	// compare checksums

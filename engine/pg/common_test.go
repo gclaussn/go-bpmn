@@ -84,7 +84,7 @@ func mustInsertEntities(t *testing.T, e engine.Engine, entities []any) {
 		case *internal.MessageVariableEntity:
 			err = pgCtx.MessageVariables().InsertBatch([]*internal.MessageVariableEntity{entity})
 		case *internal.ProcessEntity:
-			err = pgCtx.Processes().Insert(entity)
+			_, err = pgCtx.Processes().Insert(entity)
 		case *internal.ProcessInstanceEntity:
 			err = pgCtx.ProcessInstances().Insert(entity)
 		case *internal.SignalEntity:
