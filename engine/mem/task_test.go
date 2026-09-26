@@ -81,7 +81,7 @@ func TestExecuteTask(t *testing.T) {
 
 		mustInsertEntities(t, e, []any{entity})
 
-		memEngine.ctx.options.Common.TaskRetryLimit = 3
+		memEngine.ctx.options.TaskRetryLimit = 3
 
 		// when
 		ctx := memEngine.wlock()

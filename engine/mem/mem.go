@@ -23,13 +23,13 @@ func New(customizers ...func(*Options)) (engine.Engine, error) {
 
 	ctx := newMemContext(options)
 
-	memEngine := memEngine{ctx: ctx, defaultQueryLimit: options.Common.DefaultQueryLimit}
+	memEngine := memEngine{ctx: ctx, defaultQueryLimit: options.DefaultQueryLimit}
 
-	if options.Common.TaskExecutorEnabled {
+	if options.TaskExecutorEnabled {
 		memEngine.taskExecutor = internal.NewTaskExecutor(
 			&memEngine,
-			options.Common.TaskExecutorInterval,
-			options.Common.TaskExecutorLimit,
+			options.TaskExecutorInterval,
+			options.TaskExecutorLimit,
 		)
 
 		memEngine.taskExecutor.Execute()
@@ -40,7 +40,7 @@ func New(customizers ...func(*Options)) (engine.Engine, error) {
 
 func NewOptions() Options {
 	return Options{
-		Common: engine.Options{
+		Options: engine.Options{
 			DefaultQueryLimit:      1000,
 			EngineId:               engine.DefaultEngineId,
 			ProcessCacheCapacity:   100,
@@ -54,11 +54,11 @@ func NewOptions() Options {
 }
 
 type Options struct {
-	Common engine.Options // Common options
+	engine.Options // Common options.
 }
 
 func (o Options) Validate() error {
-	return o.Common.Validate()
+	return o.Options.Validate()
 }
 
 type memEngine struct {
@@ -115,7 +115,7 @@ func (e *memEngine) ExecuteTasks(_ context.Context, cmd engine.ExecuteTasksCmd) 
 		task := lockedTask.Task()
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to execute task %s: %v", task, err))
-			if onFailure := ctx.options.Common.OnTaskExecutionFailure; onFailure != nil {
+			if onFailure := ctx.options.OnTaskExecutionFailure; onFailure != nil {
 				onFailure(task, err)
 			}
 

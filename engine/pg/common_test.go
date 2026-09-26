@@ -45,8 +45,7 @@ func mustCreateEngine(t *testing.T, customizers ...func(*Options)) engine.Engine
 	databaseUrl = fmt.Sprintf("%s?search_path=%s", databaseUrl, databaseSchema)
 
 	customizers = append(customizers, func(o *Options) {
-		o.Common.TaskExecutorEnabled = false
-		o.Timeout = 45 * time.Second
+		o.TaskExecutorEnabled = false
 	})
 
 	e, err := New(databaseUrl, customizers...)
