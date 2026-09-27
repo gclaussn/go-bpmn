@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/gclaussn/go-bpmn/model"
 )
 
 const (
@@ -35,7 +37,6 @@ func Assert2(t *testing.T, e Engine, processInstance ProcessInstance) (*ProcessI
 	if err != nil {
 		t.Fatalf("failed to query element instances: %v", err)
 	}
-
 	if len(elementInstances) == 0 {
 		t.Fatalf("expected process scope, but got none")
 	}
@@ -58,6 +59,213 @@ func Assert2(t *testing.T, e Engine, processInstance ProcessInstance) (*ProcessI
 	}
 
 	return &processInstanceAssert, &scopeAssert
+}
+
+func AssertMessageStart2(t *testing.T, e Engine, process Process, cmd SendMessageCmd) (*ProcessInstanceAssert2, *ScopeAssert) {
+	message, err := e.SendMessage(context.Background(), cmd)
+	if err != nil {
+		t.Fatalf("failed to send message: %v", err)
+	}
+
+	if !message.IsCorrelated {
+		t.Fatalf("expected message to be correlated")
+	}
+
+	elements, err := e.CreateQuery().QueryElements(context.Background(), ElementCriteria{
+		ProcessId: process.Id,
+	})
+	if err != nil {
+		t.Fatalf("failed to query elements: %v", err)
+	}
+
+	var messageEvent Element
+	for _, element := range elements {
+		if element.EventDefinition == nil {
+			continue
+		}
+		if element.EventDefinition.MessageName == cmd.Name && !element.EventDefinition.IsSuspended {
+			messageEvent = element
+			break
+		}
+	}
+
+	if messageEvent.Id == 0 {
+		t.Fatalf("expected to find message event")
+	}
+	if messageEvent.BpmnElementType != model.ElementMessageStartEvent {
+		t.Fatalf("expected message event to be a start event: %+v", messageEvent)
+	}
+
+	tasks, err := e.CreateQuery().QueryTasks(context.Background(), TaskCriteria{
+		ProcessId: process.Id,
+		Type:      TaskTriggerEvent,
+	})
+	if err != nil {
+		t.Fatalf("failed to query tasks: %v", err)
+	}
+
+	var triggerEventTask Task
+	for _, task := range tasks {
+		if !task.IsCompleted() && task.CreatedAt.Equal(message.CreatedAt) {
+			triggerEventTask = task
+			break
+		}
+	}
+	if triggerEventTask.Id == 0 {
+		t.Fatal("expected to find trigger event task")
+	}
+
+	completedTasks, _, err := e.ExecuteTasks(context.Background(), ExecuteTasksCmd{
+		Partition: triggerEventTask.Partition,
+		Id:        triggerEventTask.Id,
+	})
+	if err != nil {
+		t.Fatalf("failed to execute task: %v", err)
+	}
+	if len(completedTasks) == 0 {
+		t.Fatal("expected trigger event task to complete")
+	}
+
+	return Assert2(t, e, ProcessInstance{
+		Partition: completedTasks[0].Partition,
+		Id:        completedTasks[0].ProcessInstanceId,
+
+		BpmnProcessId: messageEvent.ParentBpmnElementId,
+	})
+}
+
+func AssertSignalStart2(t *testing.T, e Engine, process Process, cmd SendSignalCmd) (*ProcessInstanceAssert2, *ScopeAssert) {
+	signal, err := e.SendSignal(context.Background(), cmd)
+	if err != nil {
+		t.Fatalf("failed to send signal: %v", err)
+	}
+
+	elements, err := e.CreateQuery().QueryElements(context.Background(), ElementCriteria{})
+	if err != nil {
+		t.Fatalf("failed to query elements: %v", err)
+	}
+
+	var signalEvent Element
+	for _, element := range elements {
+		if element.EventDefinition == nil {
+			continue
+		}
+		if element.EventDefinition.SignalName == cmd.Name && !element.EventDefinition.IsSuspended {
+			signalEvent = element
+			break
+		}
+	}
+
+	if signalEvent.Id == 0 {
+		t.Fatalf("expected to find signal event")
+	}
+	if signalEvent.BpmnElementType != model.ElementSignalStartEvent {
+		t.Fatalf("expected signal event to be a start event: %+v", signalEvent)
+	}
+
+	tasks, err := e.CreateQuery().QueryTasks(context.Background(), TaskCriteria{
+		ProcessId: process.Id,
+		Type:      TaskTriggerEvent,
+	})
+	if err != nil {
+		t.Fatalf("failed to query tasks: %v", err)
+	}
+
+	var triggerEventTask Task
+	for _, task := range tasks {
+		if !task.IsCompleted() && task.CreatedAt.Equal(signal.CreatedAt) {
+			triggerEventTask = task
+			break
+		}
+	}
+	if triggerEventTask.Id == 0 {
+		t.Fatal("expected to find trigger event task")
+	}
+
+	completedTasks, _, err := e.ExecuteTasks(context.Background(), ExecuteTasksCmd{
+		Partition: triggerEventTask.Partition,
+		Id:        triggerEventTask.Id,
+	})
+	if err != nil {
+		t.Fatalf("failed to execute task: %v", err)
+	}
+	if len(completedTasks) == 0 {
+		t.Fatal("expected trigger event task to complete")
+	}
+
+	return Assert2(t, e, ProcessInstance{
+		Partition: completedTasks[0].Partition,
+		Id:        completedTasks[0].ProcessInstanceId,
+
+		BpmnProcessId: signalEvent.ParentBpmnElementId,
+	})
+}
+
+func AsserTimerStart2(t *testing.T, e Engine, process Process, startEventId string) (*ProcessInstanceAssert2, *ScopeAssert) {
+	elements, err := e.CreateQuery().QueryElements(context.Background(), ElementCriteria{
+		ProcessId: process.Id,
+	})
+	if err != nil {
+		t.Fatalf("failed to query elements: %v", err)
+	}
+
+	var timerEvent Element
+	for _, element := range elements {
+		if element.BpmnElementId == startEventId {
+			timerEvent = element
+			break
+		}
+	}
+
+	if timerEvent.Id == 0 {
+		t.Fatalf("expected to find timer event")
+	}
+	if timerEvent.BpmnElementType != model.ElementTimerStartEvent {
+		t.Fatalf("expected timer event to be a start event: %+v", timerEvent)
+	}
+
+	tasks, err := e.CreateQuery().QueryTasks(context.Background(), TaskCriteria{
+		ElementId: timerEvent.Id,
+		Type:      TaskTriggerEvent,
+	})
+	if err != nil {
+		t.Fatalf("failed to query tasks: %v", err)
+	}
+
+	var nextTrigger Task
+	for _, task := range tasks {
+		if !task.IsCompleted() {
+			nextTrigger = task
+			break
+		}
+	}
+	if nextTrigger.Id == 0 {
+		t.Fatal("failed to find trigger event task")
+	}
+
+	if _, _, err := e.SetTime(context.Background(), SetTimeCmd{
+		Time: nextTrigger.DueAt,
+	}); err != nil {
+		t.Fatalf("failed to set time: %v", err)
+	}
+
+	completedTasks, _, err := e.ExecuteTasks(context.Background(), ExecuteTasksCmd{
+		Partition: nextTrigger.Partition,
+		Id:        nextTrigger.Id,
+	})
+	if err != nil {
+		t.Fatalf("failed to execute task: %v", err)
+	}
+	if len(completedTasks) == 0 {
+		t.Fatal("expected trigger event task to complete")
+	}
+
+	return Assert2(t, e, ProcessInstance{
+		Partition: completedTasks[0].Partition,
+		Id:        completedTasks[0].ProcessInstanceId,
+
+		BpmnProcessId: timerEvent.ParentBpmnElementId,
+	})
 }
 
 type ProcessInstanceAssert2 struct {
@@ -189,11 +397,9 @@ func (a *ProcessInstanceAssert2) ProcessInstance() ProcessInstance {
 	if err != nil {
 		a.Fatalf("failed to query process instance: %v", err)
 	}
-
 	if len(results) != 1 {
 		a.Fatalf("expected one process instance, but got %d: %+v", len(results), results)
 	}
-
 	return results[0]
 }
 
@@ -258,7 +464,6 @@ func (a *ScopeAssert) CompleteJob(completeJobCmds ...CompleteJobCmd) {
 	if err != nil {
 		a.Fatalf("failed to lock job: %v", err)
 	}
-
 	if len(lockedJobs) == 0 {
 		a.Fatalf("expected one job to lock, but got none")
 	}
@@ -297,7 +502,6 @@ func (a *ScopeAssert) CompleteJobWithError(completeJobCmds ...CompleteJobCmd) Jo
 	if err != nil {
 		a.Fatalf("failed to lock job: %v", err)
 	}
-
 	if len(lockedJobs) == 0 {
 		a.Fatalf("expected one job to lock, but got none")
 	}
@@ -336,7 +540,6 @@ func (a *ScopeAssert) ElementInstance() ElementInstance {
 	if err != nil {
 		a.Fatalf("failed to query element instance: %v", err)
 	}
-
 	if len(results) != 1 {
 		a.Fatalf("expected one element instance, but got %d: %+v", len(results), results)
 	}
@@ -354,7 +557,6 @@ func (a *ScopeAssert) ExecuteTask() {
 	if err != nil {
 		a.Fatalf("failed to execute task: %v", err)
 	}
-
 	if len(completedTasks) == 0 {
 		a.Fatalf("expected one task to complete, but got none")
 	}
@@ -408,6 +610,24 @@ func (a *ScopeAssert) HasPassed(bpmnElementId string) {
 	}
 
 	a.Fatalf("expected scope %s to have passed %s\npassed elements: %s", a.scope, bpmnElementId, strings.Join(passed, ", "))
+}
+
+func (a *ScopeAssert) IsCompleted() {
+	if a.Scope().State != InstanceCompleted {
+		a.Fatalf("expected scope %s to be completed", a.scope)
+	}
+}
+
+func (a *ScopeAssert) IsNotCompleted() {
+	if a.Scope().State == InstanceCompleted {
+		a.Fatalf("expected scope %s not to be completed", a.scope)
+	}
+}
+
+func (a *ScopeAssert) IsTerminated() {
+	if a.Scope().State != InstanceTerminated {
+		a.Fatalf("expected scope %s to be terminated", a.scope)
+	}
 }
 
 func (a *ScopeAssert) IsNotWaitingAt(bpmnElementId string) {
@@ -506,6 +726,20 @@ func (a *ScopeAssert) Job() Job {
 	return Job{}
 }
 
+func (a *ScopeAssert) Scope() ElementInstance {
+	results, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
+		Partition: a.scope.Partition,
+		Id:        a.scope.Id,
+	})
+	if err != nil {
+		a.Fatalf("failed to query element instance: %v", err)
+	}
+	if len(results) != 1 {
+		a.Fatalf("expected one element instance, but got %d: %+v", len(results), results)
+	}
+	return results[0]
+}
+
 func (a *ScopeAssert) Task() Task {
 	if a.elementInstance == nil {
 		a.Fatalf("call IsWaitingAt first")
@@ -544,7 +778,6 @@ func (a *ScopeAssert) UserTask() UserTask {
 	if err != nil {
 		a.Fatalf("failed to query user task: %v", err)
 	}
-
 	if len(results) == 0 {
 		a.Fatalf("expected scope %s to have a user task at %s", a.scope, a.elementInstance.BpmnElementId)
 	}
