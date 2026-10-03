@@ -2,13 +2,12 @@ package worker
 
 import (
 	"context"
-	"slices"
 	"testing"
 
 	"github.com/gclaussn/go-bpmn/engine"
 )
 
-func Assert2(t *testing.T, w *Worker, processInstance engine.ProcessInstance) (*ProcessInstanceAssert2, *ScopeAssert) {
+func Assert2(t *testing.T, w *Worker, processInstance engine.ProcessInstance) (ProcessInstanceAssert2, ElementInstanceAssert) {
 	piAssert, psAssert := engine.Assert2(t, w.e, processInstance)
 
 	processInstanceAssert := ProcessInstanceAssert2{
@@ -20,17 +19,17 @@ func Assert2(t *testing.T, w *Worker, processInstance engine.ProcessInstance) (*
 		processInstanceId: processInstance.Id,
 	}
 
-	scopeAssert := ScopeAssert{
-		ScopeAssert: psAssert,
+	processScopeAssert := ElementInstanceAssert{
+		ElementInstanceAssert: psAssert,
 
 		w: w,
 	}
 
-	return &processInstanceAssert, &scopeAssert
+	return processInstanceAssert, processScopeAssert
 }
 
 type ProcessInstanceAssert2 struct {
-	*engine.ProcessInstanceAssert2
+	engine.ProcessInstanceAssert2
 
 	w *Worker
 
@@ -38,7 +37,7 @@ type ProcessInstanceAssert2 struct {
 	processInstanceId int32
 }
 
-func (a *ProcessInstanceAssert2) GetProcessVariable(name string, value any) {
+func (a ProcessInstanceAssert2) GetProcessVariable(name string, value any) {
 	variables, err := a.w.e.GetProcessVariables(context.Background(), engine.GetProcessVariablesCmd{
 		Partition:         a.partition,
 		ProcessInstanceId: a.processInstanceId,
@@ -68,7 +67,7 @@ func (a *ProcessInstanceAssert2) GetProcessVariable(name string, value any) {
 	}
 }
 
-func (a *ProcessInstanceAssert2) HasNoProcessVariable(name string) {
+func (a ProcessInstanceAssert2) HasNoProcessVariable(name string) {
 	variables, err := a.w.e.GetProcessVariables(context.Background(), engine.GetProcessVariablesCmd{
 		Partition:         a.partition,
 		ProcessInstanceId: a.processInstanceId,
@@ -83,13 +82,63 @@ func (a *ProcessInstanceAssert2) HasNoProcessVariable(name string) {
 	}
 }
 
-type ScopeAssert struct {
-	*engine.ScopeAssert
+type ElementInstanceAssert struct {
+	engine.ElementInstanceAssert
 
 	w *Worker
 }
 
-func (a *ScopeAssert) ExecuteJob() {
+func (a ElementInstanceAssert) Child() (ElementInstanceAssert, bool) {
+	child, ok := a.ElementInstanceAssert.Child()
+
+	return ElementInstanceAssert{
+		ElementInstanceAssert: child,
+
+		w: a.w,
+	}, ok
+}
+
+func (a ElementInstanceAssert) ChildAt(bpmnElementId string) (ElementInstanceAssert, bool) {
+	child, ok := a.ElementInstanceAssert.ChildAt(bpmnElementId)
+
+	return ElementInstanceAssert{
+		ElementInstanceAssert: child,
+
+		w: a.w,
+	}, ok
+}
+
+func (a ElementInstanceAssert) Children() []ElementInstanceAssert {
+	children := a.ElementInstanceAssert.Children()
+	embedded := make([]ElementInstanceAssert, len(children))
+
+	for i, child := range children {
+		embedded[i] = ElementInstanceAssert{
+			ElementInstanceAssert: child,
+
+			w: a.w,
+		}
+	}
+
+	return embedded
+}
+
+func (a ElementInstanceAssert) ChildrenAt(bpmnElementId string) []ElementInstanceAssert {
+	children := a.ElementInstanceAssert.ChildrenAt(bpmnElementId)
+	embedded := make([]ElementInstanceAssert, len(children))
+
+	for i, child := range children {
+		embedded[i] = ElementInstanceAssert{
+			ElementInstanceAssert: child,
+
+			w: a.w,
+		}
+	}
+
+	return embedded
+}
+
+func (a ElementInstanceAssert) ExecuteJob() {
 	job := a.Job()
 
 	lockedJobs, err := a.w.e.LockJobs(context.Background(), engine.LockJobsCmd{
@@ -114,7 +163,7 @@ func (a *ScopeAssert) ExecuteJob() {
 	}
 }
 
-func (a *ScopeAssert) ExecuteJobWithError() {
+func (a ElementInstanceAssert) ExecuteJobWithError() {
 	job := a.Job()
 
 	lockedJobs, err := a.w.e.LockJobs(context.Background(), engine.LockJobsCmd{
@@ -139,28 +188,12 @@ func (a *ScopeAssert) ExecuteJobWithError() {
 	}
 }
 
-func (a *ScopeAssert) GetElementVariable(bpmnElementId string, name string, value any) {
-	scope := a.Scope()
-
-	elementInstances, err := a.w.e.CreateQuery().QueryElementInstances(context.Background(), engine.ElementInstanceCriteria{
-		Partition:     scope.Partition,
-		ParentId:      scope.Id,
-		BpmnElementId: bpmnElementId,
-	})
-	if err != nil {
-		a.Fatalf("failed to query element instances: %v", err)
-	}
-	if len(elementInstances) == 0 {
-		a.Fatalf("expected at least one element instance, but got none")
-	}
-
-	slices.SortFunc(elementInstances, func(a engine.ElementInstance, b engine.ElementInstance) int {
-		return int(b.Id - a.Id)
-	})
+func (a ElementInstanceAssert) GetElementVariable(bpmnElementId string, name string, value any) {
+	elementInstance := a.ElementInstance()
 
 	variables, err := a.w.e.GetElementVariables(context.Background(), engine.GetElementVariablesCmd{
-		Partition:         scope.Partition,
-		ElementInstanceId: elementInstances[0].Id,
+		Partition:         elementInstance.Partition,
+		ElementInstanceId: elementInstance.Id,
 		Names:             []string{name},
 	})
 	if err != nil {
@@ -174,7 +207,7 @@ func (a *ScopeAssert) GetElementVariable(bpmnElementId string, name string, valu
 		}
 	}
 	if data == nil {
-		a.Fatalf("expected element instance %s to have variable %s", elementInstances[0], name)
+		a.Fatalf("expected element instance %s to have variable %s", a, name)
 	}
 
 	decoder := a.w.Decoder(data.Encoding)
@@ -187,28 +220,12 @@ func (a *ScopeAssert) GetElementVariable(bpmnElementId string, name string, valu
 	}
 }
 
-func (a *ScopeAssert) HasNoElementVariable(bpmnElementId string, name string) {
-	scope := a.Scope()
-
-	elementInstances, err := a.w.e.CreateQuery().QueryElementInstances(context.Background(), engine.ElementInstanceCriteria{
-		Partition:     scope.Partition,
-		ParentId:      scope.Id,
-		BpmnElementId: bpmnElementId,
-	})
-	if err != nil {
-		a.Fatalf("failed to query element instances: %v", err)
-	}
-	if len(elementInstances) == 0 {
-		a.Fatalf("expected at least one element instance, but got none")
-	}
-
-	slices.SortFunc(elementInstances, func(a engine.ElementInstance, b engine.ElementInstance) int {
-		return int(b.Id - a.Id)
-	})
+func (a ElementInstanceAssert) HasNoElementVariable(bpmnElementId string, name string) {
+	elementInstance := a.ElementInstance()
 
 	variables, err := a.w.e.GetElementVariables(context.Background(), engine.GetElementVariablesCmd{
-		Partition:         scope.Partition,
-		ElementInstanceId: elementInstances[0].Id,
+		Partition:         elementInstance.Partition,
+		ElementInstanceId: elementInstance.Id,
 		Names:             []string{name},
 	})
 	if err != nil {
@@ -217,7 +234,17 @@ func (a *ScopeAssert) HasNoElementVariable(bpmnElementId string, name string) {
 
 	for _, variable := range variables {
 		if variable.BpmnElementId == bpmnElementId {
-			a.Fatalf("expected element instance %s to have no variable %s", elementInstances[0], name)
+			a.Fatalf("expected element instance %s to have no variable %s", a, name)
 		}
+	}
+}
+
+func (a ElementInstanceAssert) Parent() ElementInstanceAssert {
+	parent := a.ElementInstanceAssert.Parent()
+
+	return ElementInstanceAssert{
+		ElementInstanceAssert: parent,
+
+		w: a.w,
 	}
 }

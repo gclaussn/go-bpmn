@@ -16,7 +16,7 @@ const (
 	testWorkerId = "test-worker"
 )
 
-func Assert2(t *testing.T, e Engine, processInstance ProcessInstance) (*ProcessInstanceAssert2, *ScopeAssert) {
+func Assert2(t *testing.T, e Engine, processInstance ProcessInstance) (ProcessInstanceAssert2, ElementInstanceAssert) {
 	elements, err := e.CreateQuery().QueryElements(context.Background(), ElementCriteria{
 		ProcessId: processInstance.ProcessId,
 	})
@@ -45,23 +45,25 @@ func Assert2(t *testing.T, e Engine, processInstance ProcessInstance) (*ProcessI
 		t: t,
 		e: e,
 
-		partition:         processInstance.Partition,
-		processInstanceId: processInstance.Id,
+		partition: processInstance.Partition,
+		id:        processInstance.Id,
 	}
 
-	scopeAssert := ScopeAssert{
+	processScopeAssert := ElementInstanceAssert{
 		t: t,
 		e: e,
 
-		elementMap: elementMap,
-
-		scope: elementInstances[0],
+		partition:         elementInstances[0].Partition,
+		id:                elementInstances[0].Id,
+		parentId:          elementInstances[0].ParentId,
+		processInstanceId: elementInstances[0].ProcessInstanceId,
+		bpmnElementId:     elementInstances[0].BpmnElementId,
 	}
 
-	return &processInstanceAssert, &scopeAssert
+	return processInstanceAssert, processScopeAssert
 }
 
-func AssertMessageStart2(t *testing.T, e Engine, process Process, cmd SendMessageCmd) (*ProcessInstanceAssert2, *ScopeAssert) {
+func AssertMessageStart2(t *testing.T, e Engine, process Process, cmd SendMessageCmd) (ProcessInstanceAssert2, ElementInstanceAssert) {
 	message, err := e.SendMessage(context.Background(), cmd)
 	if err != nil {
 		t.Fatalf("failed to send message: %v", err)
@@ -134,7 +136,7 @@ func AssertMessageStart2(t *testing.T, e Engine, process Process, cmd SendMessag
 	})
 }
 
-func AssertSignalStart2(t *testing.T, e Engine, process Process, cmd SendSignalCmd) (*ProcessInstanceAssert2, *ScopeAssert) {
+func AssertSignalStart2(t *testing.T, e Engine, process Process, cmd SendSignalCmd) (ProcessInstanceAssert2, ElementInstanceAssert) {
 	signal, err := e.SendSignal(context.Background(), cmd)
 	if err != nil {
 		t.Fatalf("failed to send signal: %v", err)
@@ -201,7 +203,7 @@ func AssertSignalStart2(t *testing.T, e Engine, process Process, cmd SendSignalC
 	})
 }
 
-func AsserTimerStart2(t *testing.T, e Engine, process Process, startEventId string) (*ProcessInstanceAssert2, *ScopeAssert) {
+func AsserTimerStart2(t *testing.T, e Engine, process Process, startEventId string) (ProcessInstanceAssert2, ElementInstanceAssert) {
 	elements, err := e.CreateQuery().QueryElements(context.Background(), ElementCriteria{
 		ProcessId: process.Id,
 	})
@@ -272,11 +274,15 @@ type ProcessInstanceAssert2 struct {
 	t *testing.T
 	e Engine
 
-	partition         Partition
-	processInstanceId int32
+	partition Partition
+	id        int32
 }
 
-func (a *ProcessInstanceAssert2) ElementInstances(criteria ...ElementInstanceCriteria) []ElementInstance {
+func (a ProcessInstanceAssert2) ElementInstances(criteria ...ElementInstanceCriteria) []ElementInstance {
+	if len(criteria) > 1 {
+		a.Fatalf("expected zero or one criteria")
+	}
+
 	var c ElementInstanceCriteria
 	if len(criteria) != 0 {
 		c = criteria[0]
@@ -285,20 +291,20 @@ func (a *ProcessInstanceAssert2) ElementInstances(criteria ...ElementInstanceCri
 	}
 
 	c.Partition = a.partition
-	c.ProcessInstanceId = a.processInstanceId
+	c.ProcessInstanceId = a.id
 
-	results, err := a.e.CreateQuery().QueryElementInstances(context.Background(), c)
+	elementInstances, err := a.e.CreateQuery().QueryElementInstances(context.Background(), c)
 	if err != nil {
 		a.Fatalf("failed to query element instances: %v", err)
 	}
 
-	return results
+	return elementInstances
 }
 
-func (a *ProcessInstanceAssert2) ExecuteTasks() []Task {
+func (a ProcessInstanceAssert2) ExecuteTasks() []Task {
 	completedTasks, failedTasks, err := a.e.ExecuteTasks(context.Background(), ExecuteTasksCmd{
 		Partition:         a.partition,
-		ProcessInstanceId: a.processInstanceId,
+		ProcessInstanceId: a.id,
 		Limit:             100,
 	})
 	if err != nil {
@@ -318,14 +324,14 @@ func (a *ProcessInstanceAssert2) ExecuteTasks() []Task {
 	return completedTasks
 }
 
-func (a *ProcessInstanceAssert2) Fatalf(format string, args ...any) {
+func (a ProcessInstanceAssert2) Fatalf(format string, args ...any) {
 	fatalf(a.t, format, args...)
 }
 
-func (a *ProcessInstanceAssert2) HasNoProcessVariable(name string) {
+func (a ProcessInstanceAssert2) HasNoProcessVariable(name string) {
 	variables, err := a.e.GetProcessVariables(context.Background(), GetProcessVariablesCmd{
 		Partition:         a.partition,
-		ProcessInstanceId: a.processInstanceId,
+		ProcessInstanceId: a.id,
 		Names:             []string{name},
 	})
 	if err != nil {
@@ -339,10 +345,10 @@ func (a *ProcessInstanceAssert2) HasNoProcessVariable(name string) {
 	}
 }
 
-func (a *ProcessInstanceAssert2) HasProcessVariable(name string) {
+func (a ProcessInstanceAssert2) HasProcessVariable(name string) {
 	variables, err := a.e.GetProcessVariables(context.Background(), GetProcessVariablesCmd{
 		Partition:         a.partition,
-		ProcessInstanceId: a.processInstanceId,
+		ProcessInstanceId: a.id,
 		Names:             []string{name},
 	})
 	if err != nil {
@@ -358,19 +364,24 @@ func (a *ProcessInstanceAssert2) HasProcessVariable(name string) {
 	a.Fatalf("expected process instance to have variable %s", name)
 }
 
-func (a *ProcessInstanceAssert2) IsCompleted() {
+func (a ProcessInstanceAssert2) IsActive() {
+	processInstance := a.ProcessInstance()
+	if processInstance.State != InstanceStarted {
+		a.Fatalf("expected process instance not to be completed, but is %s", processInstance.State)
+	}
+}
+
+func (a ProcessInstanceAssert2) IsCompleted() {
 	if a.ProcessInstance().State != InstanceCompleted {
 		a.Fatalf("expected process instance to be completed")
 	}
 }
 
-func (a *ProcessInstanceAssert2) IsNotCompleted() {
-	if a.ProcessInstance().State == InstanceCompleted {
-		a.Fatalf("expected process instance not to be completed")
+func (a ProcessInstanceAssert2) Jobs(criteria ...JobCriteria) []Job {
+	if len(criteria) > 1 {
+		a.Fatalf("expected zero or one criteria")
 	}
-}
 
-func (a *ProcessInstanceAssert2) Jobs(criteria ...JobCriteria) []Job {
 	var c JobCriteria
 	if len(criteria) != 0 {
 		c = criteria[0]
@@ -379,31 +390,35 @@ func (a *ProcessInstanceAssert2) Jobs(criteria ...JobCriteria) []Job {
 	}
 
 	c.Partition = a.partition
-	c.ProcessInstanceId = a.processInstanceId
+	c.ProcessInstanceId = a.id
 
-	results, err := a.e.CreateQuery().QueryJobs(context.Background(), c)
+	jobs, err := a.e.CreateQuery().QueryJobs(context.Background(), c)
 	if err != nil {
 		a.Fatalf("failed to query jobs: %v", err)
 	}
 
-	return results
+	return jobs
 }
 
-func (a *ProcessInstanceAssert2) ProcessInstance() ProcessInstance {
-	results, err := a.e.CreateQuery().QueryProcessInstances(context.Background(), ProcessInstanceCriteria{
+func (a ProcessInstanceAssert2) ProcessInstance() ProcessInstance {
+	processInstances, err := a.e.CreateQuery().QueryProcessInstances(context.Background(), ProcessInstanceCriteria{
 		Partition: a.partition,
-		Id:        a.processInstanceId,
+		Id:        a.id,
 	})
 	if err != nil {
 		a.Fatalf("failed to query process instance: %v", err)
 	}
-	if len(results) != 1 {
-		a.Fatalf("expected one process instance, but got %d: %+v", len(results), results)
+	if len(processInstances) != 1 {
+		a.Fatalf("expected one process instance, but got %d: %+v", len(processInstances), processInstances)
 	}
-	return results[0]
+	return processInstances[0]
 }
 
-func (a *ProcessInstanceAssert2) Tasks(criteria ...TaskCriteria) []Task {
+func (a ProcessInstanceAssert2) Tasks(criteria ...TaskCriteria) []Task {
+	if len(criteria) > 1 {
+		a.Fatalf("expected zero or one criteria")
+	}
+
 	var c TaskCriteria
 	if len(criteria) != 0 {
 		c = criteria[0]
@@ -412,17 +427,21 @@ func (a *ProcessInstanceAssert2) Tasks(criteria ...TaskCriteria) []Task {
 	}
 
 	c.Partition = a.partition
-	c.ProcessInstanceId = a.processInstanceId
+	c.ProcessInstanceId = a.id
 
-	results, err := a.e.CreateQuery().QueryTasks(context.Background(), c)
+	tasks, err := a.e.CreateQuery().QueryTasks(context.Background(), c)
 	if err != nil {
 		a.Fatalf("failed to query tasks: %v", err)
 	}
 
-	return results
+	return tasks
 }
 
-func (a *ProcessInstanceAssert2) UserTasks(criteria ...UserTaskCriteria) []UserTask {
+func (a ProcessInstanceAssert2) UserTasks(criteria ...UserTaskCriteria) []UserTask {
+	if len(criteria) > 1 {
+		a.Fatalf("expected zero or one criteria")
+	}
+
 	var c UserTaskCriteria
 	if len(criteria) != 0 {
 		c = criteria[0]
@@ -431,28 +450,140 @@ func (a *ProcessInstanceAssert2) UserTasks(criteria ...UserTaskCriteria) []UserT
 	}
 
 	c.Partition = a.partition
-	c.ProcessInstanceId = a.processInstanceId
+	c.ProcessInstanceId = a.id
 
-	results, err := a.e.CreateQuery().QueryUserTasks(context.Background(), c)
+	userTasks, err := a.e.CreateQuery().QueryUserTasks(context.Background(), c)
 	if err != nil {
 		a.Fatalf("failed to query user tasks: %v", err)
 	}
 
-	return results
+	return userTasks
 }
 
-type ScopeAssert struct {
+type ElementInstanceAssert struct {
 	t *testing.T
 	e Engine
 
-	elementMap map[string]Element
-
-	scope ElementInstance
-
-	elementInstance *ElementInstance
+	partition         Partition
+	id                int32
+	parentId          int32
+	processInstanceId int32
+	bpmnElementId     string
 }
 
-func (a *ScopeAssert) CompleteJob(completeJobCmds ...CompleteJobCmd) {
+func (a ElementInstanceAssert) Child() (ElementInstanceAssert, bool) {
+	elementInstances, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
+		Partition: a.partition,
+		ParentId:  a.parentId,
+	})
+	if err != nil {
+		a.Fatalf("failed to query element instances: %v", err)
+	}
+
+	for _, elementInstance := range elementInstances {
+		if !elementInstance.IsEnded() {
+			return ElementInstanceAssert{
+				t: a.t,
+				e: a.e,
+
+				partition:         elementInstance.Partition,
+				id:                elementInstance.Id,
+				parentId:          elementInstance.ParentId,
+				processInstanceId: elementInstance.ProcessInstanceId,
+				bpmnElementId:     elementInstance.BpmnElementId,
+			}, true
+		}
+	}
+
+	return ElementInstanceAssert{}, false
+}
+
+func (a ElementInstanceAssert) ChildAt(bpmnElementId string) (ElementInstanceAssert, bool) {
+	elementInstances, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
+		Partition:     a.partition,
+		ParentId:      a.parentId,
+		BpmnElementId: bpmnElementId,
+	})
+	if err != nil {
+		a.Fatalf("failed to query element instances: %v", err)
+	}
+
+	for _, elementInstance := range elementInstances {
+		if !elementInstance.IsEnded() {
+			return ElementInstanceAssert{
+				t: a.t,
+				e: a.e,
+
+				partition:         elementInstance.Partition,
+				id:                elementInstance.Id,
+				parentId:          elementInstance.ParentId,
+				processInstanceId: elementInstance.ProcessInstanceId,
+				bpmnElementId:     elementInstance.BpmnElementId,
+			}, true
+		}
+	}
+
+	return ElementInstanceAssert{}, false
+}
+
+func (a ElementInstanceAssert) Children() []ElementInstanceAssert {
+	elementInstances, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
+		Partition: a.partition,
+		ParentId:  a.parentId,
+	})
+	if err != nil {
+		a.Fatalf("failed to query element instances: %v", err)
+	}
+
+	children := make([]ElementInstanceAssert, len(elementInstances))
+	for i, elementInstance := range elementInstances {
+		children[i] = ElementInstanceAssert{
+			t: a.t,
+			e: a.e,
+
+			partition:         elementInstance.Partition,
+			id:                elementInstance.Id,
+			parentId:          elementInstance.ParentId,
+			processInstanceId: elementInstance.ProcessInstanceId,
+			bpmnElementId:     elementInstance.BpmnElementId,
+		}
+	}
+
+	return children
+}
+
+func (a ElementInstanceAssert) ChildrenAt(bpmnElementId string) []ElementInstanceAssert {
+	elementInstances, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
+		Partition:     a.partition,
+		ParentId:      a.parentId,
+		BpmnElementId: bpmnElementId,
+	})
+	if err != nil {
+		a.Fatalf("failed to query element instances: %v", err)
+	}
+
+	children := make([]ElementInstanceAssert, len(elementInstances))
+	for i, elementInstance := range elementInstances {
+		children[i] = ElementInstanceAssert{
+			t: a.t,
+			e: a.e,
+
+			partition:         elementInstance.Partition,
+			id:                elementInstance.Id,
+			parentId:          elementInstance.ParentId,
+			processInstanceId: elementInstance.ProcessInstanceId,
+			bpmnElementId:     elementInstance.BpmnElementId,
+		}
+	}
+
+	return children
+}
+
+func (a ElementInstanceAssert) CompleteJob(completeJobCmds ...CompleteJobCmd) {
+	if len(completeJobCmds) > 1 {
+		a.Fatalf("expected zero or one complete job command")
+	}
+
 	job := a.Job()
 
 	lockedJobs, err := a.e.LockJobs(context.Background(), LockJobsCmd{
@@ -486,11 +617,13 @@ func (a *ScopeAssert) CompleteJob(completeJobCmds ...CompleteJobCmd) {
 	if completedJob.HasError() {
 		a.Fatalf("expected job %s to complete without an error, but got: %s", completedJob, completedJob.Error)
 	}
-
-	a.elementInstance = nil
 }
 
-func (a *ScopeAssert) CompleteJobWithError(completeJobCmds ...CompleteJobCmd) Job {
+func (a ElementInstanceAssert) CompleteJobWithError(completeJobCmds ...CompleteJobCmd) Job {
+	if len(completeJobCmds) > 1 {
+		a.Fatalf("expected zero or one complete job command")
+	}
+
 	job := a.Job()
 
 	lockedJobs, err := a.e.LockJobs(context.Background(), LockJobsCmd{
@@ -528,26 +661,22 @@ func (a *ScopeAssert) CompleteJobWithError(completeJobCmds ...CompleteJobCmd) Jo
 	return completedJob
 }
 
-func (a *ScopeAssert) ElementInstance() ElementInstance {
-	if a.elementInstance == nil {
-		a.Fatalf("call IsWaitingAt first")
-	}
-
-	results, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
-		Partition: a.scope.Partition,
-		Id:        a.elementInstance.Id,
+func (a ElementInstanceAssert) ElementInstance() ElementInstance {
+	elementInstances, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
+		Partition: a.partition,
+		Id:        a.id,
 	})
 	if err != nil {
 		a.Fatalf("failed to query element instance: %v", err)
 	}
-	if len(results) != 1 {
-		a.Fatalf("expected one element instance, but got %d: %+v", len(results), results)
+	if len(elementInstances) != 1 {
+		a.Fatalf("expected one element instance, but got %d: %+v", len(elementInstances), elementInstances)
 	}
 
-	return results[0]
+	return elementInstances[0]
 }
 
-func (a *ScopeAssert) ExecuteTask() {
+func (a ElementInstanceAssert) ExecuteTask() {
 	task := a.Task()
 
 	completedTasks, _, err := a.e.ExecuteTasks(context.Background(), ExecuteTasksCmd{
@@ -564,31 +693,36 @@ func (a *ScopeAssert) ExecuteTask() {
 	if completedTasks[0].HasError() {
 		a.Fatalf("completed task %s has error: %s", completedTasks[0], completedTasks[0].Error)
 	}
-
-	a.elementInstance = nil
 }
 
-func (a *ScopeAssert) Fatalf(format string, args ...any) {
+func (a ElementInstanceAssert) Fatalf(format string, args ...any) {
 	fatalf(a.t, format, args...)
 }
 
-func (a *ScopeAssert) HasPassed(bpmnElementId string) {
-	results, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
-		Partition: a.scope.Partition,
-		ParentId:  a.scope.Id,
+func (a ElementInstanceAssert) HasJob(jobType JobType) {
+	job := a.Job()
+	if job.Type != jobType {
+		a.Fatalf("expected element instance %s to have an active job of type %s", a, jobType)
+	}
+}
+
+func (a ElementInstanceAssert) HasPassed(bpmnElementId string) {
+	elementInstances, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
+		Partition: a.partition,
+		ParentId:  a.id,
 		States:    []InstanceState{InstanceCompleted},
 	})
 	if err != nil {
 		a.Fatalf("failed to query element instances: %v", err)
 	}
 
-	for _, result := range results {
-		if result.BpmnElementId == bpmnElementId {
+	for _, elementInstance := range elementInstances {
+		if elementInstance.BpmnElementId == bpmnElementId {
 			return
 		}
 	}
 
-	slices.SortFunc(results, func(a ElementInstance, b ElementInstance) int {
+	slices.SortFunc(elementInstances, func(a ElementInstance, b ElementInstance) int {
 		if a.EndedAt.IsZero() {
 			return -1
 		} else if b.EndedAt.IsZero() {
@@ -604,40 +738,39 @@ func (a *ScopeAssert) HasPassed(bpmnElementId string) {
 		}
 	})
 
-	passed := make([]string, len(results))
-	for i, result := range results {
-		passed[i] = result.BpmnElementId
+	passed := make([]string, len(elementInstances))
+	for i, elementInstance := range elementInstances {
+		passed[i] = elementInstance.BpmnElementId
 	}
 
-	a.Fatalf("expected scope %s to have passed %s\npassed elements: %s", a.scope, bpmnElementId, strings.Join(passed, ", "))
+	a.Fatalf("expected scope %s to have passed %s\npassed elements: %s", a, bpmnElementId, strings.Join(passed, ", "))
 }
 
-func (a *ScopeAssert) IsCompleted() {
-	if a.Scope().State != InstanceCompleted {
-		a.Fatalf("expected scope %s to be completed", a.scope)
-	}
-}
-
-func (a *ScopeAssert) IsNotCompleted() {
-	if a.Scope().State == InstanceCompleted {
-		a.Fatalf("expected scope %s not to be completed", a.scope)
+func (a ElementInstanceAssert) HasTask(taskType TaskType) {
+	task := a.Task()
+	if task.Type != taskType {
+		a.Fatalf("expected element instance %s to have an active task of type %s", a, taskType)
 	}
 }
 
-func (a *ScopeAssert) IsTerminated() {
-	if a.Scope().State != InstanceTerminated {
-		a.Fatalf("expected scope %s to be terminated", a.scope)
+func (a ElementInstanceAssert) IsActive() {
+	elementInstance := a.ElementInstance()
+	if elementInstance.State != InstanceCreated && elementInstance.State != InstanceStarted {
+		a.Fatalf("expected element instance %s not to be completed, but is %s", a, elementInstance.State)
 	}
 }
 
-func (a *ScopeAssert) IsNotWaitingAt(bpmnElementId string) {
-	if _, ok := a.elementMap[bpmnElementId]; !ok {
-		a.Fatalf("expected scope %s not to be waiting at %s: process has no such BPMN element", a.scope, bpmnElementId)
+func (a ElementInstanceAssert) IsCompleted() {
+	elementInstance := a.ElementInstance()
+	if elementInstance.State != InstanceCompleted {
+		a.Fatalf("expected element instance %s to be completed, but is %s", a, elementInstance.State)
 	}
+}
 
-	results, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
-		Partition: a.scope.Partition,
-		ParentId:  a.scope.Id,
+func (a ElementInstanceAssert) IsNotWaitingAt(bpmnElementId string) {
+	elementInstances, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
+		Partition: a.partition,
+		ParentId:  a.id,
 		States:    []InstanceState{InstanceCreated, InstanceStarted},
 	})
 	if err != nil {
@@ -645,8 +778,8 @@ func (a *ScopeAssert) IsNotWaitingAt(bpmnElementId string) {
 	}
 
 	var isWaitingAt bool
-	for _, result := range results {
-		if result.BpmnElementId == bpmnElementId {
+	for _, elementInstance := range elementInstances {
+		if elementInstance.BpmnElementId == bpmnElementId {
 			isWaitingAt = true
 		}
 	}
@@ -654,135 +787,153 @@ func (a *ScopeAssert) IsNotWaitingAt(bpmnElementId string) {
 		return
 	}
 
-	slices.SortFunc(results, func(a ElementInstance, b ElementInstance) int {
+	slices.SortFunc(elementInstances, func(a ElementInstance, b ElementInstance) int {
 		return strings.Compare(a.BpmnElementId, b.BpmnElementId)
 	})
 
-	active := make([]string, len(results))
-	for i, result := range results {
-		active[i] = result.BpmnElementId
+	active := make([]string, len(elementInstances))
+	for i, elementInstance := range elementInstances {
+		active[i] = elementInstance.BpmnElementId
 	}
 
-	if len(results) != 0 {
-		a.Fatalf("expected scope %s not to be waiting at %s\nactive elements: %s", a.scope, bpmnElementId, strings.Join(active, ", "))
+	if len(elementInstances) != 0 {
+		a.Fatalf("expected scope %s not to be waiting at %s\nactive elements: %s", a, bpmnElementId, strings.Join(active, ", "))
 	}
 }
 
-func (a *ScopeAssert) IsWaitingAt(bpmnElementId string) {
-	if _, ok := a.elementMap[bpmnElementId]; !ok {
-		a.Fatalf("expected scope %s to be waiting at %s: process has no such BPMN element", a.scope, bpmnElementId)
+func (a ElementInstanceAssert) IsTerminated() {
+	elementInstance := a.ElementInstance()
+	if elementInstance.State != InstanceTerminated {
+		a.Fatalf("expected element instance %s to be terminated, but is %s", a, elementInstance.State)
 	}
+}
 
-	results, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
-		Partition: a.scope.Partition,
-		ParentId:  a.scope.Id,
+func (a ElementInstanceAssert) IsWaitingAt(bpmnElementId string) ElementInstanceAssert {
+	elementInstances, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
+		Partition: a.partition,
+		ParentId:  a.id,
 		States:    []InstanceState{InstanceCreated, InstanceStarted},
 	})
 	if err != nil {
 		a.Fatalf("failed to query element instances: %v", err)
 	}
 
-	for _, result := range results {
-		if result.BpmnElementId == bpmnElementId {
-			a.elementInstance = &result
-			return
+	for _, elementInstance := range elementInstances {
+		if elementInstance.BpmnElementId == bpmnElementId {
+			return ElementInstanceAssert{
+				t: a.t,
+				e: a.e,
+
+				partition:         elementInstance.Partition,
+				id:                elementInstance.Id,
+				parentId:          elementInstance.ParentId,
+				processInstanceId: elementInstance.ProcessInstanceId,
+				bpmnElementId:     elementInstance.BpmnElementId,
+			}
 		}
 	}
 
-	slices.SortFunc(results, func(a ElementInstance, b ElementInstance) int {
+	slices.SortFunc(elementInstances, func(a ElementInstance, b ElementInstance) int {
 		return strings.Compare(a.BpmnElementId, b.BpmnElementId)
 	})
 
-	active := make([]string, len(results))
-	for i, result := range results {
-		active[i] = result.BpmnElementId
+	active := make([]string, len(elementInstances))
+	for i, elementInstance := range elementInstances {
+		active[i] = elementInstance.BpmnElementId
 	}
 
-	a.Fatalf("expected scope %s to be waiting at %s\nactive elements: %s", a.scope, bpmnElementId, strings.Join(active, ", "))
+	a.Fatalf("expected scope %s to be waiting at %s\nactive elements: %s", a, bpmnElementId, strings.Join(active, ", "))
+	return ElementInstanceAssert{}
 }
 
-func (a *ScopeAssert) Job() Job {
-	if a.elementInstance == nil {
-		a.Fatalf("call IsWaitingAt first")
-	}
-
-	results, err := a.e.CreateQuery().QueryJobs(context.Background(), JobCriteria{
-		Partition:         a.scope.Partition,
-		ProcessInstanceId: a.scope.ProcessInstanceId,
-		ElementInstanceId: a.elementInstance.Id,
+func (a ElementInstanceAssert) Job() Job {
+	jobs, err := a.e.CreateQuery().QueryJobs(context.Background(), JobCriteria{
+		Partition:         a.partition,
+		ProcessInstanceId: a.processInstanceId,
+		ElementInstanceId: a.id,
 	})
 	if err != nil {
 		a.Fatalf("failed to query jobs: %v", err)
 	}
 
-	for i := len(results); i > 0; i-- {
-		result := results[i-1]
-		if !result.IsCompleted() {
-			return result
+	for i := len(jobs); i > 0; i-- {
+		job := jobs[i-1]
+		if !job.IsCompleted() {
+			return job
 		}
 	}
 
-	a.Fatalf("expected scope %s to have an active job at %s", a.scope, a.elementInstance.BpmnElementId)
+	a.Fatalf("expected element instance %s to have an active job", a)
 	return Job{}
 }
 
-func (a *ScopeAssert) Scope() ElementInstance {
-	results, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
-		Partition: a.scope.Partition,
-		Id:        a.scope.Id,
+func (a ElementInstanceAssert) Parent() ElementInstanceAssert {
+	if a.parentId == 0 {
+		a.Fatalf("expected element instance %s to have a parent", a)
+	}
+
+	elementInstances, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
+		Partition: a.partition,
+		Id:        a.parentId,
 	})
 	if err != nil {
 		a.Fatalf("failed to query element instance: %v", err)
 	}
-	if len(results) != 1 {
-		a.Fatalf("expected one element instance, but got %d: %+v", len(results), results)
+	if len(elementInstances) == 0 {
+		a.Fatalf("expected one element instance, but got none")
 	}
-	return results[0]
+
+	return ElementInstanceAssert{
+		t: a.t,
+		e: a.e,
+
+		partition:         elementInstances[0].Partition,
+		id:                elementInstances[0].Id,
+		parentId:          elementInstances[0].ParentId,
+		processInstanceId: elementInstances[0].ProcessInstanceId,
+		bpmnElementId:     elementInstances[0].BpmnElementId,
+	}
 }
 
-func (a *ScopeAssert) Task() Task {
-	if a.elementInstance == nil {
-		a.Fatalf("call IsWaitingAt first")
-	}
+func (a ElementInstanceAssert) String() string {
+	return fmt.Sprintf("%s (%s/%d)", a.bpmnElementId, a.partition, a.id)
+}
 
-	results, err := a.e.CreateQuery().QueryTasks(context.Background(), TaskCriteria{
-		Partition:         a.scope.Partition,
-		ProcessInstanceId: a.scope.ProcessInstanceId,
-		ElementInstanceId: a.elementInstance.Id,
+func (a ElementInstanceAssert) Task() Task {
+	tasks, err := a.e.CreateQuery().QueryTasks(context.Background(), TaskCriteria{
+		Partition:         a.partition,
+		ProcessInstanceId: a.processInstanceId,
+		ElementInstanceId: a.id,
 	})
 	if err != nil {
 		a.Fatalf("failed to query tasks: %v", err)
 	}
 
-	for i := len(results); i > 0; i-- {
-		result := results[i-1]
-		if !result.IsCompleted() {
-			return result
+	for i := len(tasks); i > 0; i-- {
+		task := tasks[i-1]
+		if !task.IsCompleted() {
+			return task
 		}
 	}
 
-	a.Fatalf("expected scope %s to have an active task at %s", a.scope, a.elementInstance.BpmnElementId)
+	a.Fatalf("expected element instance %s to have an active task", a)
 	return Task{}
 }
 
-func (a *ScopeAssert) UserTask() UserTask {
-	if a.elementInstance == nil {
-		a.Fatalf("call IsWaitingAt first")
-	}
-
-	results, err := a.e.CreateQuery().QueryUserTasks(context.Background(), UserTaskCriteria{
-		Partition:         a.scope.Partition,
-		ProcessInstanceId: a.scope.ProcessInstanceId,
-		ElementInstanceId: a.elementInstance.Id,
+func (a ElementInstanceAssert) UserTask() UserTask {
+	userTasks, err := a.e.CreateQuery().QueryUserTasks(context.Background(), UserTaskCriteria{
+		Partition:         a.partition,
+		ProcessInstanceId: a.processInstanceId,
+		ElementInstanceId: a.id,
 	})
 	if err != nil {
 		a.Fatalf("failed to query user task: %v", err)
 	}
-	if len(results) == 0 {
-		a.Fatalf("expected scope %s to have a user task at %s", a.scope, a.elementInstance.BpmnElementId)
+	if len(userTasks) == 0 {
+		a.Fatalf("expected element instance %s to have a user task", a)
 	}
 
-	return results[0]
+	return userTasks[0]
 }
 
 func fatalf(t *testing.T, format string, args ...any) {
