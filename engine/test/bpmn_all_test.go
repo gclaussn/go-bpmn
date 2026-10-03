@@ -12,7 +12,7 @@ func TestBpmn(t *testing.T) {
 
 	t.Run("special", func(t *testing.T) {
 		for i, e := range engines {
-			specialTest := newSpecialTest(t, e)
+			specialTest := specialTest{e}
 
 			t.Run(engineTypes[i]+"startEnd", specialTest.startEnd)
 		}
@@ -190,7 +190,7 @@ func TestBpmn(t *testing.T) {
 
 	t.Run("task", func(t *testing.T) {
 		for i, e := range engines {
-			taskTest := newTaskTest(t, e)
+			taskTest := taskTest{e}
 
 			t.Run(engineTypes[i]+"businessRule", taskTest.businessRule)
 			t.Run(engineTypes[i]+"manual", taskTest.manual)
@@ -199,7 +199,8 @@ func TestBpmn(t *testing.T) {
 			t.Run(engineTypes[i]+"service", taskTest.service)
 			t.Run(engineTypes[i]+"task", taskTest.task)
 
-			t.Run(engineTypes[i]+"completes with error completed with BPMN esclation code", taskTest.errorBpmnEscalationCodeNotSupported)
+			t.Run(engineTypes[i]+"completes with error when no boundary event for error code exists", taskTest.errorBpmnErrorCodeNotSupported)
+			t.Run(engineTypes[i]+"completes with error when no boundary event for esclation code exists", taskTest.errorBpmnEscalationCodeNotSupported)
 		}
 	})
 
@@ -224,7 +225,7 @@ func TestBpmnTimerEvent(t *testing.T) {
 		}
 
 		for i, e := range engines {
-			timerEventTest := newTimerEventTest(t, e)
+			timerEventTest := timerEventTest{e}
 
 			t.Run(engineTypes[i]+"boundary", timerEventTest.boundary)
 		}
@@ -237,7 +238,7 @@ func TestBpmnTimerEvent(t *testing.T) {
 		}
 
 		for i, e := range engines {
-			timerEventTest := newTimerEventTest(t, e)
+			timerEventTest := timerEventTest{e}
 
 			t.Run(engineTypes[i]+"boundary", timerEventTest.boundaryWithTimer)
 		}
@@ -250,7 +251,7 @@ func TestBpmnTimerEvent(t *testing.T) {
 		}
 
 		for i, e := range engines {
-			timerEventTest := newTimerEventTest(t, e)
+			timerEventTest := timerEventTest{e}
 
 			t.Run(engineTypes[i]+"boundary", timerEventTest.boundaryNonInterrupting)
 		}
@@ -263,7 +264,7 @@ func TestBpmnTimerEvent(t *testing.T) {
 		}
 
 		for i, e := range engines {
-			timerEventTest := newTimerEventTest(t, e)
+			timerEventTest := timerEventTest{e}
 
 			t.Run(engineTypes[i]+"catch", timerEventTest.catch)
 		}
@@ -276,7 +277,7 @@ func TestBpmnTimerEvent(t *testing.T) {
 		}
 
 		for i, e := range engines {
-			timerEventTest := newTimerEventTest(t, e)
+			timerEventTest := timerEventTest{e}
 
 			t.Run(engineTypes[i]+"catch", timerEventTest.catchWithTimer)
 		}
@@ -289,7 +290,7 @@ func TestBpmnTimerEvent(t *testing.T) {
 		}
 
 		for i, e := range engines {
-			timerEventTest := newTimerEventTest(t, e)
+			timerEventTest := timerEventTest{e}
 
 			t.Run(engineTypes[i]+"start", timerEventTest.start)
 		}

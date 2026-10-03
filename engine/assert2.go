@@ -29,38 +29,17 @@ func Assert2(t *testing.T, e Engine, processInstance ProcessInstance) (ProcessIn
 		elementMap[element.BpmnElementId] = element
 	}
 
-	elementInstances, err := e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
-		Partition:         processInstance.Partition,
-		ProcessInstanceId: processInstance.Id,
-		BpmnElementId:     processInstance.BpmnProcessId,
-	})
-	if err != nil {
-		t.Fatalf("failed to query element instances: %v", err)
-	}
-	if len(elementInstances) == 0 {
-		t.Fatalf("expected process scope, but got none")
-	}
-
 	processInstanceAssert := ProcessInstanceAssert2{
 		t: t,
 		e: e,
 
-		partition: processInstance.Partition,
-		id:        processInstance.Id,
+		partition:     processInstance.Partition,
+		id:            processInstance.Id,
+		parentId:      processInstance.ParentId,
+		bpmnProcessId: processInstance.BpmnProcessId,
 	}
 
-	processScopeAssert := ElementInstanceAssert{
-		t: t,
-		e: e,
-
-		partition:         elementInstances[0].Partition,
-		id:                elementInstances[0].Id,
-		parentId:          elementInstances[0].ParentId,
-		processInstanceId: elementInstances[0].ProcessInstanceId,
-		bpmnElementId:     elementInstances[0].BpmnElementId,
-	}
-
-	return processInstanceAssert, processScopeAssert
+	return processInstanceAssert, processInstanceAssert.ProcessScope()
 }
 
 func AssertMessageStart2(t *testing.T, e Engine, process Process, cmd SendMessageCmd) (ProcessInstanceAssert2, ElementInstanceAssert) {
@@ -274,8 +253,63 @@ type ProcessInstanceAssert2 struct {
 	t *testing.T
 	e Engine
 
-	partition Partition
-	id        int32
+	partition     Partition
+	id            int32
+	parentId      int32
+	bpmnProcessId string
+}
+
+func (a ProcessInstanceAssert2) Child() (ProcessInstanceAssert2, ElementInstanceAssert, bool) {
+	processInstances, err := a.e.CreateQuery().QueryProcessInstances(context.Background(), ProcessInstanceCriteria{
+		Partition: a.partition,
+		ParentId:  a.id,
+	})
+	if err != nil {
+		a.Fatalf("failed to query process instances: %v", err)
+	}
+
+	for _, processInstance := range processInstances {
+		if !processInstance.IsEnded() {
+			childInstanceAssert := ProcessInstanceAssert2{
+				t: a.t,
+				e: a.e,
+
+				partition:     processInstance.Partition,
+				id:            processInstance.Id,
+				parentId:      processInstance.ParentId,
+				bpmnProcessId: processInstance.BpmnProcessId,
+			}
+
+			return childInstanceAssert, childInstanceAssert.ProcessScope(), true
+		}
+	}
+
+	return ProcessInstanceAssert2{}, ElementInstanceAssert{}, false
+}
+
+func (a ProcessInstanceAssert2) Children() []ProcessInstanceAssert2 {
+	processInstances, err := a.e.CreateQuery().QueryProcessInstances(context.Background(), ProcessInstanceCriteria{
+		Partition: a.partition,
+		ParentId:  a.id,
+	})
+	if err != nil {
+		a.Fatalf("failed to query process instances: %v", err)
+	}
+
+	children := make([]ProcessInstanceAssert2, len(processInstances))
+	for i, processInstance := range processInstances {
+		children[i] = ProcessInstanceAssert2{
+			t: a.t,
+			e: a.e,
+
+			partition:     processInstance.Partition,
+			id:            processInstance.Id,
+			parentId:      processInstance.ParentId,
+			bpmnProcessId: processInstance.BpmnProcessId,
+		}
+	}
+
+	return children
 }
 
 func (a ProcessInstanceAssert2) ElementInstances(criteria ...ElementInstanceCriteria) []ElementInstance {
@@ -400,6 +434,33 @@ func (a ProcessInstanceAssert2) Jobs(criteria ...JobCriteria) []Job {
 	return jobs
 }
 
+func (a ProcessInstanceAssert2) Parent() ProcessInstanceAssert2 {
+	if a.parentId == 0 {
+		a.Fatalf("expected process instance to have a parent")
+	}
+
+	processInstances, err := a.e.CreateQuery().QueryProcessInstances(context.Background(), ProcessInstanceCriteria{
+		Partition: a.partition,
+		Id:        a.parentId,
+	})
+	if err != nil {
+		a.Fatalf("failed to query process instance: %v", err)
+	}
+	if len(processInstances) == 0 {
+		a.Fatalf("expected one process instance, but got none")
+	}
+
+	return ProcessInstanceAssert2{
+		t: a.t,
+		e: a.e,
+
+		partition:     processInstances[0].Partition,
+		id:            processInstances[0].Id,
+		parentId:      processInstances[0].ParentId,
+		bpmnProcessId: processInstances[0].BpmnProcessId,
+	}
+}
+
 func (a ProcessInstanceAssert2) ProcessInstance() ProcessInstance {
 	processInstances, err := a.e.CreateQuery().QueryProcessInstances(context.Background(), ProcessInstanceCriteria{
 		Partition: a.partition,
@@ -412,6 +473,31 @@ func (a ProcessInstanceAssert2) ProcessInstance() ProcessInstance {
 		a.Fatalf("expected one process instance, but got %d: %+v", len(processInstances), processInstances)
 	}
 	return processInstances[0]
+}
+
+func (a ProcessInstanceAssert2) ProcessScope() ElementInstanceAssert {
+	elementInstances, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
+		Partition:         a.partition,
+		ProcessInstanceId: a.id,
+		BpmnElementId:     a.bpmnProcessId,
+	})
+	if err != nil {
+		a.Fatalf("failed to query element instance: %v", err)
+	}
+	if len(elementInstances) == 0 {
+		a.Fatalf("expected process scope, but got none")
+	}
+
+	return ElementInstanceAssert{
+		t: a.t,
+		e: a.e,
+
+		partition:         elementInstances[0].Partition,
+		id:                elementInstances[0].Id,
+		parentId:          elementInstances[0].ParentId,
+		processInstanceId: elementInstances[0].ProcessInstanceId,
+		bpmnElementId:     elementInstances[0].BpmnElementId,
+	}
 }
 
 func (a ProcessInstanceAssert2) Tasks(criteria ...TaskCriteria) []Task {
@@ -474,7 +560,7 @@ type ElementInstanceAssert struct {
 func (a ElementInstanceAssert) Child() (ElementInstanceAssert, bool) {
 	elementInstances, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
 		Partition: a.partition,
-		ParentId:  a.parentId,
+		ParentId:  a.id,
 	})
 	if err != nil {
 		a.Fatalf("failed to query element instances: %v", err)
@@ -501,7 +587,7 @@ func (a ElementInstanceAssert) Child() (ElementInstanceAssert, bool) {
 func (a ElementInstanceAssert) ChildAt(bpmnElementId string) (ElementInstanceAssert, bool) {
 	elementInstances, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
 		Partition:     a.partition,
-		ParentId:      a.parentId,
+		ParentId:      a.id,
 		BpmnElementId: bpmnElementId,
 	})
 	if err != nil {
@@ -529,7 +615,7 @@ func (a ElementInstanceAssert) ChildAt(bpmnElementId string) (ElementInstanceAss
 func (a ElementInstanceAssert) Children() []ElementInstanceAssert {
 	elementInstances, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
 		Partition: a.partition,
-		ParentId:  a.parentId,
+		ParentId:  a.id,
 	})
 	if err != nil {
 		a.Fatalf("failed to query element instances: %v", err)
@@ -555,7 +641,7 @@ func (a ElementInstanceAssert) Children() []ElementInstanceAssert {
 func (a ElementInstanceAssert) ChildrenAt(bpmnElementId string) []ElementInstanceAssert {
 	elementInstances, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{
 		Partition:     a.partition,
-		ParentId:      a.parentId,
+		ParentId:      a.id,
 		BpmnElementId: bpmnElementId,
 	})
 	if err != nil {
@@ -700,9 +786,8 @@ func (a ElementInstanceAssert) Fatalf(format string, args ...any) {
 }
 
 func (a ElementInstanceAssert) HasJob(jobType JobType) {
-	job := a.Job()
-	if job.Type != jobType {
-		a.Fatalf("expected element instance %s to have an active job of type %s", a, jobType)
+	if job := a.Job(); job.Type != jobType {
+		a.Fatalf("expected element instance %s to have an active job of type %s, but was %s", a, jobType, job.Type)
 	}
 }
 
@@ -747,9 +832,8 @@ func (a ElementInstanceAssert) HasPassed(bpmnElementId string) {
 }
 
 func (a ElementInstanceAssert) HasTask(taskType TaskType) {
-	task := a.Task()
-	if task.Type != taskType {
-		a.Fatalf("expected element instance %s to have an active task of type %s", a, taskType)
+	if task := a.Task(); task.Type != taskType {
+		a.Fatalf("expected element instance %s to have an active task of type %s, but was %s", a, taskType, task.Type)
 	}
 }
 

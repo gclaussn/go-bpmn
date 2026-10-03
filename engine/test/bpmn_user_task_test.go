@@ -18,11 +18,9 @@ func (x userTaskTest) startEnd(t *testing.T) {
 
 	process := mustCreateProcess(t, x.e, "user-task/start-end.bpmn", "userTaskStartEndTest")
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance2(t, x.e, process)
 
-	piAssert.IsWaitingAt("userTask")
-
-	userTask := piAssert.UserTask()
+	userTask := psAssert.IsWaitingAt("userTask").UserTask()
 
 	updatedUserTask, err := x.e.UpdateUserTask(context.Background(), engine.UpdateUserTaskCmd{
 		Partition: userTask.Partition,
@@ -55,11 +53,9 @@ func (x userTaskTest) errorBoundary(t *testing.T) {
 
 	process := mustCreateProcess(t, x.e, "user-task/error-boundary.bpmn", "userTaskErrorBoundaryTest")
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance2(t, x.e, process)
 
-	piAssert.IsWaitingAt("userTask")
-
-	userTask := piAssert.UserTask()
+	userTask := psAssert.IsWaitingAt("userTask").UserTask()
 
 	updatedUserTask, err := x.e.UpdateUserTask(context.Background(), engine.UpdateUserTaskCmd{
 		Partition: userTask.Partition,
@@ -99,11 +95,9 @@ func (x userTaskTest) escalationBoundary(t *testing.T) {
 		},
 	})
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance2(t, x.e, process)
 
-	piAssert.IsWaitingAt("userTask")
-
-	userTask := piAssert.UserTask()
+	userTask := psAssert.IsWaitingAt("userTask").UserTask()
 
 	updatedUserTask, err := x.e.UpdateUserTask(context.Background(), engine.UpdateUserTaskCmd{
 		Partition: userTask.Partition,
@@ -145,11 +139,9 @@ func (x userTaskTest) escalationBoundaryNonInterrupting(t *testing.T) {
 		},
 	})
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance2(t, x.e, process)
 
-	piAssert.IsWaitingAt("userTask")
-
-	userTask := piAssert.UserTask()
+	userTask := psAssert.IsWaitingAt("userTask").UserTask()
 
 	updatedUserTask, err := x.e.UpdateUserTask(context.Background(), engine.UpdateUserTaskCmd{
 		Partition: userTask.Partition,
@@ -166,7 +158,7 @@ func (x userTaskTest) escalationBoundaryNonInterrupting(t *testing.T) {
 
 	assert.Equal(engine.UserTaskStarted, updatedUserTask.State)
 
-	piAssert.IsNotCompleted()
+	piAssert.IsActive()
 
 	elementInstances := piAssert.ElementInstances()
 	require.Len(elementInstances, 7)
@@ -188,20 +180,20 @@ func (x userTaskTest) signalBoundary(t *testing.T) {
 
 	process := mustCreateProcess(t, x.e, "user-task/signal-boundary.bpmn", "userTaskSignalBoundaryTest")
 
-	piAssert1 := mustCreateProcessInstance(t, x.e, process)
-	piAssert2 := mustCreateProcessInstance(t, x.e, process)
+	_, psAssert1 := mustCreateProcessInstance2(t, x.e, process)
+	piAssert2, psAssert2 := mustCreateProcessInstance2(t, x.e, process)
 
-	piAssert1.IsWaitingAt("signalBoundaryEvent")
+	signalBoundaryEvent1 := psAssert1.IsWaitingAt("signalBoundaryEvent")
 
-	piAssert1.CompleteJob(engine.CompleteJobCmd{
+	signalBoundaryEvent1.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			SignalName: t.Name() + "1",
 		},
 	})
 
-	piAssert2.IsWaitingAt("signalBoundaryEvent")
+	signalBoundaryEvent2 := psAssert2.IsWaitingAt("signalBoundaryEvent")
 
-	piAssert2.CompleteJob(engine.CompleteJobCmd{
+	signalBoundaryEvent2.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			SignalName: t.Name() + "2",
 		},
@@ -216,8 +208,8 @@ func (x userTaskTest) signalBoundary(t *testing.T) {
 	}
 
 	// when signalBoundaryEvent is triggered
-	piAssert2.IsWaitingAt("signalBoundaryEvent")
-	piAssert2.ExecuteTask()
+	signalBoundaryEvent2.HasTask(engine.TaskTriggerEvent)
+	signalBoundaryEvent2.ExecuteTask()
 
 	// then user task is terminated
 	piAssert2.IsCompleted()

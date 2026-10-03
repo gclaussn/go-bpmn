@@ -10,35 +10,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTimerEventTest(t *testing.T, e engine.Engine) timerEventTest {
-	return timerEventTest{
-		e: e,
-
-		boundaryProcess:                mustCreateProcess(t, e, "event/timer-boundary.bpmn", "timerBoundaryTest"),
-		boundaryNonInterruptingProcess: mustCreateProcess(t, e, "event/timer-boundary-non-interrupting.bpmn", "timerBoundaryNonInterruptingTest"),
-		catchProcess:                   mustCreateProcess(t, e, "event/timer-catch.bpmn", "timerCatchTest"),
-	}
-}
-
 type timerEventTest struct {
 	e engine.Engine
-
-	boundaryProcess                engine.Process
-	boundaryNonInterruptingProcess engine.Process
-	catchProcess                   engine.Process
 }
 
 func (x timerEventTest) boundary(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
-	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryProcess)
+	process := mustCreateProcess(t, x.e, "event/timer-boundary.bpmn", "timerBoundaryTest")
 
-	piAssert.IsWaitingAt("serviceTask")
+	piAssert, psAssert := mustCreateProcessInstance2(t, x.e, process)
+
+	psAssert.IsWaitingAt("serviceTask")
 
 	triggerAt := time.Now().Add(time.Hour)
 
-	piAssert.IsWaitingAt("timerBoundaryEvent")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	timerBoundaryEvent := psAssert.IsWaitingAt("timerBoundaryEvent")
+
+	timerBoundaryEvent.HasJob(engine.JobSetTimer)
+	timerBoundaryEvent.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			Timer: &engine.Timer{
 				Time: triggerAt,
@@ -46,7 +36,7 @@ func (x timerEventTest) boundary(t *testing.T) {
 		},
 	})
 
-	piAssert.IsWaitingAt("serviceTask")
+	psAssert.IsWaitingAt("serviceTask")
 
 	if _, _, err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
 		Time: triggerAt,
@@ -54,10 +44,12 @@ func (x timerEventTest) boundary(t *testing.T) {
 		t.Fatalf("failed to set time: %v", err)
 	}
 
-	piAssert.IsWaitingAt("timerBoundaryEvent")
-	piAssert.ExecuteTask()
-	piAssert.HasPassed("timerBoundaryEvent")
-	piAssert.HasPassed("endEventB")
+	timerBoundaryEvent.HasTask(engine.TaskTriggerEvent)
+	timerBoundaryEvent.ExecuteTask()
+
+	psAssert.HasPassed("timerBoundaryEvent")
+	psAssert.HasPassed("endEventB")
+
 	piAssert.IsCompleted()
 
 	elementInstances := piAssert.ElementInstances()
@@ -77,26 +69,17 @@ func (x timerEventTest) boundary(t *testing.T) {
 func (x timerEventTest) boundaryWithTimer(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
-	bpmnXml := mustReadBpmnFile(t, "event/timer-boundary.bpmn")
-
 	triggerAt := time.Now().Add(time.Hour)
 
-	process, err := x.e.CreateProcess(context.Background(), engine.CreateProcessCmd{
-		BpmnProcessId: "timerBoundaryTest",
-		BpmnXml:       bpmnXml,
+	process := mustCreateProcess(t, x.e, "event/timer-boundary.bpmn", "timerBoundaryTest", engine.CreateProcessCmd{
 		Timers: []engine.TimerDefinition{
 			{BpmnElementId: "timerBoundaryEvent", Timer: &engine.Timer{Time: triggerAt}},
 		},
-		Version:  t.Name(),
-		WorkerId: testWorkerId,
 	})
-	if err != nil {
-		t.Fatalf("failed to create process: %v", err)
-	}
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance2(t, x.e, process)
 
-	piAssert.IsWaitingAt("serviceTask")
+	psAssert.IsWaitingAt("serviceTask")
 
 	if _, _, err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
 		Time: triggerAt,
@@ -104,10 +87,13 @@ func (x timerEventTest) boundaryWithTimer(t *testing.T) {
 		t.Fatalf("failed to set time: %v", err)
 	}
 
-	piAssert.IsWaitingAt("timerBoundaryEvent")
-	piAssert.ExecuteTask()
-	piAssert.HasPassed("timerBoundaryEvent")
-	piAssert.HasPassed("endEventB")
+	timerBoundaryEvent := psAssert.IsWaitingAt("timerBoundaryEvent")
+	timerBoundaryEvent.HasTask(engine.TaskTriggerEvent)
+	timerBoundaryEvent.ExecuteTask()
+
+	psAssert.HasPassed("timerBoundaryEvent")
+	psAssert.HasPassed("endEventB")
+
 	piAssert.IsCompleted()
 
 	elementInstances := piAssert.ElementInstances()
@@ -125,10 +111,14 @@ func (x timerEventTest) boundaryWithTimer(t *testing.T) {
 func (x timerEventTest) boundaryNonInterrupting(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
-	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryNonInterruptingProcess)
+	process := mustCreateProcess(t, x.e, "event/timer-boundary-non-interrupting.bpmn", "timerBoundaryNonInterruptingTest")
 
-	piAssert.IsWaitingAt("timerBoundaryEvent")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	piAssert, psAssert := mustCreateProcessInstance2(t, x.e, process)
+
+	timerBoundaryEvent1 := psAssert.IsWaitingAt("timerBoundaryEvent")
+
+	timerBoundaryEvent1.HasJob(engine.JobSetTimer)
+	timerBoundaryEvent1.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			Timer: &engine.Timer{
 				TimeDuration: engine.ISO8601Duration("PT1H"),
@@ -144,8 +134,8 @@ func (x timerEventTest) boundaryNonInterrupting(t *testing.T) {
 		t.Fatalf("failed to set time: %v", err)
 	}
 
-	piAssert.IsWaitingAt("timerBoundaryEvent")
-	piAssert.ExecuteTask()
+	timerBoundaryEvent1.HasTask(engine.TaskTriggerEvent)
+	timerBoundaryEvent1.ExecuteTask()
 
 	// #2
 	plusTwoHour := time.Now().Add(time.Hour * 2)
@@ -155,11 +145,12 @@ func (x timerEventTest) boundaryNonInterrupting(t *testing.T) {
 		t.Fatalf("failed to set time: %v", err)
 	}
 
-	piAssert.IsWaitingAt("timerBoundaryEvent")
-	piAssert.ExecuteTask()
+	timerBoundaryEvent2 := psAssert.IsWaitingAt("timerBoundaryEvent")
 
-	piAssert.IsWaitingAt("serviceTask")
-	piAssert.CompleteJob()
+	timerBoundaryEvent2.HasTask(engine.TaskTriggerEvent)
+	timerBoundaryEvent2.ExecuteTask()
+
+	psAssert.IsWaitingAt("serviceTask").CompleteJob()
 
 	piAssert.IsCompleted()
 
@@ -182,12 +173,16 @@ func (x timerEventTest) boundaryNonInterrupting(t *testing.T) {
 }
 
 func (x timerEventTest) catch(t *testing.T) {
-	piAssert := mustCreateProcessInstance(t, x.e, x.catchProcess)
+	process := mustCreateProcess(t, x.e, "event/timer-catch.bpmn", "timerCatchTest")
+
+	piAssert, psAssert := mustCreateProcessInstance2(t, x.e, process)
 
 	triggerAt := time.Now().Add(time.Hour)
 
-	piAssert.IsWaitingAt("timerCatchEvent")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	timerCatchEvent := psAssert.IsWaitingAt("timerCatchEvent")
+
+	timerCatchEvent.HasJob(engine.JobSetTimer)
+	timerCatchEvent.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			Timer: &engine.Timer{
 				Time: triggerAt,
@@ -201,32 +196,23 @@ func (x timerEventTest) catch(t *testing.T) {
 		t.Fatalf("failed to set time: %v", err)
 	}
 
-	piAssert.IsWaitingAt("timerCatchEvent")
-	piAssert.ExecuteTask()
+	timerCatchEvent.HasTask(engine.TaskTriggerEvent)
+	timerCatchEvent.ExecuteTask()
 
 	piAssert.IsCompleted()
 }
 
 // catchWithTimer tests that for a timer catch event with timer, no SET_TIMER job is created.
 func (x timerEventTest) catchWithTimer(t *testing.T) {
-	bpmnXml := mustReadBpmnFile(t, "event/timer-catch.bpmn")
-
 	triggerAt := time.Now().Add(time.Hour)
 
-	process, err := x.e.CreateProcess(context.Background(), engine.CreateProcessCmd{
-		BpmnProcessId: "timerCatchTest",
-		BpmnXml:       bpmnXml,
+	process := mustCreateProcess(t, x.e, "event/timer-catch.bpmn", "timerCatchTest", engine.CreateProcessCmd{
 		Timers: []engine.TimerDefinition{
 			{BpmnElementId: "timerCatchEvent", Timer: &engine.Timer{Time: triggerAt}},
 		},
-		Version:  t.Name(),
-		WorkerId: testWorkerId,
 	})
-	if err != nil {
-		t.Fatalf("failed to create process: %v", err)
-	}
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance2(t, x.e, process)
 
 	if _, _, err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
 		Time: triggerAt,
@@ -234,34 +220,23 @@ func (x timerEventTest) catchWithTimer(t *testing.T) {
 		t.Fatalf("failed to set time: %v", err)
 	}
 
-	piAssert.IsWaitingAt("timerCatchEvent")
-	piAssert.ExecuteTask()
+	psAssert.IsWaitingAt("timerCatchEvent").ExecuteTask()
 
 	piAssert.IsCompleted()
 }
 
 func (x timerEventTest) start(t *testing.T) {
-	bpmnXml := mustReadBpmnFile(t, "event/timer-start.bpmn")
-
-	process, err := x.e.CreateProcess(context.Background(), engine.CreateProcessCmd{
-		BpmnProcessId: "timerStartTest",
-		BpmnXml:       bpmnXml,
+	process := mustCreateProcess(t, x.e, "event/timer-start.bpmn", "timerStartTest", engine.CreateProcessCmd{
 		Timers: []engine.TimerDefinition{
 			{BpmnElementId: "timerStartEvent", Timer: &engine.Timer{TimeCycle: "0 * * * *"}},
 		},
-		Version:  "1",
-		WorkerId: testWorkerId,
 	})
-	if err != nil {
-		t.Fatalf("failed to create process: %v", err)
-	}
 
-	piAssert1 := engine.AsserTimerStart(t, x.e, process.Id, "timerStartEvent")
+	piAssert1, _ := engine.AsserTimerStart2(t, x.e, process, "timerStartEvent")
 	piAssert1.IsCompleted()
 
-	piAssert2 := engine.AsserTimerStart(t, x.e, process.Id, "timerStartEvent")
+	piAssert2, _ := engine.AsserTimerStart2(t, x.e, process, "timerStartEvent")
 	piAssert2.IsCompleted()
 
-	assert := assert.New(t)
-	assert.NotEqual(piAssert1.ProcessInstance().String(), piAssert2.ProcessInstance().String())
+	assert.NotEqual(t, piAssert1.ProcessInstance().String(), piAssert2.ProcessInstance().String())
 }
