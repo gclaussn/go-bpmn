@@ -50,10 +50,10 @@ func TestTimerCatchEventProcess(t *testing.T) {
 		t.Fatalf("failed to create process instance: %v", err)
 	}
 
-	piAssert := worker.Assert(t, w, processInstance)
+	piAssert, psAssert := worker.Assert(t, w, processInstance)
 
-	piAssert.IsWaitingAt("timerCatchEvent")
-	piAssert.ExecuteJob()
+	timerCatchEvent := psAssert.IsWaitingAt("timerCatchEvent")
+	timerCatchEvent.ExecuteJob()
 
 	plusOneHour := time.Now().Add(time.Hour * 1)
 	if _, _, err := e.SetTime(context.Background(), engine.SetTimeCmd{
@@ -62,8 +62,8 @@ func TestTimerCatchEventProcess(t *testing.T) {
 		t.Fatalf("failed to set time: %v", err)
 	}
 
-	piAssert.IsWaitingAt("timerCatchEvent")
-	piAssert.ExecuteTask()
+	timerCatchEvent.HasTask(engine.TaskTriggerEvent)
+	timerCatchEvent.ExecuteTask()
 
 	piAssert.IsCompleted()
 }

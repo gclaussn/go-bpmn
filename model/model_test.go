@@ -202,10 +202,10 @@ func TestErrorBoundaryEvent(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
 	// when
-	model := mustCreateModel(t, "event/error-boundary-event.bpmn")
+	model := mustCreateModel(t, "event/error-boundary.bpmn")
 
 	// then
-	processElement := model.ProcessById("errorBoundaryEventTest")
+	processElement := model.ProcessById("errorBoundaryTest")
 	require.NotNil(processElement)
 	assert.Len(processElement.Children, 5)
 
@@ -231,10 +231,10 @@ func TestErrorBoundaryEventDefinition(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
 	// when
-	model := mustCreateModel(t, "event/error-boundary-event-definition.bpmn")
+	model := mustCreateModel(t, "event/error-boundary-definition.bpmn")
 
 	// then
-	processElement := model.ProcessById("errorBoundaryEventDefinitionTest")
+	processElement := model.ProcessById("errorBoundaryDefinitionTest")
 	require.NotNil(processElement)
 	assert.Len(processElement.Children, 5)
 
@@ -351,8 +351,8 @@ func TestSignalCatchEventDefinition(t *testing.T) {
 	require.NotNil(eventDefinition.Signal)
 
 	signal := eventDefinition.Signal
-	assert.Equal("testSignal", signal.Id)
-	assert.Equal("testSignalName", signal.Name)
+	assert.Equal("catchSignal", signal.Id)
+	assert.Equal("catchSignalName", signal.Name)
 }
 
 func TestTimerCatchEvent(t *testing.T) {

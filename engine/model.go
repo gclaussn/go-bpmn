@@ -2,7 +2,6 @@ package engine
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/gclaussn/go-bpmn/model"
@@ -632,6 +631,10 @@ type Message struct {
 	UniqueKey      string    `json:"uniqueKey,omitempty"`                // Key that uniquely identifies the message.
 }
 
+func (v Message) String() string {
+	return fmt.Sprintf("%d:%s", v.Id, v.Name)
+}
+
 // MessageCriteria specifies the results, returned by a message query.
 type MessageCriteria struct {
 	Id int64 `json:"id,omitempty"` // Message filter.
@@ -659,7 +662,7 @@ type MessageSubscription struct {
 }
 
 func (v MessageSubscription) String() string {
-	return strconv.FormatInt(v.Id, 10)
+	return fmt.Sprintf("%d:%s", v.Id, v.Name)
 }
 
 // MessageSubscriptionCriteria specifies the results, returned by a message subscription query.
@@ -776,7 +779,7 @@ type Signal struct {
 }
 
 func (v Signal) String() string {
-	return strconv.FormatInt(v.Id, 10)
+	return fmt.Sprintf("%d:%s", v.Id, v.Name)
 }
 
 // SignalSubscription is a subscription of a signal boundary or catch event element instance to a signal name.
@@ -797,7 +800,7 @@ type SignalSubscription struct {
 }
 
 func (v SignalSubscription) String() string {
-	return strconv.FormatInt(v.Id, 10)
+	return fmt.Sprintf("%d:%s", v.Id, v.Name)
 }
 
 // SignalSubscriptionCriteria specifies the results, returned by a signal subscription query.

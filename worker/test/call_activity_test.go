@@ -90,17 +90,17 @@ func TestCallActivityProcess(t *testing.T) {
 		t.Fatalf("failed to create process instance: %v", err)
 	}
 
-	piAssert := worker.Assert(t, w, processInstance)
+	piAssert, psAssert := worker.Assert(t, w, processInstance)
 
-	piAssert.IsWaitingAt("callActivity")
-	piAssert.ExecuteJob()
+	callActivity := psAssert.IsWaitingAt("callActivity")
+	callActivity.ExecuteJob()
 
-	piAssert.IsWaitingAt("callActivity")
-	piAssert.ExecuteJob()
+	callActivity.HasJob(engine.JobPassVariables)
+	callActivity.ExecuteJob()
 
 	piAssert.IsCompleted()
 
 	var variableA string
-	piAssert.GetProcessVariable("a", &variableA)
+	piAssert.GetVariable("a", &variableA)
 	assert.Equal("av", variableA)
 }

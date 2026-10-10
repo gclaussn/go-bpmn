@@ -54,17 +54,14 @@ func TestEscalationBoundaryEventProcess(t *testing.T) {
 		t.Fatalf("failed to create process instance: %v", err)
 	}
 
-	piAssert := worker.Assert(t, w, processInstance)
+	piAssert, psAssert := worker.Assert(t, w, processInstance)
 
-	piAssert.IsWaitingAt("serviceTask")
+	psAssert.IsWaitingAt("serviceTask")
+	psAssert.IsWaitingAt("escalationBoundaryEvent").ExecuteJob()
+	psAssert.IsWaitingAt("serviceTask").ExecuteJob()
 
-	piAssert.IsWaitingAt("escalationBoundaryEvent")
-	piAssert.ExecuteJob()
+	psAssert.HasPassed("escalationBoundaryEvent")
+	psAssert.HasPassed("endEventB")
 
-	piAssert.IsWaitingAt("serviceTask")
-	piAssert.ExecuteJob()
-
-	piAssert.HasPassed("escalationBoundaryEvent")
-	piAssert.HasPassed("endEventB")
 	piAssert.IsCompleted()
 }

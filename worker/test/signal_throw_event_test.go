@@ -49,13 +49,13 @@ func TestSignalThrowEventProcess(t *testing.T) {
 		t.Fatalf("failed to create process instance: %v", err)
 	}
 
-	piAssert := worker.Assert(t, w, processInstance)
+	piAssert, psAssert := worker.Assert(t, w, processInstance)
 
-	piAssert.IsWaitingAt("signalThrowEvent")
-	piAssert.ExecuteJob()
+	signalThrowEvent := psAssert.IsWaitingAt("signalThrowEvent")
+	signalThrowEvent.ExecuteJob()
 
-	piAssert.IsWaitingAt("signalThrowEvent")
-	piAssert.ExecuteTask()
+	signalThrowEvent.HasTask(engine.TaskTriggerEvent)
+	signalThrowEvent.ExecuteTask()
 
 	piAssert.IsCompleted()
 }

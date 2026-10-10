@@ -25,7 +25,7 @@ func (x collaborationTest) startEnd(t *testing.T) {
 	assert.Equal("c", processC.BpmnParticipantId)
 	assert.Equal("participant c", processC.BpmnParticipantName)
 
-	piAssertA := mustCreateProcessInstance(t, x.e, processA)
+	piAssertA, _ := mustCreateProcessInstance(t, x.e, processA)
 	piAssertA.IsCompleted()
 
 	elementInstancesA := piAssertA.ElementInstances()
@@ -33,7 +33,7 @@ func (x collaborationTest) startEnd(t *testing.T) {
 	assert.Equal("startEventA", elementInstancesA[1].BpmnElementId)
 	assert.Equal("endEventA", elementInstancesA[2].BpmnElementId)
 
-	piAssertC := mustCreateProcessInstance(t, x.e, processC)
+	piAssertC, _ := mustCreateProcessInstance(t, x.e, processC)
 	piAssertC.IsCompleted()
 
 	elementInstancesC := piAssertC.ElementInstances()

@@ -12,7 +12,7 @@ func TestBpmn(t *testing.T) {
 
 	t.Run("special", func(t *testing.T) {
 		for i, e := range engines {
-			specialTest := newSpecialTest(t, e)
+			specialTest := specialTest{e}
 
 			t.Run(engineTypes[i]+"startEnd", specialTest.startEnd)
 		}
@@ -54,7 +54,7 @@ func TestBpmn(t *testing.T) {
 
 	t.Run("error event", func(t *testing.T) {
 		for i, e := range engines {
-			errorEventTest := newErrorEventTest(t, e)
+			errorEventTest := errorEventTest{e}
 
 			t.Run(engineTypes[i]+"boundary", errorEventTest.boundary)
 			t.Run(engineTypes[i]+"boundary with code", errorEventTest.boundaryWithCode)
@@ -70,7 +70,7 @@ func TestBpmn(t *testing.T) {
 
 	t.Run("escalation event", func(t *testing.T) {
 		for i, e := range engines {
-			escalationEventTest := newEscalationEventTest(t, e)
+			escalationEventTest := escalationEventTest{e}
 
 			t.Run(engineTypes[i]+"boundary", escalationEventTest.boundary)
 			t.Run(engineTypes[i]+"boundary event definition", escalationEventTest.boundaryEventDefinition)
@@ -91,7 +91,7 @@ func TestBpmn(t *testing.T) {
 
 	t.Run("exclusive gateway", func(t *testing.T) {
 		for i, e := range engines {
-			exclusiveGatewayTest := newExclusiveGatewayTest(t, e)
+			exclusiveGatewayTest := exclusiveGatewayTest{e}
 
 			t.Run(engineTypes[i]+"gateway", exclusiveGatewayTest.gateway)
 			t.Run(engineTypes[i]+"gateway default", exclusiveGatewayTest.gatewayDefault)
@@ -103,7 +103,7 @@ func TestBpmn(t *testing.T) {
 
 	t.Run("inclusive gateway", func(t *testing.T) {
 		for i, e := range engines {
-			inclusiveGatewayTest := newInclusiveGatewayTest(t, e)
+			inclusiveGatewayTest := inclusiveGatewayTest{e}
 
 			t.Run(engineTypes[i]+"gateway all", inclusiveGatewayTest.gatewayAll)
 			t.Run(engineTypes[i]+"gateway one", inclusiveGatewayTest.gatewayOne)
@@ -129,7 +129,7 @@ func TestBpmn(t *testing.T) {
 
 	t.Run("message event", func(t *testing.T) {
 		for i, e := range engines {
-			messageEventTest := newMessageEventTest(t, e)
+			messageEventTest := messageEventTest{e}
 
 			t.Run(engineTypes[i]+"boundary", messageEventTest.boundary)
 			t.Run(engineTypes[i]+"boundary with message sent before", messageEventTest.boundaryMessageSentBefore)
@@ -150,7 +150,7 @@ func TestBpmn(t *testing.T) {
 
 	t.Run("parallel gateway", func(t *testing.T) {
 		for i, e := range engines {
-			parallelGatewayTest := newParallelGatewayTest(t, e)
+			parallelGatewayTest := parallelGatewayTest{e}
 
 			t.Run(engineTypes[i]+"gateway", parallelGatewayTest.gateway)
 			t.Run(engineTypes[i]+"serviceTasks", parallelGatewayTest.serviceTasks)
@@ -159,7 +159,7 @@ func TestBpmn(t *testing.T) {
 
 	t.Run("signal event", func(t *testing.T) {
 		for i, e := range engines {
-			signalEventTest := newSignalEventTest(t, e)
+			signalEventTest := signalEventTest{e}
 
 			t.Run(engineTypes[i]+"boundary", signalEventTest.boundary)
 			t.Run(engineTypes[i]+"boundary non-interrupting", signalEventTest.boundaryNonInterrupting)
@@ -190,7 +190,7 @@ func TestBpmn(t *testing.T) {
 
 	t.Run("task", func(t *testing.T) {
 		for i, e := range engines {
-			taskTest := newTaskTest(t, e)
+			taskTest := taskTest{e}
 
 			t.Run(engineTypes[i]+"businessRule", taskTest.businessRule)
 			t.Run(engineTypes[i]+"manual", taskTest.manual)
@@ -199,7 +199,8 @@ func TestBpmn(t *testing.T) {
 			t.Run(engineTypes[i]+"service", taskTest.service)
 			t.Run(engineTypes[i]+"task", taskTest.task)
 
-			t.Run(engineTypes[i]+"completes with error completed with BPMN esclation code", taskTest.errorBpmnEscalationCodeNotSupported)
+			t.Run(engineTypes[i]+"completes with error when no boundary event for error code exists", taskTest.errorBpmnErrorCodeNotSupported)
+			t.Run(engineTypes[i]+"completes with error when no boundary event for esclation code exists", taskTest.errorBpmnEscalationCodeNotSupported)
 		}
 	})
 
@@ -224,7 +225,7 @@ func TestBpmnTimerEvent(t *testing.T) {
 		}
 
 		for i, e := range engines {
-			timerEventTest := newTimerEventTest(t, e)
+			timerEventTest := timerEventTest{e}
 
 			t.Run(engineTypes[i]+"boundary", timerEventTest.boundary)
 		}
@@ -237,7 +238,7 @@ func TestBpmnTimerEvent(t *testing.T) {
 		}
 
 		for i, e := range engines {
-			timerEventTest := newTimerEventTest(t, e)
+			timerEventTest := timerEventTest{e}
 
 			t.Run(engineTypes[i]+"boundary", timerEventTest.boundaryWithTimer)
 		}
@@ -250,7 +251,7 @@ func TestBpmnTimerEvent(t *testing.T) {
 		}
 
 		for i, e := range engines {
-			timerEventTest := newTimerEventTest(t, e)
+			timerEventTest := timerEventTest{e}
 
 			t.Run(engineTypes[i]+"boundary", timerEventTest.boundaryNonInterrupting)
 		}
@@ -263,7 +264,7 @@ func TestBpmnTimerEvent(t *testing.T) {
 		}
 
 		for i, e := range engines {
-			timerEventTest := newTimerEventTest(t, e)
+			timerEventTest := timerEventTest{e}
 
 			t.Run(engineTypes[i]+"catch", timerEventTest.catch)
 		}
@@ -276,7 +277,7 @@ func TestBpmnTimerEvent(t *testing.T) {
 		}
 
 		for i, e := range engines {
-			timerEventTest := newTimerEventTest(t, e)
+			timerEventTest := timerEventTest{e}
 
 			t.Run(engineTypes[i]+"catch", timerEventTest.catchWithTimer)
 		}
@@ -289,7 +290,7 @@ func TestBpmnTimerEvent(t *testing.T) {
 		}
 
 		for i, e := range engines {
-			timerEventTest := newTimerEventTest(t, e)
+			timerEventTest := timerEventTest{e}
 
 			t.Run(engineTypes[i]+"start", timerEventTest.start)
 		}

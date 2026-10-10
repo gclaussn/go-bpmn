@@ -1,5 +1,5 @@
 <definitions id="test">
-  <process id="errorBoundaryEventTest" isExecutable="true">
+  <process id="errorBoundaryDefinitionTest" isExecutable="true">
     <startEvent id="startEvent">
       <outgoing>f1</outgoing>
     </startEvent>
@@ -14,11 +14,12 @@
     </endEvent>
     <boundaryEvent id="errorBoundaryEvent" attachedToRef="serviceTask">
       <outgoing>f3</outgoing>
-      <errorEventDefinition id="errorBoundaryEventDefinition" />
+      <errorEventDefinition id="errorBoundaryEventDefinition" errorRef="testError" />
     </boundaryEvent>
     <sequenceFlow id="f3" sourceRef="errorBoundaryEvent" targetRef="endEventB" />
     <endEvent id="endEventB">
       <incoming>f3</incoming>
     </endEvent>
   </process>
+  <error id="testError" name="testErrorName" errorCode="testErrorCode" />
 </definitions>

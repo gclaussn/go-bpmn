@@ -20,7 +20,9 @@ func TestVariables(t *testing.T) {
 	for i, e := range engines {
 		// given
 		process := mustCreateProcess(t, e, "task/service.bpmn", "serviceTest")
-		piAssert := mustCreateProcessInstance(t, e, process)
+
+		piAssert, psAssert := mustCreateProcessInstance(t, e, process)
+
 		processInstance := piAssert.ProcessInstance()
 
 		t.Run(engineTypes[i]+"set process variables", func(t *testing.T) {
@@ -57,8 +59,9 @@ func TestVariables(t *testing.T) {
 		})
 
 		// given
-		piAssert.IsWaitingAt("serviceTask")
-		elementInstance := piAssert.ElementInstance()
+		serviceTask := psAssert.IsWaitingAt("serviceTask")
+
+		elementInstance := serviceTask.ElementInstance()
 
 		t.Run(engineTypes[i]+"set element variables", func(t *testing.T) {
 			// when
@@ -339,7 +342,8 @@ func TestVariables(t *testing.T) {
 		})
 
 		// given
-		piAssert.CompleteJob()
+		serviceTask.CompleteJob()
+
 		piAssert.IsCompleted()
 
 		t.Run(engineTypes[i]+"set process variables returns error when process instance is ended", func(t *testing.T) {

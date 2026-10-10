@@ -7,29 +7,20 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func newParallelGatewayTest(t *testing.T, e engine.Engine) parallelGatewayTest {
-	return parallelGatewayTest{
-		e: e,
-
-		parallelServiceTasksTest: mustCreateProcess(t, e, "gateway/parallel-service-tasks.bpmn", "parallelServiceTasksTest"),
-		parallelTest:             mustCreateProcess(t, e, "gateway/parallel.bpmn", "parallelTest"),
-	}
-}
-
 type parallelGatewayTest struct {
 	e engine.Engine
-
-	parallelServiceTasksTest engine.Process
-	parallelTest             engine.Process
 }
 
 func (x parallelGatewayTest) gateway(t *testing.T) {
 	assert := assert.New(t)
 
-	piAssert := mustCreateProcessInstance(t, x.e, x.parallelTest)
+	process := mustCreateProcess(t, x.e, "gateway/parallel.bpmn", "parallelTest")
 
-	piAssert.IsWaitingAt("join")
-	piAssert.ExecuteTask()
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
+
+	join := psAssert.IsWaitingAt("join")
+	join.HasTask(engine.TaskJoinParallelGateway)
+	join.ExecuteTask()
 
 	// execute remaining task
 	tasks := piAssert.ExecuteTasks()
@@ -49,15 +40,16 @@ func (x parallelGatewayTest) gateway(t *testing.T) {
 func (x parallelGatewayTest) serviceTasks(t *testing.T) {
 	assert := assert.New(t)
 
-	piAssert := mustCreateProcessInstance(t, x.e, x.parallelServiceTasksTest)
+	process := mustCreateProcess(t, x.e, "gateway/parallel-service-tasks.bpmn", "parallelServiceTasksTest")
 
-	piAssert.IsWaitingAt("serviceTaskA")
-	piAssert.CompleteJob()
-	piAssert.IsWaitingAt("serviceTaskB")
-	piAssert.CompleteJob()
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("join")
-	piAssert.ExecuteTask()
+	psAssert.IsWaitingAt("serviceTaskA").CompleteJob()
+	psAssert.IsWaitingAt("serviceTaskB").CompleteJob()
+
+	join := psAssert.IsWaitingAt("join")
+	join.HasTask(engine.TaskJoinParallelGateway)
+	join.ExecuteTask()
 
 	piAssert.IsCompleted()
 

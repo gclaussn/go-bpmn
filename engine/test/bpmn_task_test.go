@@ -6,77 +6,88 @@ import (
 	"github.com/gclaussn/go-bpmn/engine"
 )
 
-func newTaskTest(t *testing.T, e engine.Engine) taskTest {
-	return taskTest{
-		e: e,
-
-		businessRuleTest: mustCreateProcess(t, e, "task/business-rule.bpmn", "businessRuleTest"),
-		manualTest:       mustCreateProcess(t, e, "task/manual.bpmn", "manualTest"),
-		scriptTest:       mustCreateProcess(t, e, "task/script.bpmn", "scriptTest"),
-		sendTest:         mustCreateProcess(t, e, "task/send.bpmn", "sendTest"),
-		serviceTest:      mustCreateProcess(t, e, "task/service.bpmn", "serviceTest"),
-		taskTest:         mustCreateProcess(t, e, "task/task.bpmn", "taskTest"),
-	}
-}
-
 type taskTest struct {
 	e engine.Engine
-
-	businessRuleTest engine.Process
-	manualTest       engine.Process
-	scriptTest       engine.Process
-	sendTest         engine.Process
-	serviceTest      engine.Process
-	taskTest         engine.Process
 }
 
 func (x taskTest) businessRule(t *testing.T) {
-	piAssert := mustCreateProcessInstance(t, x.e, x.businessRuleTest)
+	process := mustCreateProcess(t, x.e, "task/business-rule.bpmn", "businessRuleTest")
 
-	piAssert.IsWaitingAt("businessRuleTask")
-	piAssert.CompleteJob()
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
+
+	businessRuleTask := psAssert.IsWaitingAt("businessRuleTask")
+	businessRuleTask.CompleteJob()
+
 	piAssert.IsCompleted()
 }
 
 func (x taskTest) manual(t *testing.T) {
-	piAssert := mustCreateProcessInstance(t, x.e, x.manualTest)
+	process := mustCreateProcess(t, x.e, "task/manual.bpmn", "manualTest")
+
+	piAssert, _ := mustCreateProcessInstance(t, x.e, process)
 	piAssert.IsCompleted()
 }
 
 func (x taskTest) script(t *testing.T) {
-	piAssert := mustCreateProcessInstance(t, x.e, x.scriptTest)
+	process := mustCreateProcess(t, x.e, "task/script.bpmn", "scriptTest")
 
-	piAssert.IsWaitingAt("scriptTask")
-	piAssert.CompleteJob()
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
+
+	scriptTask := psAssert.IsWaitingAt("scriptTask")
+	scriptTask.CompleteJob()
+
 	piAssert.IsCompleted()
 }
 
 func (x taskTest) send(t *testing.T) {
-	piAssert := mustCreateProcessInstance(t, x.e, x.sendTest)
+	process := mustCreateProcess(t, x.e, "task/send.bpmn", "sendTest")
 
-	piAssert.IsWaitingAt("sendTask")
-	piAssert.CompleteJob()
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
+
+	sendTask := psAssert.IsWaitingAt("sendTask")
+	sendTask.CompleteJob()
+
 	piAssert.IsCompleted()
 }
 
 func (x taskTest) service(t *testing.T) {
-	piAssert := mustCreateProcessInstance(t, x.e, x.serviceTest)
+	process := mustCreateProcess(t, x.e, "task/service.bpmn", "serviceTest")
 
-	piAssert.IsWaitingAt("serviceTask")
-	piAssert.CompleteJob()
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
+
+	serviceTask := psAssert.IsWaitingAt("serviceTask")
+	serviceTask.CompleteJob()
+
 	piAssert.IsCompleted()
 }
 
 func (x taskTest) task(t *testing.T) {
-	piAssert := mustCreateProcessInstance(t, x.e, x.taskTest)
+	process := mustCreateProcess(t, x.e, "task/task.bpmn", "taskTest")
+
+	piAssert, _ := mustCreateProcessInstance(t, x.e, process)
 	piAssert.IsCompleted()
 }
 
-func (x taskTest) errorBpmnEscalationCodeNotSupported(t *testing.T) {
-	piAssert := mustCreateProcessInstance(t, x.e, x.serviceTest)
+func (x taskTest) errorBpmnErrorCodeNotSupported(t *testing.T) {
+	process := mustCreateProcess(t, x.e, "task/service.bpmn", "serviceTest")
 
-	piAssert.IsWaitingAt("serviceTask")
-	piAssert.CompleteJobWithError(engine.CompleteJobCmd{
+	_, psAssert := mustCreateProcessInstance(t, x.e, process)
+
+	serviceTask := psAssert.IsWaitingAt("serviceTask")
+	serviceTask.CompleteJobWithError(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			ErrorCode: "error-code",
+		},
+	})
+}
+
+func (x taskTest) errorBpmnEscalationCodeNotSupported(t *testing.T) {
+	process := mustCreateProcess(t, x.e, "task/service.bpmn", "serviceTest")
+
+	_, psAssert := mustCreateProcessInstance(t, x.e, process)
+
+	serviceTask := psAssert.IsWaitingAt("serviceTask")
+	serviceTask.CompleteJobWithError(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			EscalationCode: "esclation-code",
 		},

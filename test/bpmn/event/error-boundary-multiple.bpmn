@@ -1,5 +1,5 @@
 <definitions id="test">
-  <process id="errorBoundaryMultipleEventTest" isExecutable="true">
+  <process id="errorBoundaryMultipleTest" isExecutable="true">
     <startEvent id="startEvent">
       <outgoing>f1</outgoing>
     </startEvent>

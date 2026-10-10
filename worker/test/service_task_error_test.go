@@ -59,20 +59,21 @@ func TestServiceTaskErrorProcess(t *testing.T) {
 		t.Fatalf("failed to create process instance: %v", err)
 	}
 
-	piAssert := worker.Assert(t, w, processInstance)
+	piAssert, psAssert := worker.Assert(t, w, processInstance)
 
-	piAssert.IsWaitingAt("serviceTask")
-	piAssert.ExecuteJobWithError()
+	serviceTask := psAssert.IsWaitingAt("serviceTask")
+
+	serviceTask.ExecuteJobWithError()
 
 	now := time.Now().UTC()
 
 	plusOneHour := now.Add(1 * time.Hour).Add(time.Minute)
 	e.SetTime(context.Background(), engine.SetTimeCmd{Time: plusOneHour})
-	piAssert.ExecuteJobWithError()
+	serviceTask.ExecuteJobWithError()
 
 	plusTwoHour := now.Add(2 * time.Hour).Add(time.Minute)
 	e.SetTime(context.Background(), engine.SetTimeCmd{Time: plusTwoHour})
-	piAssert.ExecuteJob()
+	serviceTask.ExecuteJob()
 
 	piAssert.IsCompleted()
 }

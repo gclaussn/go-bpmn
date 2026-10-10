@@ -49,10 +49,10 @@ func TestSignalCatchEventProcess(t *testing.T) {
 		t.Fatalf("failed to create process instance: %v", err)
 	}
 
-	piAssert := worker.Assert(t, w, processInstance)
+	piAssert, psAssert := worker.Assert(t, w, processInstance)
 
-	piAssert.IsWaitingAt("signalCatchEvent")
-	piAssert.ExecuteJob()
+	signalCatchEvent := psAssert.IsWaitingAt("signalCatchEvent")
+	signalCatchEvent.ExecuteJob()
 
 	if _, err := e.SendSignal(context.Background(), engine.SendSignalCmd{
 		Name:     "catch-signal",
@@ -61,8 +61,8 @@ func TestSignalCatchEventProcess(t *testing.T) {
 		t.Fatalf("failed to send signal: %v", err)
 	}
 
-	piAssert.IsWaitingAt("signalCatchEvent")
-	piAssert.ExecuteTask()
+	signalCatchEvent.HasTask(engine.TaskTriggerEvent)
+	signalCatchEvent.ExecuteTask()
 
 	piAssert.IsCompleted()
 }

@@ -96,25 +96,25 @@ func mustCreateEngines(t *testing.T) ([]engine.Engine, []string) {
 	return engines, engineTypes
 }
 
-func mustCreateProcess(t *testing.T, e engine.Engine, fileName string, bpmnProcessId string, cmds ...engine.CreateProcessCmd) engine.Process {
+func mustCreateProcess(t *testing.T, e engine.Engine, fileName string, bpmnProcessId string, cmd ...engine.CreateProcessCmd) engine.Process {
 	bpmnXml := mustReadBpmnFile(t, fileName)
 
-	var cmd engine.CreateProcessCmd
-	if len(cmds) != 0 {
-		cmd = cmds[0]
+	var c engine.CreateProcessCmd
+	if len(cmd) != 0 {
+		c = cmd[0]
 	} else {
-		cmd = engine.CreateProcessCmd{}
+		c = engine.CreateProcessCmd{}
 	}
 
-	cmd.BpmnProcessId = bpmnProcessId
-	cmd.BpmnXml = bpmnXml
-	cmd.WorkerId = testWorkerId
+	c.BpmnProcessId = bpmnProcessId
+	c.BpmnXml = bpmnXml
+	c.WorkerId = testWorkerId
 
-	if cmd.Version == "" {
-		cmd.Version = t.Name()
+	if c.Version == "" {
+		c.Version = t.Name()
 	}
 
-	process, err := e.CreateProcess(context.Background(), cmd)
+	process, err := e.CreateProcess(context.Background(), c)
 	if err != nil {
 		t.Fatalf("failed to create process: %v", err)
 	}
@@ -122,12 +122,19 @@ func mustCreateProcess(t *testing.T, e engine.Engine, fileName string, bpmnProce
 	return process
 }
 
-func mustCreateProcessInstance(t *testing.T, e engine.Engine, process engine.Process) *engine.ProcessInstanceAssert {
-	processInstance, err := e.CreateProcessInstance(context.Background(), engine.CreateProcessInstanceCmd{
-		BpmnProcessId: process.BpmnProcessId,
-		Version:       process.Version,
-		WorkerId:      process.CreatedBy,
-	})
+func mustCreateProcessInstance(t *testing.T, e engine.Engine, process engine.Process, cmd ...engine.CreateProcessInstanceCmd) (engine.ProcessInstanceAssert, engine.ElementInstanceAssert) {
+	var c engine.CreateProcessInstanceCmd
+	if len(cmd) != 0 {
+		c = cmd[0]
+	} else {
+		c = engine.CreateProcessInstanceCmd{}
+	}
+
+	c.BpmnProcessId = process.BpmnProcessId
+	c.Version = process.Version
+	c.WorkerId = process.CreatedBy
+
+	processInstance, err := e.CreateProcessInstance(context.Background(), c)
 	if err != nil {
 		t.Fatalf("failed to create process instance: %v", err)
 	}

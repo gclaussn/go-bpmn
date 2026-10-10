@@ -406,7 +406,7 @@ func TestContinueExecution(t *testing.T) {
 
 	t.Run("service task with boundary event", func(t *testing.T) {
 		// given
-		graph := mustCreateGraph(t, "event/error-boundary-event.bpmn", "errorBoundaryEventTest")
+		graph := mustCreateGraph(t, "event/error-boundary.bpmn", "errorBoundaryTest")
 
 		scope := graph.createProcessScope(&ProcessInstanceEntity{})
 
@@ -530,7 +530,7 @@ func TestContinueExecution(t *testing.T) {
 
 	t.Run("created service task with boundary event", func(t *testing.T) {
 		// given
-		graph := mustCreateGraph(t, "event/error-boundary-event.bpmn", "errorBoundaryEventTest")
+		graph := mustCreateGraph(t, "event/error-boundary.bpmn", "errorBoundaryTest")
 
 		scope := graph.createProcessScope(&ProcessInstanceEntity{})
 

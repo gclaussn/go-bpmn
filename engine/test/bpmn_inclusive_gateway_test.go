@@ -7,37 +7,28 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func newInclusiveGatewayTest(t *testing.T, e engine.Engine) inclusiveGatewayTest {
-	return inclusiveGatewayTest{
-		e: e,
-
-		inclusiveTest:        mustCreateProcess(t, e, "gateway/inclusive.bpmn", "inclusiveTest"),
-		inclusiveDefaultTest: mustCreateProcess(t, e, "gateway/inclusive-default.bpmn", "inclusiveDefaultTest"),
-	}
-}
-
 type inclusiveGatewayTest struct {
 	e engine.Engine
-
-	inclusiveTest        engine.Process
-	inclusiveDefaultTest engine.Process
 }
 
 func (x inclusiveGatewayTest) gatewayAll(t *testing.T) {
 	assert := assert.New(t)
 
-	piAssert := mustCreateProcessInstance(t, x.e, x.inclusiveTest)
+	process := mustCreateProcess(t, x.e, "gateway/inclusive.bpmn", "inclusiveTest")
 
-	piAssert.IsWaitingAt("fork")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
+
+	fork := psAssert.IsWaitingAt("fork")
+	fork.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			InclusiveGatewayDecision: []string{"endEventA", "endEventB", "endEventC"},
 		},
 	})
 
-	piAssert.HasPassed("endEventA")
-	piAssert.HasPassed("endEventB")
-	piAssert.HasPassed("endEventC")
+	psAssert.HasPassed("endEventA")
+	psAssert.HasPassed("endEventB")
+	psAssert.HasPassed("endEventC")
+
 	piAssert.IsCompleted()
 
 	elementInstances := piAssert.ElementInstances()
@@ -50,16 +41,19 @@ func (x inclusiveGatewayTest) gatewayAll(t *testing.T) {
 func (x inclusiveGatewayTest) gatewayOne(t *testing.T) {
 	assert := assert.New(t)
 
-	piAssert := mustCreateProcessInstance(t, x.e, x.inclusiveTest)
+	process := mustCreateProcess(t, x.e, "gateway/inclusive.bpmn", "inclusiveTest")
 
-	piAssert.IsWaitingAt("fork")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
+
+	fork := psAssert.IsWaitingAt("fork")
+	fork.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			InclusiveGatewayDecision: []string{"endEventC"},
 		},
 	})
 
-	piAssert.HasPassed("endEventC")
+	psAssert.HasPassed("endEventC")
+
 	piAssert.IsCompleted()
 
 	elementInstances := piAssert.ElementInstances()
@@ -74,12 +68,16 @@ func (x inclusiveGatewayTest) gatewayOne(t *testing.T) {
 func (x inclusiveGatewayTest) gatewayDefault(t *testing.T) {
 	assert := assert.New(t)
 
-	piAssert := mustCreateProcessInstance(t, x.e, x.inclusiveDefaultTest)
+	process := mustCreateProcess(t, x.e, "gateway/inclusive-default.bpmn", "inclusiveDefaultTest")
 
-	piAssert.IsWaitingAt("fork")
-	piAssert.CompleteJob()
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.HasPassed("endEventA")
+	fork := psAssert.IsWaitingAt("fork")
+	fork.HasJob(engine.JobEvaluateInclusiveGateway)
+	fork.CompleteJob()
+
+	psAssert.HasPassed("endEventA")
+
 	piAssert.IsCompleted()
 
 	elementInstances := piAssert.ElementInstances()
@@ -94,17 +92,20 @@ func (x inclusiveGatewayTest) gatewayDefault(t *testing.T) {
 func (x inclusiveGatewayTest) gatewayDefaultImplicit(t *testing.T) {
 	assert := assert.New(t)
 
-	piAssert := mustCreateProcessInstance(t, x.e, x.inclusiveDefaultTest)
+	process := mustCreateProcess(t, x.e, "gateway/inclusive-default.bpmn", "inclusiveDefaultTest")
 
-	piAssert.IsWaitingAt("fork")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
+
+	fork := psAssert.IsWaitingAt("fork")
+	fork.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			InclusiveGatewayDecision: []string{"endEventC"},
 		},
 	})
 
-	piAssert.HasPassed("endEventA")
-	piAssert.HasPassed("endEventC")
+	psAssert.HasPassed("endEventA")
+	psAssert.HasPassed("endEventC")
+
 	piAssert.IsCompleted()
 
 	elementInstances := piAssert.ElementInstances()
@@ -119,16 +120,19 @@ func (x inclusiveGatewayTest) gatewayDefaultImplicit(t *testing.T) {
 func (x inclusiveGatewayTest) gatewayDefaultExplicit(t *testing.T) {
 	assert := assert.New(t)
 
-	piAssert := mustCreateProcessInstance(t, x.e, x.inclusiveDefaultTest)
+	process := mustCreateProcess(t, x.e, "gateway/inclusive-default.bpmn", "inclusiveDefaultTest")
 
-	piAssert.IsWaitingAt("fork")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
+
+	fork := psAssert.IsWaitingAt("fork")
+	fork.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			InclusiveGatewayDecision: []string{"endEventA"},
 		},
 	})
 
-	piAssert.HasPassed("endEventA")
+	psAssert.HasPassed("endEventA")
+
 	piAssert.IsCompleted()
 
 	elementInstances := piAssert.ElementInstances()
@@ -139,10 +143,12 @@ func (x inclusiveGatewayTest) gatewayDefaultExplicit(t *testing.T) {
 }
 
 func (x inclusiveGatewayTest) errorNoBpmnElementId(t *testing.T) {
-	piAssert := mustCreateProcessInstance(t, x.e, x.inclusiveTest)
+	process := mustCreateProcess(t, x.e, "gateway/inclusive.bpmn", "inclusiveTest")
 
-	piAssert.IsWaitingAt("fork")
-	piAssert.CompleteJobWithError(engine.CompleteJobCmd{
+	_, psAssert := mustCreateProcessInstance(t, x.e, process)
+
+	fork := psAssert.IsWaitingAt("fork")
+	fork.CompleteJobWithError(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			InclusiveGatewayDecision: []string{},
 		},
@@ -152,11 +158,12 @@ func (x inclusiveGatewayTest) errorNoBpmnElementId(t *testing.T) {
 func (x inclusiveGatewayTest) errorDuplicateBpmnElementId(t *testing.T) {
 	assert := assert.New(t)
 
-	piAssert := mustCreateProcessInstance(t, x.e, x.inclusiveTest)
+	process := mustCreateProcess(t, x.e, "gateway/inclusive.bpmn", "inclusiveTest")
 
-	piAssert.IsWaitingAt("fork")
+	_, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	completedJob := piAssert.CompleteJobWithError(engine.CompleteJobCmd{
+	fork := psAssert.IsWaitingAt("fork")
+	completedJob := fork.CompleteJobWithError(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			InclusiveGatewayDecision: []string{"endEventA", "endEventA"},
 		},
@@ -169,11 +176,12 @@ func (x inclusiveGatewayTest) errorDuplicateBpmnElementId(t *testing.T) {
 func (x inclusiveGatewayTest) errorSequenceFlowNotExits(t *testing.T) {
 	assert := assert.New(t)
 
-	piAssert := mustCreateProcessInstance(t, x.e, x.inclusiveTest)
+	process := mustCreateProcess(t, x.e, "gateway/inclusive.bpmn", "inclusiveTest")
 
-	piAssert.IsWaitingAt("fork")
+	_, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	completedJob := piAssert.CompleteJobWithError(engine.CompleteJobCmd{
+	fork := psAssert.IsWaitingAt("fork")
+	completedJob := fork.CompleteJobWithError(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			InclusiveGatewayDecision: []string{"startEvent"},
 		},

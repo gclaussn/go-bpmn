@@ -16,11 +16,9 @@ type eventBasedGatewayTest struct {
 func (x eventBasedGatewayTest) gateway(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
-	query := x.e.CreateQuery()
-
 	process := mustCreateProcess(t, x.e, "gateway/event-based.bpmn", "eventBasedTest")
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
 	elementInstances := piAssert.ElementInstances()
 	require.Len(elementInstances, 6)
@@ -34,30 +32,30 @@ func (x eventBasedGatewayTest) gateway(t *testing.T) {
 	assert.Equal("timerCatchEvent", elementInstances[5].BpmnElementId)
 	assert.Equal(engine.InstanceCreated, elementInstances[5].State)
 
-	piAssert.IsWaitingAt("messageCatchEvent")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	messageCatchEvent := psAssert.IsWaitingAt("messageCatchEvent")
+	messageCatchEvent.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			MessageName:           t.Name(),
 			MessageCorrelationKey: "ck",
 		},
 	})
 
-	piAssert.IsWaitingAt("signalCatchEvent")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	signalCatchEvent := psAssert.IsWaitingAt("signalCatchEvent")
+	signalCatchEvent.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			SignalName: t.Name(),
 		},
 	})
 
-	signalSubscriptions, err := query.QuerySignalSubscriptions(context.Background(), engine.SignalSubscriptionCriteria{})
+	signalSubscriptions, err := x.e.CreateQuery().QuerySignalSubscriptions(context.Background(), engine.SignalSubscriptionCriteria{})
 	if err != nil {
 		t.Fatalf("failed to query signal subscriptions: %v", err)
 	}
 
 	assert.Len(signalSubscriptions, 1)
 
-	piAssert.IsWaitingAt("timerCatchEvent")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	timerCatchEvent := psAssert.IsWaitingAt("timerCatchEvent")
+	timerCatchEvent.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			Timer: &engine.Timer{
 				TimeDuration: "PT1H",
@@ -86,8 +84,8 @@ func (x eventBasedGatewayTest) gateway(t *testing.T) {
 		t.Fatalf("failed to send message: %v", err)
 	}
 
-	piAssert.IsWaitingAt("messageCatchEvent")
-	piAssert.ExecuteTask()
+	messageCatchEvent.HasTask(engine.TaskTriggerEvent)
+	messageCatchEvent.ExecuteTask()
 
 	piAssert.IsCompleted()
 
@@ -106,7 +104,7 @@ func (x eventBasedGatewayTest) gateway(t *testing.T) {
 	assert.Equal(engine.InstanceCompleted, elementInstances[6].State)
 
 	// ensure signal subscription is canceled
-	signalSubscriptions, err = query.QuerySignalSubscriptions(context.Background(), engine.SignalSubscriptionCriteria{})
+	signalSubscriptions, err = x.e.CreateQuery().QuerySignalSubscriptions(context.Background(), engine.SignalSubscriptionCriteria{})
 	if err != nil {
 		t.Fatalf("failed to query signal subscriptions: %v", err)
 	}
@@ -126,7 +124,7 @@ func (x eventBasedGatewayTest) gatewayDefinition(t *testing.T) {
 		},
 	})
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
 	elementInstances := piAssert.ElementInstances()
 	require.Len(elementInstances, 5)
@@ -146,8 +144,9 @@ func (x eventBasedGatewayTest) gatewayDefinition(t *testing.T) {
 		t.Fatalf("failed to send signal: %v", err)
 	}
 
-	piAssert.IsWaitingAt("signalCatchEvent")
-	piAssert.ExecuteTask()
+	signalCatchEvent := psAssert.IsWaitingAt("signalCatchEvent")
+	signalCatchEvent.HasTask(engine.TaskTriggerEvent)
+	signalCatchEvent.ExecuteTask()
 
 	piAssert.IsCompleted()
 

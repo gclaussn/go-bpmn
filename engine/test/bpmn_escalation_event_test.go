@@ -8,113 +8,97 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newEscalationEventTest(t *testing.T, e engine.Engine) escalationEventTest {
-	return escalationEventTest{
-		e: e,
-
-		boundaryProcess:                mustCreateProcess(t, e, "event/escalation-boundary.bpmn", "escalationBoundaryTest"),
-		boundaryDefinitionProcess:      mustCreateProcess(t, e, "event/escalation-boundary-definition.bpmn", "escalationBoundaryDefinitionTest"),
-		boundaryNonInterruptingProcess: mustCreateProcess(t, e, "event/escalation-boundary-non-interrupting.bpmn", "escalationBoundaryNonInterruptingTest"),
-	}
-}
-
 type escalationEventTest struct {
 	e engine.Engine
-
-	boundaryProcess                engine.Process
-	boundaryDefinitionProcess      engine.Process
-	boundaryNonInterruptingProcess engine.Process
 }
 
 func (x escalationEventTest) boundary(t *testing.T) {
-	assert, require := assert.New(t), require.New(t)
+	assert := assert.New(t)
 
-	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryProcess)
+	process := mustCreateProcess(t, x.e, "event/escalation-boundary.bpmn", "escalationBoundaryTest")
 
-	piAssert.IsWaitingAt("serviceTask")
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("escalationBoundaryEvent")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	serviceTask := psAssert.IsWaitingAt("serviceTask")
+	serviceTask.HasState(engine.InstanceCreated)
+
+	escalationBoundaryEvent := psAssert.IsWaitingAt("escalationBoundaryEvent")
+	escalationBoundaryEvent.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			EscalationCode: "TEST_CODE",
 		},
 	})
 
-	piAssert.IsWaitingAt("serviceTask")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	serviceTask.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			EscalationCode: "TEST_CODE",
 		},
 	})
 
-	piAssert.HasPassed("escalationBoundaryEvent")
-	piAssert.HasPassed("endEventB")
+	psAssert.HasPassed("escalationBoundaryEvent")
+	psAssert.HasPassed("endEventB")
+
 	piAssert.IsCompleted()
 
 	elementInstances := piAssert.ElementInstances()
-	require.Len(elementInstances, 5)
+	assert.Len(elementInstances, 5)
 
-	assert.Equal(engine.InstanceTerminated, elementInstances[2].State) // serviceTask
-	assert.Equal(engine.InstanceCompleted, elementInstances[3].State)  // esclationBoundaryEvent
-
-	jobs := piAssert.Jobs()
-	require.Len(jobs, 2)
-
-	assert.Equal(engine.JobSetEscalationCode, jobs[0].Type)
-	assert.Equal(engine.JobExecute, jobs[1].Type)
+	serviceTask.IsTerminated()
+	escalationBoundaryEvent.IsCompleted()
 }
 
 // boundaryEventDefinition tests that for an escalation boundary event with event definition, no SET_ESCALATION_CODE job is created.
 func (x escalationEventTest) boundaryEventDefinition(t *testing.T) {
-	assert, require := assert.New(t), require.New(t)
+	assert := assert.New(t)
 
-	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryDefinitionProcess)
+	process := mustCreateProcess(t, x.e, "event/escalation-boundary-definition.bpmn", "escalationBoundaryDefinitionTest")
 
-	piAssert.IsWaitingAt("serviceTask")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
+
+	serviceTask := psAssert.IsWaitingAt("serviceTask")
+	serviceTask.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			EscalationCode: "testEscalationCode",
 		},
 	})
 
-	piAssert.HasPassed("escalationBoundaryEvent")
-	piAssert.HasPassed("endEventB")
+	psAssert.HasPassed("escalationBoundaryEvent")
+	psAssert.HasPassed("endEventB")
+
 	piAssert.IsCompleted()
 
-	jobs := piAssert.Jobs()
-	require.Len(jobs, 1)
-
-	assert.Equal(engine.JobExecute, jobs[0].Type)
+	assert.Len(piAssert.Jobs(), 1)
 }
 
 func (x escalationEventTest) boundaryNonInterrupting(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
-	piAssert := mustCreateProcessInstance(t, x.e, x.boundaryNonInterruptingProcess)
+	process := mustCreateProcess(t, x.e, "event/escalation-boundary-non-interrupting.bpmn", "escalationBoundaryNonInterruptingTest")
 
-	piAssert.IsWaitingAt("serviceTask")
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("escalationBoundaryEvent")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	serviceTask := psAssert.IsWaitingAt("serviceTask")
+
+	escalationBoundaryEvent := psAssert.IsWaitingAt("escalationBoundaryEvent")
+	escalationBoundaryEvent.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			EscalationCode: "TEST_CODE",
 		},
 	})
 
-	piAssert.IsWaitingAt("serviceTask")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	serviceTask.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			EscalationCode: "TEST_CODE",
 		},
 	})
 
-	piAssert.HasPassed("endEventB")
-	piAssert.IsNotCompleted()
+	psAssert.HasPassed("endEventB")
+	piAssert.HasState(engine.InstanceStarted)
 
-	piAssert.IsWaitingAt("serviceTask")
-	piAssert.CompleteJob()
+	serviceTask.HasJob(engine.JobExecute)
+	serviceTask.CompleteJob()
 
-	piAssert.HasPassed("endEventA")
+	psAssert.HasPassed("endEventA")
 	piAssert.IsCompleted()
 
 	elementInstances := piAssert.ElementInstances()
@@ -148,13 +132,15 @@ func (x escalationEventTest) end(t *testing.T) {
 		},
 	})
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("escalationThrowEvent")
-	piAssert.ExecuteTask()
+	escalationThrowEvent := psAssert.IsWaitingAt("subProcess").IsWaitingAt("escalationThrowEvent")
+	escalationThrowEvent.HasTask(engine.TaskTriggerEvent)
+	escalationThrowEvent.ExecuteTask()
 
-	piAssert.IsWaitingAt("escalationEndEvent")
-	piAssert.ExecuteTask()
+	escalationEndEvent := psAssert.IsWaitingAt("subProcess").IsWaitingAt("escalationEndEvent")
+	escalationEndEvent.HasTask(engine.TaskTriggerEvent)
+	escalationEndEvent.ExecuteTask()
 
 	piAssert.IsCompleted()
 
@@ -189,13 +175,15 @@ func (x escalationEventTest) throw(t *testing.T) {
 		},
 	})
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("escalationThrowEvent")
-	piAssert.ExecuteTask()
+	escalationThrowEvent := psAssert.IsWaitingAt("subProcess").IsWaitingAt("escalationThrowEvent")
+	escalationThrowEvent.HasTask(engine.TaskTriggerEvent)
+	escalationThrowEvent.ExecuteTask()
 
-	piAssert.IsWaitingAt("escalationEndEvent")
-	piAssert.ExecuteTask()
+	escalationEndEvent := psAssert.IsWaitingAt("subProcess").IsWaitingAt("escalationEndEvent")
+	escalationEndEvent.HasTask(engine.TaskTriggerEvent)
+	escalationEndEvent.ExecuteTask()
 
 	piAssert.IsCompleted()
 

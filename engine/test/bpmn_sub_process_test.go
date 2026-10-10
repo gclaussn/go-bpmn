@@ -18,7 +18,7 @@ func (x subProcessTest) startEnd(t *testing.T) {
 
 	process := mustCreateProcess(t, x.e, "sub-process/start-end.bpmn", "startEndTest")
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, _ := mustCreateProcessInstance(t, x.e, process)
 	piAssert.IsCompleted()
 
 	elementInstances := piAssert.ElementInstances()
@@ -47,18 +47,18 @@ func (x subProcessTest) boundary(t *testing.T) {
 		},
 	})
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("messageBoundaryEvent")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	messageBoundaryEvent := psAssert.IsWaitingAt("messageBoundaryEvent")
+	messageBoundaryEvent.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
+			MessageCorrelationKey: "ck",
 			MessageName:           t.Name(),
-			MessageCorrelationKey: t.Name(),
 		},
 	})
 
-	piAssert.IsWaitingAt("timerBoundaryEvent")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	timerBoundaryEvent := psAssert.IsWaitingAt("timerBoundaryEvent")
+	timerBoundaryEvent.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			Timer: &engine.Timer{
 				TimeDuration: "PT1H",
@@ -74,9 +74,12 @@ func (x subProcessTest) boundary(t *testing.T) {
 		t.Fatalf("failed to send signal: %v", err)
 	}
 
-	piAssert.IsWaitingAt("signalBoundaryEvent")
-	piAssert.ExecuteTask()
-	piAssert.HasPassed("signalEnd")
+	signalBoundaryEvent := psAssert.IsWaitingAt("signalBoundaryEvent")
+	signalBoundaryEvent.HasTask(engine.TaskTriggerEvent)
+	signalBoundaryEvent.ExecuteTask()
+
+	psAssert.HasPassed("signalEnd")
+
 	piAssert.IsCompleted()
 
 	elementInstances := piAssert.ElementInstances()
@@ -107,18 +110,18 @@ func (x subProcessTest) boundaryTerminated(t *testing.T) {
 		},
 	})
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("messageBoundaryEvent")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	messageBoundaryEvent := psAssert.IsWaitingAt("messageBoundaryEvent")
+	messageBoundaryEvent.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
+			MessageCorrelationKey: "ck",
 			MessageName:           t.Name(),
-			MessageCorrelationKey: t.Name(),
 		},
 	})
 
-	piAssert.IsWaitingAt("timerBoundaryEvent")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	timerBoundaryEvent := psAssert.IsWaitingAt("timerBoundaryEvent")
+	timerBoundaryEvent.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			Timer: &engine.Timer{
 				TimeDuration: "PT1H",
@@ -126,11 +129,8 @@ func (x subProcessTest) boundaryTerminated(t *testing.T) {
 		},
 	})
 
-	piAssert.IsWaitingAt("serviceTaskA")
-	piAssert.CompleteJob()
-
-	piAssert.IsWaitingAt("serviceTaskB")
-	piAssert.CompleteJob()
+	psAssert.IsWaitingAt("subProcess").IsWaitingAt("serviceTaskA").CompleteJob()
+	psAssert.IsWaitingAt("subProcess").IsWaitingAt("serviceTaskB").CompleteJob()
 
 	piAssert.IsCompleted()
 
@@ -159,10 +159,11 @@ func (x subProcessTest) nested(t *testing.T) {
 		},
 	})
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("serviceTask")
-	piAssert.CompleteJob()
+	serviceTask := psAssert.IsWaitingAt("subProcess").IsWaitingAt("nestedSubProcess").IsWaitingAt("serviceTask")
+	serviceTask.HasJob(engine.JobExecute)
+	serviceTask.CompleteJob()
 
 	piAssert.IsCompleted()
 
@@ -189,9 +190,9 @@ func (x subProcessTest) nestedTerminated(t *testing.T) {
 		},
 	})
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("serviceTask")
+	psAssert.IsWaitingAt("subProcess").IsWaitingAt("nestedSubProcess").IsWaitingAt("serviceTask")
 
 	_, err := x.e.SendSignal(context.Background(), engine.SendSignalCmd{
 		Name:     t.Name(),
@@ -201,8 +202,9 @@ func (x subProcessTest) nestedTerminated(t *testing.T) {
 		t.Fatalf("failed to send signal: %v", err)
 	}
 
-	piAssert.IsWaitingAt("signalBoundaryEvent")
-	piAssert.ExecuteTask()
+	signalBoundaryEvent := psAssert.IsWaitingAt("signalBoundaryEvent")
+	signalBoundaryEvent.HasTask(engine.TaskTriggerEvent)
+	signalBoundaryEvent.ExecuteTask()
 
 	piAssert.IsCompleted()
 

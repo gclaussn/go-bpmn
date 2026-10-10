@@ -20,10 +20,10 @@ func (x callActivityTest) startEnd(t *testing.T) {
 		mustCreateProcess(t, x.e, "call-activity/start-end.bpmn", "callActivityStartEndTest"),
 		mustCreateProcess(t, x.e, "start-end.bpmn", "startEndTest")
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("callActivity")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	callActivity := psAssert.IsWaitingAt("callActivity")
+	callActivity.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			CalledProcess: &engine.CalledProcess{
 				BpmnProcessId:  subProcess.BpmnProcessId,
@@ -41,8 +41,8 @@ func (x callActivityTest) startEnd(t *testing.T) {
 		},
 	})
 
-	piAssert.IsWaitingAt("callActivity")
-	piAssert.CompleteJob()
+	callActivity.HasJob(engine.JobPassVariables)
+	callActivity.CompleteJob()
 
 	piAssert.IsCompleted()
 
@@ -58,14 +58,10 @@ func (x callActivityTest) startEnd(t *testing.T) {
 	assert.Equal("endEvent", elementInstances[3].BpmnElementId)
 	assert.Equal(engine.InstanceCompleted, elementInstances[3].State)
 
-	jobs := piAssert.Jobs()
-	require.Len(jobs, 2)
+	children := piAssert.Children()
+	require.Len(children, 1)
 
-	assert.Equal(engine.JobCallProcess, jobs[0].Type)
-	assert.Equal(engine.JobPassVariables, jobs[1].Type)
-
-	subProcessInstance, subElementInstances := x.querySubProcessInstance(t, piAssert)
-
+	subProcessInstance := children[0].ProcessInstance()
 	assert.Equal(piAssert.ProcessInstance().Id, subProcessInstance.ParentId)
 	assert.Equal(piAssert.ProcessInstance().Id, subProcessInstance.RootId)
 
@@ -94,6 +90,8 @@ func (x callActivityTest) startEnd(t *testing.T) {
 	assert.Equal("b", variables[1].Name)
 	assert.Equal("bv", variables[1].Data.Value)
 
+	subElementInstances := children[0].ElementInstances()
+
 	require.Len(subElementInstances, 3)
 	assert.Equal("startEndTest", subElementInstances[0].BpmnElementId)
 	assert.Equal(engine.InstanceCompleted, subElementInstances[1].State)
@@ -104,7 +102,7 @@ func (x callActivityTest) startEnd(t *testing.T) {
 }
 
 func (x callActivityTest) suspensionAndQueueing(t *testing.T) {
-	assert := assert.New(t)
+	assert, require := assert.New(t), require.New(t)
 
 	process, subProcess :=
 		mustCreateProcess(t, x.e, "call-activity/start-end.bpmn", "callActivityStartEndTest"),
@@ -113,22 +111,22 @@ func (x callActivityTest) suspensionAndQueueing(t *testing.T) {
 		})
 
 	// given
-	piAssert1 := mustCreateProcessInstance(t, x.e, process)
-	piAssert2 := mustCreateProcessInstance(t, x.e, process)
+	piAssert1, psAssert1 := mustCreateProcessInstance(t, x.e, process)
+	piAssert2, psAssert2 := mustCreateProcessInstance(t, x.e, process)
 
-	pi1 := piAssert1.ProcessInstance()
+	processInstance1 := piAssert1.ProcessInstance()
 
-	// when pi1 is suspended and process is called
+	// when process instance #1 is suspended and process is called
 	if err := x.e.SuspendProcessInstance(context.Background(), engine.SuspendProcessInstanceCmd{
-		Partition: pi1.Partition,
-		Id:        pi1.Id,
+		Partition: processInstance1.Partition,
+		Id:        processInstance1.Id,
 		WorkerId:  testWorkerId,
 	}); err != nil {
 		t.Fatalf("failed to suspend process instance: %v", err)
 	}
 
-	piAssert1.IsWaitingAt("callActivity")
-	piAssert1.CompleteJob(engine.CompleteJobCmd{
+	callActivity1 := psAssert1.IsWaitingAt("callActivity")
+	callActivity1.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			CalledProcess: &engine.CalledProcess{
 				BpmnProcessId: subProcess.BpmnProcessId,
@@ -137,17 +135,21 @@ func (x callActivityTest) suspensionAndQueueing(t *testing.T) {
 		},
 	})
 
-	// then subPi1 is suspended
-	subProcessInstance1, subElementInstances1 := x.querySubProcessInstance(t, piAssert1)
+	// then sub process instance #1 is suspended
+	child1, _, ok := piAssert1.Child()
+	require.True(ok)
 
-	assert.Equal(engine.InstanceSuspended, subProcessInstance1.State)
+	child1.HasState(engine.InstanceSuspended)
 
+	subElementInstances1 := child1.ElementInstances()
+	assert.Equal("startEndTest", subElementInstances1[0].BpmnElementId)
 	assert.Equal(engine.InstanceSuspended, subElementInstances1[0].State)
+	assert.Equal("startEvent", subElementInstances1[1].BpmnElementId)
 	assert.Equal(engine.InstanceSuspended, subElementInstances1[1].State)
 
 	// when another process is called
-	piAssert2.IsWaitingAt("callActivity")
-	piAssert2.CompleteJob(engine.CompleteJobCmd{
+	callActivity2 := psAssert2.IsWaitingAt("callActivity")
+	callActivity2.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			CalledProcess: &engine.CalledProcess{
 				BpmnProcessId: subProcess.BpmnProcessId,
@@ -156,15 +158,18 @@ func (x callActivityTest) suspensionAndQueueing(t *testing.T) {
 		},
 	})
 
-	// then subPi2 is queued
-	subProcessInstance2, subElementInstances2 := x.querySubProcessInstance(t, piAssert2)
+	// then sub process instance #2 is queued
+	child2, _, ok := piAssert2.Child()
+	require.True(ok)
 
-	assert.Equal(engine.InstanceQueued, subProcessInstance2.State)
+	child2.HasState(engine.InstanceQueued)
 
+	subElementInstances2 := child2.ElementInstances()
 	assert.Equal(engine.InstanceQueued, subElementInstances2[0].State)
 	assert.Equal(engine.InstanceQueued, subElementInstances2[1].State)
 
-	// when subPi1 is resumed and call activity is completed
+	// when sub process instance #1 is resumed and call activity is completed
+	subProcessInstance1 := child1.ProcessInstance()
 	if err := x.e.ResumeProcessInstance(context.Background(), engine.ResumeProcessInstanceCmd{
 		Partition: subProcessInstance1.Partition,
 		Id:        subProcessInstance1.Id,
@@ -173,35 +178,34 @@ func (x callActivityTest) suspensionAndQueueing(t *testing.T) {
 		t.Fatalf("failed to resume process instance: %v", err)
 	}
 
-	piAssert1.IsWaitingAt("callActivity")
-	piAssert1.CompleteJob()
+	callActivity1.HasJob(engine.JobPassVariables)
+	callActivity1.CompleteJob()
 
-	// then pi1 is still suspended, but subPi1 is completed
-	piAssert1.IsNotCompleted()
+	// then process instance #1 is still suspended, but sub process instance #1 is completed
+	piAssert1.HasState(engine.InstanceSuspended)
 
-	subProcessInstance1a, subElementInstances1a := x.querySubProcessInstance(t, piAssert1)
+	child1.IsCompleted()
 
-	assert.Equal(engine.InstanceCompleted, subProcessInstance1a.State)
+	subElementInstances1 = child1.ElementInstances()
+	assert.Equal(engine.InstanceCompleted, subElementInstances1[0].State)
+	assert.Equal(engine.InstanceCompleted, subElementInstances1[1].State)
+	assert.Equal(engine.InstanceCompleted, subElementInstances1[2].State)
 
-	assert.Equal(engine.InstanceCompleted, subElementInstances1a[0].State)
-	assert.Equal(engine.InstanceCompleted, subElementInstances1a[1].State)
+	// when sub process instance #2 is started and call activity is completed
+	child2.ExecuteTasks()
 
-	// when pi2 is started and call activity is completed
-	piAssert4 := engine.Assert(t, x.e, subProcessInstance2)
-	piAssert4.ExecuteTasks()
+	callActivity2.HasJob(engine.JobPassVariables)
+	callActivity2.CompleteJob()
 
-	piAssert2.IsWaitingAt("callActivity")
-	piAssert2.CompleteJob()
-
-	// then pi2 and subPi2 are completed
+	// then process instance #2 and sub process instance #2 are completed
 	piAssert2.IsCompleted()
 
-	subProcessInstance2a, subElementInstances2a := x.querySubProcessInstance(t, piAssert1)
+	child2.IsCompleted()
 
-	assert.Equal(engine.InstanceCompleted, subProcessInstance2a.State)
-
-	assert.Equal(engine.InstanceCompleted, subElementInstances2a[0].State)
-	assert.Equal(engine.InstanceCompleted, subElementInstances2a[1].State)
+	subElementInstances2 = child2.ElementInstances()
+	assert.Equal(engine.InstanceCompleted, subElementInstances2[0].State)
+	assert.Equal(engine.InstanceCompleted, subElementInstances2[1].State)
+	assert.Equal(engine.InstanceCompleted, subElementInstances2[2].State)
 }
 
 func (x callActivityTest) calledElement(t *testing.T) {
@@ -211,19 +215,21 @@ func (x callActivityTest) calledElement(t *testing.T) {
 			Version: "called-element-test", // version specified in the calledElement attribute
 		})
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("callActivity")
-	piAssert.CompleteJob()
+	callActivity := psAssert.IsWaitingAt("callActivity")
 
-	piAssert.IsWaitingAt("callActivity")
-	piAssert.CompleteJob()
+	callActivity.HasJob(engine.JobCallProcess)
+	callActivity.CompleteJob()
+
+	callActivity.HasJob(engine.JobPassVariables)
+	callActivity.CompleteJob()
 
 	piAssert.IsCompleted()
 }
 
 func (x callActivityTest) calledElementLatest(t *testing.T) {
-	assert := assert.New(t)
+	assert, require := assert.New(t), require.New(t)
 
 	process, _, subProcessV2 :=
 		mustCreateProcess(t, x.e, "call-activity/called-element-latest.bpmn", "callActivityCalledElementLatestTest"),
@@ -234,17 +240,22 @@ func (x callActivityTest) calledElementLatest(t *testing.T) {
 			Version: t.Name() + "v2",
 		})
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("callActivity")
-	piAssert.CompleteJob()
+	callActivity := psAssert.IsWaitingAt("callActivity")
 
-	piAssert.IsWaitingAt("callActivity")
-	piAssert.CompleteJob()
+	callActivity.HasJob(engine.JobCallProcess)
+	callActivity.CompleteJob()
+
+	callActivity.HasJob(engine.JobPassVariables)
+	callActivity.CompleteJob()
 
 	piAssert.IsCompleted()
 
-	subProcessInstance, _ := x.querySubProcessInstance(t, piAssert)
+	children := piAssert.Children()
+	require.Len(children, 1)
+
+	subProcessInstance := children[0].ProcessInstance()
 	assert.Equal(subProcessV2.Version, subProcessInstance.Version)
 }
 
@@ -255,17 +266,17 @@ func (x callActivityTest) boundaryEvent(t *testing.T) {
 		mustCreateProcess(t, x.e, "call-activity/signal-boundary.bpmn", "callActivitySignalBoundaryTest"),
 		mustCreateProcess(t, x.e, "task/service.bpmn", "serviceTest")
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("signalBoundaryEvent")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	signalBoundaryEvent := psAssert.IsWaitingAt("signalBoundaryEvent")
+	signalBoundaryEvent.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			SignalName: t.Name(),
 		},
 	})
 
-	piAssert.IsWaitingAt("callActivity")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	callActivity := psAssert.IsWaitingAt("callActivity")
+	callActivity.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			CalledProcess: &engine.CalledProcess{
 				BpmnProcessId: subProcess.BpmnProcessId,
@@ -281,8 +292,11 @@ func (x callActivityTest) boundaryEvent(t *testing.T) {
 		t.Fatalf("failed to send signal: %v", err)
 	}
 
-	piAssert.IsWaitingAt("signalBoundaryEvent")
-	piAssert.ExecuteTask()
+	child, _, ok := piAssert.Child()
+	require.True(ok)
+
+	signalBoundaryEvent.HasTask(engine.TaskTriggerEvent)
+	signalBoundaryEvent.ExecuteTask()
 
 	piAssert.IsCompleted()
 
@@ -299,17 +313,15 @@ func (x callActivityTest) boundaryEvent(t *testing.T) {
 	assert.Equal("signalEnd", elementInstances[4].BpmnElementId)
 	assert.Equal(engine.InstanceCompleted, elementInstances[4].State)
 
-	subProcessInstance, _ := x.querySubProcessInstance(t, piAssert)
-	subPiAssert := engine.Assert(t, x.e, subProcessInstance)
-
-	subTasks := subPiAssert.ExecuteTasks()
+	subTasks := child.ExecuteTasks()
 	require.Len(subTasks, 1)
 	assert.Equal(engine.TaskTerminateProcessInstance, subTasks[0].Type)
 
-	terminatedSubProcessInstance, subElementInstances := x.querySubProcessInstance(t, piAssert)
-	assert.NotNil(terminatedSubProcessInstance.EndedAt)
-	assert.Equal(engine.InstanceTerminated, terminatedSubProcessInstance.State)
+	subProcessInstance := child.ProcessInstance()
+	assert.NotNil(subProcessInstance.EndedAt)
+	assert.Equal(engine.InstanceTerminated, subProcessInstance.State)
 
+	subElementInstances := child.ElementInstances()
 	require.Len(subElementInstances, 3)
 	assert.Equal("serviceTest", subElementInstances[0].BpmnElementId)
 	assert.Equal(engine.InstanceTerminated, subElementInstances[0].State)
@@ -329,18 +341,18 @@ func (x callActivityTest) boundaryEventWithRecursiveTermination(t *testing.T) {
 		mustCreateProcess(t, x.e, "call-activity/signal-boundary.bpmn", "callActivitySignalBoundaryTest"),
 		mustCreateProcess(t, x.e, "task/service.bpmn", "serviceTest")
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("signalBoundaryEvent")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	signalBoundaryEvent1 := psAssert.IsWaitingAt("signalBoundaryEvent")
+	signalBoundaryEvent1.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			SignalName: t.Name(),
 		},
 	})
 
 	// when callActivityBoundaryTest process is called
-	piAssert.IsWaitingAt("callActivity")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	callActivity1 := psAssert.IsWaitingAt("callActivity")
+	callActivity1.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			CalledProcess: &engine.CalledProcess{
 				BpmnProcessId: process.BpmnProcessId,
@@ -350,19 +362,19 @@ func (x callActivityTest) boundaryEventWithRecursiveTermination(t *testing.T) {
 	})
 
 	// given
-	subProcessInstance, _ := x.querySubProcessInstance(t, piAssert)
-	subPiAssert := engine.Assert(t, x.e, subProcessInstance)
+	child1, childScope1, ok := piAssert.Child()
+	require.True(ok)
 
-	subPiAssert.IsWaitingAt("signalBoundaryEvent")
-	subPiAssert.CompleteJob(engine.CompleteJobCmd{
+	signalBoundaryEvent2 := childScope1.IsWaitingAt("signalBoundaryEvent")
+	signalBoundaryEvent2.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			SignalName: t.Name() + "sub",
 		},
 	})
 
 	// when serviceTest process is called
-	subPiAssert.IsWaitingAt("callActivity")
-	subPiAssert.CompleteJob(engine.CompleteJobCmd{
+	callActivity2 := childScope1.IsWaitingAt("callActivity")
+	callActivity2.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			CalledProcess: &engine.CalledProcess{
 				BpmnProcessId: subProcess.BpmnProcessId,
@@ -370,6 +382,10 @@ func (x callActivityTest) boundaryEventWithRecursiveTermination(t *testing.T) {
 			},
 		},
 	})
+
+	// given
+	child2, _, ok := child1.Child()
+	require.True(ok)
 
 	// when signalBoundarEvent of root process instance is triggered
 	if _, err := x.e.SendSignal(context.Background(), engine.SendSignalCmd{
@@ -379,28 +395,24 @@ func (x callActivityTest) boundaryEventWithRecursiveTermination(t *testing.T) {
 		t.Fatalf("failed to send signal: %v", err)
 	}
 
-	piAssert.IsWaitingAt("signalBoundaryEvent")
-	piAssert.ExecuteTask()
+	signalBoundaryEvent1.HasTask(engine.TaskTriggerEvent)
+	signalBoundaryEvent1.ExecuteTask()
 
 	piAssert.IsCompleted()
 
 	// when
-	subTasks := subPiAssert.ExecuteTasks()
+	subTasks1 := child1.ExecuteTasks()
 
 	// then
-	require.Len(subTasks, 1)
-	assert.Equal(engine.TaskTerminateProcessInstance, subTasks[0].Type)
-
-	// given
-	subSubProcessInstance, _ := x.querySubProcessInstance(t, subPiAssert)
-	subSubPiAssert := engine.Assert(t, x.e, subSubProcessInstance)
+	require.Len(subTasks1, 1)
+	assert.Equal(engine.TaskTerminateProcessInstance, subTasks1[0].Type)
 
 	// when
-	subSubTasks := subSubPiAssert.ExecuteTasks()
+	subTasks2 := child2.ExecuteTasks()
 
 	// then
-	require.Len(subSubTasks, 1)
-	assert.Equal(engine.TaskTerminateProcessInstance, subSubTasks[0].Type)
+	require.Len(subTasks2, 1)
+	assert.Equal(engine.TaskTerminateProcessInstance, subTasks2[0].Type)
 }
 
 func (x callActivityTest) executeWithErrorCode(t *testing.T) {
@@ -410,10 +422,10 @@ func (x callActivityTest) executeWithErrorCode(t *testing.T) {
 		mustCreateProcess(t, x.e, "call-activity/error-boundary.bpmn", "callActivityErrorBoundaryTest"),
 		mustCreateProcess(t, x.e, "task/service.bpmn", "serviceTest")
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("callActivity")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	callActivity := psAssert.IsWaitingAt("callActivity")
+	callActivity.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			CalledProcess: &engine.CalledProcess{
 				BpmnProcessId: subProcess.BpmnProcessId,
@@ -422,17 +434,17 @@ func (x callActivityTest) executeWithErrorCode(t *testing.T) {
 		},
 	})
 
-	subProcessInstance, _ := x.querySubProcessInstance(t, piAssert)
-	subPiAssert := engine.Assert(t, x.e, subProcessInstance)
+	child, childScope, ok := piAssert.Child()
+	require.True(ok)
 
-	subPiAssert.IsWaitingAt("serviceTask")
-	subPiAssert.CompleteJob(engine.CompleteJobCmd{
+	serviceTask := childScope.IsWaitingAt("serviceTask")
+	serviceTask.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			ErrorCode: "testErrorCode",
 		},
 	})
 
-	subElementInstances := subPiAssert.ElementInstances()
+	subElementInstances := child.ElementInstances()
 	require.Len(subElementInstances, 3)
 	assert.Equal("serviceTest", subElementInstances[0].BpmnElementId)
 	assert.Equal(engine.InstanceTerminated, subElementInstances[0].State)
@@ -441,8 +453,11 @@ func (x callActivityTest) executeWithErrorCode(t *testing.T) {
 	assert.Equal("serviceTask", subElementInstances[2].BpmnElementId)
 	assert.Equal(engine.InstanceTerminated, subElementInstances[2].State)
 
-	piAssert.IsWaitingAt("errorBoundaryEvent")
-	piAssert.ExecuteTask()
+	errorBoundaryEvent := psAssert.IsWaitingAt("errorBoundaryEvent")
+	errorBoundaryEvent.HasTask(engine.TaskTriggerEvent)
+	errorBoundaryEvent.ExecuteTask()
+
+	piAssert.IsCompleted()
 
 	elementInstances := piAssert.ElementInstances()
 	require.Len(elementInstances, 5)
@@ -456,8 +471,6 @@ func (x callActivityTest) executeWithErrorCode(t *testing.T) {
 	assert.Equal(engine.InstanceCompleted, elementInstances[3].State)
 	assert.Equal("errorEnd", elementInstances[4].BpmnElementId)
 	assert.Equal(engine.InstanceCompleted, elementInstances[4].State)
-
-	piAssert.IsCompleted()
 }
 
 func (x callActivityTest) errorEnd(t *testing.T) {
@@ -471,10 +484,10 @@ func (x callActivityTest) errorEnd(t *testing.T) {
 			},
 		})
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("callActivity")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	callActivity := psAssert.IsWaitingAt("callActivity")
+	callActivity.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			CalledProcess: &engine.CalledProcess{
 				BpmnProcessId: subProcess.BpmnProcessId,
@@ -483,20 +496,20 @@ func (x callActivityTest) errorEnd(t *testing.T) {
 		},
 	})
 
-	subProcessInstance, _ := x.querySubProcessInstance(t, piAssert)
-	subPiAssert := engine.Assert(t, x.e, subProcessInstance)
+	child, childScope, ok := piAssert.Child()
+	require.True(ok)
 
-	subPiAssert.IsWaitingAt("errorEndEvent")
-	subPiAssert.CompleteJob(engine.CompleteJobCmd{
+	errorEndEvent := childScope.IsWaitingAt("subProcess").IsWaitingAt("errorEndEvent")
+	errorEndEvent.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			ErrorCode: "testErrorCode",
 		},
 	})
 
-	subPiAssert.IsWaitingAt("errorEndEvent")
-	subPiAssert.ExecuteTask()
+	errorEndEvent.HasTask(engine.TaskTriggerEvent)
+	errorEndEvent.ExecuteTask()
 
-	subElementInstances := subPiAssert.ElementInstances()
+	subElementInstances := child.ElementInstances()
 	require.Len(subElementInstances, 6)
 	assert.Equal("errorEndTest", subElementInstances[0].BpmnElementId)
 	assert.Equal(engine.InstanceTerminated, subElementInstances[0].State)
@@ -511,8 +524,11 @@ func (x callActivityTest) errorEnd(t *testing.T) {
 	assert.Equal("errorEndEvent", subElementInstances[5].BpmnElementId)
 	assert.Equal(engine.InstanceCompleted, subElementInstances[5].State)
 
-	piAssert.IsWaitingAt("errorBoundaryEvent")
-	piAssert.ExecuteTask()
+	errorBoundaryEvent := psAssert.IsWaitingAt("errorBoundaryEvent")
+	errorBoundaryEvent.HasTask(engine.TaskTriggerEvent)
+	errorBoundaryEvent.ExecuteTask()
+
+	piAssert.IsCompleted()
 
 	elementInstances := piAssert.ElementInstances()
 	require.Len(elementInstances, 5)
@@ -526,8 +542,6 @@ func (x callActivityTest) errorEnd(t *testing.T) {
 	assert.Equal(engine.InstanceCompleted, elementInstances[3].State)
 	assert.Equal("errorEnd", elementInstances[4].BpmnElementId)
 	assert.Equal(engine.InstanceCompleted, elementInstances[4].State)
-
-	piAssert.IsCompleted()
 }
 
 func (x callActivityTest) executeWithEscalationCode(t *testing.T) {
@@ -537,10 +551,10 @@ func (x callActivityTest) executeWithEscalationCode(t *testing.T) {
 		mustCreateProcess(t, x.e, "call-activity/escalation-boundary.bpmn", "callActivityEscalationBoundaryTest"),
 		mustCreateProcess(t, x.e, "task/service.bpmn", "serviceTest")
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("callActivity")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	callActivity := psAssert.IsWaitingAt("callActivity")
+	callActivity.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			CalledProcess: &engine.CalledProcess{
 				BpmnProcessId: subProcess.BpmnProcessId,
@@ -549,17 +563,17 @@ func (x callActivityTest) executeWithEscalationCode(t *testing.T) {
 		},
 	})
 
-	subProcessInstance, _ := x.querySubProcessInstance(t, piAssert)
-	subPiAssert := engine.Assert(t, x.e, subProcessInstance)
+	child, childScope, ok := piAssert.Child()
+	require.True(ok)
 
-	subPiAssert.IsWaitingAt("serviceTask")
-	subPiAssert.CompleteJob(engine.CompleteJobCmd{
+	serviceTask := childScope.IsWaitingAt("serviceTask")
+	serviceTask.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			EscalationCode: "testEscalationCode",
 		},
 	})
 
-	subElementInstances := subPiAssert.ElementInstances()
+	subElementInstances := child.ElementInstances()
 	require.Len(subElementInstances, 3)
 	assert.Equal("serviceTest", subElementInstances[0].BpmnElementId)
 	assert.Equal(engine.InstanceTerminated, subElementInstances[0].State)
@@ -568,8 +582,11 @@ func (x callActivityTest) executeWithEscalationCode(t *testing.T) {
 	assert.Equal("serviceTask", subElementInstances[2].BpmnElementId)
 	assert.Equal(engine.InstanceTerminated, subElementInstances[2].State)
 
-	piAssert.IsWaitingAt("escalationBoundaryEvent")
-	piAssert.ExecuteTask()
+	escalationBoundaryEvent := psAssert.IsWaitingAt("escalationBoundaryEvent")
+	escalationBoundaryEvent.HasTask(engine.TaskTriggerEvent)
+	escalationBoundaryEvent.ExecuteTask()
+
+	piAssert.IsCompleted()
 
 	elementInstances := piAssert.ElementInstances()
 	require.Len(elementInstances, 6)
@@ -585,8 +602,6 @@ func (x callActivityTest) executeWithEscalationCode(t *testing.T) {
 	assert.Equal(engine.InstanceCompleted, elementInstances[4].State)
 	assert.Equal("escalationEnd", elementInstances[5].BpmnElementId)
 	assert.Equal(engine.InstanceCompleted, elementInstances[5].State)
-
-	piAssert.IsCompleted()
 }
 
 func (x callActivityTest) executeWithNonInterruptingEscalationCode(t *testing.T) {
@@ -596,10 +611,10 @@ func (x callActivityTest) executeWithNonInterruptingEscalationCode(t *testing.T)
 		mustCreateProcess(t, x.e, "call-activity/escalation-boundary.bpmn", "callActivityEscalationBoundaryTest"),
 		mustCreateProcess(t, x.e, "task/service.bpmn", "serviceTest")
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("callActivity")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	callActivity := psAssert.IsWaitingAt("callActivity")
+	callActivity.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			CalledProcess: &engine.CalledProcess{
 				BpmnProcessId: subProcess.BpmnProcessId,
@@ -608,19 +623,19 @@ func (x callActivityTest) executeWithNonInterruptingEscalationCode(t *testing.T)
 		},
 	})
 
-	subProcessInstance, _ := x.querySubProcessInstance(t, piAssert)
-	subPiAssert := engine.Assert(t, x.e, subProcessInstance)
+	child, childScope, ok := piAssert.Child()
+	require.True(ok)
 
-	subPiAssert.IsWaitingAt("serviceTask")
-	subPiAssert.CompleteJob(engine.CompleteJobCmd{
+	serviceTask := childScope.IsWaitingAt("serviceTask")
+	serviceTask.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			EscalationCode: "testEscalationNonInterruptingCode",
 		},
 	})
 
-	subPiAssert.IsNotCompleted()
+	child.HasState(engine.InstanceStarted)
 
-	subElementInstances := subPiAssert.ElementInstances()
+	subElementInstances := child.ElementInstances()
 	require.Len(subElementInstances, 3)
 	assert.Equal("serviceTest", subElementInstances[0].BpmnElementId)
 	assert.Equal(engine.InstanceStarted, subElementInstances[0].State)
@@ -629,8 +644,11 @@ func (x callActivityTest) executeWithNonInterruptingEscalationCode(t *testing.T)
 	assert.Equal("serviceTask", subElementInstances[2].BpmnElementId)
 	assert.Equal(engine.InstanceStarted, subElementInstances[2].State)
 
-	piAssert.IsWaitingAt("escalationBoundaryEventNonInterrupting")
-	piAssert.ExecuteTask()
+	escalationBoundaryEventNonInterrupting := psAssert.IsWaitingAt("escalationBoundaryEventNonInterrupting")
+	escalationBoundaryEventNonInterrupting.HasTask(engine.TaskTriggerEvent)
+	escalationBoundaryEventNonInterrupting.ExecuteTask()
+
+	piAssert.HasState(engine.InstanceStarted)
 
 	elementInstances := piAssert.ElementInstances()
 	require.Len(elementInstances, 7)
@@ -648,8 +666,6 @@ func (x callActivityTest) executeWithNonInterruptingEscalationCode(t *testing.T)
 	assert.Equal(engine.InstanceCreated, elementInstances[5].State)
 	assert.Equal("nonInterruptingEscalationEnd", elementInstances[6].BpmnElementId)
 	assert.Equal(engine.InstanceCompleted, elementInstances[6].State)
-
-	piAssert.IsNotCompleted()
 }
 
 func (x callActivityTest) escalationEnd(t *testing.T) {
@@ -664,10 +680,10 @@ func (x callActivityTest) escalationEnd(t *testing.T) {
 			},
 		})
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("callActivity")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	callActivity := psAssert.IsWaitingAt("callActivity")
+	callActivity.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			CalledProcess: &engine.CalledProcess{
 				BpmnProcessId: subProcess.BpmnProcessId,
@@ -676,30 +692,30 @@ func (x callActivityTest) escalationEnd(t *testing.T) {
 		},
 	})
 
-	subProcessInstance, _ := x.querySubProcessInstance(t, piAssert)
-	subPiAssert := engine.Assert(t, x.e, subProcessInstance)
+	child, childScope, ok := piAssert.Child()
+	require.True(ok)
 
-	subPiAssert.IsWaitingAt("escalationThrowEvent")
-	subPiAssert.CompleteJob(engine.CompleteJobCmd{
+	escalationThrowEvent := childScope.IsWaitingAt("subProcess").IsWaitingAt("escalationThrowEvent")
+	escalationThrowEvent.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			EscalationCode: "not-existing",
 		},
 	})
 
-	subPiAssert.IsWaitingAt("escalationThrowEvent")
-	subPiAssert.ExecuteTask()
+	escalationThrowEvent.HasTask(engine.TaskTriggerEvent)
+	escalationThrowEvent.ExecuteTask()
 
-	subPiAssert.IsWaitingAt("escalationEndEvent")
-	subPiAssert.CompleteJob(engine.CompleteJobCmd{
+	escalationEndEvent := childScope.IsWaitingAt("subProcess").IsWaitingAt("escalationEndEvent")
+	escalationEndEvent.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			EscalationCode: "testEscalationCode",
 		},
 	})
 
-	subPiAssert.IsWaitingAt("escalationEndEvent")
-	subPiAssert.ExecuteTask()
+	escalationEndEvent.HasTask(engine.TaskTriggerEvent)
+	escalationEndEvent.ExecuteTask()
 
-	subElementInstances := subPiAssert.ElementInstances()
+	subElementInstances := child.ElementInstances()
 	require.Len(subElementInstances, 8)
 	assert.Equal("escalationThrowEndTest", subElementInstances[0].BpmnElementId)
 	assert.Equal(engine.InstanceTerminated, subElementInstances[0].State)
@@ -718,8 +734,11 @@ func (x callActivityTest) escalationEnd(t *testing.T) {
 	assert.Equal("escalationEndEvent", subElementInstances[7].BpmnElementId)
 	assert.Equal(engine.InstanceCompleted, subElementInstances[7].State)
 
-	piAssert.IsWaitingAt("escalationBoundaryEvent")
-	piAssert.ExecuteTask()
+	escalationBoundaryEvent := psAssert.IsWaitingAt("escalationBoundaryEvent")
+	escalationBoundaryEvent.HasTask(engine.TaskTriggerEvent)
+	escalationBoundaryEvent.ExecuteTask()
+
+	piAssert.IsCompleted()
 
 	elementInstances := piAssert.ElementInstances()
 	require.Len(elementInstances, 6)
@@ -735,8 +754,6 @@ func (x callActivityTest) escalationEnd(t *testing.T) {
 	assert.Equal(engine.InstanceCompleted, elementInstances[4].State)
 	assert.Equal("escalationEnd", elementInstances[5].BpmnElementId)
 	assert.Equal(engine.InstanceCompleted, elementInstances[5].State)
-
-	piAssert.IsCompleted()
 }
 
 func (x callActivityTest) escalationThrow(t *testing.T) {
@@ -751,10 +768,10 @@ func (x callActivityTest) escalationThrow(t *testing.T) {
 			},
 		})
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("callActivity")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	callActivity := psAssert.IsWaitingAt("callActivity")
+	callActivity.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			CalledProcess: &engine.CalledProcess{
 				BpmnProcessId: subProcess.BpmnProcessId,
@@ -763,20 +780,20 @@ func (x callActivityTest) escalationThrow(t *testing.T) {
 		},
 	})
 
-	subProcessInstance, _ := x.querySubProcessInstance(t, piAssert)
-	subPiAssert := engine.Assert(t, x.e, subProcessInstance)
+	child, childScope, ok := piAssert.Child()
+	require.True(ok)
 
-	subPiAssert.IsWaitingAt("escalationThrowEvent")
-	subPiAssert.CompleteJob(engine.CompleteJobCmd{
+	escalationThrowEvent := childScope.IsWaitingAt("subProcess").IsWaitingAt("escalationThrowEvent")
+	escalationThrowEvent.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			EscalationCode: "testEscalationNonInterruptingCode",
 		},
 	})
 
-	subPiAssert.IsWaitingAt("escalationThrowEvent")
-	subPiAssert.ExecuteTask()
+	escalationThrowEvent.HasTask(engine.TaskTriggerEvent)
+	escalationThrowEvent.ExecuteTask()
 
-	subElementInstances := subPiAssert.ElementInstances()
+	subElementInstances := child.ElementInstances()
 	require.Len(subElementInstances, 8)
 	assert.Equal("escalationThrowEndTest", subElementInstances[0].BpmnElementId)
 	assert.Equal(engine.InstanceStarted, subElementInstances[0].State)
@@ -795,8 +812,11 @@ func (x callActivityTest) escalationThrow(t *testing.T) {
 	assert.Equal("escalationEndEvent", subElementInstances[7].BpmnElementId)
 	assert.Equal(engine.InstanceCreated, subElementInstances[7].State)
 
-	piAssert.IsWaitingAt("escalationBoundaryEventNonInterrupting")
-	piAssert.ExecuteTask()
+	escalationBoundaryEventNonInterrupting := psAssert.IsWaitingAt("escalationBoundaryEventNonInterrupting")
+	escalationBoundaryEventNonInterrupting.HasTask(engine.TaskTriggerEvent)
+	escalationBoundaryEventNonInterrupting.ExecuteTask()
+
+	piAssert.HasState(engine.InstanceStarted)
 
 	elementInstances := piAssert.ElementInstances()
 	require.Len(elementInstances, 7)
@@ -814,8 +834,6 @@ func (x callActivityTest) escalationThrow(t *testing.T) {
 	assert.Equal(engine.InstanceCreated, elementInstances[5].State)
 	assert.Equal("nonInterruptingEscalationEnd", elementInstances[6].BpmnElementId)
 	assert.Equal(engine.InstanceCompleted, elementInstances[6].State)
-
-	piAssert.IsNotCompleted()
 }
 
 func (x callActivityTest) errorProcessNotFound(t *testing.T) {
@@ -823,10 +841,10 @@ func (x callActivityTest) errorProcessNotFound(t *testing.T) {
 
 	process := mustCreateProcess(t, x.e, "call-activity/start-end.bpmn", "callActivityStartEndTest")
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	_, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("callActivity")
-	completedJob := piAssert.CompleteJobWithError(engine.CompleteJobCmd{
+	callActivity := psAssert.IsWaitingAt("callActivity")
+	completedJob := callActivity.CompleteJobWithError(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			CalledProcess: &engine.CalledProcess{
 				BpmnProcessId: "not-existing",
@@ -849,10 +867,10 @@ func (x callActivityTest) errorProcessHasNoNoneStart(t *testing.T) {
 			Version: t.Name(),
 		})
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	_, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("callActivity")
-	completedJob := piAssert.CompleteJobWithError(engine.CompleteJobCmd{
+	callActivity := psAssert.IsWaitingAt("callActivity")
+	completedJob := callActivity.CompleteJobWithError(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			CalledProcess: &engine.CalledProcess{
 				BpmnProcessId: subProcess.BpmnProcessId,
@@ -868,10 +886,10 @@ func (x callActivityTest) errorCalledProcessVersionNotFound(t *testing.T) {
 
 	process := mustCreateProcess(t, x.e, "call-activity/called-process-version-not-found.bpmn", "callActivityCalledProcessVersionNotFoundTest")
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	_, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("callActivity")
-	completedJob := piAssert.CompleteJobWithError()
+	callActivity := psAssert.IsWaitingAt("callActivity")
+	completedJob := callActivity.CompleteJobWithError()
 	assert.Contains(completedJob.Error, "process not-existing:1 could not be found")
 }
 
@@ -880,37 +898,9 @@ func (x callActivityTest) errorCalledProcessNotFound(t *testing.T) {
 
 	process := mustCreateProcess(t, x.e, "call-activity/called-process-not-found.bpmn", "callActivityCalledProcessNotFoundTest")
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	_, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("callActivity")
-	completedJob := piAssert.CompleteJobWithError()
+	callActivity := psAssert.IsWaitingAt("callActivity")
+	completedJob := callActivity.CompleteJobWithError()
 	assert.Contains(completedJob.Error, "process not-existing could not be found")
-}
-
-func (x callActivityTest) querySubProcessInstance(t *testing.T, piAssert *engine.ProcessInstanceAssert) (engine.ProcessInstance, []engine.ElementInstance) {
-	pi := piAssert.ProcessInstance()
-
-	query := x.e.CreateQuery()
-
-	processInstances, err := query.QueryProcessInstances(context.Background(), engine.ProcessInstanceCriteria{
-		Partition: pi.Partition,
-		ParentId:  pi.Id,
-	})
-	if err != nil {
-		t.Fatalf("failed to query sub process instance: %v", err)
-	}
-
-	if len(processInstances) == 0 {
-		t.Fatal("no sub process instance found")
-	}
-
-	subElementInstances, err := query.QueryElementInstances(context.Background(), engine.ElementInstanceCriteria{
-		Partition:         processInstances[0].Partition,
-		ProcessInstanceId: processInstances[0].Id,
-	})
-	if err != nil {
-		t.Fatalf("failed to query sub element instances: %v", err)
-	}
-
-	return processInstances[0], subElementInstances
 }

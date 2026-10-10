@@ -1,36 +1,25 @@
 package test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/stretchr/testify/assert"
 )
 
-func newExclusiveGatewayTest(t *testing.T, e engine.Engine) exclusiveGatewayTest {
-	return exclusiveGatewayTest{
-		e: e,
-
-		exclusiveTest:        mustCreateProcess(t, e, "gateway/exclusive.bpmn", "exclusiveTest"),
-		exclusiveDefaultTest: mustCreateProcess(t, e, "gateway/exclusive-default.bpmn", "exclusiveDefaultTest"),
-	}
-}
-
 type exclusiveGatewayTest struct {
 	e engine.Engine
-
-	exclusiveTest        engine.Process
-	exclusiveDefaultTest engine.Process
 }
 
 func (x exclusiveGatewayTest) gateway(t *testing.T) {
 	assert := assert.New(t)
 
-	piAssert := mustCreateProcessInstance(t, x.e, x.exclusiveTest)
+	process := mustCreateProcess(t, x.e, "gateway/exclusive.bpmn", "exclusiveTest")
 
-	piAssert.IsWaitingAt("fork")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
+
+	fork := psAssert.IsWaitingAt("fork")
+	fork.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			ExclusiveGatewayDecision: "join",
 		},
@@ -48,10 +37,13 @@ func (x exclusiveGatewayTest) gateway(t *testing.T) {
 func (x exclusiveGatewayTest) gatewayDefault(t *testing.T) {
 	assert := assert.New(t)
 
-	piAssert := mustCreateProcessInstance(t, x.e, x.exclusiveDefaultTest)
+	process := mustCreateProcess(t, x.e, "gateway/exclusive-default.bpmn", "exclusiveDefaultTest")
 
-	piAssert.IsWaitingAt("fork")
-	piAssert.CompleteJob()
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
+
+	fork := psAssert.IsWaitingAt("fork")
+	fork.HasJob(engine.JobEvaluateExclusiveGateway)
+	fork.CompleteJob()
 
 	piAssert.IsCompleted()
 
@@ -63,73 +55,29 @@ func (x exclusiveGatewayTest) gatewayDefault(t *testing.T) {
 }
 
 func (x exclusiveGatewayTest) errorNoBpmnElementId(t *testing.T) {
-	assert := assert.New(t)
+	process := mustCreateProcess(t, x.e, "gateway/exclusive.bpmn", "exclusiveTest")
 
-	piAssert := mustCreateProcessInstance(t, x.e, x.exclusiveTest)
+	_, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("fork")
-	job := piAssert.Job()
-
-	lockedJobs, err := x.e.LockJobs(context.Background(), engine.LockJobsCmd{
-		Id:        job.Id,
-		Partition: job.Partition,
-		WorkerId:  testWorkerId,
-	})
-	if err != nil {
-		t.Fatalf("failed to lock job: %v", err)
-	}
-
-	if len(lockedJobs) == 0 {
-		t.Fatal("no job locked")
-	}
-
-	completedJob, err := x.e.CompleteJob(context.Background(), engine.CompleteJobCmd{
-		Id:        job.Id,
-		Partition: job.Partition,
+	fork := psAssert.IsWaitingAt("fork")
+	fork.CompleteJobWithError(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			ExclusiveGatewayDecision: "",
 		},
-		WorkerId: testWorkerId,
 	})
-
-	assert.True(completedJob.HasError())
-	assert.True(completedJob.IsCompleted())
-	assert.Nil(err)
 }
 
 func (x exclusiveGatewayTest) errorSequenceFlowNotExits(t *testing.T) {
-	assert := assert.New(t)
+	process := mustCreateProcess(t, x.e, "gateway/exclusive.bpmn", "exclusiveTest")
 
-	piAssert := mustCreateProcessInstance(t, x.e, x.exclusiveTest)
+	_, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("fork")
-	job := piAssert.Job()
-
-	lockedJobs, err := x.e.LockJobs(context.Background(), engine.LockJobsCmd{
-		Id:        job.Id,
-		Partition: job.Partition,
-		WorkerId:  testWorkerId,
-	})
-	if err != nil {
-		t.Fatalf("failed to lock job: %v", err)
-	}
-
-	if len(lockedJobs) == 0 {
-		t.Fatalf("no job locked")
-	}
-
-	completedJob, err := x.e.CompleteJob(context.Background(), engine.CompleteJobCmd{
-		Id:        job.Id,
-		Partition: job.Partition,
+	fork := psAssert.IsWaitingAt("fork")
+	completedJob := fork.CompleteJobWithError(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			ExclusiveGatewayDecision: "startEvent",
 		},
-		WorkerId: testWorkerId,
 	})
 
-	assert.True(completedJob.HasError())
-	assert.True(completedJob.IsCompleted())
-	assert.Nil(err)
-
-	assert.Contains(completedJob.Error, "no outgoing sequence flow to startEvent")
+	assert.Contains(t, completedJob.Error, "no outgoing sequence flow to startEvent")
 }

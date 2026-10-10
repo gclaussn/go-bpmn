@@ -86,7 +86,7 @@ func TestCreateProcessInstance(t *testing.T) {
 				assert.False(processInstance.IsEnded())
 				assert.True(processInstance.IsRoot())
 
-				piAssert := engine.Assert(t, e, processInstance)
+				piAssert, _ := engine.Assert(t, e, processInstance)
 
 				assert.Equal(engine.ProcessInstance{
 					Partition: processInstance.Partition,
@@ -170,13 +170,12 @@ func TestCreateProcessInstance(t *testing.T) {
 				assert.Zero(processInstance3.StartedAt)
 				assert.Equal(engine.InstanceQueued, processInstance3.State)
 
-				piAssert1 := engine.Assert(t, e, processInstance1)
-				piAssert2 := engine.Assert(t, e, processInstance2)
-				piAssert3 := engine.Assert(t, e, processInstance3)
+				piAssert1, psAssert1 := engine.Assert(t, e, processInstance1)
+				piAssert2, psAssert2 := engine.Assert(t, e, processInstance2)
+				piAssert3, _ := engine.Assert(t, e, processInstance3)
 
 				// when process instance 1 is completed
-				piAssert1.IsWaitingAt("sendTask")
-				piAssert1.CompleteJob()
+				psAssert1.IsWaitingAt("sendTask").CompleteJob()
 
 				// when process instance 2 is started and completed
 				tasks := piAssert2.ExecuteTasks()
@@ -184,8 +183,7 @@ func TestCreateProcessInstance(t *testing.T) {
 				assert.Equal(engine.TaskStartProcessInstance, tasks[0].Type)
 				assert.Empty(tasks[0].Error)
 
-				piAssert2.IsWaitingAt("sendTask")
-				piAssert2.CompleteJob()
+				psAssert2.IsWaitingAt("sendTask").CompleteJob()
 
 				// when start process instance 3 is started
 				tasks = piAssert3.ExecuteTasks()
@@ -209,7 +207,6 @@ func TestCreateProcessInstance(t *testing.T) {
 				assert.NotZero(processInstance3.StartedAt)
 				assert.Equal(engine.InstanceStarted, processInstance3.State)
 				assert.False(processInstance3.IsEnded())
-				piAssert3.IsNotCompleted()
 			})
 		}
 	})
@@ -233,7 +230,7 @@ func TestCreateProcessInstance(t *testing.T) {
 					}
 				}
 
-				var piAsserts []*engine.ProcessInstanceAssert
+				var piAsserts []engine.ProcessInstanceAssert
 
 				createProcessInstance := func(version string) {
 					processInstance, err := e.CreateProcessInstance(context.Background(), engine.CreateProcessInstanceCmd{
@@ -245,7 +242,8 @@ func TestCreateProcessInstance(t *testing.T) {
 						t.Fatalf("failed to create process instance: %v", err)
 					}
 
-					piAsserts = append(piAsserts, engine.Assert(t, e, processInstance))
+					piAssert, _ := engine.Assert(t, e, processInstance)
+					piAsserts = append(piAsserts, piAssert)
 				}
 
 				executeTasks := func(taskType engine.TaskType) []engine.Task {
@@ -333,7 +331,9 @@ func TestSuspendAndResumeProcessInstance(t *testing.T) {
 	for i, e := range engines {
 		// given
 		process := mustCreateProcess(t, e, "gateway/parallel-service-tasks.bpmn", "parallelServiceTasksTest")
-		piAssert := mustCreateProcessInstance(t, e, process)
+
+		piAssert, psAssert := mustCreateProcessInstance(t, e, process)
+
 		processInstance := piAssert.ProcessInstance()
 
 		t.Run(engineTypes[i]+"suspend", func(t *testing.T) {
@@ -350,12 +350,10 @@ func TestSuspendAndResumeProcessInstance(t *testing.T) {
 			processInstance = piAssert.ProcessInstance()
 			assert.Equal(engine.InstanceSuspended, processInstance.State)
 
-			piAssert.IsWaitingAt("serviceTaskA")
-			piAssert.CompleteJob()
-			piAssert.IsWaitingAt("serviceTaskB")
-			piAssert.CompleteJob()
+			psAssert.IsWaitingAt("serviceTaskA").CompleteJob()
+			psAssert.IsWaitingAt("serviceTaskB").CompleteJob()
 
-			piAssert.IsNotWaitingAt("join")
+			psAssert.IsNotWaitingAt("join")
 		})
 
 		t.Run(engineTypes[i]+"suspend returns error when process instance is not started", func(t *testing.T) {
@@ -393,8 +391,7 @@ func TestSuspendAndResumeProcessInstance(t *testing.T) {
 			processInstance = piAssert.ProcessInstance()
 			assert.Equal(engine.InstanceStarted, processInstance.State)
 
-			piAssert.IsWaitingAt("join")
-			piAssert.ExecuteTask()
+			psAssert.IsWaitingAt("join").ExecuteTask()
 
 			piAssert.IsCompleted()
 		})

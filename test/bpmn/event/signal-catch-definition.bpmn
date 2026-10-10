@@ -7,12 +7,12 @@
     <intermediateCatchEvent id="signalCatchEvent">
       <incoming>f1</incoming>
       <outgoing>f2</outgoing>
-      <signalEventDefinition id="signalCatchEventDefinition" signalRef="testSignal" />
+      <signalEventDefinition id="signalCatchEventDefinition" signalRef="catchSignal" />
     </intermediateCatchEvent>
     <sequenceFlow id="f2" sourceRef="signalCatchEvent" targetRef="endEvent" />
     <endEvent id="endEvent">
       <incoming>f2</incoming>
     </endEvent>
   </process>
-  <signal id="testSignal" name="testSignalName" />
+  <signal id="catchSignal" name="catchSignalName" />
 </definitions>

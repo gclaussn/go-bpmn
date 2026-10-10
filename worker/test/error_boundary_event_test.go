@@ -12,13 +12,13 @@ type errorBoundaryEvent struct {
 }
 
 func (h errorBoundaryEvent) CreateProcessCmd() (engine.CreateProcessCmd, error) {
-	bpmnXml, err := readBpmnFile("event/error-boundary-event.bpmn")
+	bpmnXml, err := readBpmnFile("event/error-boundary.bpmn")
 	if err != nil {
 		return engine.CreateProcessCmd{}, err
 	}
 
 	return engine.CreateProcessCmd{
-		BpmnProcessId: "errorBoundaryEventTest",
+		BpmnProcessId: "errorBoundaryTest",
 		BpmnXml:       bpmnXml,
 		Version:       "1",
 	}, nil
@@ -54,17 +54,14 @@ func TestErrorBoundaryEventProcess(t *testing.T) {
 		t.Fatalf("failed to create process instance: %v", err)
 	}
 
-	piAssert := worker.Assert(t, w, processInstance)
+	piAssert, psAssert := worker.Assert(t, w, processInstance)
 
-	piAssert.IsWaitingAt("serviceTask")
+	psAssert.IsWaitingAt("serviceTask")
+	psAssert.IsWaitingAt("errorBoundaryEvent").ExecuteJob()
+	psAssert.IsWaitingAt("serviceTask").ExecuteJob()
 
-	piAssert.IsWaitingAt("errorBoundaryEvent")
-	piAssert.ExecuteJob()
+	psAssert.HasPassed("errorBoundaryEvent")
+	psAssert.HasPassed("endEventB")
 
-	piAssert.IsWaitingAt("serviceTask")
-	piAssert.ExecuteJob()
-
-	piAssert.HasPassed("errorBoundaryEvent")
-	piAssert.HasPassed("endEventB")
 	piAssert.IsCompleted()
 }

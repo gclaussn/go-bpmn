@@ -49,10 +49,9 @@ func TestInclusiveGatewayProcess(t *testing.T) {
 		t.Fatalf("failed to create process instance: %v", err)
 	}
 
-	piAssert := worker.Assert(t, w, processInstance)
+	piAssert, psAssert := worker.Assert(t, w, processInstance)
 
-	piAssert.IsWaitingAt("fork")
-	piAssert.ExecuteJob()
+	psAssert.IsWaitingAt("fork").ExecuteJob()
 
 	piAssert.IsCompleted()
 }

@@ -213,14 +213,14 @@ func TestCreateProcessWithErrorCode(t *testing.T) {
 	}
 
 	// given
-	bpmnXml := mustReadBpmnFile(t, "event/error-boundary-event.bpmn")
+	bpmnXml := mustReadBpmnFile(t, "event/error-boundary.bpmn")
 
 	t.Run("returns error when BPMN element is not an error boundary event", func(t *testing.T) {
 		for i, e := range engines {
 			t.Run(engineTypes[i], func(t *testing.T) {
 				// given
 				cmd := engine.CreateProcessCmd{
-					BpmnProcessId: "errorBoundaryEventTest",
+					BpmnProcessId: "errorBoundaryTest",
 					BpmnXml:       bpmnXml,
 					Errors: []engine.ErrorDefinition{
 						{BpmnElementId: "errorBoundaryEvent", ErrorCode: "TEST_CODE"},
@@ -248,7 +248,7 @@ func TestCreateProcessWithErrorCode(t *testing.T) {
 			t.Run(engineTypes[i], func(t *testing.T) {
 				// given
 				cmd := engine.CreateProcessCmd{
-					BpmnProcessId: "errorBoundaryEventTest",
+					BpmnProcessId: "errorBoundaryTest",
 					BpmnXml:       bpmnXml,
 					Errors: []engine.ErrorDefinition{
 						{BpmnElementId: "errorBoundaryEvent", ErrorCode: "TEST_CODE"},
@@ -276,7 +276,7 @@ func TestCreateProcessWithErrorCode(t *testing.T) {
 			t.Run(engineTypes[i], func(t *testing.T) {
 				// given
 				cmd := engine.CreateProcessCmd{
-					BpmnProcessId: "errorBoundaryEventTest",
+					BpmnProcessId: "errorBoundaryTest",
 					BpmnXml:       bpmnXml,
 					Errors: []engine.ErrorDefinition{
 						{BpmnElementId: "errorBoundaryEvent", ErrorCode: "TEST_CODE"},

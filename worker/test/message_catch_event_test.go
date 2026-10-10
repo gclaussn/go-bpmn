@@ -49,10 +49,10 @@ func TestMessageCatchEventProcess(t *testing.T) {
 		t.Fatalf("failed to create process instance: %v", err)
 	}
 
-	piAssert := worker.Assert(t, w, processInstance)
+	piAssert, psAssert := worker.Assert(t, w, processInstance)
 
-	piAssert.IsWaitingAt("messageCatchEvent")
-	piAssert.ExecuteJob()
+	messageCatchEvent := psAssert.IsWaitingAt("messageCatchEvent")
+	messageCatchEvent.ExecuteJob()
 
 	if _, err := e.SendMessage(context.Background(), engine.SendMessageCmd{
 		CorrelationKey: "catch-message-ck",
@@ -62,8 +62,8 @@ func TestMessageCatchEventProcess(t *testing.T) {
 		t.Fatalf("failed to send message: %v", err)
 	}
 
-	piAssert.IsWaitingAt("messageCatchEvent")
-	piAssert.ExecuteTask()
+	messageCatchEvent.HasTask(engine.TaskTriggerEvent)
+	messageCatchEvent.ExecuteTask()
 
 	piAssert.IsCompleted()
 }

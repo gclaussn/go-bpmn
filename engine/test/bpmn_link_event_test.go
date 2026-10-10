@@ -17,10 +17,10 @@ func (x linkEventTest) linkA(t *testing.T) {
 
 	process := mustCreateProcess(t, x.e, "event/link.bpmn", "linkTest")
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("fork")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	fork := psAssert.IsWaitingAt("fork")
+	fork.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			ExclusiveGatewayDecision: "linkThrowEventA",
 		},
@@ -42,10 +42,10 @@ func (x linkEventTest) linkB(t *testing.T) {
 
 	process := mustCreateProcess(t, x.e, "event/link.bpmn", "linkTest")
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("fork")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	fork := psAssert.IsWaitingAt("fork")
+	fork.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			ExclusiveGatewayDecision: "linkThrowEventB",
 		},
@@ -67,10 +67,10 @@ func (x linkEventTest) linkScope(t *testing.T) {
 
 	process := mustCreateProcess(t, x.e, "event/link-scope.bpmn", "linkScopeTest")
 
-	piAssert := mustCreateProcessInstance(t, x.e, process)
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
 
-	piAssert.IsWaitingAt("fork")
-	piAssert.CompleteJob(engine.CompleteJobCmd{
+	fork := psAssert.IsWaitingAt("fork")
+	fork.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
 			ExclusiveGatewayDecision: "subProcess",
 		},

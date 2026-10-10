@@ -105,36 +105,36 @@ func TestServiceTaskProcess(t *testing.T) {
 
 	assert.Equal(int32(1), processInstance.Id)
 
-	piAssert := worker.Assert(t, w, processInstance)
+	piAssert, psAssert := worker.Assert(t, w, processInstance)
 
 	var variableA string
-	piAssert.GetProcessVariable("a", &variableA)
+	piAssert.GetVariable("a", &variableA)
 	assert.Equal("string", variableA)
 	var variableB int
-	piAssert.GetProcessVariable("b", &variableB)
+	piAssert.GetVariable("b", &variableB)
 	assert.Equal(1, variableB)
 	var variableC bool
-	piAssert.GetProcessVariable("c", &variableC)
+	piAssert.GetVariable("c", &variableC)
 	assert.Equal(true, variableC)
 	var variableD float64
-	piAssert.GetProcessVariable("d", &variableD)
+	piAssert.GetVariable("d", &variableD)
 	assert.Equal(0.1, variableD)
 	var variableE engine.Data
-	piAssert.GetProcessVariable("e", &variableE)
+	piAssert.GetVariable("e", &variableE)
 	assert.Equal("", variableE.Encoding)
 	assert.False(variableE.IsEncrypted)
 	assert.Equal("value", variableE.Value)
 
-	piAssert.IsWaitingAt("serviceTask")
-	piAssert.ExecuteJob()
+	serviceTask := psAssert.IsWaitingAt("serviceTask")
+	serviceTask.ExecuteJob()
 
-	piAssert.GetProcessVariable("a", &variableA)
+	piAssert.GetVariable("a", &variableA)
 	assert.Equal("string*", variableA)
 
-	piAssert.HasNoProcessVariable("e")
+	piAssert.HasNoVariable("e")
 
 	var elementVariableA string
-	piAssert.GetElementVariable("serviceTask", "a", &elementVariableA)
+	serviceTask.GetVariable("a", &elementVariableA)
 	assert.Equal("string", elementVariableA)
 
 	piAssert.IsCompleted()
