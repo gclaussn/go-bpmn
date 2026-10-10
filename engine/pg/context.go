@@ -21,7 +21,7 @@ type pgContext struct {
 }
 
 func (c *pgContext) Options() engine.Options {
-	return c.options.Common
+	return c.options.Options
 }
 
 func (c *pgContext) Date() time.Time {

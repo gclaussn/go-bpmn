@@ -30,7 +30,7 @@ func newApiKeyCreateCmd(d *Daemon) *cobra.Command {
 		Annotations: map[string]string{daemon.AnnotationConf: "", daemon.AnnotationValidConf: ""},
 		RunE: func(c *cobra.Command, _ []string) error {
 			// ensure task executor is disabled, when engine is started for API key management
-			options := &d.engineOptions.Common
+			options := &d.engineOptions
 			options.TaskExecutorEnabled = false
 
 			e, err := d.NewEngine()

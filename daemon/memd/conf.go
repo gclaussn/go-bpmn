@@ -85,7 +85,7 @@ func (c Conf) AddOption(
 }
 
 func (c Conf) GetOptions(engineOptions *mem.Options, serverOptions *server.Options) {
-	c.Base.GetOptions(&engineOptions.Common, serverOptions)
+	c.Base.GetOptions(&engineOptions.Options, serverOptions)
 
 	for _, opt := range c.opts {
 		if opt.setEngineOption != nil {
@@ -97,7 +97,7 @@ func (c Conf) GetOptions(engineOptions *mem.Options, serverOptions *server.Optio
 }
 
 func (c Conf) SetDefaults(engineOptions mem.Options, serverOptions server.Options) {
-	c.Base.SetDefaults(engineOptions.Common, serverOptions)
+	c.Base.SetDefaults(engineOptions.Options, serverOptions)
 
 	for key, opt := range c.opts {
 		if opt.getEngineOption != nil {

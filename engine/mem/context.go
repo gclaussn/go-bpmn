@@ -11,8 +11,8 @@ func newMemContext(options Options) *memContext {
 	ctx := memContext{
 		options: options,
 		processCache: internal.NewProcessCache(
-			options.Common.ProcessCacheCapacity,
-			options.Common.ProcessCacheExpiration,
+			options.ProcessCacheCapacity,
+			options.ProcessCacheExpiration,
 		),
 	}
 
@@ -27,7 +27,7 @@ func newMemContext(options Options) *memContext {
 	ctx.processInstances.partitions = make(map[string][]internal.ProcessInstanceEntity)
 	ctx.signalVariables.variables = make(map[int64][]*internal.SignalVariableEntity)
 	ctx.tasks.partitions = make(map[string][]internal.TaskEntity)
-	ctx.tasks.engineId = options.Common.EngineId
+	ctx.tasks.engineId = options.EngineId
 	ctx.userTasks.partitions = make(map[string][]internal.UserTaskEntity)
 	ctx.variables.partitions = make(map[string][]internal.VariableEntity)
 
@@ -66,7 +66,7 @@ type memContext struct {
 }
 
 func (c *memContext) Options() engine.Options {
-	return c.options.Common
+	return c.options.Options
 }
 
 func (c *memContext) Date() time.Time {

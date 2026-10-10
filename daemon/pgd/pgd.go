@@ -101,7 +101,7 @@ func (d *Daemon) NewEngine() (engine.Engine, error) {
 	e, err := pg.New(pgDatabaseUrl.Value(), func(o *pg.Options) {
 		*o = d.engineOptions
 
-		o.Common.OnTaskExecutionFailure = func(task engine.Task, err error) {
+		o.OnTaskExecutionFailure = func(task engine.Task, err error) {
 			log.Printf("failed to execute task %s: %v", task, err)
 		}
 	})

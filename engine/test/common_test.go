@@ -35,7 +35,7 @@ func mustCreateEngines(t *testing.T) ([]engine.Engine, []string) {
 
 	// create mem engine
 	memEngine, err := mem.New(func(o *mem.Options) {
-		o.Common.Encryption = encryption
+		o.Encryption = encryption
 	})
 	if err != nil {
 		t.Fatalf("failed to create mem engine: %v", err)
@@ -83,8 +83,8 @@ func mustCreateEngines(t *testing.T) ([]engine.Engine, []string) {
 	databaseUrl = fmt.Sprintf("%s?search_path=%s", databaseUrl, databaseSchema)
 
 	pgEngine, err := pg.New(databaseUrl, func(o *pg.Options) {
-		o.Common.Encryption = encryption
-		o.Common.TaskExecutorEnabled = false
+		o.Encryption = encryption
+		o.TaskExecutorEnabled = false
 	})
 	if err != nil {
 		t.Fatalf("failed to create pg engine: %v", err)

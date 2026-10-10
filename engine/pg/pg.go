@@ -32,14 +32,14 @@ func New(databaseUrl string, customizers ...func(*Options)) (engine.Engine, erro
 	}
 
 	if _, ok := pgPoolConfig.ConnConfig.RuntimeParams["application_name"]; !ok {
-		pgPoolConfig.ConnConfig.RuntimeParams["application_name"] = options.Common.EngineId
+		pgPoolConfig.ConnConfig.RuntimeParams["application_name"] = options.EngineId
 	}
 
 	if databaseSchema, ok := pgPoolConfig.ConnConfig.RuntimeParams["search_path"]; ok {
 		options.databaseSchema = databaseSchema
 	}
 
-	pgPoolCtx, pgPoolCancel := context.WithTimeout(context.Background(), options.Timeout)
+	pgPoolCtx, pgPoolCancel := context.WithTimeout(context.Background(), options.TransactionTimeout)
 	defer pgPoolCancel()
 
 	pgPool, err := pgxpool.NewWithConfig(pgPoolCtx, pgPoolConfig)
@@ -51,8 +51,8 @@ func New(databaseUrl string, customizers ...func(*Options)) (engine.Engine, erro
 	pgCtxPool := make(chan *pgContext, pgCtxPoolSize)
 
 	processCache := internal.NewProcessCache(
-		options.Common.ProcessCacheCapacity,
-		options.Common.ProcessCacheExpiration,
+		options.ProcessCacheCapacity,
+		options.ProcessCacheExpiration,
 	)
 
 	for range pgCtxPoolSize {
@@ -67,9 +67,9 @@ func New(databaseUrl string, customizers ...func(*Options)) (engine.Engine, erro
 
 		pgCtxPool: pgCtxPool,
 		pgPool:    pgPool,
-		txTimeout: options.Timeout,
+		txTimeout: options.TransactionTimeout,
 
-		defaultQueryLimit: options.Common.DefaultQueryLimit,
+		defaultQueryLimit: options.DefaultQueryLimit,
 	}
 
 	if err := pgEngine.migrateAndPrepareDatabase(); err != nil {
@@ -77,11 +77,11 @@ func New(databaseUrl string, customizers ...func(*Options)) (engine.Engine, erro
 		return nil, fmt.Errorf("failed to migrate and prepare database: %v", err)
 	}
 
-	if options.Common.TaskExecutorEnabled {
+	if options.TaskExecutorEnabled {
 		pgEngine.taskExecutor = internal.NewTaskExecutor(
 			&pgEngine,
-			options.Common.TaskExecutorInterval,
-			options.Common.TaskExecutorLimit,
+			options.TaskExecutorInterval,
+			options.TaskExecutorLimit,
 		)
 
 		pgEngine.taskExecutor.Execute()
@@ -92,7 +92,7 @@ func New(databaseUrl string, customizers ...func(*Options)) (engine.Engine, erro
 
 func NewOptions() Options {
 	return Options{
-		Common: engine.Options{
+		Options: engine.Options{
 			DefaultQueryLimit:      1000,
 			EngineId:               engine.DefaultEngineId,
 			ProcessCacheCapacity:   100,
@@ -104,23 +104,23 @@ func NewOptions() Options {
 		},
 
 		DropPartitionEnabled: true,
-		Timeout:              30 * time.Second,
+		TransactionTimeout:   30 * time.Second,
 
 		databaseSchema: "public",
 	}
 }
 
 type Options struct {
-	Common engine.Options // Common engine options.
+	engine.Options // Common options.
 
 	DropPartitionEnabled bool
-	Timeout              time.Duration // Time limit for database transactions, utilized when no external context is provided.
+	TransactionTimeout   time.Duration // Time limit for database transactions.
 
 	databaseSchema string // derived from database URL - see runtime parameter "search_path"
 }
 
 func (o Options) Validate() error {
-	return o.Common.Validate()
+	return o.Options.Validate()
 }
 
 type pgEngine struct {
@@ -282,7 +282,7 @@ func (e *pgEngine) ExecuteTasks(ctx context.Context, cmd engine.ExecuteTasksCmd)
 		task := lockedTask.Task()
 		if err := e.release(pgCtx, err); err != nil {
 			errs = append(errs, fmt.Errorf("failed to execute task %s: %v", task, err))
-			if onFailure := pgCtx.options.Common.OnTaskExecutionFailure; onFailure != nil {
+			if onFailure := pgCtx.options.OnTaskExecutionFailure; onFailure != nil {
 				onFailure(task, err)
 			}
 
