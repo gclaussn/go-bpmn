@@ -415,3 +415,59 @@ func (ec *executionContext) execute(ctx Context, job *JobEntity, jobCompletion *
 		return true, nil
 	}
 }
+
+// TODO
+func (ec *executionContext) startMultiInstance(ctx Context, job *JobEntity, jobCompletion *engine.JobCompletion) (bool, error) {
+	if jobCompletion.MultiInstance == nil {
+		job.Error = pgtype.Text{String: "expected a multi-instance", Valid: true}
+		return false, nil
+	}
+
+	scope, execution := ec.executions[0], ec.executions[1]
+
+	graph := ec.process.graph
+
+	node, err := graph.node(execution.BpmnElementId)
+	if err != nil {
+		job.Error = pgtype.Text{String: err.Error(), Valid: true}
+		return false, nil
+	}
+
+	multiInstance := getMultiInstance(node.bpmnElement)
+	if multiInstance == nil {
+		// TODO
+	}
+
+	loopCardinality := jobCompletion.MultiInstance.LoopCardinality
+	if loopCardinality == 0 {
+		return true, nil
+	}
+
+	var prev *ElementInstanceEntity
+	for range jobCompletion.MultiInstance.LoopCardinality {
+		subExecution, err := graph.createExecutionAt(scope, execution.BpmnElementId)
+		if err != nil {
+			job.Error = pgtype.Text{String: fmt.Sprintf("failed to create execution at %s: %v", execution.BpmnElementId, err), Valid: true}
+			return false, nil
+		}
+
+		if multiInstance.IsSequential {
+			subExecution.prev = prev
+			prev = &subExecution
+		}
+
+		ec.addExecution(&subExecution)
+	}
+
+	if err := ec.continueExecutions(ctx); err != nil {
+		if _, ok := err.(engine.Error); ok {
+			job.Error = pgtype.Text{String: err.Error(), Valid: true}
+		} else {
+			return false, fmt.Errorf("failed to continue executions %+v: %v", ec.executions, err)
+		}
+	}
+
+	// TODO handle variables
+
+	return false, nil
+}

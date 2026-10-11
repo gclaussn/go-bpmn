@@ -95,6 +95,7 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 //   - [JobSetMessageCorrelationKey]: message boundary and catch event, when event definition exists
 //   - [JobSetSignalName]: signal throw and end event
 //   - [JobSetTimer]: timer boundary and catch event
+//   - [JobStartMultiInstance]: business rule task, script task, send task, service task, user task, sub-process and call activity
 //   - [JobSubscribeMessage]: message boundary and catch event
 //   - [JobSubscribeSignal]: signal boundary and catch event
 type JobType int
@@ -110,6 +111,7 @@ const (
 	JobSetMessageCorrelationKey
 	JobSetSignalName
 	JobSetTimer
+	JobStartMultiInstance
 	JobSubscribeMessage
 	JobSubscribeSignal
 )
@@ -136,6 +138,8 @@ func MapJobType(s string) JobType {
 		return JobSetSignalName
 	case "SET_TIMER":
 		return JobSetTimer
+	case "START_MULTI_INSTANCE":
+		return JobStartMultiInstance
 	case "SUBSCRIBE_MESSAGE":
 		return JobSubscribeMessage
 	case "SUBSCRIBE_SIGNAL":
@@ -171,6 +175,8 @@ func (v JobType) String() string {
 		return "SET_SIGNAL_NAME"
 	case JobSetTimer:
 		return "SET_TIMER"
+	case JobStartMultiInstance:
+		return "START_MULTI_INSTANCE"
 	case JobSubscribeMessage:
 		return "SUBSCRIBE_MESSAGE"
 	case JobSubscribeSignal:

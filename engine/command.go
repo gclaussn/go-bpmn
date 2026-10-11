@@ -326,6 +326,9 @@ type JobCompletion struct {
 	// Name of the message to subscribe to.
 	// Applicable when job type is `SUBSCRIBE_MESSAGE`.
 	MessageName string `json:"messageName,omitempty"`
+	// TODO
+	// Applicable when job type is `START_MULTI_INSTANCE`.
+	MultiInstance *MultiInstance `json:"multiInstance,omitempty"`
 	// Name of the signal, used to subscribe or to send a signal.
 	// Applicable when job type is `SUBSCRIBE_SIGNAL` or `SET_SIGNAL_NAME`.
 	SignalName string `json:"signalName,omitempty"`
@@ -333,6 +336,13 @@ type JobCompletion struct {
 	// Applicable when job type is `SET_TIMER`.
 	Timer *Timer `json:"timer,omitempty"`
 }
+
+// TODO
+type MultiInstance struct {
+	LoopCardinality int `json:"loopCardinality" validate:"required,gte=0.lte=100"` // TODO
+}
+
+// event definitions
 
 // ErrorDefinition is used to define an error event.
 type ErrorDefinition struct {

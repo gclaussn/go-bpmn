@@ -645,6 +645,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			BpmnElementId:       bpmnElement.Id,
 			BpmnElementName:     bpmnElementName,
 			BpmnElementType:     bpmnElement.Type,
+			IsMultiInstance:     getMultiInstance(bpmnElement) != nil,
 			ParentBpmnElementId: parentBpmnElementId,
 		}
 

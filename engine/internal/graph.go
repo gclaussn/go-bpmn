@@ -259,9 +259,9 @@ func newGraph(bpmnModel *model.Model, bpmnElements []*model.Element, elements []
 		return graph{}, fmt.Errorf("expected number of BPMN elements and entities to be equal: %d != %d", len(bpmnElements), len(elements))
 	}
 
-	ids := make(map[string]int32, len(elements))
+	elementMap := make(map[string]*ElementEntity, len(elements))
 	for _, element := range elements {
-		ids[element.BpmnElementId] = element.Id
+		elementMap[element.BpmnElementId] = element
 	}
 
 	processElement := bpmnElements[0]
@@ -271,7 +271,7 @@ func newGraph(bpmnModel *model.Model, bpmnElements []*model.Element, elements []
 
 	nodes := make(map[string]node, len(bpmnElements))
 	for _, bpmnElement := range bpmnElements {
-		id, ok := ids[bpmnElement.Id]
+		element, ok := elementMap[bpmnElement.Id]
 		if !ok {
 			return graph{}, fmt.Errorf("BPMN element %s has no entity", bpmnElement.Id)
 		}
@@ -282,9 +282,10 @@ func newGraph(bpmnModel *model.Model, bpmnElements []*model.Element, elements []
 		}
 
 		nodes[bpmnElement.Id] = node{
-			id:             id,
-			bpmnElement:    bpmnElement,
-			boundaryEvents: boundaryEvents,
+			id:              element.Id,
+			bpmnElement:     bpmnElement,
+			boundaryEvents:  boundaryEvents,
+			isMultiInstance: element.IsMultiInstance,
 		}
 	}
 
@@ -301,110 +302,61 @@ type graph struct {
 	processElement *model.Element  // root element
 }
 
-func (g graph) continueExecution(executions []*ElementInstanceEntity, execution *ElementInstanceEntity) ([]*ElementInstanceEntity, error) {
+func (g graph) continueExecution(scope *ElementInstanceEntity, execution *ElementInstanceEntity) ([]*ElementInstanceEntity, error) {
 	node, err := g.node(execution.BpmnElementId)
 	if err != nil {
-		return executions, err
+		return nil, err
 	}
-
-	scope := execution.parent
 
 	if execution.State == engine.InstanceCompleted || execution.State == engine.InstanceTerminated {
 		scope.ExecutionCount--
-		return executions, nil // skip already completed or terminated execution
+		return nil, nil // skip already completed or terminated execution
 	}
 
-	if scope.State == engine.InstanceQueued {
-		// end branch
-		execution.State = engine.InstanceQueued
-	} else if execution.State == engine.InstanceStarted {
-		// continue branch
-		execution.State = engine.InstanceCompleted
-	} else if isTaskOrScope(execution.BpmnElementType) || execution.BpmnElementType == model.ElementEventBasedGateway {
-		if execution.State == 0 {
-			if scope.State == engine.InstanceSuspended {
-				execution.State = engine.InstanceSuspended
-			} else {
-				execution.State = engine.InstanceCreated
+	nextState := node.nextState(scope, execution)
+	if execution.State == nextState {
+		return nil, nil
+	}
+
+	execution.State = nextState
+
+	if nextState == engine.InstanceCompleted {
+		scope.ExecutionCount--
+
+		if execution.BpmnElementType == model.ElementLinkThrowEvent {
+			scopeNode, err := g.node(scope.BpmnElementId)
+			if err != nil {
+				return nil, err
 			}
-		} else if execution.ExecutionCount < 0 { // not all events defined
+
+			intermediateThrowEvent := node.bpmnElement.Model.(model.IntermediateThrowEvent)
+			linkThrowName := intermediateThrowEvent.EventDefinition.Link.Name
+
+			linkCatchEvents := scopeNode.bpmnElement.ChildrenByType(model.ElementLinkCatchEvent)
+
+			executions := make([]*ElementInstanceEntity, 0, 1)
+			for _, linkCatchEvent := range linkCatchEvents {
+				intermediateCatchEvent := linkCatchEvent.Model.(model.IntermediateCatchEvent)
+				linkCatchName := intermediateCatchEvent.EventDefinition.Link.Name
+
+				if linkThrowName == linkCatchName {
+					next, err := g.createExecutionAt(scope, linkCatchEvent.Id)
+					if err != nil {
+						return executions, err
+					}
+
+					executions = append(executions, &next)
+					break
+				}
+			}
+
 			return executions, nil
-		} else if execution.State == engine.InstanceSuspended {
-			execution.State = engine.InstanceCreated
-		} else {
-			execution.State = engine.InstanceStarted
 		}
-	} else if model.IsBoundaryEvent(execution.BpmnElementType) {
-		execution.State = engine.InstanceCreated
-	} else if model.IsCatchEvent(execution.BpmnElementType) && execution.PrevElementId.Valid {
-		execution.State = engine.InstanceCreated
-	} else if scope.State == engine.InstanceSuspended {
-		switch execution.BpmnElementType {
-		case
-			model.ElementErrorEndEvent,
-			model.ElementEscalationEndEvent,
-			model.ElementEscalationThrowEvent,
-			model.ElementMessageCatchEvent,
-			model.ElementSignalEndEvent,
-			model.ElementSignalCatchEvent,
-			model.ElementSignalThrowEvent,
-			model.ElementTimerCatchEvent:
-			if execution.Context.Valid {
-				execution.State = engine.InstanceStarted
-			} else {
-				execution.State = engine.InstanceSuspended
-			}
-		default:
-			execution.State = engine.InstanceSuspended
-		}
-	} else if execution.State == engine.InstanceCreated {
-		execution.State = engine.InstanceStarted
-	} else {
-		switch execution.BpmnElementType {
-		// gateway
-		case
-			model.ElementExclusiveGateway,
-			model.ElementInclusiveGateway:
-			if len(node.bpmnElement.Outgoing) > 1 {
-				execution.State = engine.InstanceStarted
-			} else {
-				execution.State = engine.InstanceCompleted
-			}
-		case model.ElementParallelGateway:
-			if len(node.bpmnElement.Incoming) > 1 {
-				execution.State = engine.InstanceStarted
-			} else {
-				execution.State = engine.InstanceCompleted
-			}
-		// event
-		case model.ElementMessageCatchEvent:
-			execution.State = engine.InstanceCreated
-		case
-			model.ElementMessageEndEvent,
-			model.ElementMessageThrowEvent:
-			execution.State = engine.InstanceStarted
-		case
-			model.ElementErrorEndEvent,
-			model.ElementEscalationEndEvent,
-			model.ElementEscalationThrowEvent,
-			model.ElementSignalCatchEvent,
-			model.ElementSignalEndEvent,
-			model.ElementSignalThrowEvent,
-			model.ElementTimerCatchEvent:
-			if node.eventDefinition == nil {
-				execution.State = engine.InstanceCreated
-			} else {
-				execution.State = engine.InstanceStarted
-			}
-		default:
-			// continue branch, if element has no behavior (pass through element)
-			execution.State = engine.InstanceCompleted
-		}
-	}
 
-	switch execution.State {
-	case engine.InstanceCompleted:
-		for _, sequenceFlow := range node.bpmnElement.Outgoing {
+		outgoing := node.bpmnElement.Outgoing
+
+		executions := make([]*ElementInstanceEntity, len(outgoing))
+		for i, sequenceFlow := range outgoing {
 			target := sequenceFlow.Target
 			targetNode := g.nodes[target.Id]
 
@@ -435,38 +387,14 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 				prev:   prev,
 			}
 
-			executions = append(executions, &next)
-			scope.ExecutionCount++
+			executions[i] = &next
 		}
 
-		if execution.BpmnElementType == model.ElementLinkThrowEvent {
-			scopeNode, err := g.node(scope.BpmnElementId)
-			if err != nil {
-				return executions, err
-			}
+		scope.ExecutionCount += len(outgoing)
+		return executions, nil
+	}
 
-			intermediateThrowEvent := node.bpmnElement.Model.(model.IntermediateThrowEvent)
-			linkNameA := intermediateThrowEvent.EventDefinition.Link.Name
-
-			linkCatchEvents := scopeNode.bpmnElement.ChildrenByType(model.ElementLinkCatchEvent)
-			for _, linkCatchEvent := range linkCatchEvents {
-				intermediateCatchEvent := linkCatchEvent.Model.(model.IntermediateCatchEvent)
-				linkNameB := intermediateCatchEvent.EventDefinition.Link.Name
-
-				if linkNameA == linkNameB {
-					next, err := g.createExecutionAt(scope, linkCatchEvent.Id)
-					if err != nil {
-						return executions, err
-					}
-
-					executions = append(executions, &next)
-					break
-				}
-			}
-		}
-
-		scope.ExecutionCount--
-	case engine.InstanceCreated:
+	if nextState == engine.InstanceCreated {
 		if isTaskOrScope(execution.BpmnElementType) {
 			executionCount := 0
 
@@ -550,14 +478,14 @@ func (g graph) continueExecution(executions []*ElementInstanceEntity, execution 
 			// start branch
 			next, err := g.createExecution(execution)
 			if err != nil {
-				return executions, err
+				return nil, err
 			}
 
-			executions = append(executions, &next)
+			return []*ElementInstanceEntity{&next}, nil
 		}
 	}
 
-	return executions, nil
+	return nil, nil
 }
 
 func (g graph) createExecution(scope *ElementInstanceEntity) (ElementInstanceEntity, error) {
@@ -609,8 +537,14 @@ func (g graph) createExecutionAt(scope *ElementInstanceEntity, bpmnElementId str
 		return ElementInstanceEntity{}, err
 	}
 
-	if node.bpmnElement.Parent != scopeNode.bpmnElement {
-		return ElementInstanceEntity{}, fmt.Errorf("scope %s has no element %s", scope.BpmnElementId, bpmnElementId)
+	if scope.IsMultiInstance {
+		if bpmnElementId != scope.BpmnElementId {
+			return ElementInstanceEntity{}, fmt.Errorf("multi-instance scope %s has no element %s", scope.BpmnElementId, bpmnElementId)
+		}
+	} else {
+		if node.bpmnElement.Parent != scopeNode.bpmnElement {
+			return ElementInstanceEntity{}, fmt.Errorf("scope %s has no element %s", scope.BpmnElementId, bpmnElementId)
+		}
 	}
 
 	execution := ElementInstanceEntity{
@@ -622,6 +556,7 @@ func (g graph) createExecutionAt(scope *ElementInstanceEntity, bpmnElementId str
 
 		BpmnElementId:   node.bpmnElement.Id,
 		BpmnElementType: node.bpmnElement.Type,
+		IsMultiInstance: node.isMultiInstance && !scope.IsMultiInstance, // TODO
 
 		parent: scope,
 	}
@@ -742,4 +677,107 @@ type node struct {
 	bpmnElement     *model.Element
 	boundaryEvents  []*model.Element
 	eventDefinition *EventDefinitionEntity
+	isMultiInstance bool
+}
+
+// nextState determines the next state of an execution, depending on:
+//   - current scope and execution state
+//   - BPMN element type
+//   - event definition
+func (n node) nextState(scope *ElementInstanceEntity, execution *ElementInstanceEntity) engine.InstanceState {
+	if scope.State == engine.InstanceQueued {
+		return engine.InstanceQueued
+	}
+
+	if execution.State == engine.InstanceStarted {
+		return engine.InstanceCompleted
+	}
+
+	if scope.State == engine.InstanceSuspended {
+		switch execution.BpmnElementType {
+		case
+			model.ElementErrorEndEvent,
+			model.ElementEscalationEndEvent,
+			model.ElementEscalationThrowEvent,
+			model.ElementMessageCatchEvent,
+			model.ElementSignalEndEvent,
+			model.ElementSignalCatchEvent,
+			model.ElementSignalThrowEvent,
+			model.ElementTimerCatchEvent:
+			if execution.Context.Valid {
+				return engine.InstanceStarted
+			} else {
+				return engine.InstanceSuspended
+			}
+		default:
+			if execution.State == 0 {
+				return engine.InstanceSuspended
+			}
+		}
+	}
+
+	if isTaskOrScope(execution.BpmnElementType) || execution.BpmnElementType == model.ElementEventBasedGateway {
+		switch {
+		case execution.State == 0:
+			return engine.InstanceCreated
+		case execution.State == engine.InstanceSuspended:
+			return engine.InstanceCreated
+		case execution.ExecutionCount < 0: // not all boundary or catch events defined yet
+			return execution.State
+		default:
+			return engine.InstanceStarted
+		}
+	}
+
+	if model.IsBoundaryEvent(execution.BpmnElementType) {
+		return engine.InstanceCreated
+	}
+
+	if model.IsCatchEvent(execution.BpmnElementType) && execution.PrevElementId.Valid { // catch events related to event-based gateway
+		return engine.InstanceCreated
+	}
+
+	if execution.State == engine.InstanceCreated {
+		return engine.InstanceStarted
+	}
+
+	switch execution.BpmnElementType {
+	// gateway
+	case
+		model.ElementExclusiveGateway,
+		model.ElementInclusiveGateway:
+		if len(n.bpmnElement.Outgoing) > 1 {
+			return engine.InstanceStarted
+		} else {
+			return engine.InstanceCompleted
+		}
+	case model.ElementParallelGateway:
+		if len(n.bpmnElement.Incoming) > 1 {
+			return engine.InstanceStarted
+		} else {
+			return engine.InstanceCompleted
+		}
+	// event
+	case model.ElementMessageCatchEvent:
+		return engine.InstanceCreated
+	case
+		model.ElementMessageEndEvent,
+		model.ElementMessageThrowEvent:
+		return engine.InstanceStarted
+	case
+		model.ElementErrorEndEvent,
+		model.ElementEscalationEndEvent,
+		model.ElementEscalationThrowEvent,
+		model.ElementSignalCatchEvent,
+		model.ElementSignalEndEvent,
+		model.ElementSignalThrowEvent,
+		model.ElementTimerCatchEvent:
+		if n.eventDefinition == nil {
+			return engine.InstanceCreated
+		} else {
+			return engine.InstanceStarted
+		}
+	default:
+		return engine.InstanceCompleted // no behavior (pass through element)
+	}
 }

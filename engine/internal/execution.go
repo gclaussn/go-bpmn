@@ -41,7 +41,7 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 		}
 
 		// continue execution
-		executions, err := graph.continueExecution(ec.executions, execution)
+		nextExecutions, err := graph.continueExecution(scope, execution)
 		if err != nil {
 			return engine.Error{
 				Type:   engine.ErrorProcessModel,
@@ -50,7 +50,7 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			}
 		}
 
-		ec.executions = executions
+		ec.executions = append(ec.executions, nextExecutions...)
 
 		switch execution.State {
 		case engine.InstanceStarted:
@@ -129,7 +129,13 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			model.ElementScriptTask,
 			model.ElementSendTask,
 			model.ElementServiceTask:
-			if execution.State == engine.InstanceStarted {
+			if execution.State != engine.InstanceStarted {
+				continue
+			}
+
+			if execution.IsMultiInstance {
+				jobType = engine.JobStartMultiInstance
+			} else {
 				jobType = engine.JobExecute
 			}
 		case model.ElementCallActivity:
@@ -493,6 +499,8 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 		err = ec.setSignalName(ctx, job, jobCompletion)
 	case engine.JobSetTimer:
 		err = ec.setTimer(ctx, job, jobCompletion)
+	case engine.JobStartMultiInstance:
+		continueExecution, err = ec.startMultiInstance(ctx, job, jobCompletion)
 	case engine.JobSubscribeMessage, engine.JobSetMessageCorrelationKey:
 		err = ec.subscribeMessage(ctx, job, jobCompletion)
 	case engine.JobSubscribeSignal:

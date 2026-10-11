@@ -18,10 +18,13 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 
 		element *Element
 
-		isBoundaryEvent bool
+		isBoundaryEvent   bool
+		isLoopCardinality bool
 
 		isIncoming bool
 		isOutgoing bool
+
+		multiInstance *MultiInstance
 	)
 
 	startElement := func(elementType ElementType, attributes []xml.Attr) {
@@ -87,6 +90,7 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				isBoundaryEvent = true
 			case "businessRuleTask":
 				startElement(ElementBusinessRuleTask, t.Attr)
+				element.Model = Task{}
 			case "callActivity":
 				startElement(ElementCallActivity, t.Attr)
 				element.Model = CallActivity{CalledElement: getAttrValue(t.Attr, "calledElement")}
@@ -193,6 +197,8 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 					model.EventDefinition = eventDefinition
 					element.Model = model
 				}
+			case "loopCardinality":
+				isLoopCardinality = true
 			case "manualTask":
 				startElement(ElementManualTask, t.Attr)
 			case "message":
@@ -229,6 +235,30 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 					model.EventDefinition = eventDefinition
 					element.Model = model
 				}
+			case "multiInstanceLoopCharacteristics":
+				isSequential, _ := strconv.ParseBool(getAttrValue(t.Attr, "isSequential"))
+
+				multiInstance = &MultiInstance{IsSequential: isSequential}
+
+				switch element.Type {
+				case
+					ElementBusinessRuleTask,
+					ElementScriptTask,
+					ElementSendTask,
+					ElementServiceTask,
+					ElementUserTask:
+					task := element.Model.(Task)
+					task.MultiInstance = multiInstance
+					element.Model = task
+				case ElementCallActivity:
+					callActivity := element.Model.(CallActivity)
+					callActivity.MultiInstance = multiInstance
+					element.Model = callActivity
+				case ElementSubProcess:
+					subProcess := element.Model.(SubProcess)
+					subProcess.MultiInstance = multiInstance
+					element.Model = subProcess
+				}
 			case "outgoing":
 				isOutgoing = true
 			case "parallelGateway":
@@ -260,10 +290,13 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				definitions.Processes = append(definitions.Processes, element)
 			case "scriptTask":
 				startElement(ElementScriptTask, t.Attr)
+				element.Model = Task{}
 			case "sendTask":
 				startElement(ElementSendTask, t.Attr)
+				element.Model = Task{}
 			case "serviceTask":
 				startElement(ElementServiceTask, t.Attr)
+				element.Model = Task{}
 			case "signal":
 				signalId := getAttrValue(t.Attr, "id")
 				signal := definitions.signalById(signalId)
@@ -324,22 +357,31 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				}
 			case "userTask":
 				startElement(ElementUserTask, t.Attr)
+				element.Model = Task{}
 			default:
 				if err := decoder.Skip(); err != nil {
 					return nil, fmt.Errorf("failed to skip XML element: %v", err)
 				}
 			}
 		case xml.CharData:
-			if element == nil {
+			switch {
+			case element == nil:
 				continue // skip unknown element
-			} else if isIncoming {
+			case isIncoming:
 				sequenceFlow := sequenceFlowById(string(t))
 				sequenceFlow.Target = element
 				element.Incoming = append(element.Incoming, sequenceFlow)
-			} else if isOutgoing {
+			case isOutgoing:
 				sequenceFlow := sequenceFlowById(string(t))
 				sequenceFlow.Source = element
 				element.Outgoing = append(element.Outgoing, sequenceFlow)
+			case isLoopCardinality:
+				if multiInstance == nil {
+					continue
+				}
+
+				loopCardinality, _ := strconv.ParseInt(string(t), 10, 32)
+				multiInstance.LoopCardinality = int(loopCardinality)
 			}
 		case xml.EndElement:
 			switch t.Name.Local {
@@ -360,6 +402,10 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				endElement()
 			case "outgoing":
 				isOutgoing = false
+			case "loopCardinality":
+				isLoopCardinality = false
+			case "multiInstanceLoopCharacteristics":
+				multiInstance = nil
 			case
 				"businessRuleTask",
 				"callActivity",

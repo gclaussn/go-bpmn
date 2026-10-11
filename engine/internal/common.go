@@ -48,6 +48,26 @@ func elementPointer(bpmnElement *model.Element) string {
 	return strings.Join(ids, "/")
 }
 
+// getMultiInstance returns a possible multi-instance characteristic from bpmnElement's model.
+// If bpmnElement is not a task, sub-process or call activity, nil is returned.
+func getMultiInstance(bpmnElement *model.Element) *model.MultiInstance {
+	switch bpmnElement.Type {
+	case
+		model.ElementBusinessRuleTask,
+		model.ElementScriptTask,
+		model.ElementSendTask,
+		model.ElementServiceTask,
+		model.ElementUserTask:
+		return bpmnElement.Model.(model.Task).MultiInstance
+	case model.ElementCallActivity:
+		return bpmnElement.Model.(model.CallActivity).MultiInstance
+	case model.ElementSubProcess:
+		return bpmnElement.Model.(model.SubProcess).MultiInstance
+	default:
+		return nil
+	}
+}
+
 // isTaskOrScope determines if a element type is a task or a scope, to which boundary events can be attached.
 func isTaskOrScope(elementType model.ElementType) bool {
 	switch elementType {
