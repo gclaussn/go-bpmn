@@ -398,6 +398,10 @@ func (g graph) continueExecution(scope *ElementInstanceEntity, execution *Elemen
 
 	if nextState == engine.InstanceCreated {
 		if isTaskOrScope(execution.BpmnElementType) {
+			if node.isMultiInstance && !execution.IsMultiInstance { // multi-instance activity has no boundary events attached
+				return nil, nil
+			}
+
 			executionCount := 0
 
 			executions = make([]*ElementInstanceEntity, len(node.boundaryEvents))
@@ -483,6 +487,10 @@ func (g graph) continueExecution(scope *ElementInstanceEntity, execution *Elemen
 
 	if execution.State == engine.InstanceStarted {
 		if execution.BpmnElementType == model.ElementSubProcess {
+			if execution.IsMultiInstance { // TODO document and handle suspension!
+				return nil, nil
+			}
+
 			execution.State = scope.State // possible transition to suspended
 
 			// start branch
@@ -694,6 +702,7 @@ type node struct {
 //   - current scope and execution state
 //   - BPMN element type
 //   - event definition
+//   - multi-instance indicator
 func (n node) nextState(scope *ElementInstanceEntity, execution *ElementInstanceEntity) engine.InstanceState {
 	if scope.State == engine.InstanceQueued {
 		return engine.InstanceQueued
@@ -727,6 +736,16 @@ func (n node) nextState(scope *ElementInstanceEntity, execution *ElementInstance
 	}
 
 	if isTaskOrScope(execution.BpmnElementType) || execution.BpmnElementType == model.ElementEventBasedGateway {
+		if n.isMultiInstance && !execution.IsMultiInstance { // multi-instance activity
+			if execution.State == engine.InstanceCreated {
+				return engine.InstanceStarted // next sequential
+			} else if execution.prev == nil {
+				return engine.InstanceStarted // parallel or first sequential
+			} else {
+				return engine.InstanceCreated // remaining sequential
+			}
+		}
+
 		switch {
 		case execution.State == 0:
 			return engine.InstanceCreated

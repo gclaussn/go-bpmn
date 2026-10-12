@@ -67,7 +67,22 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 
 		if execution.State == engine.InstanceCompleted && isTaskOrScope(execution.BpmnElementType) {
 			node, _ := graph.node(execution.BpmnElementId)
-			if len(node.boundaryEvents) != 0 {
+
+			isMultiInstanceActivity := node.isMultiInstance && !execution.IsMultiInstance
+
+			if isMultiInstanceActivity && getMultiInstance(node.bpmnElement).IsSequential { // sequential multi-instance activity
+				// find next multi-instance activity
+				next, err := ctx.ElementInstances().SelectByPrevId(execution.Partition, execution.Id)
+				if err != nil {
+					return err
+				}
+
+				if len(next) != 0 {
+					ec.addExecution(next[0])
+				}
+			}
+
+			if !isMultiInstanceActivity && len(node.boundaryEvents) != 0 {
 				// terminate attached boundary events
 				boundaryEvents, err := ctx.ElementInstances().SelectByPrevId(execution.Partition, execution.Id)
 				if err != nil {
@@ -129,42 +144,44 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			model.ElementScriptTask,
 			model.ElementSendTask,
 			model.ElementServiceTask:
-			if execution.State != engine.InstanceStarted {
-				continue
-			}
-
 			if execution.IsMultiInstance {
 				jobType = engine.JobStartMultiInstance
 			} else {
 				jobType = engine.JobExecute
 			}
-		case model.ElementCallActivity:
-			jobType = engine.JobCallProcess
-
-			execution.Context = ec.processInstance.CorrelationKey // needed for the [engine.JobPassVariables] job, created when the child process instance ends
 		case model.ElementUserTask:
-			if execution.State == engine.InstanceStarted {
-				userTask := UserTaskEntity{
-					Partition: execution.Partition,
+			userTask := UserTaskEntity{
+				Partition: execution.Partition,
 
-					Revision: 1,
+				Revision: 1,
 
-					ElementId:         execution.ElementId,
-					ProcessId:         execution.ProcessId,
-					ProcessInstanceId: execution.ProcessInstanceId,
+				ElementId:         execution.ElementId,
+				ProcessId:         execution.ProcessId,
+				ProcessInstanceId: execution.ProcessInstanceId,
 
-					BpmnElementId:  execution.BpmnElementId,
-					CorrelationKey: ec.processInstance.CorrelationKey,
-					CreatedAt:      ctx.Time(),
-					CreatedBy:      ec.engineOrWorkerId,
-					State:          engine.UserTaskStarted,
-					UpdatedAt:      ctx.Time(),
-					UpdatedBy:      ec.engineOrWorkerId,
-				}
-
-				entities = append(entities, &userTask)
-				idx = append(idx, i)
+				BpmnElementId:  execution.BpmnElementId,
+				CorrelationKey: ec.processInstance.CorrelationKey,
+				CreatedAt:      ctx.Time(),
+				CreatedBy:      ec.engineOrWorkerId,
+				State:          engine.UserTaskStarted,
+				UpdatedAt:      ctx.Time(),
+				UpdatedBy:      ec.engineOrWorkerId,
 			}
+
+			entities = append(entities, &userTask)
+			idx = append(idx, i)
+		// call activity
+		case model.ElementCallActivity:
+			if execution.IsMultiInstance {
+				jobType = engine.JobStartMultiInstance
+			} else {
+				jobType = engine.JobCallProcess
+
+				execution.Context = ec.processInstance.CorrelationKey // needed for the [engine.JobPassVariables] job, created when the child process instance ends
+			}
+		// sub-process
+		case model.ElementSubProcess:
+			jobType = engine.JobStartMultiInstance
 		// gateway
 		case model.ElementEventBasedGateway:
 			// nothing to do here
