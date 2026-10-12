@@ -48,6 +48,13 @@ func (r *variableRepository) Insert(entity *internal.VariableEntity) error {
 	return nil
 }
 
+func (r *variableRepository) InsertBatch(entities []*internal.VariableEntity) error {
+	for _, entity := range entities {
+		_ = r.Insert(entity)
+	}
+	return nil
+}
+
 func (r *variableRepository) SelectByElementInstance(elementInstance *internal.ElementInstanceEntity, names []string) ([]*internal.VariableEntity, error) {
 	var results []*internal.VariableEntity
 

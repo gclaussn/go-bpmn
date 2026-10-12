@@ -488,7 +488,7 @@ func (g graph) continueExecution(scope *ElementInstanceEntity, execution *Elemen
 	if execution.State == engine.InstanceStarted {
 		if execution.BpmnElementType == model.ElementSubProcess {
 			if execution.IsMultiInstance { // TODO document and handle suspension!
-				return nil, nil
+				return executions, nil
 			}
 
 			execution.State = scope.State // possible transition to suspended

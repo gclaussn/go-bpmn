@@ -54,6 +54,7 @@ func (e VariableEntity) Variable() engine.Variable {
 type VariableRepository interface {
 	Delete(*VariableEntity) error
 	Insert(*VariableEntity) error
+	InsertBatch([]*VariableEntity) error
 	SelectByElementInstance(elementInstance *ElementInstanceEntity, names []string) ([]*VariableEntity, error)
 	SelectByProcessInstance(engine.GetProcessVariablesCmd) ([]*VariableEntity, error)
 	Upsert(*VariableEntity) error

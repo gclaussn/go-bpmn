@@ -3,6 +3,7 @@ package internal
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -443,20 +444,23 @@ func (ec *executionContext) startMultiInstance(ctx Context, job *JobEntity, jobC
 		return true, nil
 	}
 
+	multiInstanceActivities := make([]*ElementInstanceEntity, loopCardinality)
+
 	var prev *ElementInstanceEntity
-	for range jobCompletion.MultiInstance.LoopCardinality {
-		subExecution, err := graph.createExecutionAt(scope, execution.BpmnElementId)
+	for i := range loopCardinality {
+		multiInstanceActivity, err := graph.createExecutionAt(scope, execution.BpmnElementId)
 		if err != nil {
 			job.Error = pgtype.Text{String: fmt.Sprintf("failed to create execution at %s: %v", execution.BpmnElementId, err), Valid: true}
 			return false, nil
 		}
 
 		if multiInstance.IsSequential {
-			subExecution.prev = prev
-			prev = &subExecution
+			multiInstanceActivity.prev = prev
+			prev = &multiInstanceActivity
 		}
 
-		ec.addExecution(&subExecution)
+		multiInstanceActivities[i] = &multiInstanceActivity
+		ec.addExecution(&multiInstanceActivity)
 	}
 
 	if err := ec.continueExecutions(ctx); err != nil {
@@ -467,7 +471,32 @@ func (ec *executionContext) startMultiInstance(ctx Context, job *JobEntity, jobC
 		}
 	}
 
-	// TODO handle variables
+	// insert loop counter variables
+	variables := make([]*VariableEntity, loopCardinality)
+	for i, multiInstanceActivity := range multiInstanceActivities {
+		variable := VariableEntity{
+			Partition: multiInstanceActivity.Partition,
+
+			ElementId:         pgtype.Int4{Int32: multiInstanceActivity.ElementId, Valid: true},
+			ElementInstanceId: pgtype.Int4{Int32: multiInstanceActivity.Id, Valid: true},
+			ProcessId:         multiInstanceActivity.ProcessId,
+			ProcessInstanceId: multiInstanceActivity.ProcessInstanceId,
+
+			CreatedAt: ctx.Time(),
+			CreatedBy: ec.engineOrWorkerId,
+			Encoding:  "json",        // TODO make const?
+			Name:      "loopCounter", // TODO make const?
+			UpdatedAt: ctx.Time(),
+			UpdatedBy: ec.engineOrWorkerId,
+			Value:     strconv.Itoa(i),
+		}
+
+		variables[i] = &variable
+	}
+
+	if err := ctx.Variables().InsertBatch(variables); err != nil {
+		return false, err
+	}
 
 	return false, nil
 }

@@ -115,6 +115,84 @@ INSERT INTO variable (
 	return nil
 }
 
+func (r variableRepository) InsertBatch(entities []*internal.VariableEntity) error {
+	if len(entities) == 0 {
+		return nil
+	}
+
+	batch := &pgx.Batch{}
+
+	for _, entity := range entities {
+		batch.Queue(`
+INSERT INTO variable (
+	partition,
+	id,
+
+	element_id,
+	element_instance_id,
+	process_id,
+	process_instance_id,
+
+	created_at,
+	created_by,
+	encoding,
+	is_encrypted,
+	name,
+	updated_at,
+	updated_by,
+	value
+) VALUES (
+	$1,
+	nextval($2),
+
+	$3,
+	$4,
+	$5,
+	$6,
+
+	$7,
+	$8,
+	$9,
+	$10,
+	$11,
+	$12,
+	$13,
+	$14
+) RETURNING id
+`,
+			entity.Partition,
+			partitionSequence("variable", entity.Partition),
+
+			entity.ElementId,
+			entity.ElementInstanceId,
+			entity.ProcessId,
+			entity.ProcessInstanceId,
+
+			entity.CreatedAt,
+			entity.CreatedBy,
+			entity.Encoding,
+			entity.IsEncrypted,
+			entity.Name,
+			entity.UpdatedAt,
+			entity.UpdatedBy,
+			entity.Value,
+		)
+	}
+
+	batchResults := r.tx.SendBatch(r.txCtx, batch)
+	defer batchResults.Close()
+
+	for i := range entities {
+		row := batchResults.QueryRow()
+
+		if err := row.Scan(&entities[i].Id); err != nil {
+			return fmt.Errorf("failed to insert variable %+v: %v", entities[i], err)
+		}
+	}
+
+	return nil
+}
+
 func (r variableRepository) SelectByElementInstance(elementInstance *internal.ElementInstanceEntity, names []string) ([]*internal.VariableEntity, error) {
 	var sql bytes.Buffer
 	if err := sqlVariableElementQuery.Execute(&sql, map[string]any{
