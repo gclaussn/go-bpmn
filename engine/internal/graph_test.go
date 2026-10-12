@@ -378,7 +378,7 @@ func TestContinueExecution(t *testing.T) {
 			}
 
 			// when
-			executions1, err := graph.continueExecution(nil, execution)
+			executions1, err := graph.continueExecution(&scope, execution)
 
 			// then
 			require.NoError(err)
@@ -389,7 +389,7 @@ func TestContinueExecution(t *testing.T) {
 			// when
 			scope.State = engine.InstanceStarted
 
-			executions2, err := graph.continueExecution(nil, execution)
+			executions2, err := graph.continueExecution(&scope, execution)
 
 			// then
 			require.NoError(err)
@@ -422,7 +422,7 @@ func TestContinueExecution(t *testing.T) {
 			}
 
 			// when
-			executions1, err := graph.continueExecution(nil, execution)
+			executions1, err := graph.continueExecution(&scope, execution)
 
 			// then
 			require.NoError(err)
@@ -437,7 +437,7 @@ func TestContinueExecution(t *testing.T) {
 			assert.Equal(execution, executions1[0].prev)
 
 			// when
-			executions2, err := graph.continueExecution(nil, executions1[0])
+			executions2, err := graph.continueExecution(&scope, executions1[0])
 
 			// then
 			require.NoError(err)
@@ -458,7 +458,7 @@ func TestContinueExecution(t *testing.T) {
 			}
 
 			// when
-			executions1, err := graph.continueExecution(nil, execution)
+			executions1, err := graph.continueExecution(&scope, execution)
 
 			// then
 			require.NoError(err)
@@ -471,7 +471,7 @@ func TestContinueExecution(t *testing.T) {
 			scope.State = engine.InstanceStarted
 
 			// when
-			executions2, err := graph.continueExecution(nil, execution)
+			executions2, err := graph.continueExecution(&scope, execution)
 
 			// then
 			require.NoError(err)
@@ -486,7 +486,7 @@ func TestContinueExecution(t *testing.T) {
 			assert.Equal(execution, executions2[0].prev)
 
 			// when
-			executions3, err := graph.continueExecution(nil, execution)
+			executions3, err := graph.continueExecution(&scope, execution)
 
 			// then
 			require.NoError(err)
@@ -514,7 +514,7 @@ func TestContinueExecution(t *testing.T) {
 			}
 
 			// when
-			executions, err := graph.continueExecution(nil, execution)
+			executions, err := graph.continueExecution(&scope, execution)
 
 			// then
 			require.NoError(err)
@@ -547,7 +547,7 @@ func TestContinueExecution(t *testing.T) {
 			}
 
 			// when
-			executions, err := graph.continueExecution(nil, execution)
+			executions, err := graph.continueExecution(&scope, execution)
 
 			// then
 			require.NoError(err)
@@ -571,7 +571,7 @@ func TestContinueExecution(t *testing.T) {
 			}
 
 			// when
-			executions, err := graph.continueExecution(nil, execution)
+			executions, err := graph.continueExecution(&scope, execution)
 
 			// then
 			require.NoError(err)
@@ -595,7 +595,7 @@ func TestContinueExecution(t *testing.T) {
 			}
 
 			// when
-			executions1, err := graph.continueExecution(nil, execution)
+			executions1, err := graph.continueExecution(&scope, execution)
 
 			// then
 			require.NoError(err)
@@ -607,7 +607,7 @@ func TestContinueExecution(t *testing.T) {
 			// when
 			scope.State = engine.InstanceStarted
 
-			executions2, err := graph.continueExecution(nil, execution)
+			executions2, err := graph.continueExecution(&scope, execution)
 
 			// then
 			require.NoError(err)
@@ -636,7 +636,7 @@ func TestContinueExecution(t *testing.T) {
 			}
 
 			// when
-			executions1, err := graph.continueExecution(nil, execution)
+			executions1, err := graph.continueExecution(&scope, execution)
 
 			// then
 			require.NoError(err)
@@ -648,7 +648,7 @@ func TestContinueExecution(t *testing.T) {
 			assert.Equal(model.ElementTimerCatchEvent, timerCatchEvent.BpmnElementType)
 
 			// when
-			executions2, err := graph.continueExecution(nil, timerCatchEvent)
+			executions2, err := graph.continueExecution(&scope, timerCatchEvent)
 
 			// then
 			require.NoError(err)
@@ -660,7 +660,7 @@ func TestContinueExecution(t *testing.T) {
 			timerCatchEvent.Context = pgtype.Text{String: "", Valid: true}
 
 			// when
-			executions3, err := graph.continueExecution(nil, timerCatchEvent)
+			executions3, err := graph.continueExecution(&scope, timerCatchEvent)
 
 			// then
 			require.NoError(err)
@@ -683,13 +683,48 @@ func TestContinueExecution(t *testing.T) {
 			execution := &ElementInstanceEntity{
 				BpmnElementId:   "subProcess",
 				BpmnElementType: model.ElementSubProcess,
-				State:           engine.InstanceSuspended,
 
 				parent: &scope,
 			}
 
 			// when
-			executions1, err := graph.continueExecution(nil, execution)
+			executions1, err := graph.continueExecution(&scope, execution)
+
+			// then
+			require.NoError(err)
+			require.Len(executions1, 0)
+
+			assert.Equal(engine.InstanceSuspended, execution.State)
+
+			// when
+			scope.State = engine.InstanceStarted
+
+			executions2, err := graph.continueExecution(&scope, execution)
+
+			// then
+			require.NoError(err)
+			require.Len(executions2, 1)
+
+			assert.Equal(engine.InstanceStarted, execution.State)
+
+			assert.Equal("subProcessStartEvent", executions2[0].BpmnElementId)
+			assert.Equal(execution, executions2[0].parent)
+		})
+
+		t.Run("scope SUSPENDED when sub-process CREATED", func(t *testing.T) {
+			// given
+			scope.State = engine.InstanceSuspended
+
+			execution := &ElementInstanceEntity{
+				BpmnElementId:   "subProcess",
+				BpmnElementType: model.ElementSubProcess,
+				State:           engine.InstanceCreated,
+
+				parent: &scope,
+			}
+
+			// when
+			executions1, err := graph.continueExecution(&scope, execution)
 
 			// then
 			require.NoError(err)

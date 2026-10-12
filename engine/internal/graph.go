@@ -394,11 +394,14 @@ func (g graph) continueExecution(scope *ElementInstanceEntity, execution *Elemen
 		return executions, nil
 	}
 
+	var executions []*ElementInstanceEntity
+
 	if nextState == engine.InstanceCreated {
 		if isTaskOrScope(execution.BpmnElementType) {
 			executionCount := 0
 
-			for _, boundaryEvent := range node.boundaryEvents {
+			executions = make([]*ElementInstanceEntity, len(node.boundaryEvents))
+			for i, boundaryEvent := range node.boundaryEvents {
 				boundaryEventNode := g.nodes[boundaryEvent.Id]
 
 				// start branch
@@ -422,8 +425,7 @@ func (g graph) continueExecution(scope *ElementInstanceEntity, execution *Elemen
 					executionCount--
 				}
 
-				executions = append(executions, &attached)
-				scope.ExecutionCount++
+				executions[i] = &attached
 			}
 
 			if executionCount == 0 {
@@ -431,10 +433,17 @@ func (g graph) continueExecution(scope *ElementInstanceEntity, execution *Elemen
 			} else {
 				execution.ExecutionCount = executionCount
 			}
-		} else if execution.BpmnElementType == model.ElementEventBasedGateway {
+
+			scope.ExecutionCount += len(node.boundaryEvents)
+		}
+
+		if execution.BpmnElementType == model.ElementEventBasedGateway {
 			executionCount := 0
 
-			for _, sequenceFlow := range node.bpmnElement.Outgoing {
+			outgoing := node.bpmnElement.Outgoing
+
+			executions = make([]*ElementInstanceEntity, len(outgoing))
+			for i, sequenceFlow := range outgoing {
 				target := sequenceFlow.Target
 				targetNode := g.nodes[target.Id]
 
@@ -459,8 +468,7 @@ func (g graph) continueExecution(scope *ElementInstanceEntity, execution *Elemen
 					executionCount--
 				}
 
-				executions = append(executions, &next)
-				scope.ExecutionCount++
+				executions[i] = &next
 			}
 
 			if executionCount == 0 {
@@ -468,6 +476,8 @@ func (g graph) continueExecution(scope *ElementInstanceEntity, execution *Elemen
 			} else {
 				execution.ExecutionCount = executionCount
 			}
+
+			scope.ExecutionCount += len(outgoing)
 		}
 	}
 
@@ -481,11 +491,11 @@ func (g graph) continueExecution(scope *ElementInstanceEntity, execution *Elemen
 				return nil, err
 			}
 
-			return []*ElementInstanceEntity{&next}, nil
+			executions = append(executions, &next)
 		}
 	}
 
-	return nil, nil
+	return executions, nil
 }
 
 func (g graph) createExecution(scope *ElementInstanceEntity) (ElementInstanceEntity, error) {
@@ -723,7 +733,7 @@ func (n node) nextState(scope *ElementInstanceEntity, execution *ElementInstance
 		case execution.State == engine.InstanceSuspended:
 			return engine.InstanceCreated
 		case execution.ExecutionCount < 0: // not all boundary or catch events defined yet
-			return execution.State
+			return engine.InstanceCreated
 		default:
 			return engine.InstanceStarted
 		}
