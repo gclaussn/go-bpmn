@@ -86,6 +86,7 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 // Each type is used for a specific set of BPMN element types:
 //
 //   - [JobCallProcess]: call activity
+//   - [JobEndMultiInstance]: business rule task, script task, send task, service task, user task, sub-process and call activity
 //   - [JobEvaluateExclusiveGateway]: forking exclusive gateway
 //   - [JobEvaluateInclusiveGateway]: forking inclusive gateway
 //   - [JobExecute]: business rule task, script task, send task, service task, message end event, message throw event
@@ -102,6 +103,7 @@ type JobType int
 
 const (
 	JobCallProcess JobType = iota + 1
+	JobEndMultiInstance
 	JobEvaluateExclusiveGateway
 	JobEvaluateInclusiveGateway
 	JobExecute
@@ -120,6 +122,8 @@ func MapJobType(s string) JobType {
 	switch s {
 	case "CALL_PROCESS":
 		return JobCallProcess
+	case "END_MULTI_INSTANCE":
+		return JobEndMultiInstance
 	case "EVALUATE_EXCLUSIVE_GATEWAY":
 		return JobEvaluateExclusiveGateway
 	case "EVALUATE_INCLUSIVE_GATEWAY":
@@ -157,6 +161,8 @@ func (v JobType) String() string {
 	switch v {
 	case JobCallProcess:
 		return "CALL_PROCESS"
+	case JobEndMultiInstance:
+		return "END_MULTI_INSTANCE"
 	case JobEvaluateExclusiveGateway:
 		return "EVALUATE_EXCLUSIVE_GATEWAY"
 	case JobEvaluateInclusiveGateway:

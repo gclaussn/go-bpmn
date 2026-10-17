@@ -433,7 +433,11 @@ func (g graph) continueExecution(scope *ElementInstanceEntity, execution *Elemen
 			}
 
 			if executionCount == 0 {
-				execution.State = engine.InstanceStarted
+				if execution.IsMultiInstance {
+					execution.State = engine.InstanceCreated
+				} else {
+					execution.State = engine.InstanceStarted
+				}
 			} else {
 				execution.ExecutionCount = executionCount
 			}
@@ -709,6 +713,12 @@ func (n node) nextState(scope *ElementInstanceEntity, execution *ElementInstance
 	}
 
 	if execution.State == engine.InstanceStarted {
+		if execution.IsMultiInstance && execution.Context.Valid { // started multi-instance
+			// create [engine.JobEndMultiInstance] job
+			execution.Context = pgtype.Text{}
+			return engine.InstanceStarted
+		}
+
 		return engine.InstanceCompleted
 	}
 
@@ -753,6 +763,8 @@ func (n node) nextState(scope *ElementInstanceEntity, execution *ElementInstance
 			return engine.InstanceCreated
 		case execution.ExecutionCount < 0: // not all boundary or catch events defined yet
 			return engine.InstanceCreated
+		case execution.IsMultiInstance && !execution.Context.Valid:
+			return engine.InstanceCreated // create [engine.JobStartMultiInstance] job
 		default:
 			return engine.InstanceStarted
 		}
@@ -762,7 +774,7 @@ func (n node) nextState(scope *ElementInstanceEntity, execution *ElementInstance
 		return engine.InstanceCreated
 	}
 
-	if model.IsCatchEvent(execution.BpmnElementType) && execution.PrevElementId.Valid { // catch events related to event-based gateway
+	if model.IsCatchEvent(execution.BpmnElementType) && execution.PrevElementId.Valid { // catch event related to event-based gateway
 		return engine.InstanceCreated
 	}
 

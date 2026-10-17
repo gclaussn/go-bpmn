@@ -424,7 +424,7 @@ func (ec *executionContext) startMultiInstance(ctx Context, job *JobEntity, jobC
 		return false, nil
 	}
 
-	scope, execution := ec.executions[0], ec.executions[1]
+	execution := ec.executions[1]
 
 	graph := ec.process.graph
 
@@ -448,7 +448,7 @@ func (ec *executionContext) startMultiInstance(ctx Context, job *JobEntity, jobC
 
 	var prev *ElementInstanceEntity
 	for i := range loopCardinality {
-		multiInstanceActivity, err := graph.createExecutionAt(scope, execution.BpmnElementId)
+		multiInstanceActivity, err := graph.createExecutionAt(execution, execution.BpmnElementId)
 		if err != nil {
 			job.Error = pgtype.Text{String: fmt.Sprintf("failed to create execution at %s: %v", execution.BpmnElementId, err), Valid: true}
 			return false, nil
@@ -462,6 +462,8 @@ func (ec *executionContext) startMultiInstance(ctx Context, job *JobEntity, jobC
 		multiInstanceActivities[i] = &multiInstanceActivity
 		ec.addExecution(&multiInstanceActivity)
 	}
+
+	execution.Context = pgtype.Text{String: strconv.Itoa(loopCardinality), Valid: true} // condition for [engine.JobEndMultiInstance] job
 
 	if err := ec.continueExecutions(ctx); err != nil {
 		if _, ok := err.(engine.Error); ok {

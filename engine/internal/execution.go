@@ -71,7 +71,7 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			isMultiInstanceActivity := node.isMultiInstance && !execution.IsMultiInstance
 
 			if isMultiInstanceActivity && getMultiInstance(node.bpmnElement).IsSequential { // sequential multi-instance activity
-				// find next multi-instance activity
+				// start next multi-instance activity, if available
 				next, err := ctx.ElementInstances().SelectByPrevId(execution.Partition, execution.Id)
 				if err != nil {
 					return err
@@ -145,7 +145,11 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			model.ElementSendTask,
 			model.ElementServiceTask:
 			if execution.IsMultiInstance {
-				jobType = engine.JobStartMultiInstance
+				if execution.State == engine.InstanceCreated {
+					jobType = engine.JobStartMultiInstance
+				} else {
+					jobType = engine.JobEndMultiInstance
+				}
 			} else {
 				jobType = engine.JobExecute
 			}
@@ -173,15 +177,23 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 		// call activity
 		case model.ElementCallActivity:
 			if execution.IsMultiInstance {
-				jobType = engine.JobStartMultiInstance
+				if execution.State == engine.InstanceCreated {
+					jobType = engine.JobStartMultiInstance
+				} else {
+					jobType = engine.JobEndMultiInstance
+				}
 			} else {
 				jobType = engine.JobCallProcess
 
-				execution.Context = ec.processInstance.CorrelationKey // needed for the [engine.JobPassVariables] job, created when the child process instance ends
+				execution.Context = ec.processInstance.CorrelationKey // needed for [engine.JobPassVariables] job, created when a child process instance ends
 			}
 		// sub-process
 		case model.ElementSubProcess:
-			jobType = engine.JobStartMultiInstance
+			if execution.State == engine.InstanceCreated {
+				jobType = engine.JobStartMultiInstance
+			} else {
+				jobType = engine.JobEndMultiInstance
+			}
 		// gateway
 		case model.ElementEventBasedGateway:
 			// nothing to do here
@@ -500,6 +512,8 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 	case engine.JobCallProcess:
 		continueExecution = false
 		err = ec.callProcess(ctx, job, jobCompletion)
+	case engine.JobEndMultiInstance:
+		// nothing to do here
 	case engine.JobEvaluateExclusiveGateway:
 		err = ec.evaluateExclusiveGateway(job, jobCompletion)
 	case engine.JobEvaluateInclusiveGateway:
