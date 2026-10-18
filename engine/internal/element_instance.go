@@ -82,6 +82,9 @@ type ElementInstanceRepository interface {
 	// Only element instances with state CREATED are selected.
 	SelectByPrevId(time.Time, int32) ([]*ElementInstanceEntity, error)
 
+	// SelectIdsByParent selects IDs of child element instances.
+	SelectIdsByParent(partition time.Time, parentId int32) ([]int32, error)
+
 	// SelectParallelGateways selects element instances, which have the same
 	//  - parent element instance
 	//  - element

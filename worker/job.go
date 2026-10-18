@@ -74,6 +74,19 @@ func (m JobMux) CallProcess(bpmnElementId string, jobHandler func(jc JobContext)
 	}
 }
 
+// EndMultiInstance handles jobs of type [engine.JobEndMultiInstance].
+//
+// Applicable for multi-instance tasks, sub-processes and call activities.
+func (m JobMux) EndMultiInstance(bpmnElementId string, jobHandler func(jc JobContext) error) {
+	m[bpmnElementId+":endMultiInstance"] = func(jc JobContext) (*engine.JobCompletion, error) {
+		if err := jobHandler(jc); err != nil {
+			return nil, err
+		}
+
+		return nil, nil
+	}
+}
+
 // EvaluateExclusiveGateway handles jobs of type [engine.JobEvaluateExclusiveGateway].
 //
 // Applicable for BPMN elements of type exclusive gateway.
@@ -294,6 +307,26 @@ func (m JobMux) SetTimer(bpmnElementId string, jobHandler func(jc JobContext) (e
 
 		return &engine.JobCompletion{
 			Timer: &timer,
+		}, nil
+	}
+}
+
+// StartMultiInstance handles jobs of type [engine.JobStartMultiInstance].
+//
+// Applicable for multi instance tasks, sub-processes and call activities.
+func (m JobMux) StartMultiInstance(bpmnElementId string, jobHandler func(jc JobContext) (engine.MultiInstance, error)) {
+	m[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
+		if err := ensureJobType(jc.Job.Type, engine.JobStartMultiInstance); err != nil {
+			return nil, err
+		}
+
+		multiInstance, err := jobHandler(jc)
+		if err != nil {
+			return nil, err
+		}
+
+		return &engine.JobCompletion{
+			MultiInstance: &multiInstance,
 		}, nil
 	}
 }

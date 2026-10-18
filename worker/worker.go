@@ -180,7 +180,10 @@ func (w *Worker) ExecuteJob(ctx context.Context, job engine.Job) (engine.Job, er
 	}
 
 	bpmnElementId := job.BpmnElementId
-	if job.Type == engine.JobPassVariables {
+	switch job.Type {
+	case engine.JobEndMultiInstance:
+		bpmnElementId += ":endMultiInstance"
+	case engine.JobPassVariables:
 		bpmnElementId += ":passVariables"
 	}
 

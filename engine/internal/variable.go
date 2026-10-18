@@ -55,7 +55,7 @@ type VariableRepository interface {
 	Delete(*VariableEntity) error
 	Insert(*VariableEntity) error
 	InsertBatch([]*VariableEntity) error
-	SelectByElementInstance(elementInstance *ElementInstanceEntity, names []string) ([]*VariableEntity, error)
+	SelectByElementInstance(partition time.Time, elementInstanceId int32, names []string) ([]*VariableEntity, error)
 	SelectByProcessInstance(engine.GetProcessVariablesCmd) ([]*VariableEntity, error)
 	Upsert(*VariableEntity) error
 
@@ -81,7 +81,12 @@ func GetElementVariables(ctx Context, cmd engine.GetElementVariablesCmd) ([]engi
 			return nil, err
 		}
 
-		entities, err := ctx.Variables().SelectByElementInstance(elementInstance, cmd.Names)
+		var entities []*VariableEntity
+		if elementInstance.IsMultiInstance && cmd.ElementInstanceId == elementInstanceId {
+			entities, err = getMultiInstanceVariables(ctx, elementInstance, cmd.Names)
+		} else {
+			entities, err = ctx.Variables().SelectByElementInstance(elementInstance.Partition, elementInstanceId, cmd.Names)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -276,6 +281,27 @@ func containsProcessVariable(entities []*VariableEntity, name string) bool {
 		}
 	}
 	return false
+}
+
+// TODO
+func getMultiInstanceVariables(ctx Context, parent *ElementInstanceEntity, names []string) ([]*VariableEntity, error) {
+	ids, err := ctx.ElementInstances().SelectIdsByParent(parent.Partition, parent.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	var variables []*VariableEntity
+
+	for _, id := range ids {
+		entities, err := ctx.Variables().SelectByElementInstance(parent.Partition, id, names)
+		if err != nil {
+			return nil, err
+		}
+
+		variables = append(variables, entities...)
+	}
+
+	return variables, nil
 }
 
 func mapElementVariables(ctx Context, elementInstance *ElementInstanceEntity, variables []engine.ElementVariable, workerId string) ([]*VariableEntity, error) {

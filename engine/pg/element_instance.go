@@ -492,6 +492,41 @@ ORDER BY
 	return entities, nil
 }
 
+func (r elementInstanceRepository) SelectIdsByParent(partition time.Time, parentId int32) ([]int32, error) {
+	rows, err := r.tx.Query(r.txCtx, `
+SELECT
+	id
+FROM
+	element_instance
+WHERE
+	partition = $1 AND
+	parent_id = $2
+`, partition, parentId)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"failed to select child element instance IDs of parent %s/%d: %v",
+			partition.Format(time.DateOnly),
+			parentId,
+			err,
+		)
+	}
+
+	defer rows.Close()
+
+	var ids []int32
+	for rows.Next() {
+		var id int32
+
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("failed to scan child element instance ID: %v", err)
+		}
+
+		ids = append(ids, id)
+	}
+
+	return ids, nil
+}
+
 func (r elementInstanceRepository) SelectParallelGateways(execution *internal.ElementInstanceEntity) ([]*internal.ElementInstanceEntity, error) {
 	rows, err := r.tx.Query(r.txCtx, `
 SELECT
