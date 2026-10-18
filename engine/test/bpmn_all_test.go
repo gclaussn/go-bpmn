@@ -148,6 +148,14 @@ func TestBpmn(t *testing.T) {
 		}
 	})
 
+	t.Run("multi-instance", func(t *testing.T) {
+		for i, e := range engines {
+			multiInstanceTest := multiInstanceTest{e}
+
+			t.Run(engineTypes[i]+"parallel service task", multiInstanceTest.parallelServiceTask)
+		}
+	})
+
 	t.Run("parallel gateway", func(t *testing.T) {
 		for i, e := range engines {
 			parallelGatewayTest := parallelGatewayTest{e}

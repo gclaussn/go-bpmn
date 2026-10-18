@@ -353,6 +353,11 @@ func (g graph) continueExecution(scope *ElementInstanceEntity, execution *Elemen
 			return executions, nil
 		}
 
+		if node.isMultiInstance && !execution.IsMultiInstance { // multi-instance activity does not take outgoing sequence flow
+			return nil, nil
+		}
+
+		// take outgoing sequence flow
 		outgoing := node.bpmnElement.Outgoing
 
 		executions := make([]*ElementInstanceEntity, len(outgoing))
@@ -382,6 +387,7 @@ func (g graph) continueExecution(scope *ElementInstanceEntity, execution *Elemen
 
 				BpmnElementId:   target.Id,
 				BpmnElementType: target.Type,
+				IsMultiInstance: targetNode.isMultiInstance && !scope.IsMultiInstance, // TODO
 
 				parent: scope,
 				prev:   prev,
@@ -763,8 +769,6 @@ func (n node) nextState(scope *ElementInstanceEntity, execution *ElementInstance
 			return engine.InstanceCreated
 		case execution.ExecutionCount < 0: // not all boundary or catch events defined yet
 			return engine.InstanceCreated
-		case execution.IsMultiInstance && !execution.Context.Valid:
-			return engine.InstanceCreated // create [engine.JobStartMultiInstance] job
 		default:
 			return engine.InstanceStarted
 		}

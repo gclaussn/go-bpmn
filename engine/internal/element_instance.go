@@ -466,6 +466,7 @@ func (ec *executionContext) startMultiInstance(ctx Context, job *JobEntity, jobC
 		ec.addExecution(&multiInstanceActivity)
 	}
 
+	execution.State = engine.InstanceStarted
 	execution.Context = pgtype.Text{String: strconv.Itoa(loopCardinality), Valid: true} // condition for [engine.JobEndMultiInstance] job
 
 	if err := ec.continueExecutions(ctx); err != nil {
