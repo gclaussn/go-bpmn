@@ -97,6 +97,64 @@ type ElementInstanceRepository interface {
 	Query(engine.ElementInstanceCriteria, engine.QueryOptions) ([]engine.ElementInstance, error)
 }
 
+type ContinueExecutionTask struct {
+}
+
+func (t ContinueExecutionTask) Execute(ctx Context, task *TaskEntity) error {
+	processInstance, err := ctx.ProcessInstances().Select(task.Partition, task.ProcessInstanceId.Int32)
+	if err == pgx.ErrNoRows {
+		return engine.Error{
+			Type:   engine.ErrorNotFound,
+			Title:  "failed to find process instance",
+			Detail: fmt.Sprintf("process instance %s/%d could not be found", task.Partition.Format(time.DateOnly), task.ProcessInstanceId.Int32),
+		}
+	}
+	if err != nil {
+		return err
+	}
+
+	if processInstance.EndedAt.Valid {
+		task.State = engine.WorkCanceled
+		return nil
+	}
+
+	process, err := ctx.ProcessCache().GetOrCacheById(ctx, processInstance.ProcessId)
+	if err != nil {
+		return err
+	}
+
+	execution, err := ctx.ElementInstances().Select(task.Partition, task.ElementInstanceId.Int32)
+	if err != nil {
+		return err
+	}
+	if execution.EndedAt.Valid {
+		task.State = engine.WorkCanceled
+		return nil // already completed, terminated or canceled
+	}
+
+	scope, err := ctx.ElementInstances().Select(execution.Partition, execution.ParentId.Int32)
+	if err != nil {
+		return err
+	}
+
+	ec := executionContext{
+		engineOrWorkerId: ctx.Options().EngineId,
+		executions:       []*ElementInstanceEntity{scope, execution},
+		process:          process,
+		processInstance:  processInstance,
+	}
+
+	if err := ec.continueExecutions(ctx); err != nil {
+		if _, ok := err.(engine.Error); ok {
+			return err
+		} else {
+			return fmt.Errorf("failed to continue executions %+v: %v", ec.executions, err)
+		}
+	}
+
+	return nil
+}
+
 type JoinParallelGatewayTask struct {
 }
 

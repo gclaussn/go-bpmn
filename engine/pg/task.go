@@ -384,6 +384,8 @@ func (r taskRepository) Lock(cmd engine.ExecuteTasksCmd, lockedAt time.Time) ([]
 		var err error
 
 		switch entity.Type {
+		case engine.TaskContinueExecution:
+			entity.Instance = internal.ContinueExecutionTask{}
 		case engine.TaskDequeueProcessInstance:
 			task := internal.DequeueProcessInstanceTask{}
 			err = json.Unmarshal([]byte(entity.SerializedTask.String), &task)

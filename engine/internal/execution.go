@@ -10,12 +10,21 @@ import (
 
 type executionContext struct {
 	engineOrWorkerId string
-	executions       []*ElementInstanceEntity
+	executions       []*ElementInstanceEntity // can contain nil values
 	process          *ProcessEntity
 	processInstance  *ProcessInstanceEntity
 }
 
 func (ec *executionContext) addExecution(execution *ElementInstanceEntity) {
+	if execution.Id != 0 {
+		// TODO
+		for i, e := range ec.executions {
+			if e != nil && e.Id == execution.Id {
+				ec.executions[i] = nil
+			}
+		}
+	}
+
 	ec.executions = append(ec.executions, execution)
 }
 
@@ -25,7 +34,13 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 
 	graph := ec.process.graph
 
-	i := 0
+	var (
+		i int
+
+		nextExecutions []*ElementInstanceEntity
+		err            error
+	)
+
 	for i < len(ec.executions) {
 		execution := ec.executions[i]
 
@@ -41,7 +56,11 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 		}
 
 		// continue execution
-		nextExecutions, err := graph.continueExecution(scope, execution)
+		if execution.IsMultiInstance {
+			nextExecutions, err = graph.continueMultiInstanceExecution(scope, execution)
+		} else {
+			nextExecutions, err = graph.continueExecution(scope, execution)
+		}
 		if err != nil {
 			return engine.Error{
 				Type:   engine.ErrorProcessModel,
@@ -117,6 +136,10 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 
 	// create jobs and tasks
 	for i, execution := range ec.executions {
+		if execution == nil {
+			continue
+		}
+
 		if execution.State != engine.InstanceCreated && execution.State != engine.InstanceStarted {
 			continue
 		}
@@ -150,30 +173,38 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 				} else {
 					jobType = engine.JobEndMultiInstance
 				}
-			} else {
+			} else if execution.State == engine.InstanceStarted {
 				jobType = engine.JobExecute
 			}
 		case model.ElementUserTask:
-			userTask := UserTaskEntity{
-				Partition: execution.Partition,
+			if execution.IsMultiInstance {
+				if execution.State == engine.InstanceCreated {
+					jobType = engine.JobStartMultiInstance
+				} else {
+					jobType = engine.JobEndMultiInstance
+				}
+			} else if execution.State == engine.InstanceStarted {
+				userTask := UserTaskEntity{
+					Partition: execution.Partition,
 
-				Revision: 1,
+					Revision: 1,
 
-				ElementId:         execution.ElementId,
-				ProcessId:         execution.ProcessId,
-				ProcessInstanceId: execution.ProcessInstanceId,
+					ElementId:         execution.ElementId,
+					ProcessId:         execution.ProcessId,
+					ProcessInstanceId: execution.ProcessInstanceId,
 
-				BpmnElementId:  execution.BpmnElementId,
-				CorrelationKey: ec.processInstance.CorrelationKey,
-				CreatedAt:      ctx.Time(),
-				CreatedBy:      ec.engineOrWorkerId,
-				State:          engine.UserTaskStarted,
-				UpdatedAt:      ctx.Time(),
-				UpdatedBy:      ec.engineOrWorkerId,
+					BpmnElementId:  execution.BpmnElementId,
+					CorrelationKey: ec.processInstance.CorrelationKey,
+					CreatedAt:      ctx.Time(),
+					CreatedBy:      ec.engineOrWorkerId,
+					State:          engine.UserTaskStarted,
+					UpdatedAt:      ctx.Time(),
+					UpdatedBy:      ec.engineOrWorkerId,
+				}
+
+				entities = append(entities, &userTask)
+				idx = append(idx, i)
 			}
-
-			entities = append(entities, &userTask)
-			idx = append(idx, i)
 		// call activity
 		case model.ElementCallActivity:
 			if execution.IsMultiInstance {
@@ -182,17 +213,22 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 				} else {
 					jobType = engine.JobEndMultiInstance
 				}
-			} else {
+			} else if execution.State == engine.InstanceStarted {
 				jobType = engine.JobCallProcess
 
 				execution.Context = ec.processInstance.CorrelationKey // needed for [engine.JobPassVariables] job, created when a child process instance ends
 			}
 		// sub-process
 		case model.ElementSubProcess:
-			if execution.State == engine.InstanceCreated {
-				jobType = engine.JobStartMultiInstance
-			} else {
-				jobType = engine.JobEndMultiInstance
+			if execution.IsMultiInstance {
+				if execution.State == engine.InstanceCreated {
+					jobType = engine.JobStartMultiInstance
+				} else {
+					jobType = engine.JobEndMultiInstance
+				}
+			} else if node.isMultiInstance && execution.State == engine.InstanceStarted {
+				taskType = engine.TaskContinueExecution
+				taskInstance = ContinueExecutionTask{}
 			}
 		// gateway
 		case model.ElementEventBasedGateway:
@@ -354,6 +390,10 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 
 	// insert or update executions
 	for _, execution := range ec.executions {
+		if execution == nil {
+			continue
+		}
+
 		if execution.Id == 0 {
 			execution.CreatedAt = ctx.Time()
 			execution.CreatedBy = ec.engineOrWorkerId
@@ -421,7 +461,7 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 	if ec.processInstance.ParentId.Valid {
 		var processScope *ElementInstanceEntity
 		for _, execution := range ec.executions {
-			if execution.BpmnElementType == model.ElementProcess {
+			if execution != nil && execution.BpmnElementType == model.ElementProcess {
 				processScope = execution
 			}
 		}
@@ -485,7 +525,7 @@ func (ec *executionContext) findScope(ctx Context, execution *ElementInstanceEnt
 
 	// find scope within executions
 	for _, scope := range ec.executions {
-		if scope.Id == parentId {
+		if scope != nil && scope.Id == parentId {
 			execution.parent = scope
 			return scope, nil
 		}

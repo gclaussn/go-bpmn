@@ -213,7 +213,8 @@ func (v *JobType) UnmarshalJSON(data []byte) error {
 type TaskType int
 
 const (
-	TaskDequeueProcessInstance   TaskType = iota + 1 // Dequeues a queued process instance.
+	TaskContinueExecution        TaskType = iota + 1 // Continues an execution.
+	TaskDequeueProcessInstance                       // Dequeues a queued process instance.
 	TaskJoinParallelGateway                          // Continues a parallel gateway by joining executions.
 	TaskStartProcessInstance                         // Starts a queued process instance.
 	TaskTerminateProcessInstance                     // Terminates a process instance.
@@ -230,6 +231,8 @@ const (
 
 func MapTaskType(s string) TaskType {
 	switch s {
+	case "CONTINUE_EXECUTION":
+		return TaskContinueExecution
 	case "DEQUEUE_PROCESS_INSTANCE":
 		return TaskDequeueProcessInstance
 	case "JOIN_PARALLEL_GATEWAY":
@@ -262,6 +265,8 @@ func (v TaskType) MarshalJSON() ([]byte, error) {
 
 func (v TaskType) String() string {
 	switch v {
+	case TaskContinueExecution:
+		return "CONTINUE_EXECUTION"
 	case TaskDequeueProcessInstance:
 		return "DEQUEUE_PROCESS_INSTANCE"
 	case TaskJoinParallelGateway:
