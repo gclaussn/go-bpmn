@@ -3,6 +3,7 @@ package internal
 import (
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/model"
@@ -353,8 +354,8 @@ func (g graph) continueExecution(scope *ElementInstanceEntity, execution *Elemen
 			return executions, nil
 		}
 
-		if node.isMultiInstance { // multi-instance activity does not take outgoing sequence flow
-			return nil, nil
+		if node.isMultiInstance {
+			return nil, nil // multi-instance activity does not take outgoing sequence flow
 		}
 
 		// take outgoing sequence flow
@@ -404,8 +405,8 @@ func (g graph) continueExecution(scope *ElementInstanceEntity, execution *Elemen
 
 	if nextState == engine.InstanceCreated {
 		if isTaskOrScope(execution.BpmnElementType) {
-			if node.isMultiInstance { // multi-instance activity has no boundary events attached
-				return nil, nil
+			if node.isMultiInstance {
+				return nil, nil // multi-instance activity has no boundary events attached
 			}
 
 			executionCount := 0
@@ -519,19 +520,24 @@ func (g graph) continueMultiInstanceExecution(scope *ElementInstanceEntity, exec
 		return nil, err
 	}
 
-	if execution.State == engine.InstanceCompleted || execution.State == engine.InstanceTerminated {
+	if execution.State == engine.InstanceTerminated {
 		scope.ExecutionCount--
-		return nil, nil // skip already completed or terminated execution
+		return nil, nil // skip already terminated execution
 	}
 
 	nextState := node.nextMultiInstanceState(scope, execution)
 
-	if nextState == engine.InstanceStarted && execution.Context.Valid {
-		execution.Context = pgtype.Text{} // create [engine.JobEndMultiInstance] job
-		return nil, nil
-	}
-
 	if execution.State == nextState {
+		switch {
+		case execution.State == engine.InstanceCreated && execution.ExecutionCount == 0:
+			multiInstance := getMultiInstance(node.bpmnElement)
+			if multiInstance.LoopCardinality > 0 {
+				return g.startMultiInstance(execution, multiInstance.LoopCardinality, multiInstance.IsSequential)
+			}
+		case execution.State == engine.InstanceStarted && execution.Context.Valid:
+			execution.Context = pgtype.Text{} // create [engine.JobEndMultiInstance] job
+		}
+
 		return nil, nil
 	}
 
@@ -568,14 +574,24 @@ func (g graph) continueMultiInstanceExecution(scope *ElementInstanceEntity, exec
 			executions[i] = &attached
 		}
 
-		if executionCount == 0 {
-			execution.State = engine.InstanceCreated
-		} else {
-			execution.ExecutionCount = executionCount
-		}
-
 		scope.ExecutionCount += len(node.boundaryEvents)
 
+		if executionCount != 0 {
+			execution.ExecutionCount = executionCount
+			return executions, nil
+		}
+
+		multiInstance := getMultiInstance(node.bpmnElement)
+		if multiInstance.LoopCardinality <= 0 {
+			return executions, nil
+		}
+
+		multiInstanceActivities, err := g.startMultiInstance(execution, multiInstance.LoopCardinality, multiInstance.IsSequential)
+		if err != nil {
+			return nil, err
+		}
+
+		executions = append(executions, multiInstanceActivities...)
 		return executions, nil
 	}
 
@@ -797,6 +813,37 @@ func (g graph) setEventDefinitions(eventDefinitions []*EventDefinitionEntity) {
 		node.eventDefinition = eventeventDefinition
 		g.nodes[eventeventDefinition.BpmnElementId] = node
 	}
+}
+
+func (g graph) startMultiInstance(execution *ElementInstanceEntity, loopCardinality int, isSequential bool) ([]*ElementInstanceEntity, error) {
+	execution.State = engine.InstanceStarted
+
+	if loopCardinality < 0 {
+		return nil, nil
+	}
+
+	multiInstanceActivities := make([]*ElementInstanceEntity, loopCardinality)
+
+	var prev *ElementInstanceEntity
+	for i := range loopCardinality {
+		multiInstanceActivity, err := g.createExecutionAt(execution, execution.BpmnElementId)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create execution at %s: %v", execution.BpmnElementId, err)
+		}
+
+		if isSequential {
+			multiInstanceActivity.prev = prev
+			prev = &multiInstanceActivity
+		}
+
+		multiInstanceActivities[i] = &multiInstanceActivity
+	}
+
+	if loopCardinality != 0 {
+		execution.Context = pgtype.Text{String: strconv.Itoa(loopCardinality), Valid: true}
+	}
+
+	return multiInstanceActivities, nil
 }
 
 type node struct {

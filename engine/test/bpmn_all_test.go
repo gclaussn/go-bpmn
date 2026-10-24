@@ -152,14 +152,14 @@ func TestBpmn(t *testing.T) {
 		for i, e := range engines {
 			multiInstanceTest := multiInstanceTest{e}
 
-			// t.Run(engineTypes[i]+"parallel call activity", multiInstanceTest.parallelCallActivity)
-			// t.Run(engineTypes[i]+"parallel service task", multiInstanceTest.parallelServiceTask)
-			//t.Run(engineTypes[i]+"parallel sub-process", multiInstanceTest.parallelSubProcess)
-			// t.Run(engineTypes[i]+"parallel user task", multiInstanceTest.parallelUserTask)
-			// t.Run(engineTypes[i]+"sequential call activity", multiInstanceTest.sequentialCallActivity)
-			// t.Run(engineTypes[i]+"sequential service task", multiInstanceTest.sequentialServiceTask)
+			t.Run(engineTypes[i]+"parallel call activity", multiInstanceTest.parallelCallActivity)
+			t.Run(engineTypes[i]+"parallel service task", multiInstanceTest.parallelServiceTask)
+			t.Run(engineTypes[i]+"parallel sub-process", multiInstanceTest.parallelSubProcess)
+			t.Run(engineTypes[i]+"parallel user task", multiInstanceTest.parallelUserTask)
+			t.Run(engineTypes[i]+"sequential call activity", multiInstanceTest.sequentialCallActivity)
+			t.Run(engineTypes[i]+"sequential service task", multiInstanceTest.sequentialServiceTask)
 			t.Run(engineTypes[i]+"sequential sub-process", multiInstanceTest.sequentialSubProcess)
-			// t.Run(engineTypes[i]+"sequential user task", multiInstanceTest.sequentialUserTask)
+			t.Run(engineTypes[i]+"sequential user task", multiInstanceTest.sequentialUserTask)
 		}
 	})
 

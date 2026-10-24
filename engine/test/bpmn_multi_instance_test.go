@@ -146,6 +146,22 @@ func (x multiInstanceTest) parallelSubProcess(t *testing.T) {
 
 	subProcess.HasState(engine.InstanceStarted)
 
+	require.Len(piAssert.ElementInstances(), 6)
+
+	children := subProcess.Children()
+	require.Len(children, 3)
+
+	for _, child := range children {
+		child.HasState(engine.InstanceStarted)
+	}
+
+	for _, child := range children {
+		child.HasTask(engine.TaskContinueExecution)
+		child.ExecuteTask()
+
+		child.HasState(engine.InstanceCompleted)
+	}
+
 	require.Len(piAssert.ElementInstances(), 12)
 
 	subProcess.HasJob(engine.JobEndMultiInstance)
@@ -155,6 +171,7 @@ func (x multiInstanceTest) parallelSubProcess(t *testing.T) {
 
 	require.Len(piAssert.ElementInstances(), 13)
 	require.Len(piAssert.Jobs(), 2)
+	require.Len(piAssert.Tasks(), 3)
 }
 
 func (x multiInstanceTest) parallelUserTask(t *testing.T) {
@@ -375,7 +392,31 @@ func (x multiInstanceTest) sequentialSubProcess(t *testing.T) {
 
 	subProcess.HasState(engine.InstanceStarted)
 
-	require.Len(piAssert.ElementInstances(), 12)
+	require.Len(piAssert.ElementInstances(), 6)
+
+	children := subProcess.Children()
+	require.Len(children, 3)
+
+	children[0].HasState(engine.InstanceStarted)
+	children[1].HasState(engine.InstanceCreated)
+	children[2].HasState(engine.InstanceCreated)
+
+	children[0].HasTask(engine.TaskContinueExecution)
+	children[0].ExecuteTask()
+
+	children[0].HasState(engine.InstanceCompleted)
+	children[1].HasState(engine.InstanceStarted)
+	children[2].HasState(engine.InstanceCreated)
+
+	children[1].HasTask(engine.TaskContinueExecution)
+	children[1].ExecuteTask()
+
+	children[0].HasState(engine.InstanceCompleted)
+	children[1].HasState(engine.InstanceCompleted)
+	children[2].HasState(engine.InstanceStarted)
+
+	children[2].HasTask(engine.TaskContinueExecution)
+	children[2].ExecuteTask()
 
 	subProcess.HasState(engine.InstanceStarted)
 	subProcess.HasJob(engine.JobEndMultiInstance)
@@ -385,6 +426,7 @@ func (x multiInstanceTest) sequentialSubProcess(t *testing.T) {
 
 	require.Len(piAssert.ElementInstances(), 13)
 	require.Len(piAssert.Jobs(), 2)
+	require.Len(piAssert.Tasks(), 3)
 }
 
 func (x multiInstanceTest) sequentialUserTask(t *testing.T) {

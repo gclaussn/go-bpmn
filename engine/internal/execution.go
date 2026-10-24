@@ -571,7 +571,8 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 	case engine.JobSetTimer:
 		err = ec.setTimer(ctx, job, jobCompletion)
 	case engine.JobStartMultiInstance:
-		continueExecution, err = ec.startMultiInstance(ctx, job, jobCompletion)
+		continueExecution = false
+		err = ec.startMultiInstance(ctx, job, jobCompletion)
 	case engine.JobSubscribeMessage, engine.JobSetMessageCorrelationKey:
 		err = ec.subscribeMessage(ctx, job, jobCompletion)
 	case engine.JobSubscribeSignal:

@@ -144,6 +144,18 @@ func (t ContinueExecutionTask) Execute(ctx Context, task *TaskEntity) error {
 		processInstance:  processInstance,
 	}
 
+	if execution.BpmnElementType == model.ElementSubProcess {
+		execution.State = scope.State // possible transition to suspended
+
+		// start branch
+		next, err := process.graph.createExecution(execution)
+		if err != nil {
+			return err
+		}
+
+		ec.executions = append(ec.executions, &next)
+	}
+
 	if err := ec.continueExecutions(ctx); err != nil {
 		if _, ok := err.(engine.Error); ok {
 			return err
@@ -479,10 +491,10 @@ func (ec *executionContext) execute(ctx Context, job *JobEntity, jobCompletion *
 }
 
 // TODO
-func (ec *executionContext) startMultiInstance(ctx Context, job *JobEntity, jobCompletion *engine.JobCompletion) (bool, error) {
+func (ec *executionContext) startMultiInstance(ctx Context, job *JobEntity, jobCompletion *engine.JobCompletion) error {
 	if jobCompletion.MultiInstance == nil {
 		job.Error = pgtype.Text{String: "expected a multi-instance", Valid: true}
-		return false, nil
+		return nil
 	}
 
 	execution := ec.executions[1]
@@ -492,51 +504,39 @@ func (ec *executionContext) startMultiInstance(ctx Context, job *JobEntity, jobC
 	node, err := graph.node(execution.BpmnElementId)
 	if err != nil {
 		job.Error = pgtype.Text{String: err.Error(), Valid: true}
-		return false, nil
+		return nil
 	}
 
 	multiInstance := getMultiInstance(node.bpmnElement)
 	if multiInstance == nil {
-		// TODO
-	}
-
-	loopCardinality := jobCompletion.MultiInstance.LoopCardinality
-	if loopCardinality == 0 {
-		return true, nil
-	}
-
-	multiInstanceActivities := make([]*ElementInstanceEntity, loopCardinality)
-
-	var prev *ElementInstanceEntity
-	for i := range loopCardinality {
-		multiInstanceActivity, err := graph.createExecutionAt(execution, execution.BpmnElementId)
-		if err != nil {
-			job.Error = pgtype.Text{String: fmt.Sprintf("failed to create execution at %s: %v", execution.BpmnElementId, err), Valid: true}
-			return false, nil
+		err := engine.Error{
+			Type:   engine.ErrorBug,
+			Title:  "failed to get multi instance",
+			Detail: fmt.Sprintf("expected BPMN element %s to be a multi-instance", execution.BpmnElementId),
 		}
 
-		if multiInstance.IsSequential {
-			multiInstanceActivity.prev = prev
-			prev = &multiInstanceActivity
-		}
-
-		multiInstanceActivities[i] = &multiInstanceActivity
-		ec.addExecution(&multiInstanceActivity)
+		job.Error = pgtype.Text{String: err.Error(), Valid: true}
+		return nil
 	}
 
-	execution.State = engine.InstanceStarted
-	execution.Context = pgtype.Text{String: strconv.Itoa(loopCardinality), Valid: true} // condition for [engine.JobEndMultiInstance] job
+	multiInstanceActivities, err := graph.startMultiInstance(execution, jobCompletion.MultiInstance.LoopCardinality, multiInstance.IsSequential)
+	if err != nil {
+		job.Error = pgtype.Text{String: err.Error(), Valid: true}
+		return nil
+	}
+
+	ec.executions = append(ec.executions, multiInstanceActivities...)
 
 	if err := ec.continueExecutions(ctx); err != nil {
 		if _, ok := err.(engine.Error); ok {
 			job.Error = pgtype.Text{String: err.Error(), Valid: true}
 		} else {
-			return false, fmt.Errorf("failed to continue executions %+v: %v", ec.executions, err)
+			return fmt.Errorf("failed to continue executions %+v: %v", ec.executions, err)
 		}
 	}
 
 	// insert loop counter variables
-	variables := make([]*VariableEntity, loopCardinality)
+	variables := make([]*VariableEntity, len(multiInstanceActivities))
 	for i, multiInstanceActivity := range multiInstanceActivities {
 		variable := VariableEntity{
 			Partition: multiInstanceActivity.Partition,
@@ -548,8 +548,8 @@ func (ec *executionContext) startMultiInstance(ctx Context, job *JobEntity, jobC
 
 			CreatedAt: ctx.Time(),
 			CreatedBy: ec.engineOrWorkerId,
-			Encoding:  "json",        // TODO make const?
-			Name:      "loopCounter", // TODO make const?
+			Encoding:  "json",
+			Name:      "loopCounter",
 			UpdatedAt: ctx.Time(),
 			UpdatedBy: ec.engineOrWorkerId,
 			Value:     strconv.Itoa(i),
@@ -559,8 +559,8 @@ func (ec *executionContext) startMultiInstance(ctx Context, job *JobEntity, jobC
 	}
 
 	if err := ctx.Variables().InsertBatch(variables); err != nil {
-		return false, err
+		return err
 	}
 
-	return false, nil
+	return nil
 }
