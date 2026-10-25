@@ -294,13 +294,13 @@ func findErrorBoundaryEvent(ctx Context, scope *ElementInstanceEntity, errorCode
 		}
 	}
 
-	if scope.BpmnElementType == model.ElementCallActivity {
-		return nil, nil // stop recursion
-	}
-
 	parentScope, err := ctx.ElementInstances().Select(scope.Partition, scope.ParentId.Int32)
 	if err != nil {
 		return nil, err
+	}
+
+	if scope.BpmnElementType == model.ElementCallActivity && !parentScope.IsMultiInstance {
+		return nil, nil // stop recursion
 	}
 
 	// !recursion

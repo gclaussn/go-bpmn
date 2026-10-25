@@ -365,7 +365,7 @@ func (ec *executionContext) startBoundaryEvent(ctx Context, interrupting bool) (
 		i++
 
 		// if execution is a call activity, terminate descending process instances recursively
-		if execution.BpmnElementType == model.ElementCallActivity {
+		if execution.BpmnElementType == model.ElementCallActivity && !execution.IsMultiInstance {
 			children, err := ctx.ElementInstances().SelectActiveChildren(execution)
 			if err != nil {
 				return nil, err

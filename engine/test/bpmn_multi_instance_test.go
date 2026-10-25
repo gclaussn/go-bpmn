@@ -1,9 +1,11 @@
 package test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/gclaussn/go-bpmn/engine"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -72,6 +74,114 @@ func (x multiInstanceTest) parallelCallActivity(t *testing.T) {
 	require.Len(piAssert.Children(), 3)
 	require.Len(piAssert.ElementInstances(), 7)
 	require.Len(piAssert.Jobs(), 8)
+}
+
+func (x multiInstanceTest) parallelCallActivityErrorBoundary(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	process, subProcess :=
+		mustCreateProcess(t, x.e, "multi-instance/parallel-call-activity-boundary.bpmn", "parallelCallActivityBoundaryTest", engine.CreateProcessCmd{
+			Errors: []engine.ErrorDefinition{
+				{BpmnElementId: "errorBoundaryEvent", ErrorCode: t.Name()},
+			},
+			Escalations: []engine.EscalationDefinition{
+				{BpmnElementId: "escalationBoundaryEvent", EscalationCode: t.Name()},
+			},
+		}),
+		mustCreateProcess(t, x.e, "user-task/start-end.bpmn", "userTaskStartEndTest")
+
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
+
+	require.Len(piAssert.ElementInstances(), 5)
+
+	callActivity := psAssert.IsWaitingAt("callActivity")
+
+	callActivity.HasState(engine.InstanceCreated)
+	callActivity.HasJob(engine.JobStartMultiInstance)
+	callActivity.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			MultiInstance: &engine.MultiInstance{
+				LoopCardinality: 3,
+			},
+		},
+	})
+
+	callActivity.HasState(engine.InstanceStarted)
+
+	require.Len(piAssert.ElementInstances(), 8)
+
+	multiInstanceActivities := callActivity.Children()
+	require.Len(multiInstanceActivities, 3)
+
+	for _, multiInstanceActivity := range multiInstanceActivities {
+		multiInstanceActivity.HasState(engine.InstanceStarted)
+	}
+
+	for _, multiInstanceActivity := range multiInstanceActivities {
+		multiInstanceActivity.HasJob(engine.JobCallProcess)
+		multiInstanceActivity.CompleteJob(engine.CompleteJobCmd{
+			Completion: &engine.JobCompletion{
+				CalledProcess: &engine.CalledProcess{
+					BpmnProcessId: subProcess.BpmnProcessId,
+					Version:       subProcess.Version,
+				},
+			},
+		})
+	}
+
+	children := piAssert.Children()
+	require.Len(piAssert.Children(), 3)
+
+	// when user task #1 is completed
+	_, childScope, ok := piAssert.Child()
+	require.True(ok)
+
+	childScope.IsWaitingAt("userTask").CompleteUserTask()
+
+	multiInstanceActivities[0].HasJob(engine.JobPassVariables)
+	multiInstanceActivities[0].CompleteJob()
+
+	// when user task #2 throws a BPMN error
+	_, childScope, ok = piAssert.Child()
+	require.True(ok)
+
+	userTask := childScope.IsWaitingAt("userTask").UserTask()
+
+	updatedUserTask, err := x.e.UpdateUserTask(context.Background(), engine.UpdateUserTaskCmd{
+		Partition: userTask.Partition,
+		Id:        userTask.Id,
+
+		Revision: userTask.Revision,
+
+		ErrorCode: t.Name(),
+		WorkerId:  testWorkerId,
+	})
+	if err != nil {
+		t.Fatalf("failed to update user task: %v", err)
+	}
+
+	// then
+	assert.Equal(engine.UserTaskTerminated, updatedUserTask.State)
+
+	children[0].IsCompleted()
+	children[1].IsTerminated()
+	children[2].HasState(engine.InstanceStarted)
+
+	// when error boundary event is triggered
+	errorBoundaryEvent := psAssert.IsWaitingAt("errorBoundaryEvent")
+	errorBoundaryEvent.HasTask(engine.TaskTriggerEvent)
+	errorBoundaryEvent.ExecuteTask()
+
+	// then
+	piAssert.IsCompleted()
+
+	require.Len(piAssert.ElementInstances(), 9)
+	require.Len(piAssert.Jobs(), 5)
+	require.Len(piAssert.Tasks(), 1)
+
+	// when terminated process instance task is executed
+	children[2].ExecuteTasks()
+	children[2].IsTerminated()
 }
 
 func (x multiInstanceTest) parallelServiceTask(t *testing.T) {

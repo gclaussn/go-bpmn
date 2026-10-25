@@ -452,7 +452,7 @@ func terminateProcessInstance(ctx Context, processInstance *ProcessInstanceEntit
 		execution.ExecutionCount = 0
 		execution.State = engine.InstanceTerminated
 
-		if execution.BpmnElementType != model.ElementCallActivity {
+		if execution.BpmnElementType != model.ElementCallActivity || execution.IsMultiInstance {
 			continue
 		}
 

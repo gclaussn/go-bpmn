@@ -30,8 +30,6 @@ func (ec *executionContext) addExecution(execution *ElementInstanceEntity) {
 
 // continueExecutions continues each execution until a wait state is reached or no more outgoing sequence flows exist.
 func (ec *executionContext) continueExecutions(ctx Context) error {
-	now := pgtype.Timestamp{Time: ctx.Time(), Valid: true}
-
 	graph := ec.process.graph
 
 	var (
@@ -71,19 +69,6 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 
 		ec.executions = append(ec.executions, nextExecutions...)
 
-		switch execution.State {
-		case engine.InstanceStarted:
-			execution.StartedAt = now
-		case engine.InstanceCompleted:
-			execution.EndedAt = now
-
-			if !execution.StartedAt.Valid {
-				execution.StartedAt = now
-			}
-		case engine.InstanceTerminated:
-			execution.EndedAt = now
-		}
-
 		if execution.State == engine.InstanceCompleted && isTaskOrScope(execution.BpmnElementType) {
 			node, _ := graph.node(execution.BpmnElementId)
 
@@ -118,10 +103,8 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 		if scope.ExecutionCount == 0 {
 			if scope.BpmnElementType == model.ElementProcess {
 				scope.State = engine.InstanceCompleted
-				scope.EndedAt = now
 
 				// complete process instance
-				ec.processInstance.EndedAt = now
 				ec.processInstance.State = engine.InstanceCompleted
 			} else if scope.State == engine.InstanceStarted {
 				ec.addExecution(scope)
@@ -389,9 +372,23 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 	}
 
 	// insert or update executions
+	now := pgtype.Timestamp{Time: ctx.Time(), Valid: true}
 	for _, execution := range ec.executions {
 		if execution == nil {
 			continue
+		}
+
+		switch execution.State {
+		case engine.InstanceStarted:
+			execution.StartedAt = now
+		case engine.InstanceCompleted:
+			execution.EndedAt = now
+
+			if !execution.StartedAt.Valid {
+				execution.StartedAt = now
+			}
+		case engine.InstanceTerminated:
+			execution.EndedAt = now
 		}
 
 		if execution.Id == 0 {
@@ -454,7 +451,7 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 		}
 	}
 
-	if !ec.processInstance.EndedAt.Valid {
+	if ec.processInstance.State != engine.InstanceCompleted {
 		return nil
 	}
 
@@ -494,6 +491,8 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 	}
 
 	// end process instance
+	ec.processInstance.EndedAt = now
+
 	if err := ctx.ProcessInstances().Update(ec.processInstance); err != nil {
 		return err
 	}
@@ -611,7 +610,7 @@ func (ec *executionContext) handleUserTask(ctx Context, userTask *UserTaskEntity
 		userTask.State = engine.UserTaskCompleted
 	case cmd.ErrorCode != "":
 		continueExecution, err = ec.throwError(ctx, cmd.ErrorCode)
-		if continueExecution {
+		if continueExecution || ec.processInstance.State == engine.InstanceTerminated {
 			userTask.State = engine.UserTaskTerminated
 		}
 	case cmd.EscalationCode != "":
