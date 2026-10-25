@@ -165,6 +165,7 @@ func TestBpmn(t *testing.T) {
 			t.Run(engineTypes[i]+"parallel service task with defined loop cardinality", multiInstanceTest.parallelServiceTaskLoopCardinalityDefined)
 
 			t.Run(engineTypes[i]+"parallel call activity error boundary", multiInstanceTest.parallelCallActivityErrorBoundary)
+			t.Run(engineTypes[i]+"parallel call activity escalation boundary", multiInstanceTest.parallelCallActivityEscalationBoundary)
 		}
 	})
 

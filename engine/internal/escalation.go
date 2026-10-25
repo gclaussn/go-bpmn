@@ -479,13 +479,13 @@ func findEscalationBoundaryEvent(
 		}
 	}
 
-	if scope.BpmnElementType == model.ElementCallActivity {
-		return nil, false, nil // stop recursion
-	}
-
 	parentScope, err := ctx.ElementInstances().Select(scope.Partition, scope.ParentId.Int32)
 	if err != nil {
 		return nil, false, err
+	}
+
+	if scope.BpmnElementType == model.ElementCallActivity && !parentScope.IsMultiInstance {
+		return nil, false, nil // stop recursion
 	}
 
 	parentProcess, err := ctx.ProcessCache().GetOrCacheById(ctx, parentScope.ProcessId)
