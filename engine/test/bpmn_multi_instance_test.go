@@ -605,6 +605,175 @@ func (x multiInstanceTest) sequentialCallActivity(t *testing.T) {
 	require.Len(piAssert.Jobs(), 8)
 }
 
+func (x multiInstanceTest) sequentialCallActivityMessageBoundary(t *testing.T) {
+	require := require.New(t)
+
+	process, subProcess :=
+		mustCreateProcess(t, x.e, "multi-instance/sequential-call-activity-boundary.bpmn", "sequentialCallActivityBoundaryTest"),
+		mustCreateProcess(t, x.e, "task/service.bpmn", "serviceTest")
+
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
+
+	require.Len(piAssert.ElementInstances(), 4)
+
+	callActivity := psAssert.IsWaitingAt("callActivity")
+	callActivity.HasState(engine.InstanceCreated)
+
+	messageBoundaryEvent := psAssert.IsWaitingAt("messageBoundaryEvent")
+	messageBoundaryEvent.HasJob(engine.JobSubscribeMessage)
+	messageBoundaryEvent.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			MessageCorrelationKey: "ck",
+			MessageName:           t.Name(),
+		},
+	})
+
+	callActivity.HasJob(engine.JobStartMultiInstance)
+	callActivity.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			MultiInstance: &engine.MultiInstance{
+				LoopCardinality: 3,
+			},
+		},
+	})
+
+	callActivity.HasState(engine.InstanceStarted)
+
+	require.Len(piAssert.ElementInstances(), 7)
+
+	// when call activity #1 calls process
+	multiInstanceActivity, ok := callActivity.Child()
+	require.True(ok)
+
+	multiInstanceActivity.HasState(engine.InstanceStarted)
+
+	multiInstanceActivity.HasJob(engine.JobCallProcess)
+	multiInstanceActivity.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			CalledProcess: &engine.CalledProcess{
+				BpmnProcessId: subProcess.BpmnProcessId,
+				Version:       subProcess.Version,
+			},
+		},
+	})
+
+	// when service task #1 is executed
+	child, childScope, ok := piAssert.Child()
+	require.True(ok)
+
+	childScope.IsWaitingAt("serviceTask").CompleteJob()
+
+	multiInstanceActivity.HasJob(engine.JobPassVariables)
+	multiInstanceActivity.CompleteJob()
+
+	// then
+	child.IsCompleted()
+
+	// when call activity #2 calls process
+	multiInstanceActivity, ok = callActivity.Child()
+	require.True(ok)
+
+	multiInstanceActivity.HasState(engine.InstanceStarted)
+
+	multiInstanceActivity.HasJob(engine.JobCallProcess)
+	multiInstanceActivity.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			CalledProcess: &engine.CalledProcess{
+				BpmnProcessId: subProcess.BpmnProcessId,
+				Version:       subProcess.Version,
+			},
+		},
+	})
+
+	// then
+	child, _, ok = piAssert.Child()
+	require.True(ok)
+
+	child.HasState(engine.InstanceStarted)
+
+	// when message is sent
+	_, err := x.e.SendMessage(context.Background(), engine.SendMessageCmd{
+		CorrelationKey: "ck",
+		Name:           t.Name(),
+		WorkerId:       testWorkerId,
+	})
+	if err != nil {
+		t.Fatalf("failed to send message: %v", err)
+	}
+
+	// when message boundary event is triggered
+	messageBoundaryEvent.HasTask(engine.TaskTriggerEvent)
+	messageBoundaryEvent.ExecuteTask()
+
+	// then
+	piAssert.IsCompleted()
+
+	require.Len(piAssert.ElementInstances(), 8)
+	require.Len(piAssert.Jobs(), 5)
+	require.Len(piAssert.Tasks(), 1)
+
+	// when terminated process instance task is executed
+	child.ExecuteTasks()
+	child.IsTerminated()
+}
+
+func (x multiInstanceTest) sequentialCallActivityMessageSubscriptionCancelation(t *testing.T) {
+	require := require.New(t)
+
+	process, _ :=
+		mustCreateProcess(t, x.e, "multi-instance/sequential-call-activity-boundary.bpmn", "sequentialCallActivityBoundaryTest"),
+		mustCreateProcess(t, x.e, "task/service.bpmn", "serviceTest")
+
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
+
+	require.Len(piAssert.ElementInstances(), 4)
+
+	callActivity := psAssert.IsWaitingAt("callActivity")
+	callActivity.HasState(engine.InstanceCreated)
+
+	messageBoundaryEvent := psAssert.IsWaitingAt("messageBoundaryEvent")
+	messageBoundaryEvent.HasJob(engine.JobSubscribeMessage)
+	messageBoundaryEvent.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			MessageCorrelationKey: "ck",
+			MessageName:           t.Name(),
+		},
+	})
+
+	callActivity.HasJob(engine.JobStartMultiInstance)
+	callActivity.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			MultiInstance: &engine.MultiInstance{
+				LoopCardinality: 0,
+			},
+		},
+	})
+
+	callActivity.HasState(engine.InstanceStarted)
+
+	callActivity.HasJob(engine.JobEndMultiInstance)
+	callActivity.CompleteJob()
+
+	callActivity.IsCompleted()
+
+	piAssert.IsCompleted()
+
+	require.Len(piAssert.ElementInstances(), 5)
+	require.Len(piAssert.Jobs(), 3)
+
+	processInstance := piAssert.ProcessInstance()
+
+	messageSubscriptions, err := x.e.CreateQuery().QueryMessageSubscriptions(context.Background(), engine.MessageSubscriptionCriteria{
+		Partition:         processInstance.Partition,
+		ProcessInstanceId: processInstance.Id,
+	})
+	if err != nil {
+		t.Fatalf("failed to query message subscriptions: %v", err)
+	}
+
+	require.Len(messageSubscriptions, 0)
+}
+
 func (x multiInstanceTest) sequentialServiceTask(t *testing.T) {
 	require := require.New(t)
 

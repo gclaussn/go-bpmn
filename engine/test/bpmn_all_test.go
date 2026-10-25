@@ -166,6 +166,9 @@ func TestBpmn(t *testing.T) {
 
 			t.Run(engineTypes[i]+"parallel call activity error boundary", multiInstanceTest.parallelCallActivityErrorBoundary)
 			t.Run(engineTypes[i]+"parallel call activity escalation boundary", multiInstanceTest.parallelCallActivityEscalationBoundary)
+
+			t.Run(engineTypes[i]+"sequential call activity message boundary", multiInstanceTest.sequentialCallActivityMessageBoundary)
+			t.Run(engineTypes[i]+"sequential call activity message subscription cancelation", multiInstanceTest.sequentialCallActivityMessageSubscriptionCancelation)
 		}
 	})
 
