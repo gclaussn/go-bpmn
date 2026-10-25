@@ -1,5 +1,5 @@
 <definitions id="test">
-  <process id="parallelServiceTaskTest" isExecutable="true">
+  <process id="parallelServiceTaskLoopCardinalityTest" isExecutable="true">
     <startEvent id="startEvent">
       <outgoing>f1</outgoing>
     </startEvent>

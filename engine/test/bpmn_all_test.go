@@ -160,6 +160,9 @@ func TestBpmn(t *testing.T) {
 			t.Run(engineTypes[i]+"sequential service task", multiInstanceTest.sequentialServiceTask)
 			t.Run(engineTypes[i]+"sequential sub-process", multiInstanceTest.sequentialSubProcess)
 			t.Run(engineTypes[i]+"sequential user task", multiInstanceTest.sequentialUserTask)
+
+			t.Run(engineTypes[i]+"parallel service task with loop cardinality 0", multiInstanceTest.parallelServiceTaskLoopCardinalityZero)
+			t.Run(engineTypes[i]+"parallel service task with defined loop cardinality", multiInstanceTest.parallelServiceTaskLoopCardinalityDefined)
 		}
 	})
 

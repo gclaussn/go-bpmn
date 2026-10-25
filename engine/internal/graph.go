@@ -817,8 +817,9 @@ func (g graph) setEventDefinitions(eventDefinitions []*EventDefinitionEntity) {
 
 func (g graph) startMultiInstance(execution *ElementInstanceEntity, loopCardinality int, isSequential bool) ([]*ElementInstanceEntity, error) {
 	execution.State = engine.InstanceStarted
+	execution.Context = pgtype.Text{String: strconv.Itoa(loopCardinality), Valid: true}
 
-	if loopCardinality < 0 {
+	if loopCardinality <= 0 {
 		return nil, nil
 	}
 
@@ -837,10 +838,6 @@ func (g graph) startMultiInstance(execution *ElementInstanceEntity, loopCardinal
 		}
 
 		multiInstanceActivities[i] = &multiInstanceActivity
-	}
-
-	if loopCardinality != 0 {
-		execution.Context = pgtype.Text{String: strconv.Itoa(loopCardinality), Valid: true}
 	}
 
 	return multiInstanceActivities, nil

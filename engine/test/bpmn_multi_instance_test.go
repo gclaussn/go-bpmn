@@ -123,6 +123,80 @@ func (x multiInstanceTest) parallelServiceTask(t *testing.T) {
 	require.Len(piAssert.Jobs(), 5)
 }
 
+func (x multiInstanceTest) parallelServiceTaskLoopCardinalityDefined(t *testing.T) {
+	require := require.New(t)
+
+	process := mustCreateProcess(t, x.e, "multi-instance/parallel-service-task-loop-cardinality.bpmn", "parallelServiceTaskLoopCardinalityTest")
+
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
+
+	require.Len(piAssert.ElementInstances(), 6)
+
+	serviceTask := psAssert.IsWaitingAt("serviceTask")
+	serviceTask.HasState(engine.InstanceStarted)
+
+	children := serviceTask.Children()
+	require.Len(children, 3)
+
+	for _, child := range children {
+		child.HasState(engine.InstanceStarted)
+	}
+
+	for _, child := range children {
+		child.HasJob(engine.JobExecute)
+		child.CompleteJob()
+
+		child.HasState(engine.InstanceCompleted)
+	}
+
+	serviceTask.HasState(engine.InstanceStarted)
+	serviceTask.HasJob(engine.JobEndMultiInstance)
+	serviceTask.CompleteJob()
+
+	piAssert.IsCompleted()
+
+	require.Len(piAssert.ElementInstances(), 7)
+	require.Len(piAssert.Jobs(), 4)
+}
+
+func (x multiInstanceTest) parallelServiceTaskLoopCardinalityZero(t *testing.T) {
+	require := require.New(t)
+
+	process := mustCreateProcess(t, x.e, "multi-instance/parallel-service-task.bpmn", "parallelServiceTaskTest")
+
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
+
+	require.Len(piAssert.ElementInstances(), 3)
+
+	serviceTask := psAssert.IsWaitingAt("serviceTask")
+
+	serviceTask.HasState(engine.InstanceCreated)
+	serviceTask.HasJob(engine.JobStartMultiInstance)
+	serviceTask.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			MultiInstance: &engine.MultiInstance{
+				LoopCardinality: 0,
+			},
+		},
+	})
+
+	serviceTask.HasState(engine.InstanceStarted)
+
+	require.Len(piAssert.ElementInstances(), 3)
+
+	children := serviceTask.Children()
+	require.Len(children, 0)
+
+	serviceTask.HasState(engine.InstanceStarted)
+	serviceTask.HasJob(engine.JobEndMultiInstance)
+	serviceTask.CompleteJob()
+
+	piAssert.IsCompleted()
+
+	require.Len(piAssert.ElementInstances(), 4)
+	require.Len(piAssert.Jobs(), 2)
+}
+
 func (x multiInstanceTest) parallelSubProcess(t *testing.T) {
 	require := require.New(t)
 
