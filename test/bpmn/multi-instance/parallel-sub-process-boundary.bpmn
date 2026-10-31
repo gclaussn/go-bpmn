@@ -1,0 +1,32 @@
+<definitions id="test">
+  <process id="parallelSubProcessBoundaryTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="subProcess" />
+    <subProcess id="subProcess">
+      <incoming>f1</incoming>
+      <outgoing>f3</outgoing>
+      <multiInstanceLoopCharacteristics />
+      <startEvent id="subProcessStartEvent">
+        <outgoing>f2</outgoing>
+      </startEvent>
+      <sequenceFlow id="f2" sourceRef="subProcessStartEvent" targetRef="subProcessEndEvent" />
+      <endEvent id="subProcessEndEvent">
+        <incoming>f2</incoming>
+      </endEvent>
+    </subProcess>
+    <sequenceFlow id="f3" sourceRef="subProcess" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f3</incoming>
+    </endEvent>
+    <boundaryEvent id="messageBoundaryEvent" attachedToRef="subProcess">
+      <outgoing>f4</outgoing>
+      <messageEventDefinition id="messageEventDefinition" />
+    </boundaryEvent>
+    <sequenceFlow id="f4" sourceRef="messageBoundaryEvent" targetRef="messageEnd" />
+    <endEvent id="messageEnd">
+      <incoming>f4</incoming>
+    </endEvent>
+  </process>
+</definitions>
