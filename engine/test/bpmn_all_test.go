@@ -163,7 +163,9 @@ func TestBpmn(t *testing.T) {
 
 				t.Run(engineTypes[i]+"call activity error boundary", multiInstanceTest.parallelCallActivityErrorBoundary)
 				t.Run(engineTypes[i]+"call activity escalation boundary", multiInstanceTest.parallelCallActivityEscalationBoundary)
+
 				t.Run(engineTypes[i]+"sub-process message boundary", multiInstanceTest.parallelSubProcessMessageBoundary)
+				t.Run(engineTypes[i]+"sub-process suspension", multiInstanceTest.parallelSubProcessSuspension)
 			})
 
 			t.Run("sequential", func(t *testing.T) {

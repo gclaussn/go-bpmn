@@ -315,7 +315,7 @@ func (m JobMux) SetTimer(bpmnElementId string, jobHandler func(jc JobContext) (e
 //
 // Applicable for multi instance tasks, sub-processes and call activities.
 func (m JobMux) StartMultiInstance(bpmnElementId string, jobHandler func(jc JobContext) (engine.MultiInstance, error)) {
-	m[bpmnElementId] = func(jc JobContext) (*engine.JobCompletion, error) {
+	m[bpmnElementId+":startMultiInstance"] = func(jc JobContext) (*engine.JobCompletion, error) {
 		if err := ensureJobType(jc.Job.Type, engine.JobStartMultiInstance); err != nil {
 			return nil, err
 		}

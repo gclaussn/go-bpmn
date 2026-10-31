@@ -330,11 +330,14 @@ func mapElementVariables(ctx Context, elementInstance *ElementInstanceEntity, va
 
 	current := elementInstance
 	for {
-		if _, ok := elementInstances[current.BpmnElementId]; ok {
+		v, ok := elementInstances[current.BpmnElementId]
+		if v == nil && ok {
 			counter--
 		}
 
-		elementInstances[current.BpmnElementId] = current
+		if v == nil {
+			elementInstances[current.BpmnElementId] = current
+		}
 
 		if counter == 0 || current.BpmnElementType == model.ElementProcess {
 			break

@@ -541,6 +541,104 @@ func (x multiInstanceTest) parallelSubProcessMessageBoundary(t *testing.T) {
 	children[2].IsTerminated()
 }
 
+func (x multiInstanceTest) parallelSubProcessSuspension(t *testing.T) {
+	require := require.New(t)
+
+	process := mustCreateProcess(t, x.e, "multi-instance/parallel-sub-process-boundary.bpmn", "parallelSubProcessBoundaryTest")
+
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
+
+	processInstance := piAssert.ProcessInstance()
+
+	require.Len(piAssert.ElementInstances(), 4)
+
+	subProcess := psAssert.IsWaitingAt("subProcess")
+	subProcess.HasState(engine.InstanceCreated)
+
+	messageBoundaryEvent := psAssert.IsWaitingAt("messageBoundaryEvent")
+	messageBoundaryEvent.HasJob(engine.JobSubscribeMessage)
+	messageBoundaryEvent.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			MessageCorrelationKey: "ck",
+			MessageName:           t.Name(),
+		},
+	})
+
+	subProcess.HasJob(engine.JobStartMultiInstance)
+	subProcess.CompleteJob(engine.CompleteJobCmd{
+		Completion: &engine.JobCompletion{
+			MultiInstance: &engine.MultiInstance{
+				LoopCardinality: 3,
+			},
+		},
+	})
+
+	subProcess.HasState(engine.InstanceStarted)
+
+	require.Len(piAssert.ElementInstances(), 7)
+
+	if err := x.e.SuspendProcessInstance(context.Background(), engine.SuspendProcessInstanceCmd{
+		Partition: processInstance.Partition,
+		Id:        processInstance.Id,
+		WorkerId:  testWorkerId,
+	}); err != nil {
+		t.Fatalf("failed to suspend process engine: %v", err)
+	}
+
+	// when sub process #1 continues execution
+	multiInstanceActivity, ok := subProcess.Child()
+	require.True(ok)
+
+	multiInstanceActivity.HasState(engine.InstanceStarted)
+
+	multiInstanceActivity.HasTask(engine.TaskContinueExecution)
+	multiInstanceActivity.ExecuteTask()
+
+	// then
+	children := subProcess.Children()
+
+	children[0].HasState(engine.InstanceSuspended)
+	children[1].HasState(engine.InstanceStarted)
+	children[2].HasState(engine.InstanceStarted)
+
+	if err := x.e.ResumeProcessInstance(context.Background(), engine.ResumeProcessInstanceCmd{
+		Partition: processInstance.Partition,
+		Id:        processInstance.Id,
+		WorkerId:  testWorkerId,
+	}); err != nil {
+		t.Fatalf("failed to resume process engine: %v", err)
+	}
+
+	// then
+	children[0].IsCompleted()
+	children[1].HasState(engine.InstanceStarted)
+	children[2].HasState(engine.InstanceStarted)
+
+	// when message is sent
+	_, err := x.e.SendMessage(context.Background(), engine.SendMessageCmd{
+		CorrelationKey: "ck",
+		Name:           t.Name(),
+		WorkerId:       testWorkerId,
+	})
+	if err != nil {
+		t.Fatalf("failed to send message: %v", err)
+	}
+
+	// when message boundary event is triggered
+	messageBoundaryEvent.HasTask(engine.TaskTriggerEvent)
+	messageBoundaryEvent.ExecuteTask()
+
+	// then
+	piAssert.IsCompleted()
+
+	require.Len(piAssert.ElementInstances(), 10)
+	require.Len(piAssert.Jobs(), 2)
+	require.Len(piAssert.Tasks(), 4)
+
+	children[1].IsTerminated()
+	children[2].IsTerminated()
+}
+
 func (x multiInstanceTest) parallelUserTask(t *testing.T) {
 	require := require.New(t)
 
