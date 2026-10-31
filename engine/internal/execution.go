@@ -10,19 +10,26 @@ import (
 
 type executionContext struct {
 	engineOrWorkerId string
-	executions       []*ElementInstanceEntity
+	executions       []*ElementInstanceEntity // can contain nil values
 	process          *ProcessEntity
 	processInstance  *ProcessInstanceEntity
 }
 
 func (ec *executionContext) addExecution(execution *ElementInstanceEntity) {
+	if execution.Id != 0 {
+		// ensure that an existing execution is handled once
+		for i, e := range ec.executions {
+			if e != nil && e.Id == execution.Id {
+				ec.executions[i] = nil
+			}
+		}
+	}
+
 	ec.executions = append(ec.executions, execution)
 }
 
 // continueExecutions continues each execution until a wait state is reached or no more outgoing sequence flows exist.
 func (ec *executionContext) continueExecutions(ctx Context) error {
-	now := pgtype.Timestamp{Time: ctx.Time(), Valid: true}
-
 	graph := ec.process.graph
 
 	i := 0
@@ -41,7 +48,7 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 		}
 
 		// continue execution
-		executions, err := graph.continueExecution(ec.executions, execution)
+		nextExecutions, err := graph.continueExecution(scope, execution)
 		if err != nil {
 			return engine.Error{
 				Type:   engine.ErrorProcessModel,
@@ -50,20 +57,7 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			}
 		}
 
-		ec.executions = executions
-
-		switch execution.State {
-		case engine.InstanceStarted:
-			execution.StartedAt = now
-		case engine.InstanceCompleted:
-			execution.EndedAt = now
-
-			if !execution.StartedAt.Valid {
-				execution.StartedAt = now
-			}
-		case engine.InstanceTerminated:
-			execution.EndedAt = now
-		}
+		ec.executions = append(ec.executions, nextExecutions...)
 
 		if execution.State == engine.InstanceCompleted && isTaskOrScope(execution.BpmnElementType) {
 			node, _ := graph.node(execution.BpmnElementId)
@@ -84,10 +78,8 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 		if scope.ExecutionCount == 0 {
 			if scope.BpmnElementType == model.ElementProcess {
 				scope.State = engine.InstanceCompleted
-				scope.EndedAt = now
 
 				// complete process instance
-				ec.processInstance.EndedAt = now
 				ec.processInstance.State = engine.InstanceCompleted
 			} else if scope.State == engine.InstanceStarted {
 				ec.addExecution(scope)
@@ -102,6 +94,10 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 
 	// create jobs and tasks
 	for i, execution := range ec.executions {
+		if execution == nil {
+			continue
+		}
+
 		if execution.State != engine.InstanceCreated && execution.State != engine.InstanceStarted {
 			continue
 		}
@@ -318,7 +314,25 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 	}
 
 	// insert or update executions
+	now := pgtype.Timestamp{Time: ctx.Time(), Valid: true}
 	for _, execution := range ec.executions {
+		if execution == nil {
+			continue
+		}
+
+		switch execution.State {
+		case engine.InstanceStarted:
+			execution.StartedAt = now
+		case engine.InstanceCompleted:
+			execution.EndedAt = now
+
+			if !execution.StartedAt.Valid {
+				execution.StartedAt = now
+			}
+		case engine.InstanceTerminated:
+			execution.EndedAt = now
+		}
+
 		if execution.Id == 0 {
 			execution.CreatedAt = ctx.Time()
 			execution.CreatedBy = ec.engineOrWorkerId
@@ -379,14 +393,14 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 		}
 	}
 
-	if !ec.processInstance.EndedAt.Valid {
+	if ec.processInstance.State != engine.InstanceCompleted {
 		return nil
 	}
 
 	if ec.processInstance.ParentId.Valid {
 		var processScope *ElementInstanceEntity
 		for _, execution := range ec.executions {
-			if execution.BpmnElementType == model.ElementProcess {
+			if execution != nil && execution.BpmnElementType == model.ElementProcess {
 				processScope = execution
 			}
 		}
@@ -419,6 +433,8 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 	}
 
 	// end process instance
+	ec.processInstance.EndedAt = now
+
 	if err := ctx.ProcessInstances().Update(ec.processInstance); err != nil {
 		return err
 	}
@@ -450,7 +466,7 @@ func (ec *executionContext) findScope(ctx Context, execution *ElementInstanceEnt
 
 	// find scope within executions
 	for _, scope := range ec.executions {
-		if scope.Id == parentId {
+		if scope != nil && scope.Id == parentId {
 			execution.parent = scope
 			return scope, nil
 		}
