@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/model"
@@ -32,7 +33,14 @@ func (ec *executionContext) addExecution(execution *ElementInstanceEntity) {
 func (ec *executionContext) continueExecutions(ctx Context) error {
 	graph := ec.process.graph
 
-	i := 0
+	var (
+		i int
+
+
+		messageSubscriptionIds []int32 // element instance IDs of message subscriptions to cancel
+		signalSubscriptionIds  []int32 // element instance IDs of signal subscriptions to cancel
+	)
+
 	for i < len(ec.executions) {
 		execution := ec.executions[i]
 
@@ -71,6 +79,13 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 				for _, boundaryEvent := range boundaryEvents {
 					boundaryEvent.State = engine.InstanceTerminated
 					ec.addExecution(boundaryEvent)
+
+					switch boundaryEvent.BpmnElementType {
+					case model.ElementMessageBoundaryEvent:
+						messageSubscriptionIds = append(messageSubscriptionIds, boundaryEvent.Id)
+					case model.ElementSignalBoundaryEvent:
+						signalSubscriptionIds = append(signalSubscriptionIds, boundaryEvent.Id)
+					}
 				}
 			}
 		}
@@ -356,6 +371,41 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			execution.parent = nil
 
 			if err := ctx.ElementInstances().Update(execution); err != nil {
+				return err
+			}
+		}
+	}
+
+	// cancel message and signal subscriptions
+	if len(messageSubscriptionIds) != 0 {
+		messageSubscriptions, err := ctx.MessageSubscriptions().SelectByProcessInstance(ec.processInstance)
+		if err != nil {
+			return err
+		}
+
+		for _, messageSubscription := range messageSubscriptions {
+			if !slices.Contains(messageSubscriptionIds, messageSubscription.ElementInstanceId) {
+				continue
+			}
+
+			if err := ctx.MessageSubscriptions().Delete(messageSubscription); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(signalSubscriptionIds) != 0 {
+		signalSubscriptions, err := ctx.SignalSubscriptions().SelectByProcessInstance(ec.processInstance)
+		if err != nil {
+			return err
+		}
+
+		for _, signalSubscription := range signalSubscriptions {
+			if !slices.Contains(signalSubscriptionIds, signalSubscription.ElementInstanceId) {
+				continue
+			}
+
+			if err := ctx.SignalSubscriptions().Delete(signalSubscription); err != nil {
 				return err
 			}
 		}
