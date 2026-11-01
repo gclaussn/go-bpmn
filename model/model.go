@@ -108,6 +108,10 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				bpmnError.Name = getAttrValue(t.Attr, "name")
 				bpmnError.Code = getAttrValue(t.Attr, "errorCode")
 			case "errorEventDefinition":
+				if element == nil {
+					continue
+				}
+
 				if isBoundaryEvent {
 					element.Type = ElementErrorBoundaryEvent
 				} else if element.Type == ElementNoneEndEvent {
@@ -134,6 +138,10 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				escalation.Name = getAttrValue(t.Attr, "name")
 				escalation.Code = getAttrValue(t.Attr, "escalationCode")
 			case "escalationEventDefinition":
+				if element == nil {
+					continue
+				}
+
 				switch element.Type {
 				case 0:
 					element.Type = ElementEscalationBoundaryEvent
@@ -177,6 +185,10 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				startElement(ElementNoneThrowEvent, t.Attr)
 				element.Model = IntermediateThrowEvent{}
 			case "linkEventDefinition":
+				if element == nil {
+					continue
+				}
+
 				if element.Type == ElementNoneThrowEvent {
 					element.Type = ElementLinkThrowEvent
 				} else {
@@ -206,6 +218,10 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				message := definitions.messageById(messageId)
 				message.Name = getAttrValue(t.Attr, "name")
 			case "messageEventDefinition":
+				if element == nil {
+					continue
+				}
+
 				if isBoundaryEvent {
 					element.Type = ElementMessageBoundaryEvent
 				} else if element.Type == ElementNoneStartEvent {
@@ -236,6 +252,10 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 					element.Model = model
 				}
 			case "multiInstanceLoopCharacteristics":
+				if element == nil {
+					continue
+				}
+
 				isSequential, _ := strconv.ParseBool(getAttrValue(t.Attr, "isSequential"))
 
 				multiInstance = &MultiInstance{IsSequential: isSequential}
@@ -302,6 +322,10 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				signal := definitions.signalById(signalId)
 				signal.Name = getAttrValue(t.Attr, "name")
 			case "signalEventDefinition":
+				if element == nil {
+					continue
+				}
+
 				if isBoundaryEvent {
 					element.Type = ElementSignalBoundaryEvent
 				} else if element.Type == ElementNoneStartEvent {
@@ -348,6 +372,10 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 			case "task":
 				startElement(ElementTask, t.Attr)
 			case "timerEventDefinition":
+				if element == nil {
+					continue
+				}
+
 				if isBoundaryEvent {
 					element.Type = ElementTimerBoundaryEvent
 				} else if element.Type == ElementNoneStartEvent {

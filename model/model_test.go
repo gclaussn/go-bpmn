@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -25,6 +26,65 @@ func TestInvalidXml(t *testing.T) {
 	if _, err := New(strings.NewReader("<definitions><process><x></y></process></definitions")); err == nil {
 		t.Fatal("expected error when XML element could not be skipped")
 	}
+}
+
+// TestNilSafety tests that an invalid BPMN model is not causing a nil reference runtime error.
+func TestNilSafety(t *testing.T) {
+	assert := assert.New(t)
+
+	names := []string{
+		"boundaryEvent",
+		"businessRuleTask",
+		"callActivity",
+		"collaboration",
+		"endEvent",
+		"error",
+		"errorEventDefinition",
+		"escalation",
+		"escalationEventDefinition",
+		"eventBasedGateway",
+		"exclusiveGateway",
+		"inclusiveGateway",
+		"incoming",
+		"intermediateCatchEvent",
+		"intermediateThrowEvent",
+		"linkEventDefinition",
+		"loopCardinality",
+		"manualTask",
+		"message",
+		"messageEventDefinition",
+		"multiInstanceLoopCharacteristics",
+		"outgoing",
+		"parallelGateway",
+		"participant",
+		"process",
+		"scriptTask",
+		"sendTask",
+		"serviceTask",
+		"signal",
+		"signalEventDefinition",
+		"startEvent",
+		"subProcess",
+		"task",
+		"timerEventDefinition",
+		"userTask",
+	}
+
+	var err error
+	for _, name := range names {
+		t.Run(name, func(t *testing.T) {
+			xml := fmt.Sprintf("<%s></%s>", name, name)
+			_, err = New(strings.NewReader(xml))
+			assert.Error(err, name)
+		})
+	}
+
+	_, err = New(strings.NewReader("<process><incoming>f1</incoming></process>"))
+	assert.Error(err)
+	_, err = New(strings.NewReader("<process><outgoing>f1</outgoing></process>"))
+	assert.Error(err)
+	_, err = New(strings.NewReader("<serviceTask><loopCardinality>2</loopCardinality></serviceTask>"))
+	assert.Error(err)
 }
 
 func TestUnknownElement(t *testing.T) {
