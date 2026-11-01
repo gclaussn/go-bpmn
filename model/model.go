@@ -20,6 +20,9 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 
 		isBoundaryEvent   bool
 		isLoopCardinality bool
+		isTimeCycle       bool
+		isTimeDate        bool
+		isTimeDuration    bool
 
 		isIncoming bool
 		isOutgoing bool
@@ -383,6 +386,26 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				} else {
 					element.Type = ElementTimerCatchEvent
 				}
+
+				eventDefinition := EventDefinition{Id: getAttrValue(t.Attr, "id")}
+
+				switch model := element.Model.(type) {
+				case BoundaryEvent:
+					model.EventDefinition = eventDefinition
+					element.Model = model
+				case IntermediateCatchEvent:
+					model.EventDefinition = eventDefinition
+					element.Model = model
+				case StartEvent:
+					model.EventDefinition = eventDefinition
+					element.Model = model
+				}
+			case "timeCycle":
+				isTimeCycle = true
+			case "timeDate":
+				isTimeDate = true
+			case "timeDuration":
+				isTimeDuration = true
 			case "userTask":
 				startElement(ElementUserTask, t.Attr)
 				element.Model = Task{}
@@ -410,6 +433,28 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 
 				loopCardinality, _ := strconv.ParseInt(string(t), 10, 32)
 				multiInstance.LoopCardinality = int(loopCardinality)
+			case isTimeCycle || isTimeDate || isTimeDuration:
+				var timer *Timer
+				switch {
+				case isTimeCycle:
+					timer = &Timer{TimeCycle: string(t)}
+				case isTimeDate:
+					timer = &Timer{Time: string(t)}
+				case isTimeDuration:
+					timer = &Timer{TimeDuration: string(t)}
+				}
+
+				switch model := element.Model.(type) {
+				case BoundaryEvent:
+					model.EventDefinition.Timer = timer
+					element.Model = model
+				case IntermediateCatchEvent:
+					model.EventDefinition.Timer = timer
+					element.Model = model
+				case StartEvent:
+					model.EventDefinition.Timer = timer
+					element.Model = model
+				}
 			}
 		case xml.EndElement:
 			switch t.Name.Local {
@@ -434,6 +479,12 @@ func New(bpmnXmlReader io.Reader) (*Model, error) {
 				isLoopCardinality = false
 			case "multiInstanceLoopCharacteristics":
 				multiInstance = nil
+			case "timeCycle":
+				isTimeCycle = false
+			case "timeDate":
+				isTimeDate = false
+			case "timeDuration":
+				isTimeDuration = false
 			case
 				"businessRuleTask",
 				"callActivity",
