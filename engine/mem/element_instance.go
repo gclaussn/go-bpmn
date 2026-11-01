@@ -95,6 +95,19 @@ func (r *elementInstanceRepository) SelectByPrevId(partition time.Time, id int32
 	return results, nil
 }
 
+func (r *elementInstanceRepository) SelectIdsByParent(partition time.Time, parentId int32) ([]int32, error) {
+	var ids []int32
+
+	key := partition.Format(time.DateOnly)
+	for _, e := range r.partitions[key] {
+		if e.ParentId.Int32 == parentId {
+			ids = append(ids, e.Id)
+		}
+	}
+
+	return ids, nil
+}
+
 func (r *elementInstanceRepository) SelectParallelGateways(execution *internal.ElementInstanceEntity) ([]*internal.ElementInstanceEntity, error) {
 	var results []*internal.ElementInstanceEntity
 

@@ -48,16 +48,23 @@ func (r *variableRepository) Insert(entity *internal.VariableEntity) error {
 	return nil
 }
 
-func (r *variableRepository) SelectByElementInstance(elementInstance *internal.ElementInstanceEntity, names []string) ([]*internal.VariableEntity, error) {
+func (r *variableRepository) InsertBatch(entities []*internal.VariableEntity) error {
+	for _, entity := range entities {
+		_ = r.Insert(entity)
+	}
+	return nil
+}
+
+func (r *variableRepository) SelectByElementInstance(partition time.Time, elementInstanceId int32, names []string) ([]*internal.VariableEntity, error) {
 	var results []*internal.VariableEntity
 
-	key := elementInstance.Partition.Format(time.DateOnly)
+	key := partition.Format(time.DateOnly)
 	for _, e := range r.partitions[key] {
 		if e.Id == -1 {
 			continue // skip deleted variable
 		}
 
-		if elementInstance.Id != e.ElementInstanceId.Int32 {
+		if elementInstanceId != e.ElementInstanceId.Int32 {
 			continue
 		}
 

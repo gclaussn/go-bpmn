@@ -36,6 +36,8 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 	var (
 		i int
 
+		nextExecutions []*ElementInstanceEntity
+		err            error
 
 		messageSubscriptionIds []int32 // element instance IDs of message subscriptions to cancel
 		signalSubscriptionIds  []int32 // element instance IDs of signal subscriptions to cancel
@@ -56,7 +58,11 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 		}
 
 		// continue execution
-		nextExecutions, err := graph.continueExecution(scope, execution)
+		if execution.IsMultiInstance {
+			nextExecutions, err = graph.continueMultiInstanceExecution(scope, execution)
+		} else {
+			nextExecutions, err = graph.continueExecution(scope, execution)
+		}
 		if err != nil {
 			return engine.Error{
 				Type:   engine.ErrorProcessModel,
@@ -69,7 +75,22 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 
 		if execution.State == engine.InstanceCompleted && isTaskOrScope(execution.BpmnElementType) {
 			node, _ := graph.node(execution.BpmnElementId)
-			if len(node.boundaryEvents) != 0 {
+
+			isMultiInstanceActivity := node.isMultiInstance && !execution.IsMultiInstance
+
+			if isMultiInstanceActivity && getMultiInstance(node.bpmnElement).IsSequential { // sequential multi-instance activity
+				// start next multi-instance activity, if available
+				next, err := ctx.ElementInstances().SelectByPrevId(execution.Partition, execution.Id)
+				if err != nil {
+					return err
+				}
+
+				if len(next) != 0 {
+					ec.addExecution(next[0])
+				}
+			}
+
+			if !isMultiInstanceActivity && len(node.boundaryEvents) != 0 {
 				// terminate attached boundary events
 				boundaryEvents, err := ctx.ElementInstances().SelectByPrevId(execution.Partition, execution.Id)
 				if err != nil {
@@ -140,15 +161,23 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			model.ElementScriptTask,
 			model.ElementSendTask,
 			model.ElementServiceTask:
-			if execution.State == engine.InstanceStarted {
+			if execution.IsMultiInstance {
+				if execution.State == engine.InstanceCreated {
+					jobType = engine.JobStartMultiInstance
+				} else {
+					jobType = engine.JobEndMultiInstance
+				}
+			} else if execution.State == engine.InstanceStarted {
 				jobType = engine.JobExecute
 			}
-		case model.ElementCallActivity:
-			jobType = engine.JobCallProcess
-
-			execution.Context = ec.processInstance.CorrelationKey // needed for the [engine.JobPassVariables] job, created when the child process instance ends
 		case model.ElementUserTask:
-			if execution.State == engine.InstanceStarted {
+			if execution.IsMultiInstance {
+				if execution.State == engine.InstanceCreated {
+					jobType = engine.JobStartMultiInstance
+				} else {
+					jobType = engine.JobEndMultiInstance
+				}
+			} else if execution.State == engine.InstanceStarted {
 				userTask := UserTaskEntity{
 					Partition: execution.Partition,
 
@@ -169,6 +198,31 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 
 				entities = append(entities, &userTask)
 				idx = append(idx, i)
+			}
+		// call activity
+		case model.ElementCallActivity:
+			if execution.IsMultiInstance {
+				if execution.State == engine.InstanceCreated {
+					jobType = engine.JobStartMultiInstance
+				} else {
+					jobType = engine.JobEndMultiInstance
+				}
+			} else if execution.State == engine.InstanceStarted {
+				jobType = engine.JobCallProcess
+
+				execution.Context = ec.processInstance.CorrelationKey // needed for [engine.JobPassVariables] job, created when a child process instance ends
+			}
+		// sub-process
+		case model.ElementSubProcess:
+			if execution.IsMultiInstance {
+				if execution.State == engine.InstanceCreated {
+					jobType = engine.JobStartMultiInstance
+				} else {
+					jobType = engine.JobEndMultiInstance
+				}
+			} else if node.isMultiInstance && execution.State == engine.InstanceStarted {
+				taskType = engine.TaskContinueExecution
+				taskInstance = ContinueExecutionTask{}
 			}
 		// gateway
 		case model.ElementEventBasedGateway:
@@ -543,6 +597,8 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 	case engine.JobCallProcess:
 		continueExecution = false
 		err = ec.callProcess(ctx, job, jobCompletion)
+	case engine.JobEndMultiInstance:
+		// nothing to do here
 	case engine.JobEvaluateExclusiveGateway:
 		err = ec.evaluateExclusiveGateway(job, jobCompletion)
 	case engine.JobEvaluateInclusiveGateway:
@@ -559,6 +615,9 @@ func (ec *executionContext) handleJob(ctx Context, job *JobEntity, cmd engine.Co
 		err = ec.setSignalName(ctx, job, jobCompletion)
 	case engine.JobSetTimer:
 		err = ec.setTimer(ctx, job, jobCompletion)
+	case engine.JobStartMultiInstance:
+		continueExecution = false
+		err = ec.startMultiInstance(ctx, job, jobCompletion)
 	case engine.JobSubscribeMessage, engine.JobSetMessageCorrelationKey:
 		err = ec.subscribeMessage(ctx, job, jobCompletion)
 	case engine.JobSubscribeSignal:
@@ -597,7 +656,7 @@ func (ec *executionContext) handleUserTask(ctx Context, userTask *UserTaskEntity
 		userTask.State = engine.UserTaskCompleted
 	case cmd.ErrorCode != "":
 		continueExecution, err = ec.throwError(ctx, cmd.ErrorCode)
-		if continueExecution {
+		if continueExecution || ec.processInstance.State == engine.InstanceTerminated {
 			userTask.State = engine.UserTaskTerminated
 		}
 	case cmd.EscalationCode != "":

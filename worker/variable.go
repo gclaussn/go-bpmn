@@ -74,6 +74,18 @@ func (v *ElementVariables) Get(name string) (ElementVariable, bool) {
 	return v.GetAt(v.bpmnElementId, name)
 }
 
+// GetAll returns all element variable with the given name.
+// GetAll is applicable for [engine.JobEndMultiInstance] job handler, which process the results of multi-instance activities.
+func (v *ElementVariables) GetAll(name string) []ElementVariable {
+	var variables []ElementVariable
+	for _, variable := range v.variables {
+		if variable.BpmnElementId == v.bpmnElementId && variable.Name == name {
+			variables = append(variables, variable)
+		}
+	}
+	return variables
+}
+
 // GetAt returns the element variable with the given name at a specific scope and a success indicator.
 func (v *ElementVariables) GetAt(bpmnElementId string, name string) (ElementVariable, bool) {
 	if i := v.indexOf(bpmnElementId, name); i >= 0 {

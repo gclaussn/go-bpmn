@@ -1,0 +1,17 @@
+<definitions id="test">
+  <process id="parallelServiceTaskTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="serviceTask" />
+    <serviceTask id="serviceTask">
+      <incoming>f1</incoming>
+      <outgoing>f2</outgoing>
+      <multiInstanceLoopCharacteristics />
+    </serviceTask>
+    <sequenceFlow id="f2" sourceRef="serviceTask" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f2</incoming>
+    </endEvent>
+  </process>
+</definitions>

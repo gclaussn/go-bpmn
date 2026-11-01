@@ -86,6 +86,7 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 // Each type is used for a specific set of BPMN element types:
 //
 //   - [JobCallProcess]: call activity
+//   - [JobEndMultiInstance]: business rule task, script task, send task, service task, user task, sub-process and call activity
 //   - [JobEvaluateExclusiveGateway]: forking exclusive gateway
 //   - [JobEvaluateInclusiveGateway]: forking inclusive gateway
 //   - [JobExecute]: business rule task, script task, send task, service task, message end event, message throw event
@@ -95,12 +96,14 @@ func (v *InstanceState) UnmarshalJSON(data []byte) error {
 //   - [JobSetMessageCorrelationKey]: message boundary and catch event, when event definition exists
 //   - [JobSetSignalName]: signal throw and end event
 //   - [JobSetTimer]: timer boundary and catch event
+//   - [JobStartMultiInstance]: business rule task, script task, send task, service task, user task, sub-process and call activity
 //   - [JobSubscribeMessage]: message boundary and catch event
 //   - [JobSubscribeSignal]: signal boundary and catch event
 type JobType int
 
 const (
 	JobCallProcess JobType = iota + 1
+	JobEndMultiInstance
 	JobEvaluateExclusiveGateway
 	JobEvaluateInclusiveGateway
 	JobExecute
@@ -110,6 +113,7 @@ const (
 	JobSetMessageCorrelationKey
 	JobSetSignalName
 	JobSetTimer
+	JobStartMultiInstance
 	JobSubscribeMessage
 	JobSubscribeSignal
 )
@@ -118,6 +122,8 @@ func MapJobType(s string) JobType {
 	switch s {
 	case "CALL_PROCESS":
 		return JobCallProcess
+	case "END_MULTI_INSTANCE":
+		return JobEndMultiInstance
 	case "EVALUATE_EXCLUSIVE_GATEWAY":
 		return JobEvaluateExclusiveGateway
 	case "EVALUATE_INCLUSIVE_GATEWAY":
@@ -136,6 +142,8 @@ func MapJobType(s string) JobType {
 		return JobSetSignalName
 	case "SET_TIMER":
 		return JobSetTimer
+	case "START_MULTI_INSTANCE":
+		return JobStartMultiInstance
 	case "SUBSCRIBE_MESSAGE":
 		return JobSubscribeMessage
 	case "SUBSCRIBE_SIGNAL":
@@ -153,6 +161,8 @@ func (v JobType) String() string {
 	switch v {
 	case JobCallProcess:
 		return "CALL_PROCESS"
+	case JobEndMultiInstance:
+		return "END_MULTI_INSTANCE"
 	case JobEvaluateExclusiveGateway:
 		return "EVALUATE_EXCLUSIVE_GATEWAY"
 	case JobEvaluateInclusiveGateway:
@@ -171,6 +181,8 @@ func (v JobType) String() string {
 		return "SET_SIGNAL_NAME"
 	case JobSetTimer:
 		return "SET_TIMER"
+	case JobStartMultiInstance:
+		return "START_MULTI_INSTANCE"
 	case JobSubscribeMessage:
 		return "SUBSCRIBE_MESSAGE"
 	case JobSubscribeSignal:
@@ -201,7 +213,8 @@ func (v *JobType) UnmarshalJSON(data []byte) error {
 type TaskType int
 
 const (
-	TaskDequeueProcessInstance   TaskType = iota + 1 // Dequeues a queued process instance.
+	TaskContinueExecution        TaskType = iota + 1 // Continues an execution.
+	TaskDequeueProcessInstance                       // Dequeues a queued process instance.
 	TaskJoinParallelGateway                          // Continues a parallel gateway by joining executions.
 	TaskStartProcessInstance                         // Starts a queued process instance.
 	TaskTerminateProcessInstance                     // Terminates a process instance.
@@ -218,6 +231,8 @@ const (
 
 func MapTaskType(s string) TaskType {
 	switch s {
+	case "CONTINUE_EXECUTION":
+		return TaskContinueExecution
 	case "DEQUEUE_PROCESS_INSTANCE":
 		return TaskDequeueProcessInstance
 	case "JOIN_PARALLEL_GATEWAY":
@@ -250,6 +265,8 @@ func (v TaskType) MarshalJSON() ([]byte, error) {
 
 func (v TaskType) String() string {
 	switch v {
+	case TaskContinueExecution:
+		return "CONTINUE_EXECUTION"
 	case TaskDequeueProcessInstance:
 		return "DEQUEUE_PROCESS_INSTANCE"
 	case TaskJoinParallelGateway:

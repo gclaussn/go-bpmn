@@ -1,0 +1,17 @@
+<definitions id="test">
+  <process id="sequentialUserTaskTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="userTask" />
+    <userTask id="userTask">
+      <incoming>f1</incoming>
+      <outgoing>f2</outgoing>
+      <multiInstanceLoopCharacteristics isSequential="true" />
+    </userTask>
+    <sequenceFlow id="f2" sourceRef="userTask" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f2</incoming>
+    </endEvent>
+  </process>
+</definitions>

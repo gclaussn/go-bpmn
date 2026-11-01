@@ -3,6 +3,7 @@ package internal
 import (
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/model"
@@ -259,9 +260,9 @@ func newGraph(bpmnModel *model.Model, bpmnElements []*model.Element, elements []
 		return graph{}, fmt.Errorf("expected number of BPMN elements and entities to be equal: %d != %d", len(bpmnElements), len(elements))
 	}
 
-	ids := make(map[string]int32, len(elements))
+	elementMap := make(map[string]*ElementEntity, len(elements))
 	for _, element := range elements {
-		ids[element.BpmnElementId] = element.Id
+		elementMap[element.BpmnElementId] = element
 	}
 
 	processElement := bpmnElements[0]
@@ -271,7 +272,7 @@ func newGraph(bpmnModel *model.Model, bpmnElements []*model.Element, elements []
 
 	nodes := make(map[string]node, len(bpmnElements))
 	for _, bpmnElement := range bpmnElements {
-		id, ok := ids[bpmnElement.Id]
+		element, ok := elementMap[bpmnElement.Id]
 		if !ok {
 			return graph{}, fmt.Errorf("BPMN element %s has no entity", bpmnElement.Id)
 		}
@@ -282,9 +283,10 @@ func newGraph(bpmnModel *model.Model, bpmnElements []*model.Element, elements []
 		}
 
 		nodes[bpmnElement.Id] = node{
-			id:             id,
-			bpmnElement:    bpmnElement,
-			boundaryEvents: boundaryEvents,
+			id:              element.Id,
+			bpmnElement:     bpmnElement,
+			boundaryEvents:  boundaryEvents,
+			isMultiInstance: element.IsMultiInstance,
 		}
 	}
 
@@ -352,6 +354,11 @@ func (g graph) continueExecution(scope *ElementInstanceEntity, execution *Elemen
 			return executions, nil
 		}
 
+		if node.isMultiInstance {
+			return nil, nil // multi-instance activity does not take outgoing sequence flow
+		}
+
+		// take outgoing sequence flow
 		outgoing := node.bpmnElement.Outgoing
 
 		executions := make([]*ElementInstanceEntity, len(outgoing))
@@ -381,6 +388,7 @@ func (g graph) continueExecution(scope *ElementInstanceEntity, execution *Elemen
 
 				BpmnElementId:   target.Id,
 				BpmnElementType: target.Type,
+				IsMultiInstance: targetNode.isMultiInstance && !scope.IsMultiInstance,
 
 				parent: scope,
 				prev:   prev,
@@ -397,6 +405,10 @@ func (g graph) continueExecution(scope *ElementInstanceEntity, execution *Elemen
 
 	if nextState == engine.InstanceCreated {
 		if isTaskOrScope(execution.BpmnElementType) {
+			if node.isMultiInstance {
+				return nil, nil // multi-instance activity has no boundary events attached
+			}
+
 			executionCount := 0
 
 			executions = make([]*ElementInstanceEntity, len(node.boundaryEvents))
@@ -482,6 +494,10 @@ func (g graph) continueExecution(scope *ElementInstanceEntity, execution *Elemen
 
 	if execution.State == engine.InstanceStarted {
 		if execution.BpmnElementType == model.ElementSubProcess {
+			if node.isMultiInstance {
+				return nil, nil // create [engine.TaskContinueExecution] task
+			}
+
 			execution.State = scope.State // possible transition to suspended
 
 			// start branch
@@ -495,6 +511,124 @@ func (g graph) continueExecution(scope *ElementInstanceEntity, execution *Elemen
 	}
 
 	return executions, nil
+}
+
+// continueMultiInstanceExecution continues a multi-instance execution - not a multi-instance activity.
+func (g graph) continueMultiInstanceExecution(scope *ElementInstanceEntity, execution *ElementInstanceEntity) ([]*ElementInstanceEntity, error) {
+	node, err := g.node(execution.BpmnElementId)
+	if err != nil {
+		return nil, err
+	}
+
+	if execution.State == engine.InstanceTerminated {
+		scope.ExecutionCount--
+		return nil, nil // skip already terminated execution
+	}
+
+	nextState := node.nextMultiInstanceState(scope, execution)
+
+	if execution.State == nextState {
+		switch {
+		case execution.State == engine.InstanceCreated && execution.ExecutionCount == 0:
+			multiInstance := getMultiInstance(node.bpmnElement)
+			if multiInstance.LoopCardinality > 0 {
+				return g.startMultiInstance(execution, multiInstance.LoopCardinality, multiInstance.IsSequential)
+			}
+		case execution.State == engine.InstanceStarted && execution.Context.Valid:
+			execution.Context = pgtype.Text{} // create [engine.JobEndMultiInstance] job
+		}
+
+		return nil, nil
+	}
+
+	execution.State = nextState
+
+	if nextState == engine.InstanceCreated {
+		executionCount := 0
+
+		executions := make([]*ElementInstanceEntity, len(node.boundaryEvents))
+		for i, boundaryEvent := range node.boundaryEvents {
+			boundaryEventNode := g.nodes[boundaryEvent.Id]
+
+			// start branch
+			attached := ElementInstanceEntity{
+				Partition: scope.Partition,
+
+				PrevElementId: pgtype.Int4{Int32: execution.ElementId, Valid: true},
+
+				ElementId:         boundaryEventNode.id,
+				ProcessId:         scope.ProcessId,
+				ProcessInstanceId: scope.ProcessInstanceId,
+
+				BpmnElementId:   boundaryEvent.Id,
+				BpmnElementType: boundaryEvent.Type,
+
+				parent: scope,
+				prev:   execution,
+			}
+
+			if boundaryEventNode.eventDefinition == nil || boundaryEvent.Type == model.ElementMessageBoundaryEvent {
+				executionCount--
+			}
+
+			executions[i] = &attached
+		}
+
+		scope.ExecutionCount += len(node.boundaryEvents)
+
+		if executionCount != 0 {
+			execution.ExecutionCount = executionCount
+			return executions, nil
+		}
+
+		multiInstance := getMultiInstance(node.bpmnElement)
+		if multiInstance.LoopCardinality <= 0 {
+			return executions, nil
+		}
+
+		multiInstanceActivities, err := g.startMultiInstance(execution, multiInstance.LoopCardinality, multiInstance.IsSequential)
+		if err != nil {
+			return nil, err
+		}
+
+		executions = append(executions, multiInstanceActivities...)
+		return executions, nil
+	}
+
+	if nextState == engine.InstanceCompleted {
+		scope.ExecutionCount--
+
+		// take outgoing sequence flow
+		outgoing := node.bpmnElement.Outgoing
+
+		executions := make([]*ElementInstanceEntity, len(outgoing))
+		for i, sequenceFlow := range outgoing {
+			target := sequenceFlow.Target
+			targetNode := g.nodes[target.Id]
+
+			// start branch
+			next := ElementInstanceEntity{
+				Partition: scope.Partition,
+
+				ElementId:         targetNode.id,
+				ProcessId:         scope.ProcessId,
+				ProcessInstanceId: scope.ProcessInstanceId,
+
+				BpmnElementId:   target.Id,
+				BpmnElementType: target.Type,
+				IsMultiInstance: targetNode.isMultiInstance && !scope.IsMultiInstance,
+
+				parent: scope,
+			}
+
+			executions[i] = &next
+		}
+
+		scope.ExecutionCount += len(outgoing)
+		return executions, nil
+	}
+
+	return nil, nil
 }
 
 func (g graph) createExecution(scope *ElementInstanceEntity) (ElementInstanceEntity, error) {
@@ -546,8 +680,14 @@ func (g graph) createExecutionAt(scope *ElementInstanceEntity, bpmnElementId str
 		return ElementInstanceEntity{}, err
 	}
 
-	if node.bpmnElement.Parent != scopeNode.bpmnElement {
-		return ElementInstanceEntity{}, fmt.Errorf("scope %s has no element %s", scope.BpmnElementId, bpmnElementId)
+	if scope.IsMultiInstance {
+		if bpmnElementId != scope.BpmnElementId {
+			return ElementInstanceEntity{}, fmt.Errorf("multi-instance scope %s has no element %s", scope.BpmnElementId, bpmnElementId)
+		}
+	} else {
+		if node.bpmnElement.Parent != scopeNode.bpmnElement {
+			return ElementInstanceEntity{}, fmt.Errorf("scope %s has no element %s", scope.BpmnElementId, bpmnElementId)
+		}
 	}
 
 	execution := ElementInstanceEntity{
@@ -559,6 +699,7 @@ func (g graph) createExecutionAt(scope *ElementInstanceEntity, bpmnElementId str
 
 		BpmnElementId:   node.bpmnElement.Id,
 		BpmnElementType: node.bpmnElement.Type,
+		IsMultiInstance: node.isMultiInstance && !scope.IsMultiInstance,
 
 		parent: scope,
 	}
@@ -674,17 +815,47 @@ func (g graph) setEventDefinitions(eventDefinitions []*EventDefinitionEntity) {
 	}
 }
 
+func (g graph) startMultiInstance(execution *ElementInstanceEntity, loopCardinality int, isSequential bool) ([]*ElementInstanceEntity, error) {
+	execution.State = engine.InstanceStarted
+	execution.Context = pgtype.Text{String: strconv.Itoa(loopCardinality), Valid: true}
+
+	if loopCardinality <= 0 {
+		return nil, nil
+	}
+
+	multiInstanceActivities := make([]*ElementInstanceEntity, loopCardinality)
+
+	var prev *ElementInstanceEntity
+	for i := range loopCardinality {
+		multiInstanceActivity, err := g.createExecutionAt(execution, execution.BpmnElementId)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create execution at %s: %v", execution.BpmnElementId, err)
+		}
+
+		if isSequential {
+			multiInstanceActivity.prev = prev
+			prev = &multiInstanceActivity
+		}
+
+		multiInstanceActivities[i] = &multiInstanceActivity
+	}
+
+	return multiInstanceActivities, nil
+}
+
 type node struct {
 	id              int32 // ID of the related ElementEntity
 	bpmnElement     *model.Element
 	boundaryEvents  []*model.Element
 	eventDefinition *EventDefinitionEntity
+	isMultiInstance bool
 }
 
 // nextState determines the next state of an execution, depending on:
 //   - current scope and execution state
 //   - BPMN element type
 //   - event definition
+//   - multi-instance indicator
 func (n node) nextState(scope *ElementInstanceEntity, execution *ElementInstanceEntity) engine.InstanceState {
 	if scope.State == engine.InstanceQueued {
 		return engine.InstanceQueued
@@ -718,6 +889,16 @@ func (n node) nextState(scope *ElementInstanceEntity, execution *ElementInstance
 	}
 
 	if isTaskOrScope(execution.BpmnElementType) || execution.BpmnElementType == model.ElementEventBasedGateway {
+		if n.isMultiInstance { // multi-instance activity
+			if execution.State == engine.InstanceCreated {
+				return engine.InstanceStarted // next sequential
+			} else if execution.prev == nil {
+				return engine.InstanceStarted // parallel or first sequential
+			} else {
+				return engine.InstanceCreated // remaining sequential
+			}
+		}
+
 		switch {
 		case execution.State == 0:
 			return engine.InstanceCreated
@@ -780,5 +961,25 @@ func (n node) nextState(scope *ElementInstanceEntity, execution *ElementInstance
 		}
 	default:
 		return engine.InstanceCompleted // no behavior (pass through element)
+	}
+}
+
+// nextMultiInstanceState determines the next state of a multi-instance execution - not a multi-instance activity.
+func (n node) nextMultiInstanceState(scope *ElementInstanceEntity, execution *ElementInstanceEntity) engine.InstanceState {
+	switch execution.State {
+	case 0:
+		if scope.State == engine.InstanceSuspended {
+			return engine.InstanceSuspended
+		} else {
+			return engine.InstanceCreated
+		}
+	case engine.InstanceStarted:
+		if execution.Context.Valid {
+			return engine.InstanceStarted
+		} else {
+			return engine.InstanceCompleted
+		}
+	default:
+		return engine.InstanceCreated
 	}
 }

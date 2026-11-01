@@ -148,6 +148,38 @@ func TestBpmn(t *testing.T) {
 		}
 	})
 
+	t.Run("multi-instance", func(t *testing.T) {
+		for i, e := range engines {
+			multiInstanceTest := multiInstanceTest{e}
+
+			t.Run("parallel", func(t *testing.T) {
+				t.Run(engineTypes[i]+"call activity", multiInstanceTest.parallelCallActivity)
+				t.Run(engineTypes[i]+"service task", multiInstanceTest.parallelServiceTask)
+				t.Run(engineTypes[i]+"sub-process", multiInstanceTest.parallelSubProcess)
+				t.Run(engineTypes[i]+"user task", multiInstanceTest.parallelUserTask)
+
+				t.Run(engineTypes[i]+"service task with loop cardinality 0", multiInstanceTest.parallelServiceTaskLoopCardinalityZero)
+				t.Run(engineTypes[i]+"service task with defined loop cardinality", multiInstanceTest.parallelServiceTaskLoopCardinalityDefined)
+
+				t.Run(engineTypes[i]+"call activity error boundary", multiInstanceTest.parallelCallActivityErrorBoundary)
+				t.Run(engineTypes[i]+"call activity escalation boundary", multiInstanceTest.parallelCallActivityEscalationBoundary)
+
+				t.Run(engineTypes[i]+"sub-process message boundary", multiInstanceTest.parallelSubProcessMessageBoundary)
+				t.Run(engineTypes[i]+"sub-process suspension", multiInstanceTest.parallelSubProcessSuspension)
+			})
+
+			t.Run("sequential", func(t *testing.T) {
+				t.Run(engineTypes[i]+"call activity", multiInstanceTest.sequentialCallActivity)
+				t.Run(engineTypes[i]+"service task", multiInstanceTest.sequentialServiceTask)
+				t.Run(engineTypes[i]+"sub-process", multiInstanceTest.sequentialSubProcess)
+				t.Run(engineTypes[i]+"user task", multiInstanceTest.sequentialUserTask)
+
+				t.Run(engineTypes[i]+"call activity message boundary", multiInstanceTest.sequentialCallActivityMessageBoundary)
+				t.Run(engineTypes[i]+"call activity message subscription cancelation", multiInstanceTest.sequentialCallActivityMessageSubscriptionCancelation)
+			})
+		}
+	})
+
 	t.Run("parallel gateway", func(t *testing.T) {
 		for i, e := range engines {
 			parallelGatewayTest := parallelGatewayTest{e}

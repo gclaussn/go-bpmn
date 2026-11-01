@@ -818,6 +818,39 @@ func (a ElementInstanceAssert) CompleteJobWithError(cmd ...CompleteJobCmd) Job {
 	return completedJob
 }
 
+// CompleteUserTask completes a user task of an element instance.
+// Optionally, cmd can be used to set variables and tags.
+//
+// Fails if no user task could be found or the user task could not be updated.
+func (a ElementInstanceAssert) CompleteUserTask(cmd ...UpdateUserTaskCmd) UserTask {
+	if len(cmd) > 1 {
+		a.Fatalf("expected zero or one cmd")
+	}
+
+	userTask := a.UserTask()
+
+	var c UpdateUserTaskCmd
+	if len(cmd) != 0 {
+		c = cmd[0]
+	} else {
+		c = UpdateUserTaskCmd{}
+	}
+
+	c.Partition = userTask.Partition
+	c.Id = userTask.Id
+	c.Revision = userTask.Revision
+
+	c.IsCompleted = true
+	c.WorkerId = testWorkerId
+
+	updatedUserTask, err := a.e.UpdateUserTask(context.Background(), c)
+	if err != nil {
+		a.Fatalf("failed to update user task %s: %v", userTask, err)
+	}
+
+	return updatedUserTask
+}
+
 // ElementInstance returns the related element instance.
 func (a ElementInstanceAssert) ElementInstance() ElementInstance {
 	elementInstances, err := a.e.CreateQuery().QueryElementInstances(context.Background(), ElementInstanceCriteria{

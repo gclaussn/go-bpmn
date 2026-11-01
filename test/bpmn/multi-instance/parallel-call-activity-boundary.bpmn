@@ -1,0 +1,33 @@
+<definitions id="test">
+  <process id="parallelCallActivityBoundaryTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="callActivity" />
+    <callActivity id="callActivity">
+      <incoming>f1</incoming>
+      <outgoing>f2</outgoing>
+      <multiInstanceLoopCharacteristics />
+    </callActivity>
+    <sequenceFlow id="f2" sourceRef="callActivity" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f2</incoming>
+    </endEvent>
+    <boundaryEvent id="errorBoundaryEvent" attachedToRef="callActivity">
+      <outgoing>f3</outgoing>
+      <errorEventDefinition id="errorEventDefinition" />
+    </boundaryEvent>
+    <sequenceFlow id="f3" sourceRef="errorBoundaryEvent" targetRef="errorEnd" />
+    <endEvent id="errorEnd">
+      <incoming>f3</incoming>
+    </endEvent>
+    <boundaryEvent id="escalationBoundaryEvent" attachedToRef="callActivity">
+      <outgoing>f4</outgoing>
+      <escalationEventDefinition id="escalationEventDefinition" />
+    </boundaryEvent>
+    <sequenceFlow id="f4" sourceRef="escalationBoundaryEvent" targetRef="escalationEnd" />
+    <endEvent id="escalationEnd">
+      <incoming>f4</incoming>
+    </endEvent>
+  </process>
+</definitions>

@@ -72,20 +72,11 @@ type BoundaryEvent struct {
 
 type CallActivity struct {
 	CalledElement string
+	MultiInstance *MultiInstance
 }
 
 type EndEvent struct {
 	EventDefinition EventDefinition
-}
-
-type EventDefinition struct {
-	Id string
-
-	Error      *Error
-	Escalation *Escalation
-	Link       *Link
-	Message    *Message
-	Signal     *Signal
 }
 
 type ExclusiveGateway struct {
@@ -113,5 +104,28 @@ type StartEvent struct {
 }
 
 type SubProcess struct {
-	TriggeredByEvent bool // Event sub-process indicator
+	MultiInstance    *MultiInstance
+	TriggeredByEvent bool // Event sub-process indicator.
+}
+
+type Task struct {
+	MultiInstance *MultiInstance
+}
+
+// related types
+
+type EventDefinition struct {
+	Id string
+
+	Error      *Error
+	Escalation *Escalation
+	Link       *Link
+	Message    *Message
+	Signal     *Signal
+}
+
+// MultiInstance represents the multi-instance characteristic of a task, sub-process or call activity.
+type MultiInstance struct {
+	IsSequential    bool // Determines if a multi-instance is parallel or sequential.
+	LoopCardinality int  // Value of a "loopCardinality" expression or 0, if undefined or cannot be parsed.
 }
