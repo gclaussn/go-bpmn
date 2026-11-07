@@ -149,19 +149,19 @@ func TestTimer(t *testing.T) {
 	assert := assert.New(t)
 
 	var timer Timer
-	assert.Nil(timer.Timer())
+	assert.True(timer.Timer().IsZero())
 
 	now := time.Now()
 
 	timer = Timer{Time: Time(now)}
-	assert.NotNil(timer.Timer())
+	assert.False(timer.Timer().IsZero())
 	assert.Equal(now, timer.Timer().Time)
 
 	timer = Timer{TimeCycle: "0 * * * *"}
-	assert.NotNil(timer.Timer())
+	assert.False(timer.Timer().IsZero())
 	assert.Equal("0 * * * *", timer.Timer().TimeCycle)
 
 	timer = Timer{TimeDuration: ISO8601Duration("P1D")}
-	assert.NotNil(timer.Timer())
+	assert.False(timer.Timer().IsZero())
 	assert.Equal("P1D", timer.Timer().TimeDuration.String())
 }

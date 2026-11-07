@@ -165,10 +165,10 @@ func (r elementRepository) Query(criteria engine.ElementCriteria, options engine
 
 		result := entity.Element()
 		if isSuspended.Valid {
-			var timer *engine.Timer
+			var timer engine.Timer
 			switch entity.BpmnElementType {
 			case model.ElementTimerBoundaryEvent, model.ElementTimerCatchEvent, model.ElementTimerStartEvent:
-				timer = &engine.Timer{
+				timer = engine.Timer{
 					Time:         timeV.Time,
 					TimeCycle:    timeCycle.String,
 					TimeDuration: engine.ISO8601Duration(timeDuration.String),

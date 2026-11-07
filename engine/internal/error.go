@@ -306,3 +306,52 @@ func findErrorBoundaryEvent(ctx Context, scope *ElementInstanceEntity, errorCode
 	// !recursion
 	return findErrorBoundaryEvent(ctx, parentScope, errorCode)
 }
+
+func mapErrorEventDefinitions(
+	eventDefinitions []EventDefinitionEntity,
+	causes []engine.ErrorCause,
+	errorDefinitions []engine.ErrorDefinition,
+	errorEvents []*model.Element,
+	processElement *model.Element,
+) ([]EventDefinitionEntity, []engine.ErrorCause) {
+	errorCodes := make(map[string]string, len(errorDefinitions))
+	for _, errorDefinition := range errorDefinitions {
+		var exists bool
+		for _, errorEvent := range errorEvents {
+			if errorEvent.Id == errorDefinition.BpmnElementId {
+				exists = true
+				break
+			}
+		}
+
+		if exists {
+			errorCodes[errorDefinition.BpmnElementId] = errorDefinition.ErrorCode
+		} else {
+			causes = append(causes, engine.ErrorCause{
+				Pointer: elementPointer(processElement),
+				Type:    "error_event",
+				Detail:  fmt.Sprintf("process %s has no error event %s", processElement.Id, errorDefinition.BpmnElementId),
+			})
+		}
+	}
+
+	for _, errorEvent := range errorEvents {
+		if _, ok := errorCodes[errorEvent.Id]; ok {
+			continue
+		}
+
+		eventDefinition := getEventDefinition(errorEvent)
+		if bpmnError := eventDefinition.Error; bpmnError != nil {
+			errorCodes[errorEvent.Id] = bpmnError.Code
+		}
+	}
+
+	for bpmnElementId, errorCode := range errorCodes {
+		eventDefinitions = append(eventDefinitions, EventDefinitionEntity{
+			BpmnElementId: bpmnElementId,
+			ErrorCode:     pgtype.Text{String: errorCode, Valid: true},
+		})
+	}
+
+	return eventDefinitions, causes
+}

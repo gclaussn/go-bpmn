@@ -48,6 +48,42 @@ func elementPointer(bpmnElement *model.Element) string {
 	return strings.Join(ids, "/")
 }
 
+// TODO
+func getEventDefinition(bpmnElement *model.Element) model.EventDefinition {
+	switch bpmnElement.Type {
+	case
+		model.ElementErrorBoundaryEvent,
+		model.ElementEscalationBoundaryEvent,
+		model.ElementMessageBoundaryEvent,
+		model.ElementSignalBoundaryEvent,
+		model.ElementTimerBoundaryEvent:
+		return bpmnElement.Model.(model.BoundaryEvent).EventDefinition
+	case
+		model.ElementMessageCatchEvent,
+		model.ElementSignalCatchEvent,
+		model.ElementTimerCatchEvent:
+		return bpmnElement.Model.(model.IntermediateCatchEvent).EventDefinition
+	case
+		model.ElementErrorEndEvent,
+		model.ElementEscalationEndEvent,
+		model.ElementMessageEndEvent,
+		model.ElementSignalEndEvent:
+		return bpmnElement.Model.(model.EndEvent).EventDefinition
+	case
+		model.ElementMessageStartEvent,
+		model.ElementSignalStartEvent,
+		model.ElementTimerStartEvent:
+		return bpmnElement.Model.(model.StartEvent).EventDefinition
+	case
+		model.ElementEscalationThrowEvent,
+		model.ElementMessageThrowEvent,
+		model.ElementSignalThrowEvent:
+		return bpmnElement.Model.(model.IntermediateThrowEvent).EventDefinition
+	default:
+		return model.EventDefinition{}
+	}
+}
+
 // getMultiInstance returns a possible multi-instance characteristic of bpmnElement.
 // If bpmnElement is not a task, sub-process or call activity, nil is returned.
 func getMultiInstance(bpmnElement *model.Element) *model.MultiInstance {
@@ -79,18 +115,6 @@ func isTaskOrScope(elementType model.ElementType) bool {
 		model.ElementServiceTask,
 		model.ElementSubProcess,
 		model.ElementUserTask:
-		return true
-	default:
-		return false
-	}
-}
-
-func isTimerEvent(elementType model.ElementType) bool {
-	switch elementType {
-	case
-		model.ElementTimerBoundaryEvent,
-		model.ElementTimerCatchEvent,
-		model.ElementTimerStartEvent:
 		return true
 	default:
 		return false

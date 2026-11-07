@@ -75,7 +75,7 @@ type eventDefinitionRepository struct {
 	txCtx context.Context
 }
 
-func (r eventDefinitionRepository) InsertBatch(entities []*internal.EventDefinitionEntity) error {
+func (r eventDefinitionRepository) InsertBatch(entities []internal.EventDefinitionEntity) error {
 	if len(entities) == 0 {
 		return nil
 	}
@@ -151,7 +151,7 @@ INSERT INTO event_definition (
 	return nil
 }
 
-func (r eventDefinitionRepository) Select(elementId int32) (*internal.EventDefinitionEntity, error) {
+func (r eventDefinitionRepository) Select(elementId int32) (internal.EventDefinitionEntity, error) {
 	row := r.tx.QueryRow(r.txCtx, `
 SELECT
 	process_id,
@@ -192,19 +192,19 @@ WHERE
 		&entity.Version,
 	); err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, err
+			return internal.EventDefinitionEntity{}, err
 		} else {
-			return nil, fmt.Errorf("failed to select event definition %d: %v", elementId, err)
+			return internal.EventDefinitionEntity{}, fmt.Errorf("failed to select event definition %d: %v", elementId, err)
 		}
 	}
 
 	entity.ElementId = elementId
 	entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
 
-	return &entity, nil
+	return entity, nil
 }
 
-func (r eventDefinitionRepository) SelectByBpmnProcessId(bpmnProcessId string) ([]*internal.EventDefinitionEntity, error) {
+func (r eventDefinitionRepository) SelectByBpmnProcessId(bpmnProcessId string) ([]internal.EventDefinitionEntity, error) {
 	rows, err := r.tx.Query(r.txCtx, `
 SELECT
 	element_id,
@@ -231,7 +231,7 @@ WHERE
 
 	defer rows.Close()
 
-	var entities []*internal.EventDefinitionEntity
+	var entities []internal.EventDefinitionEntity
 	for rows.Next() {
 		var (
 			entity               internal.EventDefinitionEntity
@@ -259,13 +259,13 @@ WHERE
 		entity.BpmnProcessId = bpmnProcessId
 		entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
 
-		entities = append(entities, &entity)
+		entities = append(entities, entity)
 	}
 
 	return entities, nil
 }
 
-func (r eventDefinitionRepository) SelectByProcessId(processId int32) ([]*internal.EventDefinitionEntity, error) {
+func (r eventDefinitionRepository) SelectByProcessId(processId int32) ([]internal.EventDefinitionEntity, error) {
 	rows, err := r.tx.Query(r.txCtx, `
 SELECT
 	element_id,
@@ -293,7 +293,7 @@ WHERE
 
 	defer rows.Close()
 
-	var entities []*internal.EventDefinitionEntity
+	var entities []internal.EventDefinitionEntity
 	for rows.Next() {
 		var (
 			entity               internal.EventDefinitionEntity
@@ -322,13 +322,13 @@ WHERE
 		entity.ProcessId = processId
 		entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
 
-		entities = append(entities, &entity)
+		entities = append(entities, entity)
 	}
 
 	return entities, nil
 }
 
-func (r eventDefinitionRepository) SelectByMessageName(messageName string) (*internal.EventDefinitionEntity, error) {
+func (r eventDefinitionRepository) SelectByMessageName(messageName string) (internal.EventDefinitionEntity, bool, error) {
 	row := r.tx.QueryRow(r.txCtx, `
 SELECT
 	element_id,
@@ -368,19 +368,19 @@ LIMIT
 		&entity.Version,
 	); err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, nil
+			return entity, false, nil
 		} else {
-			return nil, fmt.Errorf("failed to select not suspended event definition by message name %s: %v", messageName, err)
+			return entity, false, fmt.Errorf("failed to select not suspended event definition by message name %s: %v", messageName, err)
 		}
 	}
 
 	entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
 	entity.MessageName = pgtype.Text{String: messageName, Valid: true}
 
-	return &entity, nil
+	return entity, true, nil
 }
 
-func (r eventDefinitionRepository) SelectBySignalName(signalName string) ([]*internal.EventDefinitionEntity, error) {
+func (r eventDefinitionRepository) SelectBySignalName(signalName string) ([]internal.EventDefinitionEntity, error) {
 	rows, err := r.tx.Query(r.txCtx, `
 SELECT
 	element_id,
@@ -404,7 +404,7 @@ WHERE
 
 	defer rows.Close()
 
-	var entities []*internal.EventDefinitionEntity
+	var entities []internal.EventDefinitionEntity
 	for rows.Next() {
 		var (
 			entity               internal.EventDefinitionEntity
@@ -428,13 +428,13 @@ WHERE
 		entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
 		entity.SignalName = pgtype.Text{String: signalName, Valid: true}
 
-		entities = append(entities, &entity)
+		entities = append(entities, entity)
 	}
 
 	return entities, nil
 }
 
-func (r eventDefinitionRepository) UpdateBatch(entities []*internal.EventDefinitionEntity) error {
+func (r eventDefinitionRepository) UpdateBatch(entities []internal.EventDefinitionEntity) error {
 	if len(entities) == 0 {
 		return nil
 	}

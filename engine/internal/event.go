@@ -50,23 +50,31 @@ type EventDefinitionEntity struct {
 	Version         string
 }
 
+func (e EventDefinitionEntity) Timer() engine.Timer {
+	return engine.Timer{
+		Time:         e.Time.Time,
+		TimeCycle:    e.TimeCycle.String,
+		TimeDuration: engine.ISO8601Duration(e.TimeDuration.String),
+	}
+}
+
 type EventDefinitionRepository interface {
-	InsertBatch([]*EventDefinitionEntity) error
-	Select(elementId int32) (*EventDefinitionEntity, error)
+	InsertBatch([]EventDefinitionEntity) error
+	Select(elementId int32) (EventDefinitionEntity, error)
 
-	SelectByProcessId(processId int32) ([]*EventDefinitionEntity, error)
+	SelectByProcessId(processId int32) ([]EventDefinitionEntity, error)
 
-	SelectByBpmnProcessId(bpmnProcessId string) ([]*EventDefinitionEntity, error)
+	SelectByBpmnProcessId(bpmnProcessId string) ([]EventDefinitionEntity, error)
 
 	// SelectByMessageName selects a not suspended event definition for the message name.
 	//
-	// If no such event definition exists, nil is returned.
-	SelectByMessageName(messageName string) (*EventDefinitionEntity, error)
+	// If no such event definition exists, false is returned.
+	SelectByMessageName(messageName string) (EventDefinitionEntity, bool, error)
 
 	// SelectBySignalName selects all not suspended event definitions for the signal name.
-	SelectBySignalName(signalName string) ([]*EventDefinitionEntity, error)
+	SelectBySignalName(signalName string) ([]EventDefinitionEntity, error)
 
-	UpdateBatch([]*EventDefinitionEntity) error
+	UpdateBatch([]EventDefinitionEntity) error
 }
 
 // TriggerEventTask triggers start or catch events.
@@ -74,11 +82,11 @@ type EventDefinitionRepository interface {
 // In case of a start event, a new process instance is created.
 // In case of a boundary or catch event, an execution is continued.
 type TriggerEventTask struct {
-	ErrorCode      string        `json:",omitempty"`
-	EscalationCode string        `json:",omitempty"`
-	MessageId      int64         `json:",omitempty"`
-	SignalId       int64         `json:",omitempty"`
-	Timer          *engine.Timer `json:",omitempty"`
+	ErrorCode      string       `json:",omitempty"`
+	EscalationCode string       `json:",omitempty"`
+	MessageId      int64        `json:",omitempty"`
+	SignalId       int64        `json:",omitempty"`
+	Timer          engine.Timer `json:",omitzero"`
 }
 
 func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
@@ -191,7 +199,7 @@ func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
 	case model.ElementMessageCatchEvent:
 		return ec.triggerMessageCatchEvent(ctx, t.MessageId)
 	case model.ElementMessageStartEvent:
-		expireMessage := t.Timer != nil
+		expireMessage := !t.Timer.IsZero()
 		return ec.triggerMessageStartEvent(ctx, task, bpmnElement, t.MessageId, expireMessage)
 	case model.ElementSignalBoundaryEvent:
 		return ec.triggerSignalBoundaryEvent(ctx, t.SignalId, interrupting)
@@ -202,11 +210,11 @@ func (t TriggerEventTask) Execute(ctx Context, task *TaskEntity) error {
 	case model.ElementSignalStartEvent:
 		return ec.triggerSignalStartEvent(ctx, task, bpmnElement, t.SignalId)
 	case model.ElementTimerBoundaryEvent:
-		return ec.triggerTimerBoundaryEvent(ctx, *t.Timer, interrupting)
+		return ec.triggerTimerBoundaryEvent(ctx, t.Timer, interrupting)
 	case model.ElementTimerCatchEvent:
-		return ec.triggerTimerCatchEvent(ctx, *t.Timer)
+		return ec.triggerTimerCatchEvent(ctx, t.Timer)
 	case model.ElementTimerStartEvent:
-		return ec.triggerTimerStartEvent(ctx, task, *t.Timer)
+		return ec.triggerTimerStartEvent(ctx, task, t.Timer)
 	default:
 		return engine.Error{
 			Type:   engine.ErrorBug,
@@ -507,7 +515,7 @@ func suspendEventDefinitions(ctx Context, bpmnProcessId string) error {
 		return err
 	}
 
-	var suspended []*EventDefinitionEntity
+	var suspended []EventDefinitionEntity
 	for _, eventDefinition := range eventDefinitions {
 		if eventDefinition.IsSuspended {
 			continue

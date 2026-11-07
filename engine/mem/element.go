@@ -71,14 +71,10 @@ func (r *elementRepository) getEventDefinition(elementId int32) *engine.EventDef
 		return nil
 	}
 
-	var timer *engine.Timer
+	var timer engine.Timer
 	switch entity.BpmnElementType {
 	case model.ElementTimerBoundaryEvent, model.ElementTimerCatchEvent, model.ElementTimerStartEvent:
-		timer = &engine.Timer{
-			Time:         entity.Time.Time,
-			TimeCycle:    entity.TimeCycle.String,
-			TimeDuration: engine.ISO8601Duration(entity.TimeDuration.String),
-		}
+		timer = entity.Timer()
 	}
 
 	return &engine.EventDefinition{

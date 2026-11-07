@@ -60,7 +60,7 @@ func (x subProcessTest) boundary(t *testing.T) {
 	timerBoundaryEvent := psAssert.IsWaitingAt("timerBoundaryEvent")
 	timerBoundaryEvent.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
-			Timer: &engine.Timer{
+			Timer: engine.Timer{
 				TimeDuration: "PT1H",
 			},
 		},
@@ -123,7 +123,7 @@ func (x subProcessTest) boundaryTerminated(t *testing.T) {
 	timerBoundaryEvent := psAssert.IsWaitingAt("timerBoundaryEvent")
 	timerBoundaryEvent.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
-			Timer: &engine.Timer{
+			Timer: engine.Timer{
 				TimeDuration: "PT1H",
 			},
 		},

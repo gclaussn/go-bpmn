@@ -31,7 +31,7 @@ func (x timerEventTest) boundary(t *testing.T) {
 	timerBoundaryEvent.HasJob(engine.JobSetTimer)
 	timerBoundaryEvent.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
-			Timer: &engine.Timer{
+			Timer: engine.Timer{
 				Time: triggerAt,
 			},
 		},
@@ -71,7 +71,7 @@ func (x timerEventTest) boundaryWithTimer(t *testing.T) {
 
 	process := mustCreateProcess(t, x.e, "event/timer-boundary.bpmn", "timerBoundaryTest", engine.CreateProcessCmd{
 		Timers: []engine.TimerDefinition{
-			{BpmnElementId: "timerBoundaryEvent", Timer: &engine.Timer{Time: triggerAt}},
+			{BpmnElementId: "timerBoundaryEvent", Timer: engine.Timer{Time: triggerAt}},
 		},
 	})
 
@@ -115,7 +115,7 @@ func (x timerEventTest) boundaryNonInterrupting(t *testing.T) {
 	timerBoundaryEvent1 := psAssert.IsWaitingAt("timerBoundaryEvent")
 	timerBoundaryEvent1.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
-			Timer: &engine.Timer{
+			Timer: engine.Timer{
 				TimeDuration: engine.ISO8601Duration("PT1H"),
 			},
 		},
@@ -177,7 +177,7 @@ func (x timerEventTest) catch(t *testing.T) {
 	timerCatchEvent := psAssert.IsWaitingAt("timerCatchEvent")
 	timerCatchEvent.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
-			Timer: &engine.Timer{
+			Timer: engine.Timer{
 				Time: triggerAt,
 			},
 		},
@@ -201,7 +201,7 @@ func (x timerEventTest) catchWithTimer(t *testing.T) {
 
 	process := mustCreateProcess(t, x.e, "event/timer-catch.bpmn", "timerCatchTest", engine.CreateProcessCmd{
 		Timers: []engine.TimerDefinition{
-			{BpmnElementId: "timerCatchEvent", Timer: &engine.Timer{Time: triggerAt}},
+			{BpmnElementId: "timerCatchEvent", Timer: engine.Timer{Time: triggerAt}},
 		},
 	})
 
@@ -223,7 +223,7 @@ func (x timerEventTest) catchWithTimer(t *testing.T) {
 func (x timerEventTest) start(t *testing.T) {
 	process := mustCreateProcess(t, x.e, "event/timer-start.bpmn", "timerStartTest", engine.CreateProcessCmd{
 		Timers: []engine.TimerDefinition{
-			{BpmnElementId: "timerStartEvent", Timer: &engine.Timer{TimeCycle: "0 * * * *"}},
+			{BpmnElementId: "timerStartEvent", Timer: engine.Timer{TimeCycle: "0 * * * *"}},
 		},
 	})
 

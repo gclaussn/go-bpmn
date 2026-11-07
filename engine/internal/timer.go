@@ -1,10 +1,13 @@
 package internal
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/adhocore/gronx"
 	"github.com/gclaussn/go-bpmn/engine"
+	"github.com/gclaussn/go-bpmn/model"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -41,12 +44,12 @@ func SetTime(ctx Context, cmd engine.SetTimeCmd) (time.Time, time.Time, error) {
 }
 
 func (ec *executionContext) setTimer(ctx Context, job *JobEntity, jobCompletion *engine.JobCompletion) error {
-	if jobCompletion == nil || jobCompletion.Timer == nil {
+	if jobCompletion == nil || jobCompletion.Timer.IsZero() {
 		job.Error = pgtype.Text{String: "expected a timer", Valid: true}
 		return nil
 	}
 
-	dueAt, err := evaluateTimer(*jobCompletion.Timer, ctx.Time())
+	dueAt, err := evaluateTimer(jobCompletion.Timer, ctx.Time())
 	if err != nil {
 		job.Error = pgtype.Text{String: fmt.Sprintf("failed to evaluate timer: %v", err), Valid: true}
 		return nil
@@ -127,7 +130,7 @@ func (ec *executionContext) triggerTimerBoundaryEvent(ctx Context, timer engine.
 			State:         engine.WorkCreated,
 			Type:          engine.TaskTriggerEvent,
 
-			Instance: TriggerEventTask{Timer: &timer},
+			Instance: TriggerEventTask{Timer: timer},
 		}
 
 		if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {
@@ -297,7 +300,7 @@ func (ec *executionContext) triggerTimerStartEvent(ctx Context, task *TaskEntity
 		State:         engine.WorkCreated,
 		Type:          engine.TaskTriggerEvent,
 
-		Instance: TriggerEventTask{Timer: &timer},
+		Instance: TriggerEventTask{Timer: timer},
 	}
 
 	if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {
@@ -305,4 +308,117 @@ func (ec *executionContext) triggerTimerStartEvent(ctx Context, task *TaskEntity
 	}
 
 	return nil
+}
+
+func mapTimerEventDefinitions(
+	eventDefinitions []EventDefinitionEntity,
+	causes []engine.ErrorCause,
+	timerDefinitions []engine.TimerDefinition,
+	timerEvents []*model.Element,
+	processElement *model.Element,
+) ([]EventDefinitionEntity, []engine.ErrorCause) {
+	timers := make(map[string]engine.Timer, len(timerDefinitions))
+	for _, timerDefinition := range timerDefinitions {
+		var exists bool
+		for _, timerEvent := range timerEvents {
+			if timerEvent.Id == timerDefinition.BpmnElementId {
+				exists = true
+				break
+			}
+		}
+
+		if exists {
+			timers[timerDefinition.BpmnElementId] = timerDefinition.Timer
+		} else {
+			causes = append(causes, engine.ErrorCause{
+				Pointer: elementPointer(processElement),
+				Type:    "timer_event",
+				Detail:  fmt.Sprintf("process %s has no timer event %s", processElement.Id, timerDefinition.BpmnElementId),
+			})
+		}
+	}
+
+	for _, timerEvent := range timerEvents {
+		timer, ok := timers[timerEvent.Id]
+		if ok && timer.IsZero() {
+			causes = append(causes, engine.ErrorCause{
+				Pointer: elementPointer(timerEvent),
+				Type:    "timer_event",
+				Detail:  "timer must specify a time, time cycle or time duration",
+			})
+		}
+
+		if ok {
+			continue
+		}
+
+		t := getEventDefinition(timerEvent).Timer
+
+		if timerEvent.Type == model.ElementTimerStartEvent && t == nil {
+			causes = append(causes, engine.ErrorCause{
+				Pointer: elementPointer(timerEvent),
+				Type:    "timer_event",
+				Detail:  fmt.Sprintf("no timer defined for element %s", timerEvent.Id),
+			})
+			continue
+		}
+
+		if t == nil {
+			continue
+		}
+
+		var err error
+		timer, err = parseTimer(*t)
+		if err != nil {
+			causes = append(causes, engine.ErrorCause{
+				Pointer: elementPointer(timerEvent),
+				Type:    "timer_event",
+				Detail:  err.Error(),
+			})
+			continue
+		}
+
+		timers[timerEvent.Id] = timer
+	}
+
+	for bpmnElementId, timer := range timers {
+		eventDefinitions = append(eventDefinitions, EventDefinitionEntity{
+			BpmnElementId: bpmnElementId,
+			Time:          pgtype.Timestamp{Time: timer.Time, Valid: !timer.Time.IsZero()},
+			TimeCycle:     pgtype.Text{String: timer.TimeCycle, Valid: timer.TimeCycle != ""},
+			TimeDuration:  pgtype.Text{String: timer.TimeDuration.String(), Valid: !timer.TimeDuration.IsZero()},
+		})
+	}
+
+	return eventDefinitions, causes
+}
+
+// TODO move to func since only used once?
+// parseTimer parses a timer event definition.
+// Either a time, time cycle or time duration must be set.
+func parseTimer(timer model.Timer) (engine.Timer, error) {
+	if timer.Time != "" {
+		t, err := time.Parse(time.RFC3339Nano, timer.Time)
+		if err != nil {
+			return engine.Timer{}, fmt.Errorf("failed to parse timeDate %s: %v", timer.Time, err)
+		}
+		return engine.Timer{Time: t}, nil
+	}
+
+	if timer.TimeCycle != "" {
+		if !gronx.IsValid(timer.TimeCycle) {
+			return engine.Timer{}, fmt.Errorf("failed to parse timeCycle %s: CRON is invalid", timer.TimeCycle)
+		}
+		return engine.Timer{TimeCycle: timer.TimeCycle}, nil
+	}
+
+	if timer.TimeDuration != "" {
+		d, err := engine.NewISO8601Duration(timer.TimeDuration)
+		if err != nil {
+			return engine.Timer{}, fmt.Errorf("failed to parse timeDuration %s: %v", timer.TimeCycle, err)
+		}
+		return engine.Timer{TimeDuration: d}, nil
+	}
+
+	return engine.Timer{}, errors.New("timer event definition must specify a timeDate, timeCycle or timeDuration")
 }

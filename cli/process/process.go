@@ -85,14 +85,14 @@ func newCreateCmd() *cobra.Command {
 				}
 				timers = append(timers, engine.TimerDefinition{
 					BpmnElementId: bpmnElementId,
-					Timer:         &engine.Timer{Time: value.Time()},
+					Timer:         engine.Timer{Time: value.Time()},
 				})
 			}
 
 			for bpmnElementId, v := range timeCycleMap {
 				timers = append(timers, engine.TimerDefinition{
 					BpmnElementId: bpmnElementId,
-					Timer:         &engine.Timer{TimeCycle: v},
+					Timer:         engine.Timer{TimeCycle: v},
 				})
 			}
 
@@ -104,7 +104,7 @@ func newCreateCmd() *cobra.Command {
 				}
 				timers = append(timers, engine.TimerDefinition{
 					BpmnElementId: bpmnElementId,
-					Timer:         &engine.Timer{TimeDuration: engine.ISO8601Duration(value)},
+					Timer:         engine.Timer{TimeDuration: engine.ISO8601Duration(value)},
 				})
 			}
 

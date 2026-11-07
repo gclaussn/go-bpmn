@@ -131,8 +131,8 @@ func SendMessage(ctx Context, cmd engine.SendMessageCmd) (engine.Message, error)
 
 	// insert message
 	expiresAt := ctx.Time()
-	if cmd.ExpirationTimer != nil {
-		v, err := evaluateTimer(*cmd.ExpirationTimer, ctx.Time())
+	if !cmd.ExpirationTimer.IsZero() {
+		v, err := evaluateTimer(cmd.ExpirationTimer, ctx.Time())
 		if err != nil {
 			return engine.Message{}, engine.Error{
 				Type:   engine.ErrorValidation,
@@ -275,13 +275,13 @@ func findMessageSubscriber(ctx Context, cmd engine.SendMessageCmd) (*MessageSubs
 		return messageSubscription, nil, nil
 	}
 
-	eventDefinition, err := ctx.EventDefinitions().SelectByMessageName(cmd.Name)
+	eventDefinition, ok, err := ctx.EventDefinitions().SelectByMessageName(cmd.Name)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if eventDefinition != nil && eventDefinition.BpmnElementType == model.ElementMessageStartEvent {
-		return nil, eventDefinition, nil
+	if ok && eventDefinition.BpmnElementType == model.ElementMessageStartEvent {
+		return nil, &eventDefinition, nil
 	}
 
 	return nil, nil, nil
@@ -721,4 +721,92 @@ func (ec *executionContext) triggerMessageStartEvent(ctx Context, task *TaskEnti
 
 	message.ExpiresAt = pgtype.Timestamp{Time: ctx.Time(), Valid: true}
 	return ctx.Messages().Update(message)
+}
+
+func mapMessageEventDefinitions(
+	eventDefinitions []EventDefinitionEntity,
+	causes []engine.ErrorCause,
+	messageDefinitions []engine.MessageDefinition,
+	messageEvents []*model.Element,
+	processElement *model.Element,
+) ([]EventDefinitionEntity, []engine.ErrorCause) {
+	messageNames := make(map[string]string, len(messageDefinitions))
+	for _, messageDefinition := range messageDefinitions {
+		var messageEvent *model.Element
+		for _, e := range messageEvents {
+			if e.Id == messageDefinition.BpmnElementId {
+				messageEvent = e
+				break
+			}
+		}
+
+		switch {
+		case messageEvent == nil:
+			causes = append(causes, engine.ErrorCause{
+				Pointer: elementPointer(processElement),
+				Type:    "message_event",
+				Detail:  fmt.Sprintf("process %s has no message event %s", processElement.Id, messageDefinition.BpmnElementId),
+			})
+		case messageEvent.Type == model.ElementMessageThrowEvent || messageEvent.Type == model.ElementMessageEndEvent:
+			// ignored, because message throw and end events are executed (type [engine.JobExecute])
+		default:
+			messageNames[messageDefinition.BpmnElementId] = messageDefinition.MessageName
+		}
+	}
+
+	startMessageNames := make(map[string]bool)
+	for _, messageEvent := range messageEvents {
+		messageName, ok := messageNames[messageEvent.Id]
+		if ok && messageName == "" {
+			causes = append(causes, engine.ErrorCause{
+				Pointer: elementPointer(messageEvent),
+				Type:    "message_event",
+				Detail:  "message name is empty",
+			})
+			continue
+		}
+
+		if !ok {
+			eventDefinition := getEventDefinition(messageEvent)
+			if message := eventDefinition.Message; message != nil {
+				messageName = message.Name
+			}
+		}
+
+		if messageEvent.Type == model.ElementMessageStartEvent {
+			if messageName == "" {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(messageEvent),
+					Type:    "message_event",
+					Detail:  fmt.Sprintf("no message name defined for element %s", messageEvent.Id),
+				})
+				continue
+			}
+
+			// start message must be unique within process
+			if _, ok := startMessageNames[messageName]; ok {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(messageEvent),
+					Type:    "message_event",
+					Detail:  fmt.Sprintf("start message name %s must be unique", messageName),
+				})
+				continue
+			}
+
+			startMessageNames[messageName] = true
+		}
+
+		if !ok && messageName != "" {
+			messageNames[messageEvent.Id] = messageName
+		}
+	}
+
+	for bpmnElementId, messageName := range messageNames {
+		eventDefinitions = append(eventDefinitions, EventDefinitionEntity{
+			BpmnElementId: bpmnElementId,
+			MessageName:   pgtype.Text{String: messageName, Valid: true},
+		})
+	}
+
+	return eventDefinitions, causes
 }
