@@ -264,7 +264,7 @@ func TestDecodeJSONRequestBodyTimer(t *testing.T) {
 
 		e := problem.Errors[0]
 		assert.Equal("#/vtimer", e.Pointer)
-		assert.Equal("required", e.Type)
+		assert.Equal("timer", e.Type)
 		assert.NotEmpty(e.Detail)
 		assert.Empty(e.Value)
 	})
@@ -460,5 +460,5 @@ type DecodeTest struct {
 }
 
 type DecodeTimerTest struct {
-	VTimer *engine.Timer `json:"vtimer" validate:"required,timer"`
+	VTimer engine.Timer `json:"vtimer" validate:"timer"`
 }

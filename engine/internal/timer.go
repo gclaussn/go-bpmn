@@ -14,6 +14,7 @@ import (
 func SetTime(ctx Context, cmd engine.SetTimeCmd) (time.Time, time.Time, error) {
 	old := ctx.Time()
 
+	//lint:ignore S1016 cmd is not converted to engine.Timer
 	new, err := evaluateTimer(engine.Timer{
 		Time:         cmd.Time,
 		TimeCycle:    cmd.TimeCycle,
@@ -352,9 +353,9 @@ func mapTimerEventDefinitions(
 			continue
 		}
 
-		t := getEventDefinition(timerEvent).Timer
+		source := getEventDefinition(timerEvent).Timer
 
-		if timerEvent.Type == model.ElementTimerStartEvent && t == nil {
+		if timerEvent.Type == model.ElementTimerStartEvent && source == nil {
 			causes = append(causes, engine.ErrorCause{
 				Pointer: elementPointer(timerEvent),
 				Type:    "timer_event",
@@ -363,17 +364,42 @@ func mapTimerEventDefinitions(
 			continue
 		}
 
-		if t == nil {
+		if source == nil {
 			continue
 		}
 
-		var err error
-		timer, err = parseTimer(*t)
-		if err != nil {
+		// parse timer
+		var parserErr error
+		switch {
+		case source.Time != "":
+			t, err := time.Parse(time.RFC3339Nano, source.Time)
+			if err != nil {
+				parserErr = fmt.Errorf("failed to parse timeDate %s: %v", source.Time, err)
+			} else {
+				timer.Time = t
+			}
+		case source.TimeCycle != "":
+			if !gronx.IsValid(source.TimeCycle) {
+				parserErr = fmt.Errorf("failed to parse timeCycle %s: CRON is invalid", source.TimeCycle)
+			} else {
+				timer.TimeCycle = source.TimeCycle
+			}
+		case source.TimeDuration != "":
+			d, err := engine.NewISO8601Duration(source.TimeDuration)
+			if err != nil {
+				parserErr = fmt.Errorf("failed to parse timeDuration %s: %v", source.TimeCycle, err)
+			} else {
+				timer.TimeDuration = d
+			}
+		default:
+			parserErr = errors.New("timer event definition must specify a timeDate, timeCycle or timeDuration")
+		}
+
+		if parserErr != nil {
 			causes = append(causes, engine.ErrorCause{
 				Pointer: elementPointer(timerEvent),
 				Type:    "timer_event",
-				Detail:  err.Error(),
+				Detail:  parserErr.Error(),
 			})
 			continue
 		}
@@ -391,34 +417,4 @@ func mapTimerEventDefinitions(
 	}
 
 	return eventDefinitions, causes
-}
-
-// TODO move to func since only used once?
-// parseTimer parses a timer event definition.
-// Either a time, time cycle or time duration must be set.
-func parseTimer(timer model.Timer) (engine.Timer, error) {
-	if timer.Time != "" {
-		t, err := time.Parse(time.RFC3339Nano, timer.Time)
-		if err != nil {
-			return engine.Timer{}, fmt.Errorf("failed to parse timeDate %s: %v", timer.Time, err)
-		}
-		return engine.Timer{Time: t}, nil
-	}
-
-	if timer.TimeCycle != "" {
-		if !gronx.IsValid(timer.TimeCycle) {
-			return engine.Timer{}, fmt.Errorf("failed to parse timeCycle %s: CRON is invalid", timer.TimeCycle)
-		}
-		return engine.Timer{TimeCycle: timer.TimeCycle}, nil
-	}
-
-	if timer.TimeDuration != "" {
-		d, err := engine.NewISO8601Duration(timer.TimeDuration)
-		if err != nil {
-			return engine.Timer{}, fmt.Errorf("failed to parse timeDuration %s: %v", timer.TimeCycle, err)
-		}
-		return engine.Timer{TimeDuration: d}, nil
-	}
-
-	return engine.Timer{}, errors.New("timer event definition must specify a timeDate, timeCycle or timeDuration")
 }
