@@ -306,7 +306,7 @@ func (m JobMux) SetTimer(bpmnElementId string, jobHandler func(jc JobContext) (e
 		}
 
 		return &engine.JobCompletion{
-			Timer: &timer,
+			Timer: timer,
 		}, nil
 	}
 }

@@ -195,18 +195,12 @@ type Timer struct {
 	TimeDuration ISO8601Duration
 }
 
-func (v Timer) Timer() *engine.Timer {
-	timer := engine.Timer{
+func (v Timer) Timer() engine.Timer {
+	return engine.Timer{
 		Time:         v.Time.Time(),
 		TimeCycle:    v.TimeCycle,
 		TimeDuration: engine.ISO8601Duration(v.TimeDuration),
 	}
-
-	if !timer.Time.IsZero() || timer.TimeCycle != "" || !timer.TimeDuration.IsZero() {
-		return &timer
-	}
-
-	return nil
 }
 
 // engineKey is used as context value key.

@@ -45,11 +45,8 @@ func newValidate() *validator.Validate {
 		return RegexpTagName.MatchString(fl.Field().String())
 	})
 	validate.RegisterValidation("timer", func(fl validator.FieldLevel) bool {
-		timer, ok := fl.Field().Interface().(engine.Timer)
-		if !ok {
-			return true
-		}
-		return !timer.Time.IsZero() || timer.TimeCycle != "" || !timer.TimeDuration.IsZero()
+		timer := fl.Field().Interface().(engine.Timer)
+		return !timer.IsZero()
 	}, true)
 	validate.RegisterValidation("variable_name", func(fl validator.FieldLevel) bool {
 		return RegexpVariableName.MatchString(fl.Field().String())

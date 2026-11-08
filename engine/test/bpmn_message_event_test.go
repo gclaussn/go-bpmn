@@ -70,7 +70,7 @@ func (x messageEventTest) boundaryMessageSentBefore(t *testing.T) {
 
 	_, err := x.e.SendMessage(context.Background(), engine.SendMessageCmd{
 		CorrelationKey: "ck",
-		ExpirationTimer: &engine.Timer{
+		ExpirationTimer: engine.Timer{
 			TimeDuration: engine.ISO8601Duration("PT1H"),
 		},
 		Name:     t.Name(),
@@ -185,7 +185,7 @@ func (x messageEventTest) boundaryNonInterruptingMessageSentBefore(t *testing.T)
 
 	_, err := x.e.SendMessage(context.Background(), engine.SendMessageCmd{
 		CorrelationKey: "ck",
-		ExpirationTimer: &engine.Timer{
+		ExpirationTimer: engine.Timer{
 			TimeDuration: engine.ISO8601Duration("PT1H"),
 		},
 		Name:     t.Name(),
@@ -363,7 +363,7 @@ func (x messageEventTest) catchMessageSentBefore(t *testing.T) {
 	// given
 	message1, err := x.e.SendMessage(context.Background(), engine.SendMessageCmd{
 		CorrelationKey: "ck",
-		ExpirationTimer: &engine.Timer{
+		ExpirationTimer: engine.Timer{
 			TimeDuration: engine.ISO8601Duration("PT1H"),
 		},
 		Name:     t.Name(),
@@ -384,7 +384,7 @@ func (x messageEventTest) catchMessageSentBefore(t *testing.T) {
 
 	_, err = x.e.SendMessage(context.Background(), engine.SendMessageCmd{ // same as message 1
 		CorrelationKey: "ck",
-		ExpirationTimer: &engine.Timer{
+		ExpirationTimer: engine.Timer{
 			TimeDuration: engine.ISO8601Duration("PT1H"),
 		},
 		Name:     t.Name(),

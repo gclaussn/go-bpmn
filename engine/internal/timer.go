@@ -11,6 +11,7 @@ import (
 func SetTime(ctx Context, cmd engine.SetTimeCmd) (time.Time, time.Time, error) {
 	old := ctx.Time()
 
+	//lint:ignore S1016 cmd is not converted to engine.Timer
 	new, err := evaluateTimer(engine.Timer{
 		Time:         cmd.Time,
 		TimeCycle:    cmd.TimeCycle,
@@ -41,12 +42,12 @@ func SetTime(ctx Context, cmd engine.SetTimeCmd) (time.Time, time.Time, error) {
 }
 
 func (ec *executionContext) setTimer(ctx Context, job *JobEntity, jobCompletion *engine.JobCompletion) error {
-	if jobCompletion == nil || jobCompletion.Timer == nil {
+	if jobCompletion == nil || jobCompletion.Timer.IsZero() {
 		job.Error = pgtype.Text{String: "expected a timer", Valid: true}
 		return nil
 	}
 
-	dueAt, err := evaluateTimer(*jobCompletion.Timer, ctx.Time())
+	dueAt, err := evaluateTimer(jobCompletion.Timer, ctx.Time())
 	if err != nil {
 		job.Error = pgtype.Text{String: fmt.Sprintf("failed to evaluate timer: %v", err), Valid: true}
 		return nil
@@ -127,7 +128,7 @@ func (ec *executionContext) triggerTimerBoundaryEvent(ctx Context, timer engine.
 			State:         engine.WorkCreated,
 			Type:          engine.TaskTriggerEvent,
 
-			Instance: TriggerEventTask{Timer: &timer},
+			Instance: TriggerEventTask{Timer: timer},
 		}
 
 		if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {
@@ -297,7 +298,7 @@ func (ec *executionContext) triggerTimerStartEvent(ctx Context, task *TaskEntity
 		State:         engine.WorkCreated,
 		Type:          engine.TaskTriggerEvent,
 
-		Instance: TriggerEventTask{Timer: &timer},
+		Instance: TriggerEventTask{Timer: timer},
 	}
 
 	if err := ctx.Tasks().Insert(&triggerEventTask); err != nil {

@@ -165,25 +165,25 @@ func (r elementRepository) Query(criteria engine.ElementCriteria, options engine
 
 		result := entity.Element()
 		if isSuspended.Valid {
-			var timer *engine.Timer
-			switch entity.BpmnElementType {
-			case model.ElementTimerBoundaryEvent, model.ElementTimerCatchEvent, model.ElementTimerStartEvent:
-				timer = &engine.Timer{
-					Time:         timeV.Time,
-					TimeCycle:    timeCycle.String,
-					TimeDuration: engine.ISO8601Duration(timeDuration.String),
-				}
-			}
-
-			result.EventDefinition = &engine.EventDefinition{
+			eventDefinition := engine.EventDefinition{
 				IsSuspended: isSuspended.Bool,
 
 				ErrorCode:      errorCode.String,
 				EscalationCode: escalationCode.String,
 				MessageName:    messageName.String,
 				SignalName:     signalName.String,
-				Timer:          timer,
 			}
+
+			switch entity.BpmnElementType {
+			case model.ElementTimerBoundaryEvent, model.ElementTimerCatchEvent, model.ElementTimerStartEvent:
+				eventDefinition.Timer = engine.Timer{
+					Time:         timeV.Time,
+					TimeCycle:    timeCycle.String,
+					TimeDuration: engine.ISO8601Duration(timeDuration.String),
+				}
+			}
+
+			result.EventDefinition = &eventDefinition
 		}
 
 		results = append(results, result)

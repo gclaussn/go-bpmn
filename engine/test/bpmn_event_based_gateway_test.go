@@ -57,7 +57,7 @@ func (x eventBasedGatewayTest) gateway(t *testing.T) {
 	timerCatchEvent := psAssert.IsWaitingAt("timerCatchEvent")
 	timerCatchEvent.CompleteJob(engine.CompleteJobCmd{
 		Completion: &engine.JobCompletion{
-			Timer: &engine.Timer{
+			Timer: engine.Timer{
 				TimeDuration: "PT1H",
 			},
 		},
@@ -120,7 +120,7 @@ func (x eventBasedGatewayTest) gatewayDefinition(t *testing.T) {
 			{BpmnElementId: "signalCatchEvent", SignalName: t.Name()},
 		},
 		Timers: []engine.TimerDefinition{
-			{BpmnElementId: "timerCatchEvent", Timer: &engine.Timer{TimeDuration: "PT1H"}},
+			{BpmnElementId: "timerCatchEvent", Timer: engine.Timer{TimeDuration: "PT1H"}},
 		},
 	})
 

@@ -170,7 +170,7 @@ type SendMessageCmd struct {
 	// Key, used to correlate a message subscription with the message.
 	CorrelationKey string `json:"correlationKey" validate:"required"`
 	// A timer that defines when the message expires.
-	ExpirationTimer *Timer `json:"expirationTimer"`
+	ExpirationTimer Timer `json:"expirationTimer,omitzero"`
 	// Message name.
 	Name string `json:"name" validate:"required"`
 	// Optional key that uniquely identifies the message.
@@ -334,7 +334,7 @@ type JobCompletion struct {
 	SignalName string `json:"signalName,omitempty"`
 	// A timer definition.
 	// Applicable when job type is `SET_TIMER`.
-	Timer *Timer `json:"timer,omitempty"`
+	Timer Timer `json:"timer,omitzero"`
 }
 
 // MultiInstance provides information for starting a multi-instance.
@@ -371,5 +371,5 @@ type SignalDefinition struct {
 // TimerDefinition is used to define a timer event.
 type TimerDefinition struct {
 	BpmnElementId string `json:"bpmnElementId" validate:"required"` // Element ID of the timer event within the BPMN XML.
-	Timer         *Timer `json:"timer" validate:"required,timer"`   // Timer that defines a point in time.
+	Timer         Timer  `json:"timer,omitzero" validate:"timer"`   // Timer that defines a point in time.
 }

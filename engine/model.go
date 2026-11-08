@@ -544,7 +544,7 @@ type EventDefinition struct {
 	EscalationCode string `json:"escalationCode,omitempty"` // Code of a BPMN escalation - set in case of an escalation event.
 	MessageName    string `json:"messageName,omitempty"`    // Name of the message - set in case of a message event.
 	SignalName     string `json:"signalName,omitempty"`     // Name of the signal - set in case of a signal event.
-	Timer          *Timer `json:"timer,omitempty"`          // A timer definition - set in case of a timer event.
+	Timer          Timer  `json:"timer,omitzero"`           // A timer definition - set in case of a timer event.
 }
 
 // Incident represents a failed job or task, which has no more retries left.
@@ -900,6 +900,10 @@ type Timer struct {
 	TimeCycle string `json:"timeCycle,omitempty" validate:"cron"`
 	// Duration based timer that uses the engine's time to calculate a point in time.
 	TimeDuration ISO8601Duration `json:"timeDuration,omitempty" validate:"iso8601_duration"`
+}
+
+func (t Timer) IsZero() bool {
+	return t.Time.IsZero() && t.TimeCycle == "" && t.TimeDuration.IsZero()
 }
 
 func (t Timer) String() string {

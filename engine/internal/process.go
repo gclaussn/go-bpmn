@@ -347,7 +347,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		escalationCodes = make(map[string]string, len(cmd.Escalations))
 		messageNames    = make(map[string]string, len(cmd.Messages))
 		signalNames     = make(map[string]string, len(cmd.Signals))
-		timers          = make(map[string]*engine.Timer, len(cmd.Timers))
+		timers          = make(map[string]engine.Timer, len(cmd.Timers))
 	)
 
 	for _, errorDefinition := range cmd.Errors {
@@ -536,8 +536,8 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			}
 		}
 
-		timer := timers[bpmnElement.Id]
-		if timer != nil {
+		timer, isTimerSet := timers[bpmnElement.Id]
+		if isTimerSet && !timer.IsZero() {
 			if !isTimerEvent(bpmnElement.Type) {
 				causes = append(causes, engine.ErrorCause{
 					Pointer: elementPointer(bpmnElement),
@@ -847,7 +847,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			continue
 		}
 
-		if timer == nil {
+		if timer.IsZero() {
 			continue
 		}
 
@@ -869,7 +869,7 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			continue
 		}
 
-		dueAt, err := evaluateTimer(*timer, ctx.Time())
+		dueAt, err := evaluateTimer(timer, ctx.Time())
 		if err != nil {
 			causes = append(causes, engine.ErrorCause{
 				Pointer: elementPointer(node.bpmnElement),

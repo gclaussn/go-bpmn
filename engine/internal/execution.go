@@ -306,14 +306,10 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			if node.eventDefinition == nil {
 				jobType = engine.JobSetTimer
 			} else {
-				timer := engine.Timer{
-					Time:         node.eventDefinition.Time.Time,
-					TimeCycle:    node.eventDefinition.TimeCycle.String,
-					TimeDuration: engine.ISO8601Duration(node.eventDefinition.TimeDuration.String),
-				}
+				timer := node.eventDefinition.Timer()
 
 				taskType = engine.TaskTriggerEvent
-				taskInstance = TriggerEventTask{Timer: &timer}
+				taskInstance = TriggerEventTask{Timer: timer}
 
 				execution.Context = pgtype.Text{String: timer.String(), Valid: true}
 			}
@@ -367,7 +363,7 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			}
 
 			if isTimerEvent(node.bpmnElement.Type) {
-				timer := *taskInstance.(TriggerEventTask).Timer
+				timer := taskInstance.(TriggerEventTask).Timer
 
 				dueAt, err := evaluateTimer(timer, ctx.Time())
 				if err != nil {

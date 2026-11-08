@@ -131,8 +131,8 @@ func SendMessage(ctx Context, cmd engine.SendMessageCmd) (engine.Message, error)
 
 	// insert message
 	expiresAt := ctx.Time()
-	if cmd.ExpirationTimer != nil {
-		v, err := evaluateTimer(*cmd.ExpirationTimer, ctx.Time())
+	if !cmd.ExpirationTimer.IsZero() {
+		v, err := evaluateTimer(cmd.ExpirationTimer, ctx.Time())
 		if err != nil {
 			return engine.Message{}, engine.Error{
 				Type:   engine.ErrorValidation,

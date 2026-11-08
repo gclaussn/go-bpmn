@@ -648,8 +648,8 @@ func TestCreateProcessWithTimer(t *testing.T) {
 					BpmnProcessId: "timerStartTest",
 					BpmnXml:       bpmnXml1,
 					Timers: []engine.TimerDefinition{
-						{BpmnElementId: "timerStartEvent", Timer: &engine.Timer{}},
-						{BpmnElementId: "endEvent", Timer: &engine.Timer{}},
+						{BpmnElementId: "timerStartEvent", Timer: engine.Timer{TimeDuration: "PT1H"}},
+						{BpmnElementId: "endEvent", Timer: engine.Timer{TimeDuration: "PT1H"}},
 					},
 					Version:  "2",
 					WorkerId: testWorkerId,
@@ -676,8 +676,8 @@ func TestCreateProcessWithTimer(t *testing.T) {
 					BpmnProcessId: "timerStartTest",
 					BpmnXml:       bpmnXml1,
 					Timers: []engine.TimerDefinition{
-						{BpmnElementId: "timerStartEvent", Timer: &engine.Timer{}},
-						{BpmnElementId: "not-existing", Timer: &engine.Timer{}},
+						{BpmnElementId: "timerStartEvent", Timer: engine.Timer{TimeDuration: "PT1H"}},
+						{BpmnElementId: "not-existing", Timer: engine.Timer{TimeDuration: "PT1H"}},
 					},
 					Version:  "3",
 					WorkerId: testWorkerId,
@@ -704,7 +704,7 @@ func TestCreateProcessWithTimer(t *testing.T) {
 					BpmnProcessId: "timerStartTest",
 					BpmnXml:       bpmnXml1,
 					Timers: []engine.TimerDefinition{
-						{BpmnElementId: "timerStartEvent", Timer: &engine.Timer{TimeCycle: "0 * * * *"}},
+						{BpmnElementId: "timerStartEvent", Timer: engine.Timer{TimeCycle: "0 * * * *"}},
 					},
 					Version:  "4",
 					WorkerId: testWorkerId,
@@ -742,8 +742,8 @@ func TestCreateProcessWithTimer(t *testing.T) {
 					BpmnProcessId: "timerStartTest",
 					BpmnXml:       bpmnXml2,
 					Timers: []engine.TimerDefinition{
-						{BpmnElementId: "timerStartEvent1", Timer: &engine.Timer{TimeCycle: "0 * * * *"}},
-						{BpmnElementId: "timerStartEvent2", Timer: &engine.Timer{TimeCycle: "0 * * * *"}},
+						{BpmnElementId: "timerStartEvent1", Timer: engine.Timer{TimeCycle: "0 * * * *"}},
+						{BpmnElementId: "timerStartEvent2", Timer: engine.Timer{TimeCycle: "0 * * * *"}},
 					},
 					Version:  "5",
 					WorkerId: testWorkerId,

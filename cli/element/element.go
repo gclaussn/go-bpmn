@@ -101,7 +101,7 @@ func formatEventDefinition(d *engine.EventDefinition) string {
 		return fmt.Sprintf("messageName=%s", d.MessageName)
 	case d.SignalName != "":
 		return fmt.Sprintf("signalName=%s", d.SignalName)
-	case d.Timer != nil:
+	case !d.Timer.IsZero():
 		return fmt.Sprintf("timer=%s", d.Timer)
 	default:
 		return ""

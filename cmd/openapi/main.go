@@ -550,6 +550,8 @@ func setPropertyConstraint(property *Property, validate []string) {
 			if !slices.Contains(validate, "dive") {
 				property.required = true
 			}
+		case "timer":
+			property.required = true
 		case "unique":
 			property.UniqueItems = true
 		}
