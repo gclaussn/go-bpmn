@@ -617,3 +617,88 @@ func (ec *executionContext) triggerSignalThrowEvent(ctx Context) error {
 
 	return nil
 }
+
+func mapSignalEventDefinitions(
+	eventDefinitions []EventDefinitionEntity,
+	causes []engine.ErrorCause,
+	signalDefinitions []engine.SignalDefinition,
+	signalEvents []*model.Element,
+	processElement *model.Element,
+) ([]EventDefinitionEntity, []engine.ErrorCause) {
+	signalNames := make(map[string]string, len(signalDefinitions))
+	for _, signalDefinition := range signalDefinitions {
+		var exists bool
+		for _, signalEvent := range signalEvents {
+			if signalEvent.Id == signalDefinition.BpmnElementId {
+				exists = true
+				break
+			}
+		}
+
+		if exists {
+			signalNames[signalDefinition.BpmnElementId] = signalDefinition.SignalName
+		} else {
+			causes = append(causes, engine.ErrorCause{
+				Pointer: elementPointer(processElement),
+				Type:    "signal_event",
+				Detail:  fmt.Sprintf("process %s has no signal event %s", processElement.Id, signalDefinition.BpmnElementId),
+			})
+		}
+	}
+
+	startSignalNames := make(map[string]bool)
+	for _, signalEvent := range signalEvents {
+		signalName, ok := signalNames[signalEvent.Id]
+		if ok && signalName == "" {
+			causes = append(causes, engine.ErrorCause{
+				Pointer: elementPointer(signalEvent),
+				Type:    "signal_event",
+				Detail:  "signal name is empty",
+			})
+			continue
+		}
+
+		if !ok {
+			eventDefinition := getEventDefinition(signalEvent)
+			if signal := eventDefinition.Signal; signal != nil {
+				signalName = signal.Name
+			}
+		}
+
+		if signalEvent.Type == model.ElementSignalStartEvent {
+			if signalName == "" {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(signalEvent),
+					Type:    "signal_event",
+					Detail:  fmt.Sprintf("no signal name defined for element %s", signalEvent.Id),
+				})
+				continue
+			}
+
+			// start signal must be unique within process
+			if _, ok := startSignalNames[signalName]; ok {
+				causes = append(causes, engine.ErrorCause{
+					Pointer: elementPointer(signalEvent),
+					Type:    "signal_event",
+					Detail:  fmt.Sprintf("start signal name %s must be unique", signalName),
+				})
+				continue
+			}
+
+			startSignalNames[signalName] = true
+		}
+
+		if !ok && signalName != "" {
+			signalNames[signalEvent.Id] = signalName
+		}
+	}
+
+	for bpmnElementId, signalName := range signalNames {
+		eventDefinitions = append(eventDefinitions, EventDefinitionEntity{
+			BpmnElementId: bpmnElementId,
+			SignalName:    pgtype.Text{String: signalName, Valid: true},
+		})
+	}
+
+	return eventDefinitions, causes
+}

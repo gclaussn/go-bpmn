@@ -803,14 +803,14 @@ func (g graph) node(bpmnElementId string) (node, error) {
 }
 
 // setEventDefinitions enriches graph nodes by adding event definitions.
-func (g graph) setEventDefinitions(eventDefinitions []*EventDefinitionEntity) {
+func (g graph) setEventDefinitions(eventDefinitions []EventDefinitionEntity) {
 	for _, eventeventDefinition := range eventDefinitions {
 		node, ok := g.nodes[eventeventDefinition.BpmnElementId]
 		if !ok {
 			continue
 		}
 
-		node.eventDefinition = eventeventDefinition
+		node.eventDefinition = &eventeventDefinition
 		g.nodes[eventeventDefinition.BpmnElementId] = node
 	}
 }

@@ -59,22 +59,22 @@ func (e EventDefinitionEntity) Timer() engine.Timer {
 }
 
 type EventDefinitionRepository interface {
-	InsertBatch([]*EventDefinitionEntity) error
-	Select(elementId int32) (*EventDefinitionEntity, error)
+	InsertBatch([]EventDefinitionEntity) error
+	Select(elementId int32) (EventDefinitionEntity, error)
 
-	SelectByProcessId(processId int32) ([]*EventDefinitionEntity, error)
+	SelectByProcessId(processId int32) ([]EventDefinitionEntity, error)
 
-	SelectByBpmnProcessId(bpmnProcessId string) ([]*EventDefinitionEntity, error)
+	SelectByBpmnProcessId(bpmnProcessId string) ([]EventDefinitionEntity, error)
 
 	// SelectByMessageName selects a not suspended event definition for the message name.
 	//
-	// If no such event definition exists, nil is returned.
-	SelectByMessageName(messageName string) (*EventDefinitionEntity, error)
+	// If no such event definition exists, false is returned.
+	SelectByMessageName(messageName string) (EventDefinitionEntity, bool, error)
 
 	// SelectBySignalName selects all not suspended event definitions for the signal name.
-	SelectBySignalName(signalName string) ([]*EventDefinitionEntity, error)
+	SelectBySignalName(signalName string) ([]EventDefinitionEntity, error)
 
-	UpdateBatch([]*EventDefinitionEntity) error
+	UpdateBatch([]EventDefinitionEntity) error
 }
 
 // TriggerEventTask triggers start or catch events.
@@ -515,7 +515,7 @@ func suspendEventDefinitions(ctx Context, bpmnProcessId string) error {
 		return err
 	}
 
-	var suspended []*EventDefinitionEntity
+	var suspended []EventDefinitionEntity
 	for _, eventDefinition := range eventDefinitions {
 		if eventDefinition.IsSuspended {
 			continue

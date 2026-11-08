@@ -496,3 +496,52 @@ func findEscalationBoundaryEvent(
 	// !recursion
 	return findEscalationBoundaryEvent(ctx, parentProcess.graph, parentScope, sourceType, escalationCode)
 }
+
+func mapEscalationEventDefinitions(
+	eventDefinitions []EventDefinitionEntity,
+	causes []engine.ErrorCause,
+	escalationDefinitions []engine.EscalationDefinition,
+	escalationEvents []*model.Element,
+	processElement *model.Element,
+) ([]EventDefinitionEntity, []engine.ErrorCause) {
+	escalationCodes := make(map[string]string, len(escalationDefinitions))
+	for _, escalationDefinition := range escalationDefinitions {
+		var exists bool
+		for _, escalationEvent := range escalationEvents {
+			if escalationEvent.Id == escalationDefinition.BpmnElementId {
+				exists = true
+				break
+			}
+		}
+
+		if exists {
+			escalationCodes[escalationDefinition.BpmnElementId] = escalationDefinition.EscalationCode
+		} else {
+			causes = append(causes, engine.ErrorCause{
+				Pointer: elementPointer(processElement),
+				Type:    "escalation_event",
+				Detail:  fmt.Sprintf("process %s has no escalation event %s", processElement.Id, escalationDefinition.BpmnElementId),
+			})
+		}
+	}
+
+	for _, escalationEvent := range escalationEvents {
+		if _, ok := escalationCodes[escalationEvent.Id]; ok {
+			continue
+		}
+
+		eventDefinition := getEventDefinition(escalationEvent)
+		if escalation := eventDefinition.Escalation; escalation != nil {
+			escalationCodes[escalationEvent.Id] = escalation.Code
+		}
+	}
+
+	for bpmnElementId, escalationCode := range escalationCodes {
+		eventDefinitions = append(eventDefinitions, EventDefinitionEntity{
+			BpmnElementId:  bpmnElementId,
+			EscalationCode: pgtype.Text{String: escalationCode, Valid: true},
+		})
+	}
+
+	return eventDefinitions, causes
+}

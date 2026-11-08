@@ -362,7 +362,11 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 				Instance: taskInstance,
 			}
 
-			if isTimerEvent(node.bpmnElement.Type) {
+			switch execution.BpmnElementType {
+			case
+				model.ElementTimerBoundaryEvent,
+				model.ElementTimerCatchEvent,
+				model.ElementTimerStartEvent:
 				timer := taskInstance.(TriggerEventTask).Timer
 
 				dueAt, err := evaluateTimer(timer, ctx.Time())

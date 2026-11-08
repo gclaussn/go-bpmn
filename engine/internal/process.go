@@ -341,219 +341,68 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		}
 	}
 
-	// validate events
+	// map event definitions
 	var (
-		errorCodes      = make(map[string]string, len(cmd.Errors))
-		escalationCodes = make(map[string]string, len(cmd.Escalations))
-		messageNames    = make(map[string]string, len(cmd.Messages))
-		signalNames     = make(map[string]string, len(cmd.Signals))
-		timers          = make(map[string]engine.Timer, len(cmd.Timers))
+		errorEvents      []*model.Element
+		escalationEvents []*model.Element
+		messageEvents    []*model.Element
+		signalEvents     []*model.Element
+		timerEvents      []*model.Element
+
+		eventDefinitions []EventDefinitionEntity
+
+		timerCount int // number of timer event definitions
 	)
 
-	for _, errorDefinition := range cmd.Errors {
-		errorCodes[errorDefinition.BpmnElementId] = errorDefinition.ErrorCode
-	}
-	for _, escalationDefinition := range cmd.Escalations {
-		escalationCodes[escalationDefinition.BpmnElementId] = escalationDefinition.EscalationCode
-	}
-	for _, messageDefinition := range cmd.Messages {
-		messageNames[messageDefinition.BpmnElementId] = messageDefinition.MessageName
-	}
-	for _, signalDefinition := range cmd.Signals {
-		signalNames[signalDefinition.BpmnElementId] = signalDefinition.SignalName
-	}
-	for _, timerDefinition := range cmd.Timers {
-		timers[timerDefinition.BpmnElementId] = timerDefinition.Timer
-	}
-
 	for _, bpmnElement := range bpmnElements {
-		_, isErrorCodeSet := errorCodes[bpmnElement.Id]
 		switch bpmnElement.Type {
-		case model.ElementErrorBoundaryEvent:
-			if !isErrorCodeSet {
-				boundaryEvent := bpmnElement.Model.(model.BoundaryEvent)
-				if bpmnError := boundaryEvent.EventDefinition.Error; bpmnError != nil {
-					errorCodes[bpmnElement.Id] = bpmnError.Code
-				}
-			}
-		case model.ElementErrorEndEvent:
-			if !isErrorCodeSet {
-				endEvent := bpmnElement.Model.(model.EndEvent)
-				if bpmnError := endEvent.EventDefinition.Error; bpmnError != nil {
-					errorCodes[bpmnElement.Id] = bpmnError.Code
-				}
-			}
-		default:
-			if isErrorCodeSet {
-				causes = append(causes, engine.ErrorCause{
-					Pointer: elementPointer(bpmnElement),
-					Type:    "error_event",
-					Detail:  fmt.Sprintf("element %s is not an error event", bpmnElement.Id),
-				})
-			}
+		case
+			model.ElementErrorBoundaryEvent,
+			model.ElementErrorEndEvent:
+			errorEvents = append(errorEvents, bpmnElement)
+		case
+			model.ElementEscalationBoundaryEvent,
+			model.ElementEscalationEndEvent,
+			model.ElementEscalationThrowEvent:
+			escalationEvents = append(escalationEvents, bpmnElement)
+		case
+			model.ElementMessageBoundaryEvent,
+			model.ElementMessageCatchEvent,
+			model.ElementMessageEndEvent,
+			model.ElementMessageStartEvent,
+			model.ElementMessageThrowEvent:
+			messageEvents = append(messageEvents, bpmnElement)
+		case
+			model.ElementSignalBoundaryEvent,
+			model.ElementSignalCatchEvent,
+			model.ElementSignalEndEvent,
+			model.ElementSignalStartEvent,
+			model.ElementSignalThrowEvent:
+			signalEvents = append(signalEvents, bpmnElement)
+		case
+			model.ElementTimerBoundaryEvent,
+			model.ElementTimerCatchEvent,
+			model.ElementTimerStartEvent:
+			timerEvents = append(timerEvents, bpmnElement)
 		}
+	}
 
-		_, isEscalationCodeSet := escalationCodes[bpmnElement.Id]
-		switch bpmnElement.Type {
-		case model.ElementEscalationBoundaryEvent:
-			if !isEscalationCodeSet {
-				boundaryEvent := bpmnElement.Model.(model.BoundaryEvent)
-				if escalation := boundaryEvent.EventDefinition.Escalation; escalation != nil {
-					escalationCodes[bpmnElement.Id] = escalation.Code
-				}
-			}
-		case model.ElementEscalationEndEvent:
-			if !isEscalationCodeSet {
-				endEvent := bpmnElement.Model.(model.EndEvent)
-				if escalation := endEvent.EventDefinition.Escalation; escalation != nil {
-					escalationCodes[bpmnElement.Id] = escalation.Code
-				}
-			}
-		case model.ElementEscalationThrowEvent:
-			if !isEscalationCodeSet {
-				intermediateThrowEvent := bpmnElement.Model.(model.IntermediateThrowEvent)
-				if escalation := intermediateThrowEvent.EventDefinition.Escalation; escalation != nil {
-					escalationCodes[bpmnElement.Id] = escalation.Code
-				}
-			}
-		default:
-			if isEscalationCodeSet {
-				causes = append(causes, engine.ErrorCause{
-					Pointer: elementPointer(bpmnElement),
-					Type:    "escalation_event",
-					Detail:  fmt.Sprintf("element %s is not an escalation event", bpmnElement.Id),
-				})
-			}
-		}
-
-		messageName, isMessageNameSet := messageNames[bpmnElement.Id]
-		if isMessageNameSet && messageName == "" {
-			causes = append(causes, engine.ErrorCause{
-				Pointer: elementPointer(bpmnElement),
-				Type:    "message_event",
-				Detail:  "message name is empty",
-			})
-		}
-
-		switch bpmnElement.Type {
-		case model.ElementMessageBoundaryEvent:
-			if !isMessageNameSet {
-				boundaryEvent := bpmnElement.Model.(model.BoundaryEvent)
-				if message := boundaryEvent.EventDefinition.Message; message != nil {
-					messageNames[bpmnElement.Id] = message.Name
-				}
-			}
-		case model.ElementMessageCatchEvent:
-			if !isMessageNameSet {
-				intermediateCatchEvent := bpmnElement.Model.(model.IntermediateCatchEvent)
-				if message := intermediateCatchEvent.EventDefinition.Message; message != nil {
-					messageNames[bpmnElement.Id] = message.Name
-				}
-			}
-		case model.ElementMessageStartEvent:
-			if !isMessageNameSet {
-				startEvent := bpmnElement.Model.(model.StartEvent)
-				if message := startEvent.EventDefinition.Message; message != nil {
-					messageNames[bpmnElement.Id] = message.Name
-				} else {
-					causes = append(causes, engine.ErrorCause{
-						Pointer: elementPointer(bpmnElement),
-						Type:    "message_event",
-						Detail:  fmt.Sprintf("no message name defined for element %s", bpmnElement.Id),
-					})
-				}
-			}
-		case model.ElementMessageThrowEvent, model.ElementMessageEndEvent:
-			// ignore, because message throw and end event are executed (job type EXECUTE)
-		default:
-			if isMessageNameSet {
-				causes = append(causes, engine.ErrorCause{
-					Pointer: elementPointer(bpmnElement),
-					Type:    "message_event",
-					Detail:  fmt.Sprintf("element %s is not a message event", bpmnElement.Id),
-				})
-			}
-		}
-
-		signalName, isSignalNameSet := signalNames[bpmnElement.Id]
-		if isSignalNameSet && signalName == "" {
-			causes = append(causes, engine.ErrorCause{
-				Pointer: elementPointer(bpmnElement),
-				Type:    "signal_event",
-				Detail:  "signal name is empty",
-			})
-		}
-
-		switch bpmnElement.Type {
-		case model.ElementSignalBoundaryEvent:
-			if !isSignalNameSet {
-				boundaryEvent := bpmnElement.Model.(model.BoundaryEvent)
-				if signal := boundaryEvent.EventDefinition.Signal; signal != nil {
-					signalNames[bpmnElement.Id] = signal.Name
-				}
-			}
-		case model.ElementSignalCatchEvent:
-			if !isSignalNameSet {
-				intermediateCatchEvent := bpmnElement.Model.(model.IntermediateCatchEvent)
-				if signal := intermediateCatchEvent.EventDefinition.Signal; signal != nil {
-					signalNames[bpmnElement.Id] = signal.Name
-				}
-			}
-		case model.ElementSignalEndEvent:
-			if !isSignalNameSet {
-				endEvent := bpmnElement.Model.(model.EndEvent)
-				if signal := endEvent.EventDefinition.Signal; signal != nil {
-					signalNames[bpmnElement.Id] = signal.Name
-				}
-			}
-		case model.ElementSignalStartEvent:
-			if !isSignalNameSet {
-				startEvent := bpmnElement.Model.(model.StartEvent)
-				if signal := startEvent.EventDefinition.Signal; signal != nil {
-					signalNames[bpmnElement.Id] = signal.Name
-				} else {
-					causes = append(causes, engine.ErrorCause{
-						Pointer: elementPointer(bpmnElement),
-						Type:    "signal_event",
-						Detail:  fmt.Sprintf("no signal name defined for element %s", bpmnElement.Id),
-					})
-				}
-			}
-		case model.ElementSignalThrowEvent:
-			if !isSignalNameSet {
-				intermediateThrowEvent := bpmnElement.Model.(model.IntermediateThrowEvent)
-				if signal := intermediateThrowEvent.EventDefinition.Signal; signal != nil {
-					signalNames[bpmnElement.Id] = signal.Name
-				}
-			}
-		default:
-			if isSignalNameSet {
-				causes = append(causes, engine.ErrorCause{
-					Pointer: elementPointer(bpmnElement),
-					Type:    "signal_event",
-					Detail:  fmt.Sprintf("element %s is not a signal event", bpmnElement.Id),
-				})
-			}
-		}
-
-		timer, isTimerSet := timers[bpmnElement.Id]
-		if isTimerSet && !timer.IsZero() {
-			if !isTimerEvent(bpmnElement.Type) {
-				causes = append(causes, engine.ErrorCause{
-					Pointer: elementPointer(bpmnElement),
-					Type:    "timer_event",
-					Detail:  fmt.Sprintf("element %s is not a timer event", bpmnElement.Id),
-				})
-			}
-		} else {
-			if bpmnElement.Type == model.ElementTimerStartEvent {
-				causes = append(causes, engine.ErrorCause{
-					Pointer: elementPointer(bpmnElement),
-					Type:    "timer_event",
-					Detail:  fmt.Sprintf("no timer defined for BPMN element %s", bpmnElement.Id),
-				})
-			}
-		}
+	if len(cmd.Errors) != 0 || len(errorEvents) != 0 {
+		eventDefinitions, causes = mapErrorEventDefinitions(eventDefinitions, causes, cmd.Errors, errorEvents, processElement)
+	}
+	if len(cmd.Escalations) != 0 || len(escalationEvents) != 0 {
+		eventDefinitions, causes = mapEscalationEventDefinitions(eventDefinitions, causes, cmd.Escalations, escalationEvents, processElement)
+	}
+	if len(cmd.Messages) != 0 || len(messageEvents) != 0 {
+		eventDefinitions, causes = mapMessageEventDefinitions(eventDefinitions, causes, cmd.Messages, messageEvents, processElement)
+	}
+	if len(cmd.Signals) != 0 || len(signalEvents) != 0 {
+		eventDefinitions, causes = mapSignalEventDefinitions(eventDefinitions, causes, cmd.Signals, signalEvents, processElement)
+	}
+	if len(cmd.Timers) != 0 || len(timerEvents) != 0 {
+		timerCount = len(eventDefinitions)
+		eventDefinitions, causes = mapTimerEventDefinitions(eventDefinitions, causes, cmd.Timers, timerEvents, processElement)
+		timerCount = len(eventDefinitions) - timerCount
 	}
 
 	if len(causes) != 0 {
@@ -666,104 +515,32 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 		}
 	}
 
-	eventDefinitions := make([]*EventDefinitionEntity, 0, 0+
-		len(errorCodes)+
-		len(escalationCodes)+
-		len(messageNames)+
-		len(signalNames)+
-		len(timers),
-	)
+	// prepare event definitions
+	triggerTimerEventTasks := make([]*TaskEntity, 0, timerCount)
+	for i, eventDefinition := range eventDefinitions {
+		node, _ := graph.node(eventDefinition.BpmnElementId)
 
-	// prepare error event definitions
-	for bpmnElementId, errorCode := range errorCodes {
-		node, err := graph.node(bpmnElementId)
-		if err != nil {
-			causes = append(causes, engine.ErrorCause{
-				Pointer: elementPointer(graph.processElement),
-				Type:    "error_event",
-				Detail:  err.Error(),
-			})
-			continue
-		}
+		eventDefinition.ElementId = node.id
+		eventDefinition.ProcessId = process.Id
 
-		eventDefinitions = append(eventDefinitions, &EventDefinitionEntity{
-			ElementId: node.id,
+		eventDefinition.BpmnElementType = node.bpmnElement.Type
+		eventDefinition.BpmnProcessId = process.BpmnProcessId
+		eventDefinition.Version = process.Version
 
-			ProcessId: process.Id,
-
-			BpmnElementId:   bpmnElementId,
-			BpmnElementType: node.bpmnElement.Type,
-			BpmnProcessId:   process.BpmnProcessId,
-			ErrorCode:       pgtype.Text{String: errorCode, Valid: true},
-			Version:         process.Version,
-		})
-	}
-
-	// prepare escalation event definitions
-	for bpmnElementId, escalationCode := range escalationCodes {
-		node, err := graph.node(bpmnElementId)
-		if err != nil {
-			causes = append(causes, engine.ErrorCause{
-				Pointer: elementPointer(graph.processElement),
-				Type:    "escalation_event",
-				Detail:  err.Error(),
-			})
-			continue
-		}
-
-		eventDefinitions = append(eventDefinitions, &EventDefinitionEntity{
-			ElementId: node.id,
-
-			ProcessId: process.Id,
-
-			BpmnElementId:   bpmnElementId,
-			BpmnElementType: node.bpmnElement.Type,
-			BpmnProcessId:   process.BpmnProcessId,
-			EscalationCode:  pgtype.Text{String: escalationCode, Valid: true},
-			Version:         process.Version,
-		})
-	}
-
-	// prepare message event definitions
-	startMessageNames := make(map[string]bool)
-
-	for bpmnElementId, messageName := range messageNames {
-		node, err := graph.node(bpmnElementId)
-		if err != nil {
-			causes = append(causes, engine.ErrorCause{
-				Pointer: elementPointer(graph.processElement),
-				Type:    "message_event",
-				Detail:  err.Error(),
-			})
-			continue
-		}
+		eventDefinitions[i] = eventDefinition
 
 		bpmnElement := node.bpmnElement
-		if bpmnElement.Type == model.ElementMessageEndEvent || bpmnElement.Type == model.ElementMessageThrowEvent {
-			continue
-		}
 
-		// check for duplicate message start event definitions
-		//   - must be unique within process
-		//   - must be unique across all not suspended event definitions
+		// start message must be unique across all not suspended event definitions
 		if bpmnElement.Type == model.ElementMessageStartEvent {
-			if _, ok := startMessageNames[messageName]; ok {
-				causes = append(causes, engine.ErrorCause{
-					Pointer: elementPointer(bpmnElement),
-					Type:    "message_event",
-					Detail:  fmt.Sprintf("start message name %s must be unique", messageName),
-				})
-				continue
-			}
+			messageName := eventDefinition.MessageName.String
 
-			startMessageNames[messageName] = true
-
-			eventDefinition, err := ctx.EventDefinitions().SelectByMessageName(messageName)
+			eventDefinition, ok, err := ctx.EventDefinitions().SelectByMessageName(messageName)
 			if err != nil {
 				return engine.Process{}, err
 			}
 
-			if eventDefinition != nil && eventDefinition.BpmnProcessId != cmd.BpmnProcessId {
+			if ok && eventDefinition.BpmnProcessId != cmd.BpmnProcessId {
 				causes = append(causes, engine.ErrorCause{
 					Pointer: elementPointer(bpmnElement),
 					Type:    "message_event",
@@ -778,122 +555,36 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 			}
 		}
 
-		eventDefinitions = append(eventDefinitions, &EventDefinitionEntity{
-			ElementId: node.id,
+		// prepare trigger timer event tasks
+		if bpmnElement.Type == model.ElementTimerStartEvent {
+			timer := eventDefinition.Timer()
 
-			ProcessId: process.Id,
-
-			BpmnElementId:   bpmnElementId,
-			BpmnElementType: bpmnElement.Type,
-			BpmnProcessId:   process.BpmnProcessId,
-			MessageName:     pgtype.Text{String: messageName, Valid: true},
-			Version:         process.Version,
-		})
-	}
-
-	// prepare signal event definitions
-	startSignalNames := make(map[string]bool)
-
-	for bpmnElementId, signalName := range signalNames {
-		node, err := graph.node(bpmnElementId)
-		if err != nil {
-			causes = append(causes, engine.ErrorCause{
-				Pointer: elementPointer(graph.processElement),
-				Type:    "signal_event",
-				Detail:  err.Error(),
-			})
-			continue
-		}
-
-		// check for duplicate signal start event definitions
-		//   - must be unique within process
-		if node.bpmnElement.Type == model.ElementSignalStartEvent {
-			if _, ok := startSignalNames[signalName]; ok {
+			dueAt, err := evaluateTimer(timer, ctx.Time())
+			if err != nil {
 				causes = append(causes, engine.ErrorCause{
 					Pointer: elementPointer(node.bpmnElement),
-					Type:    "signal_event",
-					Detail:  fmt.Sprintf("start signal name %s must be unique", signalName),
+					Type:    "timer_event",
+					Detail:  fmt.Sprintf("failed to evaluate timer: %v", err),
 				})
 				continue
 			}
 
-			startSignalNames[signalName] = true
-		}
+			triggerTimerEventTasks = append(triggerTimerEventTasks, &TaskEntity{
+				Partition: ctx.Date(),
 
-		eventDefinitions = append(eventDefinitions, &EventDefinitionEntity{
-			ElementId: node.id,
+				ElementId: pgtype.Int4{Int32: node.id, Valid: true},
+				ProcessId: pgtype.Int4{Int32: process.Id, Valid: true},
 
-			ProcessId: process.Id,
+				BpmnElementId: pgtype.Text{String: bpmnElement.Id, Valid: true},
+				CreatedAt:     ctx.Time(),
+				CreatedBy:     cmd.WorkerId,
+				DueAt:         dueAt,
+				State:         engine.WorkCreated,
+				Type:          engine.TaskTriggerEvent,
 
-			BpmnElementId:   bpmnElementId,
-			BpmnElementType: node.bpmnElement.Type,
-			BpmnProcessId:   process.BpmnProcessId,
-			SignalName:      pgtype.Text{String: signalName, Valid: true},
-			Version:         process.Version,
-		})
-	}
-
-	// prepare timer event definitions and trigger timer event tasks
-	triggerTimerEventTasks := make([]*TaskEntity, 0, len(timers))
-
-	for bpmnElementId, timer := range timers {
-		node, err := graph.node(bpmnElementId)
-		if err != nil {
-			causes = append(causes, engine.ErrorCause{
-				Pointer: elementPointer(graph.processElement),
-				Type:    "timer_event",
-				Detail:  err.Error(),
+				Instance: TriggerEventTask{Timer: timer},
 			})
-			continue
 		}
-
-		if timer.IsZero() {
-			continue
-		}
-
-		eventDefinitions = append(eventDefinitions, &EventDefinitionEntity{
-			ElementId: node.id,
-
-			ProcessId: process.Id,
-
-			BpmnElementId:   bpmnElementId,
-			BpmnElementType: node.bpmnElement.Type,
-			BpmnProcessId:   process.BpmnProcessId,
-			Time:            pgtype.Timestamp{Time: timer.Time, Valid: !timer.Time.IsZero()},
-			TimeCycle:       pgtype.Text{String: timer.TimeCycle, Valid: timer.TimeCycle != ""},
-			TimeDuration:    pgtype.Text{String: timer.TimeDuration.String(), Valid: !timer.TimeDuration.IsZero()},
-			Version:         process.Version,
-		})
-
-		if node.bpmnElement.Type != model.ElementTimerStartEvent {
-			continue
-		}
-
-		dueAt, err := evaluateTimer(timer, ctx.Time())
-		if err != nil {
-			causes = append(causes, engine.ErrorCause{
-				Pointer: elementPointer(node.bpmnElement),
-				Type:    "timer_event",
-				Detail:  fmt.Sprintf("failed to evaluate timer: %v", err),
-			})
-			continue
-		}
-
-		triggerTimerEventTasks = append(triggerTimerEventTasks, &TaskEntity{
-			Partition: ctx.Date(),
-
-			ElementId: pgtype.Int4{Int32: node.id, Valid: true},
-			ProcessId: pgtype.Int4{Int32: process.Id, Valid: true},
-
-			BpmnElementId: pgtype.Text{String: bpmnElementId, Valid: true},
-			CreatedAt:     ctx.Time(),
-			CreatedBy:     cmd.WorkerId,
-			DueAt:         dueAt,
-			State:         engine.WorkCreated,
-			Type:          engine.TaskTriggerEvent,
-
-			Instance: TriggerEventTask{Timer: timer},
-		})
 	}
 
 	if len(causes) != 0 {

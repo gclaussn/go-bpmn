@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
+	"github.com/gclaussn/go-bpmn/model"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -306,4 +307,64 @@ func (ec *executionContext) triggerTimerStartEvent(ctx Context, task *TaskEntity
 	}
 
 	return nil
+}
+
+func mapTimerEventDefinitions(
+	eventDefinitions []EventDefinitionEntity,
+	causes []engine.ErrorCause,
+	timerDefinitions []engine.TimerDefinition,
+	timerEvents []*model.Element,
+	processElement *model.Element,
+) ([]EventDefinitionEntity, []engine.ErrorCause) {
+	timers := make(map[string]engine.Timer, len(timerDefinitions))
+	for _, timerDefinition := range timerDefinitions {
+		var exists bool
+		for _, timerEvent := range timerEvents {
+			if timerEvent.Id == timerDefinition.BpmnElementId {
+				exists = true
+				break
+			}
+		}
+
+		if exists {
+			timers[timerDefinition.BpmnElementId] = timerDefinition.Timer
+		} else {
+			causes = append(causes, engine.ErrorCause{
+				Pointer: elementPointer(processElement),
+				Type:    "timer_event",
+				Detail:  fmt.Sprintf("process %s has no timer event %s", processElement.Id, timerDefinition.BpmnElementId),
+			})
+		}
+	}
+
+	for _, timerEvent := range timerEvents {
+		timer, ok := timers[timerEvent.Id]
+		if ok && timer.IsZero() {
+			causes = append(causes, engine.ErrorCause{
+				Pointer: elementPointer(timerEvent),
+				Type:    "timer_event",
+				Detail:  "timer must specify a time, time cycle or time duration",
+			})
+		}
+
+		if !ok && timerEvent.Type == model.ElementTimerStartEvent {
+			causes = append(causes, engine.ErrorCause{
+				Pointer: elementPointer(timerEvent),
+				Type:    "timer_event",
+				Detail:  fmt.Sprintf("no timer defined for element %s", timerEvent.Id),
+			})
+			continue
+		}
+	}
+
+	for bpmnElementId, timer := range timers {
+		eventDefinitions = append(eventDefinitions, EventDefinitionEntity{
+			BpmnElementId: bpmnElementId,
+			Time:          pgtype.Timestamp{Time: timer.Time, Valid: !timer.Time.IsZero()},
+			TimeCycle:     pgtype.Text{String: timer.TimeCycle, Valid: timer.TimeCycle != ""},
+			TimeDuration:  pgtype.Text{String: timer.TimeDuration.String(), Valid: !timer.TimeDuration.IsZero()},
+		})
+	}
+
+	return eventDefinitions, causes
 }
