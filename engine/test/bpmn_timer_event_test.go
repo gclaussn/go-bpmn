@@ -54,13 +54,48 @@ func (x timerEventTest) boundary(t *testing.T) {
 
 	piAssert.IsCompleted()
 
-	elementInstances := piAssert.ElementInstances()
-	require.Len(elementInstances, 5)
+	require.Len(piAssert.ElementInstances(), 5)
 
 	serviceTask.IsTerminated()
 	timerBoundaryEvent.IsCompleted()
 
 	require.Len(piAssert.Jobs(), 2)
+}
+
+func (x timerEventTest) boundaryDefinition(t *testing.T) {
+	assert := assert.New(t)
+
+	process := mustCreateProcess(t, x.e, "event/timer-boundary-definition.bpmn", "timerBoundaryDefinitionTest")
+
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
+
+	serviceTask := psAssert.IsWaitingAt("serviceTask")
+	serviceTask.HasState(engine.InstanceStarted)
+	serviceTask.HasJob(engine.JobExecute)
+
+	timerBoundaryEvent := psAssert.IsWaitingAt("timerBoundaryEvent")
+
+	if _, _, err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
+		Time: time.Now().Add(time.Hour),
+	}); err != nil {
+		t.Fatalf("failed to set time: %v", err)
+	}
+
+	timerBoundaryEvent.HasTask(engine.TaskTriggerEvent)
+	timerBoundaryEvent.ExecuteTask()
+
+	psAssert.HasPassed("timerBoundaryEvent")
+	psAssert.HasPassed("timerEnd")
+
+	piAssert.IsCompleted()
+
+	assert.Len(piAssert.ElementInstances(), 5)
+
+	serviceTask.IsTerminated()
+	timerBoundaryEvent.IsCompleted()
+
+	assert.Len(piAssert.Jobs(), 1)
+	assert.Len(piAssert.Tasks(), 1)
 }
 
 // boundaryWithTimer tests that for a timer boundary event with timer, no SET_TIMER job is created.
@@ -195,6 +230,35 @@ func (x timerEventTest) catch(t *testing.T) {
 	piAssert.IsCompleted()
 }
 
+func (x timerEventTest) catchDefinition(t *testing.T) {
+	assert := assert.New(t)
+
+	triggerAt, _ := time.Parse(time.RFC3339Nano, "2099-01-02T10:11:12.987Z")
+	if time.Now().After(triggerAt) {
+		t.Skip()
+	}
+
+	process := mustCreateProcess(t, x.e, "event/timer-catch-definition.bpmn", "timerCatchDefinitionTest")
+
+	piAssert, psAssert := mustCreateProcessInstance(t, x.e, process)
+
+	timerCatchEvent := psAssert.IsWaitingAt("timerCatchEvent")
+
+	if _, _, err := x.e.SetTime(context.Background(), engine.SetTimeCmd{
+		Time: triggerAt,
+	}); err != nil {
+		t.Fatalf("failed to set time: %v", err)
+	}
+
+	timerCatchEvent.HasTask(engine.TaskTriggerEvent)
+	timerCatchEvent.ExecuteTask()
+
+	piAssert.IsCompleted()
+
+	assert.Len(piAssert.Jobs(), 0)
+	assert.Len(piAssert.Tasks(), 1)
+}
+
 // catchWithTimer tests that for a timer catch event with timer, no SET_TIMER job is created.
 func (x timerEventTest) catchWithTimer(t *testing.T) {
 	triggerAt := time.Now().Add(time.Hour)
@@ -226,6 +290,18 @@ func (x timerEventTest) start(t *testing.T) {
 			{BpmnElementId: "timerStartEvent", Timer: engine.Timer{TimeCycle: "0 * * * *"}},
 		},
 	})
+
+	piAssert1, _ := engine.AsserTimerStart(t, x.e, process, "timerStartEvent")
+	piAssert1.IsCompleted()
+
+	piAssert2, _ := engine.AsserTimerStart(t, x.e, process, "timerStartEvent")
+	piAssert2.IsCompleted()
+
+	assert.NotEqual(t, piAssert1.ProcessInstance().String(), piAssert2.ProcessInstance().String())
+}
+
+func (x timerEventTest) startDefinition(t *testing.T) {
+	process := mustCreateProcess(t, x.e, "event/timer-start-definition.bpmn", "timerStartDefinitionTest")
 
 	piAssert1, _ := engine.AsserTimerStart(t, x.e, process, "timerStartEvent")
 	piAssert1.IsCompleted()

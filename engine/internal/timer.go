@@ -1,9 +1,11 @@
 package internal
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/adhocore/gronx"
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/model"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -347,7 +349,13 @@ func mapTimerEventDefinitions(
 			})
 		}
 
-		if !ok && timerEvent.Type == model.ElementTimerStartEvent {
+		if ok {
+			continue
+		}
+
+		source := getEventDefinition(timerEvent).Timer
+
+		if timerEvent.Type == model.ElementTimerStartEvent && source == nil {
 			causes = append(causes, engine.ErrorCause{
 				Pointer: elementPointer(timerEvent),
 				Type:    "timer_event",
@@ -355,6 +363,48 @@ func mapTimerEventDefinitions(
 			})
 			continue
 		}
+
+		if source == nil {
+			continue
+		}
+
+		// parse timer
+		var parserErr error
+		switch {
+		case source.Time != "":
+			t, err := time.Parse(time.RFC3339Nano, source.Time)
+			if err != nil {
+				parserErr = fmt.Errorf("failed to parse timeDate %s: %v", source.Time, err)
+			} else {
+				timer.Time = t
+			}
+		case source.TimeCycle != "":
+			if !gronx.IsValid(source.TimeCycle) {
+				parserErr = fmt.Errorf("failed to parse timeCycle %s: CRON is invalid", source.TimeCycle)
+			} else {
+				timer.TimeCycle = source.TimeCycle
+			}
+		case source.TimeDuration != "":
+			d, err := engine.NewISO8601Duration(source.TimeDuration)
+			if err != nil {
+				parserErr = fmt.Errorf("failed to parse timeDuration %s: %v", source.TimeDuration, err)
+			} else {
+				timer.TimeDuration = d
+			}
+		default:
+			parserErr = errors.New("timer event definition must specify a timeDate, timeCycle or timeDuration")
+		}
+
+		if parserErr != nil {
+			causes = append(causes, engine.ErrorCause{
+				Pointer: elementPointer(timerEvent),
+				Type:    "timer_event",
+				Detail:  parserErr.Error(),
+			})
+			continue
+		}
+
+		timers[timerEvent.Id] = timer
 	}
 
 	for bpmnElementId, timer := range timers {

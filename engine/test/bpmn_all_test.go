@@ -259,7 +259,20 @@ func TestBpmnTimerEvent(t *testing.T) {
 		for i, e := range engines {
 			timerEventTest := timerEventTest{e}
 
-			t.Run(engineTypes[i]+"boundary", timerEventTest.boundary)
+			t.Run(engineTypes[i], timerEventTest.boundary)
+		}
+	})
+
+	t.Run("boundary event definition", func(t *testing.T) {
+		engines, engineTypes := mustCreateEngines(t)
+		for _, e := range engines {
+			defer e.Shutdown()
+		}
+
+		for i, e := range engines {
+			timerEventTest := timerEventTest{e}
+
+			t.Run(engineTypes[i], timerEventTest.boundaryDefinition)
 		}
 	})
 
@@ -272,7 +285,7 @@ func TestBpmnTimerEvent(t *testing.T) {
 		for i, e := range engines {
 			timerEventTest := timerEventTest{e}
 
-			t.Run(engineTypes[i]+"boundary", timerEventTest.boundaryWithTimer)
+			t.Run(engineTypes[i], timerEventTest.boundaryWithTimer)
 		}
 	})
 
@@ -285,7 +298,7 @@ func TestBpmnTimerEvent(t *testing.T) {
 		for i, e := range engines {
 			timerEventTest := timerEventTest{e}
 
-			t.Run(engineTypes[i]+"boundary", timerEventTest.boundaryNonInterrupting)
+			t.Run(engineTypes[i], timerEventTest.boundaryNonInterrupting)
 		}
 	})
 
@@ -298,7 +311,20 @@ func TestBpmnTimerEvent(t *testing.T) {
 		for i, e := range engines {
 			timerEventTest := timerEventTest{e}
 
-			t.Run(engineTypes[i]+"catch", timerEventTest.catch)
+			t.Run(engineTypes[i], timerEventTest.catch)
+		}
+	})
+
+	t.Run("catch event definition", func(t *testing.T) {
+		engines, engineTypes := mustCreateEngines(t)
+		for _, e := range engines {
+			defer e.Shutdown()
+		}
+
+		for i, e := range engines {
+			timerEventTest := timerEventTest{e}
+
+			t.Run(engineTypes[i], timerEventTest.catchDefinition)
 		}
 	})
 
@@ -311,7 +337,7 @@ func TestBpmnTimerEvent(t *testing.T) {
 		for i, e := range engines {
 			timerEventTest := timerEventTest{e}
 
-			t.Run(engineTypes[i]+"catch", timerEventTest.catchWithTimer)
+			t.Run(engineTypes[i], timerEventTest.catchWithTimer)
 		}
 	})
 
@@ -324,7 +350,20 @@ func TestBpmnTimerEvent(t *testing.T) {
 		for i, e := range engines {
 			timerEventTest := timerEventTest{e}
 
-			t.Run(engineTypes[i]+"start", timerEventTest.start)
+			t.Run(engineTypes[i], timerEventTest.start)
+		}
+	})
+
+	t.Run("start event definition", func(t *testing.T) {
+		engines, engineTypes := mustCreateEngines(t)
+		for _, e := range engines {
+			defer e.Shutdown()
+		}
+
+		for i, e := range engines {
+			timerEventTest := timerEventTest{e}
+
+			t.Run(engineTypes[i], timerEventTest.startDefinition)
 		}
 	})
 }

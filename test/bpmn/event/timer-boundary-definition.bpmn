@@ -1,0 +1,26 @@
+<definitions id="test">
+  <process id="timerBoundaryDefinitionTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="serviceTask" />
+    <serviceTask id="serviceTask">
+      <incoming>f1</incoming>
+      <outgoing>f2</outgoing>
+    </serviceTask>
+    <sequenceFlow id="f2" sourceRef="serviceTask" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f2</incoming>
+    </endEvent>
+    <boundaryEvent id="timerBoundaryEvent" attachedToRef="serviceTask">
+      <outgoing>f3</outgoing>
+      <timerEventDefinition id="timerBoundaryEventDefinition">
+        <timeDuration>PT1H</timeDuration>
+      </timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="f3" sourceRef="timerBoundaryEvent" targetRef="timerEnd" />
+    <endEvent id="timerEnd">
+      <incoming>f3</incoming>
+    </endEvent>
+  </process>
+</definitions>

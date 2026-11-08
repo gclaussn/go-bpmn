@@ -1,0 +1,19 @@
+<definitions id="test">
+  <process id="invalidTimeCycleTest" isExecutable="true">
+    <startEvent id="startEvent">
+      <outgoing>f1</outgoing>
+    </startEvent>
+    <sequenceFlow id="f1" sourceRef="startEvent" targetRef="timerCatchEvent" />
+    <intermediateCatchEvent id="timerCatchEvent">
+      <incoming>f1</incoming>
+      <outgoing>f2</outgoing>
+      <timerEventDefinition id="timerCatchEventDefinition">
+        <timeCycle>invalid-time-cycle</timeCycle>
+      </timerEventDefinition>
+    </intermediateCatchEvent>
+    <sequenceFlow id="f2" sourceRef="timerCatchEvent" targetRef="endEvent" />
+    <endEvent id="endEvent">
+      <incoming>f2</incoming>
+    </endEvent>
+  </process>
+</definitions>

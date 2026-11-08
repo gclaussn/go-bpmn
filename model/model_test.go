@@ -67,6 +67,9 @@ func TestNilSafety(t *testing.T) {
 		"subProcess",
 		"task",
 		"timerEventDefinition",
+		"timeCycle",
+		"timeDate",
+		"timeDuration",
 		"userTask",
 	}
 
@@ -84,6 +87,12 @@ func TestNilSafety(t *testing.T) {
 	_, err = New(strings.NewReader("<process><outgoing>f1</outgoing></process>"))
 	assert.Error(err)
 	_, err = New(strings.NewReader("<serviceTask><loopCardinality>2</loopCardinality></serviceTask>"))
+	assert.Error(err)
+	_, err = New(strings.NewReader("<serviceTask><timeCycle>0 * * * *</timeCycle></serviceTask>"))
+	assert.Error(err)
+	_, err = New(strings.NewReader("<serviceTask><timeDate>2099-01-02T10:11:12.987Z</timeDate></serviceTask>"))
+	assert.Error(err)
+	_, err = New(strings.NewReader("<serviceTask><timeDuration>PT1H</timeDuration></serviceTask>"))
 	assert.Error(err)
 }
 
@@ -436,6 +445,9 @@ func TestTimerCatchEvent(t *testing.T) {
 
 	assert.Len(timerCatchEvent.Incoming, 1)
 	assert.Len(timerCatchEvent.Outgoing, 1)
+
+	eventDefinition := timerCatchEvent.Model.(IntermediateCatchEvent).EventDefinition
+	assert.Nil(eventDefinition.Timer)
 }
 
 func TestTimerStartEvent(t *testing.T) {

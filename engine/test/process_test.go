@@ -613,8 +613,8 @@ func TestCreateProcessWithTimer(t *testing.T) {
 	}
 
 	// given
-	bpmnXml1 := mustReadBpmnFile(t, "event/timer-start.bpmn")
-	bpmnXml2 := mustReadBpmnFile(t, "event/timer-start.v2.bpmn")
+	timerStartV1 := mustReadBpmnFile(t, "event/timer-start.bpmn")
+	timerStartV2 := mustReadBpmnFile(t, "event/timer-start.v2.bpmn")
 
 	t.Run("returns error when timer is missing", func(t *testing.T) {
 		for i, e := range engines {
@@ -622,20 +622,25 @@ func TestCreateProcessWithTimer(t *testing.T) {
 				// given
 				cmd := engine.CreateProcessCmd{
 					BpmnProcessId: "timerStartTest",
-					BpmnXml:       bpmnXml1,
-					Version:       "1",
+					BpmnXml:       timerStartV1,
+					Version:       t.Name(),
 					WorkerId:      testWorkerId,
 				}
 
 				// when
 				_, err := e.CreateProcess(context.Background(), cmd)
-				require.IsType(engine.Error{}, err)
+				require.Error(err)
 
 				// then
 				engineErr := err.(engine.Error)
 				assert.Equal(engine.ErrorValidation, engineErr.Type)
 				assert.NotEmpty(engineErr.Title)
 				assert.NotEmpty(engineErr.Detail)
+				require.Len(engineErr.Causes, 1)
+
+				assert.NotEmpty(engineErr.Causes[0].Pointer)
+				assert.NotEmpty(engineErr.Causes[0].Type)
+				assert.Contains(engineErr.Causes[0].Detail, "element timerStartEvent")
 			})
 		}
 	})
@@ -646,24 +651,29 @@ func TestCreateProcessWithTimer(t *testing.T) {
 				// given
 				cmd := engine.CreateProcessCmd{
 					BpmnProcessId: "timerStartTest",
-					BpmnXml:       bpmnXml1,
+					BpmnXml:       timerStartV1,
 					Timers: []engine.TimerDefinition{
 						{BpmnElementId: "timerStartEvent", Timer: engine.Timer{TimeDuration: "PT1H"}},
 						{BpmnElementId: "endEvent", Timer: engine.Timer{TimeDuration: "PT1H"}},
 					},
-					Version:  "2",
+					Version:  t.Name(),
 					WorkerId: testWorkerId,
 				}
 
 				// when
 				_, err := e.CreateProcess(context.Background(), cmd)
-				require.IsType(engine.Error{}, err)
+				require.Error(err)
 
 				// then
 				engineErr := err.(engine.Error)
 				assert.Equal(engine.ErrorValidation, engineErr.Type)
 				assert.NotEmpty(engineErr.Title)
 				assert.NotEmpty(engineErr.Detail)
+				require.Len(engineErr.Causes, 1)
+
+				assert.NotEmpty(engineErr.Causes[0].Pointer)
+				assert.NotEmpty(engineErr.Causes[0].Type)
+				assert.Contains(engineErr.Causes[0].Detail, "endEvent")
 			})
 		}
 	})
@@ -674,24 +684,122 @@ func TestCreateProcessWithTimer(t *testing.T) {
 				// given
 				cmd := engine.CreateProcessCmd{
 					BpmnProcessId: "timerStartTest",
-					BpmnXml:       bpmnXml1,
+					BpmnXml:       timerStartV1,
 					Timers: []engine.TimerDefinition{
 						{BpmnElementId: "timerStartEvent", Timer: engine.Timer{TimeDuration: "PT1H"}},
 						{BpmnElementId: "not-existing", Timer: engine.Timer{TimeDuration: "PT1H"}},
 					},
-					Version:  "3",
+					Version:  t.Name(),
 					WorkerId: testWorkerId,
 				}
 
 				// when
 				_, err := e.CreateProcess(context.Background(), cmd)
-				require.IsType(engine.Error{}, err)
+				require.Error(err)
 
 				// then
 				engineErr := err.(engine.Error)
 				assert.Equal(engine.ErrorValidation, engineErr.Type)
 				assert.NotEmpty(engineErr.Title)
 				assert.NotEmpty(engineErr.Detail)
+				require.Len(engineErr.Causes, 1)
+
+				assert.NotEmpty(engineErr.Causes[0].Pointer)
+				assert.NotEmpty(engineErr.Causes[0].Type)
+				assert.Contains(engineErr.Causes[0].Detail, "not-existing")
+			})
+		}
+	})
+
+	t.Run("returns error when no time is invalid", func(t *testing.T) {
+		bpmnXml := mustReadBpmnFile(t, "invalid/invalid-time.bpmn")
+
+		for i, e := range engines {
+			t.Run(engineTypes[i], func(t *testing.T) {
+				// given
+				cmd := engine.CreateProcessCmd{
+					BpmnProcessId: "invalidTimeTest",
+					BpmnXml:       bpmnXml,
+					Version:       t.Name(),
+					WorkerId:      testWorkerId,
+				}
+
+				// when
+				_, err := e.CreateProcess(context.Background(), cmd)
+				require.Error(err)
+
+				// then
+				engineErr := err.(engine.Error)
+				assert.Equal(engine.ErrorValidation, engineErr.Type)
+				assert.NotEmpty(engineErr.Title)
+				assert.NotEmpty(engineErr.Detail)
+				require.Len(engineErr.Causes, 1)
+
+				assert.NotEmpty(engineErr.Causes[0].Pointer)
+				assert.NotEmpty(engineErr.Causes[0].Type)
+				assert.Contains(engineErr.Causes[0].Detail, "timeDate invalid-time")
+			})
+		}
+	})
+
+	t.Run("returns error when no time cycle is invalid", func(t *testing.T) {
+		bpmnXml := mustReadBpmnFile(t, "invalid/invalid-time-cycle.bpmn")
+
+		for i, e := range engines {
+			t.Run(engineTypes[i], func(t *testing.T) {
+				// given
+				cmd := engine.CreateProcessCmd{
+					BpmnProcessId: "invalidTimeCycleTest",
+					BpmnXml:       bpmnXml,
+					Version:       t.Name(),
+					WorkerId:      testWorkerId,
+				}
+
+				// when
+				_, err := e.CreateProcess(context.Background(), cmd)
+				require.Error(err)
+
+				// then
+				engineErr := err.(engine.Error)
+				assert.Equal(engine.ErrorValidation, engineErr.Type)
+				assert.NotEmpty(engineErr.Title)
+				assert.NotEmpty(engineErr.Detail)
+				require.Len(engineErr.Causes, 1)
+
+				assert.NotEmpty(engineErr.Causes[0].Pointer)
+				assert.NotEmpty(engineErr.Causes[0].Type)
+				assert.Contains(engineErr.Causes[0].Detail, "timeCycle invalid-time-cycle")
+			})
+		}
+	})
+
+	t.Run("returns error when no time duration is invalid", func(t *testing.T) {
+		bpmnXml := mustReadBpmnFile(t, "invalid/invalid-time-duration.bpmn")
+
+		for i, e := range engines {
+			t.Run(engineTypes[i], func(t *testing.T) {
+				// given
+				cmd := engine.CreateProcessCmd{
+					BpmnProcessId: "invalidTimeDurationTest",
+					BpmnXml:       bpmnXml,
+					Version:       t.Name(),
+					WorkerId:      testWorkerId,
+				}
+
+				// when
+				_, err := e.CreateProcess(context.Background(), cmd)
+				require.Error(err)
+
+				// then
+				engineErr := err.(engine.Error)
+				assert.Equal(engine.ErrorValidation, engineErr.Type)
+				assert.NotEmpty(engineErr.Title)
+				assert.NotEmpty(engineErr.Detail)
+				require.Len(engineErr.Causes, 1)
+
+				assert.NotEmpty(engineErr.Causes[0].Pointer)
+				assert.NotEmpty(engineErr.Causes[0].Type)
+				assert.Contains(engineErr.Causes[0].Detail, "timeDuration invalid-time-duration")
 			})
 		}
 	})
@@ -702,15 +810,15 @@ func TestCreateProcessWithTimer(t *testing.T) {
 				// given
 				cmd1 := engine.CreateProcessCmd{
 					BpmnProcessId: "timerStartTest",
-					BpmnXml:       bpmnXml1,
+					BpmnXml:       timerStartV1,
 					Timers: []engine.TimerDefinition{
 						{BpmnElementId: "timerStartEvent", Timer: engine.Timer{TimeCycle: "0 * * * *"}},
 					},
-					Version:  "4",
+					Version:  t.Name() + "V1",
 					WorkerId: testWorkerId,
 				}
 
-				// when
+				// when v1 is created
 				process1, err := e.CreateProcess(context.Background(), cmd1)
 				require.NoError(err, "failed to create process")
 
@@ -740,12 +848,12 @@ func TestCreateProcessWithTimer(t *testing.T) {
 				// given
 				cmd2 := engine.CreateProcessCmd{
 					BpmnProcessId: "timerStartTest",
-					BpmnXml:       bpmnXml2,
+					BpmnXml:       timerStartV2,
 					Timers: []engine.TimerDefinition{
 						{BpmnElementId: "timerStartEvent1", Timer: engine.Timer{TimeCycle: "0 * * * *"}},
 						{BpmnElementId: "timerStartEvent2", Timer: engine.Timer{TimeCycle: "0 * * * *"}},
 					},
-					Version:  "5",
+					Version:  t.Name() + "V2",
 					WorkerId: testWorkerId,
 				}
 

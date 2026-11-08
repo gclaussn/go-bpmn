@@ -122,10 +122,18 @@ type EventDefinition struct {
 	Link       *Link
 	Message    *Message
 	Signal     *Signal
+	Timer      *Timer
 }
 
 // MultiInstance represents the multi-instance characteristic of a task, sub-process or call activity.
 type MultiInstance struct {
 	IsSequential    bool // Determines if a multi-instance is parallel or sequential.
 	LoopCardinality int  // Value of a "loopCardinality" expression or 0, if undefined or cannot be parsed.
+}
+
+// Timer holds timer event definition attributes.
+type Timer struct {
+	Time         string // "timeDate" attribute - ISO 8601 date-time.
+	TimeCycle    string
+	TimeDuration string
 }

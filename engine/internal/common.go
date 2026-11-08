@@ -56,11 +56,13 @@ func getEventDefinition(bpmnElement *model.Element) model.EventDefinition {
 		model.ElementErrorBoundaryEvent,
 		model.ElementEscalationBoundaryEvent,
 		model.ElementMessageBoundaryEvent,
-		model.ElementSignalBoundaryEvent:
+		model.ElementSignalBoundaryEvent,
+		model.ElementTimerBoundaryEvent:
 		return bpmnElement.Model.(model.BoundaryEvent).EventDefinition
 	case
 		model.ElementMessageCatchEvent,
-		model.ElementSignalCatchEvent:
+		model.ElementSignalCatchEvent,
+		model.ElementTimerCatchEvent:
 		return bpmnElement.Model.(model.IntermediateCatchEvent).EventDefinition
 	case
 		model.ElementErrorEndEvent,
@@ -70,7 +72,8 @@ func getEventDefinition(bpmnElement *model.Element) model.EventDefinition {
 		return bpmnElement.Model.(model.EndEvent).EventDefinition
 	case
 		model.ElementMessageStartEvent,
-		model.ElementSignalStartEvent:
+		model.ElementSignalStartEvent,
+		model.ElementTimerStartEvent:
 		return bpmnElement.Model.(model.StartEvent).EventDefinition
 	case
 		model.ElementEscalationThrowEvent,
