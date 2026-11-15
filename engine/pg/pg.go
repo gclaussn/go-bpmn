@@ -332,7 +332,7 @@ func (e *pgEngine) GetProcessVariables(ctx context.Context, cmd engine.GetProces
 	return variables, e.release(pgCtx, err)
 }
 
-func (e *pgEngine) LockJobs(ctx context.Context, cmd engine.LockJobsCmd) ([]engine.Job, error) {
+func (e *pgEngine) LockJobs(ctx context.Context, cmd engine.LockJobsCmd) ([]engine.LockedJob, error) {
 	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
 		return nil, err

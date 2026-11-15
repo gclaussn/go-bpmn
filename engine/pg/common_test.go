@@ -12,6 +12,7 @@ import (
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/engine/internal"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const testWorkerId = "test-worker"
@@ -75,7 +76,7 @@ func mustInsertEntities(t *testing.T, e engine.Engine, entities []any) {
 		case *internal.IncidentEntity:
 			err = pgCtx.Incidents().Insert(entity)
 		case *internal.JobEntity:
-			err = pgCtx.Jobs().Insert(entity)
+			err = pgCtx.Jobs().Insert(entity, pgtype.Text{String: "ck", Valid: true})
 		case *internal.MessageEntity:
 			err = pgCtx.Messages().Insert(entity)
 		case *internal.MessageSubscriptionEntity:

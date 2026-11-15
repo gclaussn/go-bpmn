@@ -9,7 +9,6 @@ CREATE TABLE IF NOT EXISTS job (
 
 	bpmn_element_id VARCHAR NOT NULL,
 	completed_at TIMESTAMP(3),
-	correlation_key VARCHAR,
 	created_at TIMESTAMP(3) NOT NULL,
 	created_by VARCHAR NOT NULL,
 	due_at TIMESTAMP(3) NOT NULL,

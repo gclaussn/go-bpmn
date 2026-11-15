@@ -217,10 +217,11 @@ func (a ElementInstanceAssert) ExecuteJob() {
 	job := a.Job()
 
 	lockedJobs, err := a.w.e.LockJobs(context.Background(), engine.LockJobsCmd{
-		Partition: job.Partition,
-		Id:        job.Id,
-		Limit:     1,
-		WorkerId:  a.w.id,
+		ProcessIds: []int32{job.ProcessId},
+		Partition:  job.Partition,
+		Id:         job.Id,
+		Limit:      1,
+		WorkerId:   a.w.id,
 	})
 	if err != nil {
 		a.Fatalf("failed to lock job: %v", err)
@@ -245,10 +246,11 @@ func (a ElementInstanceAssert) ExecuteJobWithError() {
 	job := a.Job()
 
 	lockedJobs, err := a.w.e.LockJobs(context.Background(), engine.LockJobsCmd{
-		Partition: job.Partition,
-		Id:        job.Id,
-		Limit:     1,
-		WorkerId:  a.w.id,
+		ProcessIds: []int32{job.ProcessId},
+		Partition:  job.Partition,
+		Id:         job.Id,
+		Limit:      1,
+		WorkerId:   a.w.id,
 	})
 	if err != nil {
 		a.Fatalf("failed to lock job: %v", err)

@@ -51,25 +51,7 @@ func (ec *executionContext) escalateJob(ctx Context, job *JobEntity, escalationC
 		}
 
 		// retry job
-		retry := JobEntity{
-			Partition: job.Partition,
-
-			ElementId:         job.ElementId,
-			ElementInstanceId: job.ElementInstanceId,
-			ProcessId:         job.ProcessId,
-			ProcessInstanceId: job.ProcessInstanceId,
-
-			BpmnElementId:  job.BpmnElementId,
-			CorrelationKey: job.CorrelationKey,
-			CreatedAt:      ctx.Time(),
-			CreatedBy:      ec.engineOrWorkerId,
-			DueAt:          retryTimer.Calculate(ctx.Time()),
-			RetryCount:     job.RetryCount,
-			State:          engine.WorkCreated,
-			Type:           job.Type,
-		}
-
-		if err := ctx.Jobs().Insert(&retry); err != nil {
+		if err := ec.retryJob(ctx, job, job.RetryCount+1, retryTimer); err != nil {
 			return false, err
 		}
 
@@ -88,25 +70,7 @@ func (ec *executionContext) escalateJob(ctx Context, job *JobEntity, escalationC
 
 	if newBoundaryEvent != nil {
 		// retry job
-		retry := JobEntity{
-			Partition: job.Partition,
-
-			ElementId:         job.ElementId,
-			ElementInstanceId: job.ElementInstanceId,
-			ProcessId:         job.ProcessId,
-			ProcessInstanceId: job.ProcessInstanceId,
-
-			BpmnElementId:  job.BpmnElementId,
-			CorrelationKey: job.CorrelationKey,
-			CreatedAt:      ctx.Time(),
-			CreatedBy:      ec.engineOrWorkerId,
-			DueAt:          retryTimer.Calculate(ctx.Time()),
-			RetryCount:     job.RetryCount,
-			State:          engine.WorkCreated,
-			Type:           job.Type,
-		}
-
-		if err := ctx.Jobs().Insert(&retry); err != nil {
+		if err := ec.retryJob(ctx, job, job.RetryCount+1, retryTimer); err != nil {
 			return false, err
 		}
 

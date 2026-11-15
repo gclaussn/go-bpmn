@@ -31,9 +31,8 @@ func TestResolveIncident(t *testing.T) {
 		ProcessId:         100,
 		ProcessInstanceId: 1000,
 
-		BpmnElementId:  "a",
-		CorrelationKey: pgtype.Text{String: "ck", Valid: true},
-		Type:           engine.JobExecute,
+		BpmnElementId: "a",
+		Type:          engine.JobExecute,
 	}
 
 	task := &internal.TaskEntity{
@@ -108,14 +107,13 @@ func TestResolveIncident(t *testing.T) {
 			ProcessId:         job.ProcessId,
 			ProcessInstanceId: job.ProcessInstanceId,
 
-			BpmnElementId:  job.BpmnElementId,
-			CorrelationKey: job.CorrelationKey.String,
-			CreatedAt:      retryJob.CreatedAt,
-			CreatedBy:      cmd.WorkerId,
-			DueAt:          retryJob.CreatedAt,
-			RetryCount:     0,
-			State:          engine.WorkDue,
-			Type:           job.Type,
+			BpmnElementId: job.BpmnElementId,
+			CreatedAt:     retryJob.CreatedAt,
+			CreatedBy:     cmd.WorkerId,
+			DueAt:         retryJob.CreatedAt,
+			RetryCount:    0,
+			State:         engine.WorkDue,
+			Type:          job.Type,
 		}, retryJob)
 
 		// when resolved again
@@ -169,14 +167,13 @@ func TestResolveIncident(t *testing.T) {
 			ProcessId:         job.ProcessId,
 			ProcessInstanceId: job.ProcessInstanceId,
 
-			BpmnElementId:  job.BpmnElementId,
-			CorrelationKey: job.CorrelationKey.String,
-			CreatedAt:      retryJob.CreatedAt,
-			CreatedBy:      cmd.WorkerId,
-			DueAt:          retryJob.CreatedAt.Add(1 * time.Hour),
-			RetryCount:     0,
-			State:          engine.WorkCreated,
-			Type:           job.Type,
+			BpmnElementId: job.BpmnElementId,
+			CreatedAt:     retryJob.CreatedAt,
+			CreatedBy:     cmd.WorkerId,
+			DueAt:         retryJob.CreatedAt.Add(1 * time.Hour),
+			RetryCount:    0,
+			State:         engine.WorkCreated,
+			Type:          job.Type,
 		}, retryJob)
 	})
 

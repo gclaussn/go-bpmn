@@ -1,10 +1,12 @@
 package internal
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
+	"github.com/gclaussn/go-bpmn/model"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -18,18 +20,18 @@ type JobEntity struct {
 	ProcessId         int32
 	ProcessInstanceId int32
 
-	BpmnElementId  string
-	CompletedAt    pgtype.Timestamp
-	CorrelationKey pgtype.Text
-	CreatedAt      time.Time
-	CreatedBy      string
-	DueAt          time.Time
-	Error          pgtype.Text
-	LockedAt       pgtype.Timestamp
-	LockedBy       pgtype.Text
-	RetryCount     int
-	State          engine.WorkState
-	Type           engine.JobType
+	BpmnElementId   string
+	BpmnElementType model.ElementType
+	CompletedAt     pgtype.Timestamp
+	CreatedAt       time.Time
+	CreatedBy       string
+	DueAt           time.Time
+	Error           pgtype.Text
+	LockedAt        pgtype.Timestamp
+	LockedBy        pgtype.Text
+	RetryCount      int
+	State           engine.WorkState
+	Type            engine.JobType
 }
 
 func (e JobEntity) Job() engine.Job {
@@ -42,29 +44,77 @@ func (e JobEntity) Job() engine.Job {
 		ProcessId:         e.ProcessId,
 		ProcessInstanceId: e.ProcessInstanceId,
 
-		BpmnElementId:  e.BpmnElementId,
-		CompletedAt:    e.CompletedAt.Time,
-		CorrelationKey: e.CorrelationKey.String,
-		CreatedAt:      e.CreatedAt,
-		CreatedBy:      e.CreatedBy,
-		DueAt:          e.DueAt,
-		Error:          e.Error.String,
-		LockedAt:       e.LockedAt.Time,
-		LockedBy:       e.LockedBy.String,
-		RetryCount:     e.RetryCount,
-		State:          e.State,
-		Type:           e.Type,
+		BpmnElementId:   e.BpmnElementId,
+		BpmnElementType: e.BpmnElementType,
+		CompletedAt:     e.CompletedAt.Time,
+		CreatedAt:       e.CreatedAt,
+		CreatedBy:       e.CreatedBy,
+		DueAt:           e.DueAt,
+		Error:           e.Error.String,
+		LockedAt:        e.LockedAt.Time,
+		LockedBy:        e.LockedBy.String,
+		RetryCount:      e.RetryCount,
+		State:           e.State,
+		Type:            e.Type,
+	}
+}
+
+// JobPoolEntity represents a job that is either available to be locked or locked by a worker.
+type JobPoolEntity struct {
+	Id int64
+
+	Partition time.Time // Partition of the related job
+
+	ElementId         int32
+	ElementInstanceId int32
+	JobId             int32
+	ProcessId         int32
+	ProcessInstanceId int32
+
+	BpmnElementId   string
+	BpmnElementType model.ElementType
+	CorrelationKey  pgtype.Text
+	DueAt           time.Time
+	LockedAt        pgtype.Timestamp
+	LockedBy        pgtype.Text
+	RetryCount      int
+	Type            engine.JobType
+}
+
+func (e JobPoolEntity) LockedJob() engine.LockedJob {
+	return engine.LockedJob{
+		Partition: engine.Partition(e.Partition),
+		Id:        e.JobId,
+
+		ElementId:         e.ElementId,
+		ElementInstanceId: e.ElementInstanceId,
+		ProcessId:         e.ProcessId,
+		ProcessInstanceId: e.ProcessInstanceId,
+
+		BpmnElementId:   e.BpmnElementId,
+		BpmnElementType: e.BpmnElementType,
+		CorrelationKey:  e.CorrelationKey.String,
+		DueAt:           e.DueAt,
+		LockedAt:        e.LockedAt.Time,
+		LockedBy:        e.LockedBy.String,
+		RetryCount:      e.RetryCount,
+		Type:            e.Type,
 	}
 }
 
 type JobRepository interface {
-	Insert(*JobEntity) error
+	// Insert inserts a job.
+	//
+	// Additionally the job is inserted into the job pool - so it can be locked when due.
+	// For the execution of a locked job, the correlation key of the related process instance is needed.
+	Insert(entity *JobEntity, correlationKey pgtype.Text) error
+
 	Select(partition time.Time, id int32) (*JobEntity, error)
 	Update(*JobEntity) error
 
 	Query(engine.JobCriteria, engine.QueryOptions, time.Time) ([]engine.Job, error)
 
-	Lock(cmd engine.LockJobsCmd, lockedAt time.Time) ([]*JobEntity, error)
+	Lock(cmd engine.LockJobsCmd, lockedAt time.Time) ([]JobPoolEntity, error)
 	Unlock(engine.UnlockJobsCmd) (int, error)
 }
 
@@ -213,27 +263,13 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 	}
 
 	if cmd.RetryLimit > job.RetryCount {
-		retryTimer := engine.ISO8601Duration(cmd.RetryTimer)
-
-		retry := JobEntity{
-			Partition: job.Partition,
-
-			ElementId:         job.ElementId,
-			ElementInstanceId: job.ElementInstanceId,
-			ProcessId:         job.ProcessId,
-			ProcessInstanceId: job.ProcessInstanceId,
-
-			BpmnElementId:  job.BpmnElementId,
-			CorrelationKey: job.CorrelationKey,
-			CreatedAt:      ctx.Time(),
-			CreatedBy:      cmd.WorkerId,
-			DueAt:          retryTimer.Calculate(ctx.Time()),
-			RetryCount:     job.RetryCount + 1,
-			State:          engine.WorkCreated,
-			Type:           job.Type,
+		ec := executionContext{
+			engineOrWorkerId: cmd.WorkerId,
+			processInstance:  processInstance,
 		}
 
-		if err := ctx.Jobs().Insert(&retry); err != nil {
+		retryTimer := engine.ISO8601Duration(cmd.RetryTimer)
+		if err := ec.retryJob(ctx, job, job.RetryCount+1, retryTimer); err != nil {
 			return engine.Job{}, err
 		}
 	} else {
@@ -258,24 +294,62 @@ func CompleteJob(ctx Context, cmd engine.CompleteJobCmd) (engine.Job, error) {
 	return job.Job(), nil
 }
 
-func LockJobs(ctx Context, cmd engine.LockJobsCmd) ([]engine.Job, error) {
+func LockJobs(ctx Context, cmd engine.LockJobsCmd) ([]engine.LockedJob, error) {
+	if len(cmd.ProcessIds) == 0 {
+		return nil, errors.New("no process ID specified")
+	}
+
 	if cmd.Limit <= 0 {
 		cmd.Limit = 1
 	}
 
-	lockedJobs, err := ctx.Jobs().Lock(cmd, ctx.Time())
+	entities, err := ctx.Jobs().Lock(cmd, ctx.Time())
 	if err != nil {
 		return nil, err
 	}
 
-	jobs := make([]engine.Job, len(lockedJobs))
-	for i, lockedJob := range lockedJobs {
-		jobs[i] = lockedJob.Job()
+	lockedJobs := make([]engine.LockedJob, len(entities))
+	for i, entity := range entities {
+		lockedJobs[i] = entity.LockedJob()
 	}
 
-	return jobs, nil
+	// TODO sort by dueAt
+
+	return lockedJobs, nil
 }
 
 func UnlockJobs(ctx Context, cmd engine.UnlockJobsCmd) (int, error) {
 	return ctx.Jobs().Unlock(cmd)
+}
+
+// TODO
+func (ec *executionContext) retryJob(ctx Context, job *JobEntity, retryCount int, retryTimer engine.ISO8601Duration) error {
+	dueAt := retryTimer.Calculate(ctx.Time())
+
+	entity := JobEntity{
+		Partition: job.Partition,
+
+		ElementId:         job.ElementId,
+		ElementInstanceId: job.ElementInstanceId,
+		ProcessId:         job.ProcessId,
+		ProcessInstanceId: job.ProcessInstanceId,
+
+		BpmnElementId:   job.BpmnElementId,
+		BpmnElementType: job.BpmnElementType,
+		CreatedAt:       ctx.Time(),
+		CreatedBy:       ec.engineOrWorkerId,
+		DueAt:           dueAt,
+		RetryCount:      retryCount,
+		State:           engine.WorkCreated,
+		Type:            job.Type,
+	}
+
+	if err := ctx.Jobs().Insert(
+		&entity,
+		ec.processInstance.CorrelationKey,
+	); err != nil {
+		return fmt.Errorf("failed to retry job %s/%d: %v", job.Partition.Format(time.DateOnly), job.Id, err)
+	}
+
+	return nil
 }

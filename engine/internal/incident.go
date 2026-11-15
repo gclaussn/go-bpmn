@@ -80,32 +80,23 @@ func ResolveIncident(ctx Context, cmd engine.ResolveIncidentCmd) error {
 		return err
 	}
 
-	dueAt := cmd.RetryTimer.Calculate(ctx.Time())
-
 	if incident.JobId.Valid {
 		job, err := ctx.Jobs().Select(incident.Partition, incident.JobId.Int32)
 		if err != nil {
 			return err
 		}
 
-		retry := JobEntity{
-			Partition: job.Partition,
-
-			ElementId:         job.ElementId,
-			ElementInstanceId: job.ElementInstanceId,
-			ProcessId:         job.ProcessId,
-			ProcessInstanceId: job.ProcessInstanceId,
-
-			BpmnElementId:  job.BpmnElementId,
-			CorrelationKey: job.CorrelationKey,
-			CreatedAt:      ctx.Time(),
-			CreatedBy:      cmd.WorkerId,
-			DueAt:          dueAt,
-			State:          engine.WorkCreated,
-			Type:           job.Type,
+		processInstance, err := ctx.ProcessInstances().Select(job.Partition, job.ProcessInstanceId)
+		if err != nil {
+			return err
 		}
 
-		return ctx.Jobs().Insert(&retry)
+		ec := executionContext{
+			engineOrWorkerId: cmd.WorkerId,
+			processInstance:  processInstance,
+		}
+
+		return ec.retryJob(ctx, job, 0, cmd.RetryTimer)
 	} else {
 		task, err := ctx.Tasks().Select(incident.Partition, incident.TaskId.Int32)
 		if err != nil {
@@ -123,7 +114,7 @@ func ResolveIncident(ctx Context, cmd engine.ResolveIncidentCmd) error {
 			BpmnElementId:  task.BpmnElementId,
 			CreatedAt:      ctx.Time(),
 			CreatedBy:      cmd.WorkerId,
-			DueAt:          dueAt,
+			DueAt:          cmd.RetryTimer.Calculate(ctx.Time()),
 			SerializedTask: task.SerializedTask,
 			State:          engine.WorkCreated,
 			Type:           task.Type,

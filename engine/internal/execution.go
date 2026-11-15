@@ -333,13 +333,13 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 				ProcessId:         execution.ProcessId,
 				ProcessInstanceId: execution.ProcessInstanceId,
 
-				BpmnElementId:  execution.BpmnElementId,
-				CorrelationKey: ec.processInstance.CorrelationKey,
-				CreatedAt:      ctx.Time(),
-				CreatedBy:      ec.engineOrWorkerId,
-				DueAt:          ctx.Time(),
-				State:          engine.WorkCreated,
-				Type:           jobType,
+				BpmnElementId:   execution.BpmnElementId,
+				BpmnElementType: execution.BpmnElementType,
+				CreatedAt:       ctx.Time(),
+				CreatedBy:       ec.engineOrWorkerId,
+				DueAt:           ctx.Time(),
+				State:           engine.WorkCreated,
+				Type:            jobType,
 			}
 
 			entities = append(entities, &job)
@@ -473,7 +473,10 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 		case *JobEntity:
 			entity.ElementInstanceId = execution.Id
 
-			if err := ctx.Jobs().Insert(entity); err != nil {
+			if err := ctx.Jobs().Insert(
+				entity,
+				ec.processInstance.CorrelationKey,
+			); err != nil {
 				return err
 			}
 		case *TaskEntity:
@@ -514,7 +517,7 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			return err
 		}
 
-		passVariablesJob := JobEntity{
+		passVariables := JobEntity{
 			Partition: callActivityExecution.Partition,
 
 			ElementId:         callActivityExecution.ElementId,
@@ -522,16 +525,19 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			ProcessId:         callActivityExecution.ProcessId,
 			ProcessInstanceId: callActivityExecution.ProcessInstanceId,
 
-			BpmnElementId:  callActivityExecution.BpmnElementId,
-			CorrelationKey: callActivityExecution.Context,
-			CreatedAt:      ctx.Time(),
-			CreatedBy:      ec.engineOrWorkerId,
-			DueAt:          ctx.Time(),
-			State:          engine.WorkCreated,
-			Type:           engine.JobPassVariables,
+			BpmnElementId:   callActivityExecution.BpmnElementId,
+			BpmnElementType: callActivityExecution.BpmnElementType,
+			CreatedAt:       ctx.Time(),
+			CreatedBy:       ec.engineOrWorkerId,
+			DueAt:           ctx.Time(),
+			State:           engine.WorkCreated,
+			Type:            engine.JobPassVariables,
 		}
 
-		if err := ctx.Jobs().Insert(&passVariablesJob); err != nil {
+		if err := ctx.Jobs().Insert(
+			&passVariables,
+			callActivityExecution.Context,
+		); err != nil {
 			return err
 		}
 	}
