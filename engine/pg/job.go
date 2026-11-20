@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -382,13 +381,6 @@ func (r jobRepository) Lock(cmd engine.LockJobsCmd, lockedAt time.Time) ([]inter
 	if len(entities) == 0 {
 		return entities, nil
 	}
-
-	slices.SortFunc(entities, func(a internal.JobEntity, b internal.JobEntity) int {
-		if result := a.Partition.Compare(b.Partition); result != 0 {
-			return result
-		}
-		return int(a.Id - b.Id)
-	})
 
 	// delete from pool
 	poolIdsToDelete := make([]string, len(poolIds))

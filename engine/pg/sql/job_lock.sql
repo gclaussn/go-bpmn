@@ -18,6 +18,7 @@ SELECT
 FROM
 	job_pool
 WHERE
+  process_id IN ({{.ProcessIds | joinInt32}}) AND
 	due_at <= $1
 {{if not .Partition.IsZero}}
 	AND partition = '{{.Partition}}'
@@ -26,12 +27,11 @@ WHERE
 	AND job_id = {{.Id}}
 {{end}}
 
-{{if .ProcessIds}}
-	AND process_id IN ({{.ProcessIds | joinInt32}})
-{{end}}
 {{if ne .ProcessInstanceId 0}}
 	AND process_instance_id = {{.ProcessInstanceId}}
 {{end}}
+ORDER BY
+	due_at
 LIMIT
 	{{.Limit}}
 FOR UPDATE SKIP LOCKED
