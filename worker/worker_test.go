@@ -25,18 +25,18 @@ func (e *testWorkerEngine) CompleteJob(ctx context.Context, cmd engine.CompleteJ
 	return engine.Job{}, nil
 }
 
-func (e *testWorkerEngine) LockJobs(ctx context.Context, cmd engine.LockJobsCmd) ([]engine.Job, error) {
-	var lockedJobs []engine.Job
+func (e *testWorkerEngine) LockJobs(ctx context.Context, cmd engine.LockJobsCmd) ([]engine.LockedJob, error) {
+	var lockedJobs []engine.LockedJob
 	switch e.lockJobsCalled {
 	case 0:
-		lockedJobs = append(lockedJobs, engine.Job{ProcessId: 1, BpmnElementId: "a"})
-		lockedJobs = append(lockedJobs, engine.Job{ProcessId: 2, BpmnElementId: "a"})
-		lockedJobs = append(lockedJobs, engine.Job{ProcessId: 3, BpmnElementId: "a"})
+		lockedJobs = append(lockedJobs, engine.LockedJob{ProcessId: 1, BpmnElementId: "a"})
+		lockedJobs = append(lockedJobs, engine.LockedJob{ProcessId: 2, BpmnElementId: "a"})
+		lockedJobs = append(lockedJobs, engine.LockedJob{ProcessId: 3, BpmnElementId: "a"})
 	case 1:
-		lockedJobs = append(lockedJobs, engine.Job{ProcessId: 1, BpmnElementId: "a"})
-		lockedJobs = append(lockedJobs, engine.Job{ProcessId: 2, BpmnElementId: "a"})
+		lockedJobs = append(lockedJobs, engine.LockedJob{ProcessId: 1, BpmnElementId: "a"})
+		lockedJobs = append(lockedJobs, engine.LockedJob{ProcessId: 2, BpmnElementId: "a"})
 	case 2:
-		lockedJobs = append(lockedJobs, engine.Job{ProcessId: 1, BpmnElementId: "a"})
+		lockedJobs = append(lockedJobs, engine.LockedJob{ProcessId: 1, BpmnElementId: "a"})
 	}
 
 	e.lockJobsCalled++

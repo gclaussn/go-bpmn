@@ -87,7 +87,7 @@ type Options struct {
 	JobExecutorLimit    int                // Maximum number of jobs to lock and execute at once by the worker.
 	WorkerId            string             // Worker ID.
 
-	OnJobExecutionFailure func(engine.Job, error) // Called when the worker failed to execute a locked job.
+	OnJobExecutionFailure func(engine.LockedJob, error) // Called when the worker failed to execute a locked job.
 }
 
 func (o Options) Validate() error {
@@ -161,7 +161,7 @@ func (w *Worker) Encoder(encoding string) Encoder {
 	}
 }
 
-func (w *Worker) ExecuteJob(ctx context.Context, job engine.Job) (engine.Job, error) {
+func (w *Worker) ExecuteJob(ctx context.Context, job engine.LockedJob) (engine.Job, error) {
 	processHandle, ok := w.processHandles[job.ProcessId]
 	if !ok {
 		return engine.Job{}, fmt.Errorf("no handler registered for process ID %d", job.ProcessId)

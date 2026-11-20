@@ -594,18 +594,18 @@ type Job struct {
 	ProcessId         int32 `json:"processId" validate:"required"`         // ID of the related process.
 	ProcessInstanceId int32 `json:"processInstanceId" validate:"required"` // ID of the enclosing process instance.
 
-	BpmnElementId  string    `json:"bpmnElementId" validate:"required"`    // Element ID within the BPMN XML.
-	CompletedAt    time.Time `json:"completedAt,omitzero"`                 // Completion time.
-	CorrelationKey string    `json:"correlationKey,omitempty"`             // Correlation key of the process instance.
-	CreatedAt      time.Time `json:"createdAt" validate:"required"`        // Creation time.
-	CreatedBy      string    `json:"createdBy" validate:"required"`        // ID of the worker or engine that created the job.
-	DueAt          time.Time `json:"dueAt" validate:"required"`            // Point in time when a job can be locked by a worker.
-	Error          string    `json:"error,omitempty"`                      // Error, indicating a technical problem.
-	LockedAt       time.Time `json:"lockedAt,omitzero"`                    // Lock time.
-	LockedBy       string    `json:"lockedBy,omitempty"`                   // ID of the worker that locked the job.
-	RetryCount     int       `json:"retryCount" validate:"required,gte=0"` // Retry indicator, which is increased for each failed attempt.
-	State          WorkState `json:"state" validate:"required"`            // Current state.
-	Type           JobType   `json:"type" validate:"required"`             // Job type.
+	BpmnElementId   string            `json:"bpmnElementId" validate:"required"`    // Element ID within the BPMN XML.
+	BpmnElementType model.ElementType `json:"bpmnElementType" validate:"required"`  // BPMN element type.
+	CompletedAt     time.Time         `json:"completedAt,omitzero"`                 // Completion time.
+	CreatedAt       time.Time         `json:"createdAt" validate:"required"`        // Creation time.
+	CreatedBy       string            `json:"createdBy" validate:"required"`        // ID of the worker or engine that created the job.
+	DueAt           time.Time         `json:"dueAt" validate:"required"`            // Point in time when a job can be locked by a worker.
+	Error           string            `json:"error,omitempty"`                      // Error, indicating a technical problem.
+	LockedAt        time.Time         `json:"lockedAt,omitzero"`                    // Lock time.
+	LockedBy        string            `json:"lockedBy,omitempty"`                   // ID of the worker that locked the job.
+	RetryCount      int               `json:"retryCount" validate:"required,gte=0"` // Retry indicator, which is increased for each failed attempt.
+	State           WorkState         `json:"state" validate:"required"`            // Current state.
+	Type            JobType           `json:"type" validate:"required"`             // Job type.
 }
 
 func (v Job) HasError() bool {
@@ -633,6 +633,30 @@ type JobCriteria struct {
 	ElementInstanceId int32 `json:"elementInstanceId,omitempty"` // Element instance filter.
 	ProcessId         int32 `json:"processId,omitempty"`         // Process filter.
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // Process instance filter.
+}
+
+// LockedJob is unit of worked, related to an element instance, that is locked by a worker.
+type LockedJob struct {
+	Partition Partition `json:"partition" validate:"required"` // Job partition.
+	Id        int32     `json:"id" validate:"required"`        // Job ID.
+
+	ElementId         int32 `json:"elementId" validate:"required"`         // ID of the related element.
+	ElementInstanceId int32 `json:"elementInstanceId" validate:"required"` // ID of the related element instance.
+	ProcessId         int32 `json:"processId" validate:"required"`         // ID of the related process.
+	ProcessInstanceId int32 `json:"processInstanceId" validate:"required"` // ID of the enclosing process instance.
+
+	BpmnElementId   string            `json:"bpmnElementId" validate:"required"`    // Element ID within the BPMN XML.
+	BpmnElementType model.ElementType `json:"bpmnElementType" validate:"required"`  // BPMN element type.
+	CorrelationKey  string            `json:"correlationKey,omitempty"`             // Correlation key of the process instance.
+	DueAt           time.Time         `json:"dueAt" validate:"required"`            // Point in time when a job can be locked by a worker.
+	LockedAt        time.Time         `json:"lockedAt" validate:"required"`         // Lock time.
+	LockedBy        string            `json:"lockedBy" validate:"required"`         // ID of the worker that locked the job.
+	RetryCount      int               `json:"retryCount" validate:"required,gte=0"` // Retry indicator, which is increased for each failed attempt.
+	Type            JobType           `json:"type" validate:"required"`             // Job type.
+}
+
+func (v LockedJob) String() string {
+	return fmt.Sprintf("%s/%d", v.Partition, v.Id)
 }
 
 // Message is used to notify a message subscriber (message start, boundary or catch event) by performing a key based message correlation.

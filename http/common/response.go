@@ -35,8 +35,8 @@ type GetProcessVariablesRes struct {
 
 // Response of a job locking.
 type LockJobsRes struct {
-	Count int          `json:"count" validate:"required,gte=0"` // Number of locked jobs.
-	Jobs  []engine.Job `json:"jobs" validate:"required"`        // Locked jobs.
+	Count int                `json:"count" validate:"required,gte=0"` // Number of locked jobs.
+	Jobs  []engine.LockedJob `json:"jobs" validate:"required"`        // Locked jobs.
 }
 
 // Response when engine's time increased.

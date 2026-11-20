@@ -220,7 +220,7 @@ func (e *testEngine) CreateQuery() engine.Query {
 	return &e.query
 }
 
-func (e *testEngine) LockJobs(ctx context.Context, cmd engine.LockJobsCmd) ([]engine.Job, error) {
+func (e *testEngine) LockJobs(ctx context.Context, cmd engine.LockJobsCmd) ([]engine.LockedJob, error) {
 	e.lockJobsCmd = cmd
 	return nil, nil
 }

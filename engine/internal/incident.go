@@ -96,13 +96,14 @@ func ResolveIncident(ctx Context, cmd engine.ResolveIncidentCmd) error {
 			ProcessId:         job.ProcessId,
 			ProcessInstanceId: job.ProcessInstanceId,
 
-			BpmnElementId:  job.BpmnElementId,
-			CorrelationKey: job.CorrelationKey,
-			CreatedAt:      ctx.Time(),
-			CreatedBy:      cmd.WorkerId,
-			DueAt:          dueAt,
-			State:          engine.WorkCreated,
-			Type:           job.Type,
+			BpmnElementId:   job.BpmnElementId,
+			BpmnElementType: job.BpmnElementType,
+			CorrelationKey:  job.CorrelationKey,
+			CreatedAt:       ctx.Time(),
+			CreatedBy:       cmd.WorkerId,
+			DueAt:           dueAt,
+			State:           engine.WorkCreated,
+			Type:            job.Type,
 		}
 
 		return ctx.Jobs().Insert(&retry)

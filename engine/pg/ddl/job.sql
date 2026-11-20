@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS job (
 	process_instance_id INTEGER NOT NULL,
 
 	bpmn_element_id VARCHAR NOT NULL,
+	bpmn_element_type VARCHAR NOT NULL,
 	completed_at TIMESTAMP(3),
 	correlation_key VARCHAR,
 	created_at TIMESTAMP(3) NOT NULL,

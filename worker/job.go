@@ -379,7 +379,7 @@ func (m JobMux) SubscribeSignal(bpmnElementId string, jobHandler func(jc JobCont
 }
 
 type JobContext struct {
-	Job     engine.Job
+	Job     engine.LockedJob
 	Process engine.Process
 	Element engine.Element
 

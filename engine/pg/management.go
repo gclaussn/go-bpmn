@@ -22,6 +22,8 @@ var Tables = []string{
 	"event_definition",
 	"incident",
 	"job",
+	"job_pool",
+	"job_pool_lock",
 	"message",
 	"message_subscription",
 	"message_variable",

@@ -333,13 +333,14 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 				ProcessId:         execution.ProcessId,
 				ProcessInstanceId: execution.ProcessInstanceId,
 
-				BpmnElementId:  execution.BpmnElementId,
-				CorrelationKey: ec.processInstance.CorrelationKey,
-				CreatedAt:      ctx.Time(),
-				CreatedBy:      ec.engineOrWorkerId,
-				DueAt:          ctx.Time(),
-				State:          engine.WorkCreated,
-				Type:           jobType,
+				BpmnElementId:   execution.BpmnElementId,
+				BpmnElementType: execution.BpmnElementType,
+				CorrelationKey:  ec.processInstance.CorrelationKey,
+				CreatedAt:       ctx.Time(),
+				CreatedBy:       ec.engineOrWorkerId,
+				DueAt:           ctx.Time(),
+				State:           engine.WorkCreated,
+				Type:            jobType,
 			}
 
 			entities = append(entities, &job)
@@ -522,13 +523,14 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 			ProcessId:         callActivityExecution.ProcessId,
 			ProcessInstanceId: callActivityExecution.ProcessInstanceId,
 
-			BpmnElementId:  callActivityExecution.BpmnElementId,
-			CorrelationKey: callActivityExecution.Context,
-			CreatedAt:      ctx.Time(),
-			CreatedBy:      ec.engineOrWorkerId,
-			DueAt:          ctx.Time(),
-			State:          engine.WorkCreated,
-			Type:           engine.JobPassVariables,
+			BpmnElementId:   callActivityExecution.BpmnElementId,
+			BpmnElementType: callActivityExecution.BpmnElementType,
+			CorrelationKey:  callActivityExecution.Context,
+			CreatedAt:       ctx.Time(),
+			CreatedBy:       ec.engineOrWorkerId,
+			DueAt:           ctx.Time(),
+			State:           engine.WorkCreated,
+			Type:            engine.JobPassVariables,
 		}
 
 		if err := ctx.Jobs().Insert(&passVariablesJob); err != nil {
