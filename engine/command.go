@@ -130,7 +130,7 @@ type LockJobsCmd struct {
 	Id int32 `json:"id,omitempty"`
 
 	// IDs of processes to include.
-	ProcessIds []int32 `json:"processIds" validate:"required,max=100,unique"`
+	ProcessIds []int32 `json:"processIds" validate:"required,min=1,max=100,unique"`
 	// Process instance condition - must be used in combination with a partition.
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"`
 
