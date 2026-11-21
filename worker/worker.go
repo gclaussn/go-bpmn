@@ -88,6 +88,7 @@ type Options struct {
 	WorkerId            string             // Worker ID.
 
 	OnJobExecutionFailure func(engine.LockedJob, error) // Called when the worker failed to execute a locked job.
+	OnJobLockFailure      func(error)                   // Called when the worker failed to lock jobs.
 }
 
 func (o Options) Validate() error {
