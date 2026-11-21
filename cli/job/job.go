@@ -14,10 +14,10 @@ import (
 var jobTemplate string
 
 const (
-	allColumns     = "partition,id,elementId,elementInstanceId,processId,processInstanceId,bpmnElementId,bpmnElementType,completedAt,correlationKey,createdAt,createdBy,dueAt,hasError,error,lockedAt,lockedBy,retryCount,state,type"
+	allColumns     = "partition,id,elementId,elementInstanceId,processId,processInstanceId,bpmnElementId,bpmnElementType,completedAt,createdAt,createdBy,dueAt,hasError,error,lockedAt,lockedBy,retryCount,state,type"
 	defaultColumns = "partition,id,processId,processInstanceId,createdAt,lockedAt,completedAt,type"
 
-	allLockedColumns   = "partition,id,elementId,elementInstanceId,processId,processInstanceId,bpmnElementId,bpmnElementType,correlationKey,dueAt,lockedAt,lockedBy,retryCount,type"
+	allLockColumns     = "partition,id,elementId,elementInstanceId,processId,processInstanceId,bpmnElementId,bpmnElementType,correlationKey,dueAt,lockedAt,lockedBy,retryCount,type"
 	defaultLockColumns = "partition,id,processId,processInstanceId,bpmnElementId,bpmnElementType,retryCount,type"
 )
 
@@ -134,7 +134,7 @@ func newLockCmd() *cobra.Command {
 		cmd engine.LockJobsCmd
 	)
 
-	formatter := common.NewTableFormatter(allColumns, defaultLockColumns)
+	formatter := common.NewTableFormatter(allLockColumns, defaultLockColumns)
 
 	c := cobra.Command{
 		Use:         "lock",
@@ -155,7 +155,7 @@ func newLockCmd() *cobra.Command {
 				return err
 			}
 
-			table := common.NewTable(allColumns)
+			table := common.NewTable(allLockColumns)
 
 			for _, lockedJob := range lockedJobs {
 				table.AddRow([]string{

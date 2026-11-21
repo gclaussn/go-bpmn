@@ -32,7 +32,7 @@ func main() {
 	defer e.Shutdown()
 
 	w, err := worker.New(e, func(o *worker.Options) {
-		o.OnJobExecutionFailure = func(job engine.Job, err error) {
+		o.OnJobExecutionFailure = func(job engine.LockedJob, err error) {
 			log.Printf("failed to execute job %s: %v", job, err)
 		}
 	})
