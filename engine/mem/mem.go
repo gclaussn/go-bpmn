@@ -151,7 +151,7 @@ func (e *memEngine) GetProcessVariables(_ context.Context, cmd engine.GetProcess
 	return internal.GetProcessVariables(e.rlock(), cmd)
 }
 
-func (e *memEngine) LockJobs(_ context.Context, cmd engine.LockJobsCmd) ([]engine.Job, error) {
+func (e *memEngine) LockJobs(_ context.Context, cmd engine.LockJobsCmd) ([]engine.LockedJob, error) {
 	defer e.unlock()
 	return internal.LockJobs(e.wlock(), cmd)
 }

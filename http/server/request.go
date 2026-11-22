@@ -153,8 +153,11 @@ func decodeJSONRequestBody(w http.ResponseWriter, r *http.Request, v any) error 
 			case "lte":
 				detail = fmt.Sprintf("must be less than or equal to %s", fieldError.Param())
 				value = fmt.Sprintf("%d", fieldError.Value())
+			case "min":
+				detail = fmt.Sprintf("expected minimum item count of %s", fieldError.Param())
+				value = fmt.Sprintf("%v", fieldError.Value())
 			case "max":
-				detail = fmt.Sprintf("exceeds a maximum of %s", fieldError.Param())
+				detail = fmt.Sprintf("expected maximum item count of %s", fieldError.Param())
 				value = fmt.Sprintf("%v", fieldError.Value())
 			case "required":
 				detail = "is required"

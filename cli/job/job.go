@@ -14,9 +14,11 @@ import (
 var jobTemplate string
 
 const (
-	allColumns         = "partition,id,elementId,elementInstanceId,processId,processInstanceId,bpmnElementId,completedAt,correlationKey,createdAt,createdBy,dueAt,hasError,error,lockedAt,lockedBy,retryCount,state,type"
-	defaultColumns     = "partition,id,processId,processInstanceId,createdAt,lockedAt,completedAt,type"
-	defaultLockColumns = "partition,id,processId,processInstanceId,bpmnElementId,createdAt,type"
+	allColumns     = "partition,id,elementId,elementInstanceId,processId,processInstanceId,bpmnElementId,bpmnElementType,completedAt,createdAt,createdBy,dueAt,hasError,error,lockedAt,lockedBy,retryCount,state,type"
+	defaultColumns = "partition,id,processId,processInstanceId,createdAt,lockedAt,completedAt,type"
+
+	allLockColumns     = "partition,id,elementId,elementInstanceId,processId,processInstanceId,bpmnElementId,bpmnElementType,correlationKey,dueAt,lockedAt,lockedBy,retryCount,type"
+	defaultLockColumns = "partition,id,processId,processInstanceId,bpmnElementId,bpmnElementType,retryCount,type"
 )
 
 func NewCmd() *cobra.Command {
@@ -132,7 +134,7 @@ func newLockCmd() *cobra.Command {
 		cmd engine.LockJobsCmd
 	)
 
-	formatter := common.NewTableFormatter(allColumns, defaultLockColumns)
+	formatter := common.NewTableFormatter(allLockColumns, defaultLockColumns)
 
 	c := cobra.Command{
 		Use:         "lock",
@@ -144,17 +146,38 @@ func newLockCmd() *cobra.Command {
 			cmd.Partition = engine.Partition(partition)
 			cmd.WorkerId = workerId
 
-			jobs, err := e.LockJobs(context.Background(), cmd)
+			lockedJobs, err := e.LockJobs(context.Background(), cmd)
 			if err != nil {
 				return err
 			}
 
-			if ok, err := formatter.Format(c, jobs, common.Rows(jobs)); ok || err != nil {
+			if ok, err := formatter.Format(c, lockedJobs, common.Rows(lockedJobs)); ok || err != nil {
 				return err
 			}
 
-			table := common.NewTable(allColumns)
-			addRows(table, jobs)
+			table := common.NewTable(allLockColumns)
+
+			for _, lockedJob := range lockedJobs {
+				table.AddRow([]string{
+					lockedJob.Partition.String(),
+					common.FormatId(lockedJob.Id),
+
+					common.FormatId(lockedJob.ElementId),
+					common.FormatId(lockedJob.ElementInstanceId),
+					common.FormatId(lockedJob.ProcessId),
+					common.FormatId(lockedJob.ProcessInstanceId),
+
+					lockedJob.BpmnElementId,
+					lockedJob.BpmnElementType.String(),
+					lockedJob.CorrelationKey,
+					common.FormatTime(lockedJob.DueAt),
+					common.FormatTime(lockedJob.LockedAt),
+					lockedJob.LockedBy,
+					strconv.Itoa(lockedJob.RetryCount),
+					lockedJob.Type.String(),
+				})
+			}
+
 			table.Format(c, formatter.SelectedColumns())
 			return nil
 		},
@@ -242,7 +265,33 @@ func newQueryCmd() *cobra.Command {
 			}
 
 			table := common.NewTable(allColumns)
-			addRows(table, results)
+
+			for _, result := range results {
+				table.AddRow([]string{
+					result.Partition.String(),
+					common.FormatId(result.Id),
+
+					common.FormatId(result.ElementId),
+					common.FormatId(result.ElementInstanceId),
+					common.FormatId(result.ProcessId),
+					common.FormatId(result.ProcessInstanceId),
+
+					result.BpmnElementId,
+					result.BpmnElementType.String(),
+					common.FormatTime(result.CompletedAt),
+					common.FormatTime(result.CreatedAt),
+					result.CreatedBy,
+					common.FormatTime(result.DueAt),
+					strconv.FormatBool(result.HasError()),
+					result.Error,
+					common.FormatTime(result.LockedAt),
+					result.LockedBy,
+					strconv.Itoa(result.RetryCount),
+					result.State.String(),
+					result.Type.String(),
+				})
+			}
+
 			table.Format(c, formatter.SelectedColumns())
 			return nil
 		},
@@ -261,32 +310,4 @@ func newQueryCmd() *cobra.Command {
 	formatter.Flag(&c)
 
 	return &c
-}
-
-func addRows(table *common.Table, jobs []engine.Job) {
-	for _, job := range jobs {
-		table.AddRow([]string{
-			job.Partition.String(),
-			common.FormatId(job.Id),
-
-			common.FormatId(job.ElementId),
-			common.FormatId(job.ElementInstanceId),
-			common.FormatId(job.ProcessId),
-			common.FormatId(job.ProcessInstanceId),
-
-			job.BpmnElementId,
-			common.FormatTime(job.CompletedAt),
-			job.CorrelationKey,
-			common.FormatTime(job.CreatedAt),
-			job.CreatedBy,
-			common.FormatTime(job.DueAt),
-			strconv.FormatBool(job.HasError()),
-			job.Error,
-			common.FormatTime(job.LockedAt),
-			job.LockedBy,
-			strconv.Itoa(job.RetryCount),
-			job.State.String(),
-			job.Type.String(),
-		})
-	}
 }

@@ -5,8 +5,8 @@ ElementInstanceId: {{ .ElementInstanceId }}
 ProcessId: {{ .ProcessId }}
 ProcessInstanceId: {{ .ProcessInstanceId }}
 BpmnElementId: {{ .BpmnElementId }}
+BpmnElementType: {{ .BpmnElementType }}
 CompletedAt: {{ .CompletedAt | formatTime }}
-CorrelationKey: {{ .CorrelationKey }}
 CreatedAt: {{ .CreatedAt | formatTime }}
 CreatedBy: {{ .CreatedBy }}
 DueAt: {{ .DueAt | formatTime }}

@@ -20,6 +20,7 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		"vgte": 1,
 		"viso8601Duration": "",
 		"vlte": 100,
+		"vmin": [1],
 		"vmax": [1, 2, 3],
 		"vrequired": "a string",
 		"vtags": [
@@ -51,6 +52,7 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		"vgte": 0,
 		"viso8601Duration": "invalid",
 		"vlte": 101,
+		"vmin": [],
 		"vmax": [1, 2, 3, 4],
 		"vrequired": "",
 		"vtags": [
@@ -171,7 +173,7 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		assertProblem(t, err, common.ProblemHttpRequestBody, http.StatusBadRequest)
 
 		problem := err.(common.Problem)
-		assert.Len(problem.Errors, 13)
+		assert.Len(problem.Errors, 14)
 
 		findError := func(pointer string) common.Error {
 			for i := range problem.Errors {
@@ -199,6 +201,11 @@ func TestDecodeJSONRequestBody(t *testing.T) {
 		assert.Equal("lte", e.Type)
 		assert.NotEmpty(e.Detail)
 		assert.Equal("101", e.Value)
+
+		e = findError("#/vmin")
+		assert.Equal("min", e.Type)
+		assert.NotEmpty(e.Detail)
+		assert.Equal("[]", e.Value)
 
 		e = findError("#/vmax")
 		assert.Equal("max", e.Type)
@@ -452,6 +459,7 @@ type DecodeTest struct {
 	VGte             int                       `json:"vgte" validate:"gte=1"`
 	VISO8601Duration engine.ISO8601Duration    `json:"viso8601Duration" validate:"iso8601_duration"`
 	VLte             int                       `json:"vlte" validate:"lte=100"`
+	VMin             []int                     `json:"vmin" validate:"min=1"`
 	VMax             []int                     `json:"vmax" validate:"max=3"`
 	VRequired        string                    `json:"vrequired" validate:"required"`
 	VTags            []engine.Tag              `json:"vtags" validate:"dive"`

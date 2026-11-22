@@ -379,7 +379,7 @@ func (m JobMux) SubscribeSignal(bpmnElementId string, jobHandler func(jc JobCont
 }
 
 type JobContext struct {
-	Job     engine.Job
+	Job     engine.LockedJob
 	Process engine.Process
 	Element engine.Element
 
@@ -556,20 +556,24 @@ func (e *jobExecutor) execute() {
 			WorkerId:   w.id,
 		}
 
-		onFailure := w.options.OnJobExecutionFailure
+		onLockFailure := w.options.OnJobLockFailure
+		onExecutionFailure := w.options.OnJobExecutionFailure
 
 		for {
 			select {
 			case <-e.ticker.C:
 				lockedJobs, err := w.e.LockJobs(context.Background(), lockJobsCmd)
 				if err != nil {
+					if onLockFailure != nil {
+						onLockFailure(err)
+					}
 					break
 				}
 
 				for i := range lockedJobs {
 					_, err := w.ExecuteJob(context.Background(), lockedJobs[i])
-					if err != nil && onFailure != nil {
-						onFailure(lockedJobs[i], err)
+					if err != nil && onExecutionFailure != nil {
+						onExecutionFailure(lockedJobs[i], err)
 					}
 				}
 			case <-e.tickerCtx.Done():

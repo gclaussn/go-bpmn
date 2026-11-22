@@ -81,6 +81,7 @@ responses:
               processId: 2
               processInstanceId: 576
               bpmnElementId: serviceTaskA
+              bpmnElementType: SERVICE_TASK
               completedAt: "2025-05-01T18:17:08.044Z"
               createdAt: "2025-05-01T17:44:19.997Z"
               createdBy: go-bpmn

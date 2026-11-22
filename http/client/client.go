@@ -221,7 +221,7 @@ func (c *client) GetProcessVariables(ctx context.Context, cmd engine.GetProcessV
 	return resBody.Variables, nil
 }
 
-func (c *client) LockJobs(ctx context.Context, cmd engine.LockJobsCmd) ([]engine.Job, error) {
+func (c *client) LockJobs(ctx context.Context, cmd engine.LockJobsCmd) ([]engine.LockedJob, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.options.Timeout)
 	defer cancel()
 

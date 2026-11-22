@@ -46,7 +46,9 @@ type Engine interface {
 	GetProcessVariables(context.Context, GetProcessVariablesCmd) ([]ProcessVariable, error)
 
 	// LockJobs locks due jobs, which match the specified conditions.
-	LockJobs(context.Context, LockJobsCmd) ([]Job, error)
+	//
+	// Since jobs are locked per process, at least one process ID must be specified.
+	LockJobs(context.Context, LockJobsCmd) ([]LockedJob, error)
 
 	// ResolveIncident resolves a job or task related incident.
 	//

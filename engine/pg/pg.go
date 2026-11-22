@@ -332,15 +332,15 @@ func (e *pgEngine) GetProcessVariables(ctx context.Context, cmd engine.GetProces
 	return variables, e.release(pgCtx, err)
 }
 
-func (e *pgEngine) LockJobs(ctx context.Context, cmd engine.LockJobsCmd) ([]engine.Job, error) {
+func (e *pgEngine) LockJobs(ctx context.Context, cmd engine.LockJobsCmd) ([]engine.LockedJob, error) {
 	pgCtx, cancel, err := e.acquire(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	defer cancel()
-	jobs, err := internal.LockJobs(pgCtx, cmd)
-	return jobs, e.release(pgCtx, err)
+	lockedJobs, err := internal.LockJobs(pgCtx, cmd)
+	return lockedJobs, e.release(pgCtx, err)
 }
 
 func (e *pgEngine) ResolveIncident(ctx context.Context, cmd engine.ResolveIncidentCmd) error {

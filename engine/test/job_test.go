@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
+	"github.com/gclaussn/go-bpmn/model"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -68,9 +69,10 @@ func TestCompleteJob(t *testing.T) {
 
 			// when
 			lockedJobs, err := e.LockJobs(context.Background(), engine.LockJobsCmd{
-				Partition: job.Partition,
-				Id:        job.Id,
-				WorkerId:  testWorkerId,
+				Partition:  job.Partition,
+				Id:         job.Id,
+				ProcessIds: []int32{job.ProcessId},
+				WorkerId:   testWorkerId,
 			})
 			if err != nil {
 				t.Fatalf("failed to lock job: %v", err)
@@ -122,9 +124,10 @@ func TestCompleteJob(t *testing.T) {
 
 			// when
 			lockedJobs, err := e.LockJobs(context.Background(), engine.LockJobsCmd{
-				Partition: job.Partition,
-				Id:        job.Id,
-				WorkerId:  "different-worker",
+				Partition:  job.Partition,
+				Id:         job.Id,
+				ProcessIds: []int32{job.ProcessId},
+				WorkerId:   "different-worker",
 			})
 			if err != nil {
 				t.Fatalf("failed to lock job: %v", err)
@@ -155,9 +158,10 @@ func TestCompleteJob(t *testing.T) {
 
 			// when
 			lockedJobs, err := e.LockJobs(context.Background(), engine.LockJobsCmd{
-				Partition: job.Partition,
-				Id:        job.Id,
-				WorkerId:  testWorkerId,
+				Partition:  job.Partition,
+				Id:         job.Id,
+				ProcessIds: []int32{job.ProcessId},
+				WorkerId:   testWorkerId,
 			})
 			if err != nil {
 				t.Fatalf("failed to lock job: %v", err)
@@ -186,18 +190,18 @@ func TestCompleteJob(t *testing.T) {
 				ProcessId:         job.ProcessId,
 				ProcessInstanceId: job.ProcessInstanceId,
 
-				BpmnElementId:  "serviceTask",
-				CompletedAt:    completedJob.CompletedAt,
-				CorrelationKey: "ck",
-				CreatedAt:      job.CreatedAt,
-				CreatedBy:      testWorkerId,
-				DueAt:          job.DueAt,
-				Error:          "",
-				LockedAt:       lockedJobs[0].LockedAt,
-				LockedBy:       testWorkerId,
-				RetryCount:     0,
-				State:          engine.WorkDone,
-				Type:           engine.JobExecute,
+				BpmnElementId:   "serviceTask",
+				BpmnElementType: model.ElementServiceTask,
+				CompletedAt:     completedJob.CompletedAt,
+				CreatedAt:       job.CreatedAt,
+				CreatedBy:       testWorkerId,
+				DueAt:           job.DueAt,
+				Error:           "",
+				LockedAt:        lockedJobs[0].LockedAt,
+				LockedBy:        testWorkerId,
+				RetryCount:      0,
+				State:           engine.WorkDone,
+				Type:            engine.JobExecute,
 			}, completedJob)
 
 			assert.NotZero(completedJob.CompletedAt)
@@ -218,18 +222,18 @@ func TestCompleteJob(t *testing.T) {
 				ProcessId:         job.ProcessId,
 				ProcessInstanceId: job.ProcessInstanceId,
 
-				BpmnElementId:  "serviceTask",
-				CompletedAt:    completedJob.CompletedAt,
-				CorrelationKey: "ck",
-				CreatedAt:      job.CreatedAt,
-				CreatedBy:      testWorkerId,
-				DueAt:          job.DueAt,
-				Error:          "",
-				LockedAt:       lockedJobs[0].LockedAt,
-				LockedBy:       testWorkerId,
-				RetryCount:     0,
-				State:          engine.WorkDone,
-				Type:           engine.JobExecute,
+				BpmnElementId:   "serviceTask",
+				BpmnElementType: model.ElementServiceTask,
+				CompletedAt:     completedJob.CompletedAt,
+				CreatedAt:       job.CreatedAt,
+				CreatedBy:       testWorkerId,
+				DueAt:           job.DueAt,
+				Error:           "",
+				LockedAt:        lockedJobs[0].LockedAt,
+				LockedBy:        testWorkerId,
+				RetryCount:      0,
+				State:           engine.WorkDone,
+				Type:            engine.JobExecute,
 			}, results[0])
 		})
 
@@ -239,9 +243,10 @@ func TestCompleteJob(t *testing.T) {
 
 			// when
 			lockedJobs, err := e.LockJobs(context.Background(), engine.LockJobsCmd{
-				Partition: job.Partition,
-				Id:        job.Id,
-				WorkerId:  testWorkerId,
+				Partition:  job.Partition,
+				Id:         job.Id,
+				ProcessIds: []int32{job.ProcessId},
+				WorkerId:   testWorkerId,
 			})
 			if err != nil {
 				t.Fatalf("failed to lock job: %v", err)
@@ -285,18 +290,18 @@ func TestCompleteJob(t *testing.T) {
 				ProcessId:         job.ProcessId,
 				ProcessInstanceId: job.ProcessInstanceId,
 
-				BpmnElementId:  "serviceTask",
-				CompletedAt:    time.Time{},
-				CorrelationKey: "ck",
-				CreatedAt:      completedJob.CompletedAt,
-				CreatedBy:      testWorkerId,
-				DueAt:          results[0].DueAt,
-				Error:          "",
-				LockedAt:       time.Time{},
-				LockedBy:       "",
-				RetryCount:     1,
-				State:          engine.WorkCreated,
-				Type:           engine.JobExecute,
+				BpmnElementId:   "serviceTask",
+				BpmnElementType: model.ElementServiceTask,
+				CompletedAt:     time.Time{},
+				CreatedAt:       completedJob.CompletedAt,
+				CreatedBy:       testWorkerId,
+				DueAt:           results[0].DueAt,
+				Error:           "",
+				LockedAt:        time.Time{},
+				LockedBy:        "",
+				RetryCount:      1,
+				State:           engine.WorkCreated,
+				Type:            engine.JobExecute,
 			}, results[0])
 		})
 
@@ -306,9 +311,10 @@ func TestCompleteJob(t *testing.T) {
 
 			// when
 			lockedJobs, err := e.LockJobs(context.Background(), engine.LockJobsCmd{
-				Partition: job.Partition,
-				Id:        job.Id,
-				WorkerId:  testWorkerId,
+				Partition:  job.Partition,
+				Id:         job.Id,
+				ProcessIds: []int32{job.ProcessId},
+				WorkerId:   testWorkerId,
 			})
 			if err != nil {
 				t.Fatalf("failed to lock job: %v", err)

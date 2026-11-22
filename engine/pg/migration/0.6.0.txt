@@ -1,0 +1,11 @@
+ddl/job_pool.sql
+ddl/idx/job_pool.sql
+ddl/job_pool_lock.sql
+ddl/idx/job_pool_lock.sql
+migration/0.6.0/alter_job_before.sql
+migration/0.6.0/update_job.sql
+migration/0.6.0/insert_job_pool.sql
+migration/0.6.0/insert_job_pool_lock.sql
+migration/0.6.0/delete_job_pool.sql
+migration/0.6.0/alter_job_after.sql
+migration/0.6.0/drop_job_lock_idx.sql

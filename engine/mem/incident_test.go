@@ -7,6 +7,7 @@ import (
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/engine/internal"
+	"github.com/gclaussn/go-bpmn/model"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
 )
@@ -23,18 +24,27 @@ func TestResolveIncident(t *testing.T) {
 	// given
 	date := time.Now().UTC().Truncate(24 * time.Hour)
 
+	processInstane := &internal.ProcessInstanceEntity{
+		Partition: date,
+
+		CorrelationKey: pgtype.Text{String: "ck", Valid: true},
+	}
+
+	mustInsertEntities(t, e, []any{processInstane})
+
 	job := &internal.JobEntity{
 		Partition: date,
 
 		ElementId:         1,
 		ElementInstanceId: 10,
 		ProcessId:         100,
-		ProcessInstanceId: 1000,
+		ProcessInstanceId: processInstane.Id,
 
-		BpmnElementId:  "a",
-		CorrelationKey: pgtype.Text{String: "ck", Valid: true},
-		State:          engine.WorkDone,
-		Type:           engine.JobExecute,
+		BpmnElementId:   "a",
+		BpmnElementType: model.ElementServiceTask,
+		CorrelationKey:  processInstane.CorrelationKey,
+		State:           engine.WorkDone,
+		Type:            engine.JobExecute,
 	}
 
 	task := &internal.TaskEntity{
@@ -57,7 +67,8 @@ func TestResolveIncident(t *testing.T) {
 		incident := &internal.IncidentEntity{
 			Partition: date,
 
-			JobId: pgtype.Int4{Int32: job.Id, Valid: true},
+			JobId:             pgtype.Int4{Int32: job.Id, Valid: true},
+			ProcessInstanceId: pgtype.Int4{Int32: processInstane.Id, Valid: true},
 		}
 
 		mustInsertEntities(t, e, []any{incident})
@@ -85,7 +96,8 @@ func TestResolveIncident(t *testing.T) {
 			Partition: engine.Partition(date),
 			Id:        incident.Id,
 
-			JobId: job.Id,
+			JobId:             job.Id,
+			ProcessInstanceId: processInstane.Id,
 
 			CreatedAt:  incidents[0].CreatedAt,
 			ResolvedAt: incidents[0].ResolvedAt,
@@ -109,14 +121,14 @@ func TestResolveIncident(t *testing.T) {
 			ProcessId:         job.ProcessId,
 			ProcessInstanceId: job.ProcessInstanceId,
 
-			BpmnElementId:  job.BpmnElementId,
-			CorrelationKey: job.CorrelationKey.String,
-			CreatedAt:      retryJob.CreatedAt,
-			CreatedBy:      cmd.WorkerId,
-			DueAt:          retryJob.CreatedAt,
-			RetryCount:     0,
-			State:          engine.WorkDue,
-			Type:           job.Type,
+			BpmnElementId:   job.BpmnElementId,
+			BpmnElementType: job.BpmnElementType,
+			CreatedAt:       retryJob.CreatedAt,
+			CreatedBy:       cmd.WorkerId,
+			DueAt:           retryJob.CreatedAt,
+			RetryCount:      0,
+			State:           engine.WorkDue,
+			Type:            job.Type,
 		}, retryJob)
 
 		// when resolved again
@@ -136,7 +148,8 @@ func TestResolveIncident(t *testing.T) {
 		incident := &internal.IncidentEntity{
 			Partition: date,
 
-			JobId: pgtype.Int4{Int32: job.Id, Valid: true},
+			JobId:             pgtype.Int4{Int32: job.Id, Valid: true},
+			ProcessInstanceId: pgtype.Int4{Int32: processInstane.Id, Valid: true},
 		}
 
 		mustInsertEntities(t, e, []any{incident})
@@ -170,14 +183,14 @@ func TestResolveIncident(t *testing.T) {
 			ProcessId:         job.ProcessId,
 			ProcessInstanceId: job.ProcessInstanceId,
 
-			BpmnElementId:  job.BpmnElementId,
-			CorrelationKey: job.CorrelationKey.String,
-			CreatedAt:      retryJob.CreatedAt,
-			CreatedBy:      cmd.WorkerId,
-			DueAt:          retryJob.CreatedAt.Add(1 * time.Hour),
-			RetryCount:     0,
-			State:          engine.WorkCreated,
-			Type:           job.Type,
+			BpmnElementId:   job.BpmnElementId,
+			BpmnElementType: job.BpmnElementType,
+			CreatedAt:       retryJob.CreatedAt,
+			CreatedBy:       cmd.WorkerId,
+			DueAt:           retryJob.CreatedAt.Add(1 * time.Hour),
+			RetryCount:      0,
+			State:           engine.WorkCreated,
+			Type:            job.Type,
 		}, retryJob)
 	})
 

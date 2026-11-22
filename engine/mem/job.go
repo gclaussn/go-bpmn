@@ -112,8 +112,8 @@ func (r *jobRepository) Query(c engine.JobCriteria, o engine.QueryOptions, now t
 	return results, nil
 }
 
-func (r *jobRepository) Lock(cmd engine.LockJobsCmd, lockedAt time.Time) ([]*internal.JobEntity, error) {
-	var results []*internal.JobEntity
+func (r *jobRepository) Lock(cmd engine.LockJobsCmd, lockedAt time.Time) ([]internal.JobEntity, error) {
+	var results []internal.JobEntity
 
 	var partitionKey string
 	if !cmd.Partition.IsZero() {
@@ -158,7 +158,7 @@ func (r *jobRepository) Lock(cmd engine.LockJobsCmd, lockedAt time.Time) ([]*int
 			e.State = engine.WorkLocked
 			entities[j] = e
 
-			results = append(results, &e)
+			results = append(results, e)
 		}
 	}
 

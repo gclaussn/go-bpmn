@@ -118,7 +118,8 @@ type Error struct {
 	//   - `cron`: value is not a valid CRON expression
 	//   - `gte`: value must be greater than or equal to
 	//   - `lte`: value must be less than or equal to
-	//   - `max`: array exceeds a maximum of number of items
+	//   - `max`: array does not match expected maximum item count
+	//   - `min`: array does not match expected minimum item count
 	//   - `required`: value is required
 	//   - `unique`: items of an array must be unique
 	//   - `iso8601_duration`: value is not a valid ISO 8601 duration

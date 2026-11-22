@@ -1,15 +1,25 @@
-UPDATE
-	job
-SET
-	locked_at = null,
-	locked_by = null,
-	state = 'CREATED'
+DELETE FROM
+	job_pool_lock
 WHERE
-	completed_at IS NULL
-	AND locked_by = {{.WorkerId | quoteString}}
+	locked_by = {{.WorkerId | quoteString}}
 {{if not .Partition.IsZero}}
 	AND partition = '{{.Partition}}'
 {{end}}
 {{if ne .Id 0}}
-	AND id = {{.Id}}
+	AND job_id = {{.Id}}
 {{end}}
+RETURNING
+	partition,
+
+	element_id,
+	element_instance_id,
+	job_id,
+	process_id,
+	process_instance_id,
+
+	bpmn_element_id,
+	bpmn_element_type,
+	correlation_key,
+	due_at,
+	retry_count,
+	type

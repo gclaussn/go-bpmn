@@ -3,6 +3,9 @@ tags:
 summary: Lock jobs
 description: >
   Locks due jobs, which match the specified conditions.
+
+
+  Since jobs are locked per process, at least one process ID must be specified.
 requestBody:
   content:
     application/json:
@@ -34,13 +37,11 @@ responses:
               processId: 2
               processInstanceId: 576
               bpmnElementId: serviceTaskA
-              createdAt: "2025-05-01T17:44:19.997Z"
-              createdBy: go-bpmn
+              bpmnElementType: SERVICE_TASK
               dueAt: "2025-05-01T17:44:19.997Z"
               lockedAt: "2025-05-01T17:59:30.657Z"
               lockedBy: go-bpmn
               retryCount: 0
-              state: LOCKED
               type: EXECUTE
   "400":
     description: Bad request
@@ -55,9 +56,9 @@ responses:
           detail: failed to validate request body
           errors:
             - pointer: "#/processIds"
-              type: max
-              detail: exceeds a maximum of 100
-              value: "[1 2 ... 100 101]"
+              type: min
+              detail: expected minimum item count of 1
+              value: "[]"
             - pointer: "#/processIds"
               type: unique
               detail: must be unique

@@ -59,14 +59,15 @@ func (ec *executionContext) escalateJob(ctx Context, job *JobEntity, escalationC
 			ProcessId:         job.ProcessId,
 			ProcessInstanceId: job.ProcessInstanceId,
 
-			BpmnElementId:  job.BpmnElementId,
-			CorrelationKey: job.CorrelationKey,
-			CreatedAt:      ctx.Time(),
-			CreatedBy:      ec.engineOrWorkerId,
-			DueAt:          retryTimer.Calculate(ctx.Time()),
-			RetryCount:     job.RetryCount,
-			State:          engine.WorkCreated,
-			Type:           job.Type,
+			BpmnElementId:   job.BpmnElementId,
+			BpmnElementType: job.BpmnElementType,
+			CorrelationKey:  job.CorrelationKey,
+			CreatedAt:       ctx.Time(),
+			CreatedBy:       ec.engineOrWorkerId,
+			DueAt:           retryTimer.Calculate(ctx.Time()),
+			RetryCount:      job.RetryCount,
+			State:           engine.WorkCreated,
+			Type:            job.Type,
 		}
 
 		if err := ctx.Jobs().Insert(&retry); err != nil {
@@ -96,14 +97,15 @@ func (ec *executionContext) escalateJob(ctx Context, job *JobEntity, escalationC
 			ProcessId:         job.ProcessId,
 			ProcessInstanceId: job.ProcessInstanceId,
 
-			BpmnElementId:  job.BpmnElementId,
-			CorrelationKey: job.CorrelationKey,
-			CreatedAt:      ctx.Time(),
-			CreatedBy:      ec.engineOrWorkerId,
-			DueAt:          retryTimer.Calculate(ctx.Time()),
-			RetryCount:     job.RetryCount,
-			State:          engine.WorkCreated,
-			Type:           job.Type,
+			BpmnElementId:   job.BpmnElementId,
+			BpmnElementType: job.BpmnElementType,
+			CorrelationKey:  job.CorrelationKey,
+			CreatedAt:       ctx.Time(),
+			CreatedBy:       ec.engineOrWorkerId,
+			DueAt:           retryTimer.Calculate(ctx.Time()),
+			RetryCount:      job.RetryCount,
+			State:           engine.WorkCreated,
+			Type:            job.Type,
 		}
 
 		if err := ctx.Jobs().Insert(&retry); err != nil {
