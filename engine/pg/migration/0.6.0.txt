@@ -9,3 +9,6 @@ migration/0.6.0/insert_job_pool_lock.sql
 migration/0.6.0/delete_job_pool.sql
 migration/0.6.0/alter_job_after.sql
 migration/0.6.0/drop_job_lock_idx.sql
+migration/0.6.0/drop_user_task_process_id_idx.sql
+migration/0.6.0/drop_user_task_process_instance_id_idx.sql
+ddl/idx/user_task.sql

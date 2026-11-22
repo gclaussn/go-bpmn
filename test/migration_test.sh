@@ -32,8 +32,8 @@ tar -xzf ../build/go-bpmn-${os_arch}.tar.gz -C /tmp/go-bpmn-${os_arch}
 
 # create database
 chmod +x /tmp/go-bpmn-${os_arch}-${release_tag_name}/go-bpmn-pgd
-/tmp/go-bpmn-${os_arch}-${release_tag_name}/go-bpmn-pgd -create-api-key -secret-id test-worker1
+/tmp/go-bpmn-${os_arch}-${release_tag_name}/go-bpmn-pgd api-key create --secret-id test-worker1
 
 # migrate database
 chmod +x /tmp/go-bpmn-${os_arch}/go-bpmn-pgd
-/tmp/go-bpmn-${os_arch}/go-bpmn-pgd -create-api-key -secret-id test-worker2
+/tmp/go-bpmn-${os_arch}/go-bpmn-pgd api-key create --secret-id test-worker2

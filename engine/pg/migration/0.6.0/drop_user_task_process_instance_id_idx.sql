@@ -1,0 +1,1 @@
+DROP INDEX user_task_process_instance_id_idx;
