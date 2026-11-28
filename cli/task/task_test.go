@@ -23,9 +23,7 @@ func TestExecute(t *testing.T) {
 		"-p", "2026-07-16",
 		"-i", "123",
 
-		"--process-id", "3",
 		"--process-instance-id", "5",
-		"--type", "TRIGGER_EVENT",
 
 		"--limit", "2",
 	)
@@ -36,9 +34,7 @@ func TestExecute(t *testing.T) {
 	assert.Equal("2026-07-16", cmd.Partition.String())
 	assert.Equal(int32(123), cmd.Id)
 
-	assert.Equal(int32(3), cmd.ProcessId)
 	assert.Equal(int32(5), cmd.ProcessInstanceId)
-	assert.Equal(engine.TaskTriggerEvent.String(), cmd.Type.String())
 	assert.Equal(2, cmd.Limit)
 }
 

@@ -1,54 +1,61 @@
 SELECT
-	partition,
-	id,
+	task.partition,
+	task.id,
 
-	element_id,
-	element_instance_id,
-	process_id,
-	process_instance_id,
+	task.element_id,
+	task.element_instance_id,
+	task.process_id,
+	task.process_instance_id,
 
-	bpmn_element_id,
-	completed_at,
-	created_at,
-	created_by,
-	due_at,
-	error,
-	locked_at,
-	locked_by,
-	retry_count,
-	serialized_task,
-	state,
-	type
+	task.bpmn_element_id,
+	task.bpmn_element_type,
+	task.completed_at,
+	task.created_at,
+	task.created_by,
+	task.due_at,
+	task.error,
+	CASE WHEN task.completed_at IS NULL THEN task_queue_lock.locked_at ELSE task.locked_at END AS locked_at,
+	CASE WHEN task.completed_at IS NULL THEN task_queue_lock.locked_by ELSE task.locked_by END AS locked_by,
+	task.retry_count,
+	task.serialized_task,
+	task.state,
+	task.type
 FROM
 	task
+LEFT JOIN
+	task_queue_lock
+ON
+	task.completed_at IS NULL AND
+	task_queue_lock.partition = task.partition AND
+	task_queue_lock.task_id = task.id
 WHERE
 	true
 {{if not .c.Partition.IsZero}}
-	AND partition = '{{.c.Partition}}'
+	AND task.partition = '{{.c.Partition}}'
 {{end}}
 {{if ne .c.Id 0}}
-	AND id = {{.c.Id}}
+	AND task.id = {{.c.Id}}
 {{end}}
 
 {{if ne .c.ElementId 0}}
-	AND element_id = {{.c.ElementId}}
+	AND task.element_id = {{.c.ElementId}}
 {{end}}
 {{if ne .c.ElementInstanceId 0}}
-	AND element_instance_id = {{.c.ElementInstanceId}}
+	AND task.element_instance_id = {{.c.ElementInstanceId}}
 {{end}}
 {{if ne .c.ProcessId 0}}
-	AND process_id = {{.c.ProcessId}}
+	AND task.process_id = {{.c.ProcessId}}
 {{end}}
 {{if ne .c.ProcessInstanceId 0}}
-	AND process_instance_id = {{.c.ProcessInstanceId}}
+	AND task.process_instance_id = {{.c.ProcessInstanceId}}
 {{end}}
 
 {{if ne .c.Type 0}}
-	AND type = '{{.c.Type}}'
+	AND task.type = '{{.c.Type}}'
 {{end}}
 
 ORDER BY
-	partition, id
+	task.partition, task.id
 {{if gt .o.Offset 0}}
 OFFSET {{.o.Offset}}
 {{end}}

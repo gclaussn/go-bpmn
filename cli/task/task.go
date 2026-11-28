@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	allColumns            = "partition,id,elementId,elementInstanceId,processId,processInstanceId,bpmnElementId,completedAt,createdAt,createdBy,dueAt,hasError,error,lockedAt,lockedBy,retryCount,serializedTask,state,type"
+	allColumns            = "partition,id,elementId,elementInstanceId,processId,processInstanceId,bpmnElementId,bpmnElementType,completedAt,createdAt,createdBy,dueAt,hasError,error,lockedAt,lockedBy,retryCount,serializedTask,state,type"
 	defaultColumns        = "partition,id,processId,processInstanceId,createdAt,lockedAt,completedAt,type"
 	defaultExecuteColumns = "partition,id,processId,processInstanceId,elementInstanceId,type,hasError"
 )
@@ -37,8 +37,6 @@ func newExecuteCmd() *cobra.Command {
 	var (
 		partition common.Partition
 
-		taskType taskType
-
 		cmd engine.ExecuteTasksCmd
 	)
 
@@ -50,7 +48,6 @@ func newExecuteCmd() *cobra.Command {
 		Annotations: common.AnnotationEngineMap,
 		RunE: func(c *cobra.Command, _ []string) error {
 			cmd.Partition = engine.Partition(partition)
-			cmd.Type = engine.TaskType(taskType)
 
 			completedTasks, failedTasks, err := common.GetEngine(c).ExecuteTasks(context.Background(), cmd)
 			if err != nil {
@@ -73,9 +70,7 @@ func newExecuteCmd() *cobra.Command {
 	c.Flags().VarP(&partition, "partition", "p", "Partition condition")
 	c.Flags().Int32VarP(&cmd.Id, "id", "i", 0, "Task condition - must be used in combination with a partition")
 
-	c.Flags().Int32Var(&cmd.ProcessId, "process-id", 0, "Process condition")
 	c.Flags().Int32Var(&cmd.ProcessInstanceId, "process-instance-id", 0, "Process instance condition - must be used in combination with a partition")
-	c.Flags().Var(&taskType, "type", "Task type condition")
 
 	c.Flags().IntVar(&cmd.Limit, "limit", 1, "Maximum number of tasks to lock and execute")
 
@@ -210,6 +205,7 @@ func addRows(table *common.Table, tasks []engine.Task) {
 			common.FormatId(task.ProcessInstanceId),
 
 			task.BpmnElementId,
+			task.BpmnElementType.String(),
 			common.FormatTime(task.CompletedAt),
 			common.FormatTime(task.CreatedAt),
 			task.CreatedBy,

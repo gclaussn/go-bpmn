@@ -34,6 +34,7 @@ responses:
               processId: 2
               processInstanceId: 576
               bpmnElementId: messageCatchEvent
+              bpmnElementType: MESSAGE_CATCH_EVENT
               correlationKey: example-key
               createdAt: "2025-05-01T19:25:42.749Z"
               createdBy: go-bpmn

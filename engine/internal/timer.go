@@ -76,12 +76,13 @@ func (ec *executionContext) setTimer(ctx Context, job *JobEntity, jobCompletion 
 		ProcessId:         pgtype.Int4{Int32: execution.ProcessId, Valid: true},
 		ProcessInstanceId: pgtype.Int4{Int32: execution.ProcessInstanceId, Valid: true},
 
-		BpmnElementId: pgtype.Text{String: execution.BpmnElementId, Valid: true},
-		CreatedAt:     ctx.Time(),
-		CreatedBy:     ec.engineOrWorkerId,
-		DueAt:         dueAt,
-		State:         engine.WorkCreated,
-		Type:          engine.TaskTriggerEvent,
+		BpmnElementId:   pgtype.Text{String: execution.BpmnElementId, Valid: true},
+		BpmnElementType: execution.BpmnElementType,
+		CreatedAt:       ctx.Time(),
+		CreatedBy:       ec.engineOrWorkerId,
+		DueAt:           dueAt,
+		State:           engine.WorkCreated,
+		Type:            engine.TaskTriggerEvent,
 
 		Instance: TriggerEventTask{Timer: jobCompletion.Timer},
 	}
@@ -124,12 +125,13 @@ func (ec *executionContext) triggerTimerBoundaryEvent(ctx Context, timer engine.
 			ProcessId:         pgtype.Int4{Int32: newExecution.ProcessId, Valid: true},
 			ProcessInstanceId: pgtype.Int4{Int32: newExecution.ProcessInstanceId, Valid: true},
 
-			BpmnElementId: pgtype.Text{String: newExecution.BpmnElementId, Valid: true},
-			CreatedAt:     ctx.Time(),
-			CreatedBy:     ec.engineOrWorkerId,
-			DueAt:         dueAt,
-			State:         engine.WorkCreated,
-			Type:          engine.TaskTriggerEvent,
+			BpmnElementId:   pgtype.Text{String: newExecution.BpmnElementId, Valid: true},
+			BpmnElementType: newExecution.BpmnElementType,
+			CreatedAt:       ctx.Time(),
+			CreatedBy:       ec.engineOrWorkerId,
+			DueAt:           dueAt,
+			State:           engine.WorkCreated,
+			Type:            engine.TaskTriggerEvent,
 
 			Instance: TriggerEventTask{Timer: timer},
 		}
@@ -294,12 +296,13 @@ func (ec *executionContext) triggerTimerStartEvent(ctx Context, task *TaskEntity
 		ElementId: task.ElementId,
 		ProcessId: task.ProcessId,
 
-		BpmnElementId: task.BpmnElementId,
-		CreatedAt:     ctx.Time(),
-		CreatedBy:     ctx.Options().EngineId,
-		DueAt:         dueAt,
-		State:         engine.WorkCreated,
-		Type:          engine.TaskTriggerEvent,
+		BpmnElementId:   task.BpmnElementId,
+		BpmnElementType: task.BpmnElementType,
+		CreatedAt:       ctx.Time(),
+		CreatedBy:       ctx.Options().EngineId,
+		DueAt:           dueAt,
+		State:           engine.WorkCreated,
+		Type:            engine.TaskTriggerEvent,
 
 		Instance: TriggerEventTask{Timer: timer},
 	}

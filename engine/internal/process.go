@@ -575,12 +575,13 @@ func CreateProcess(ctx Context, cmd engine.CreateProcessCmd) (engine.Process, er
 				ElementId: pgtype.Int4{Int32: node.id, Valid: true},
 				ProcessId: pgtype.Int4{Int32: process.Id, Valid: true},
 
-				BpmnElementId: pgtype.Text{String: bpmnElement.Id, Valid: true},
-				CreatedAt:     ctx.Time(),
-				CreatedBy:     cmd.WorkerId,
-				DueAt:         dueAt,
-				State:         engine.WorkCreated,
-				Type:          engine.TaskTriggerEvent,
+				BpmnElementId:   pgtype.Text{String: bpmnElement.Id, Valid: true},
+				BpmnElementType: bpmnElement.Type,
+				CreatedAt:       ctx.Time(),
+				CreatedBy:       cmd.WorkerId,
+				DueAt:           dueAt,
+				State:           engine.WorkCreated,
+				Type:            engine.TaskTriggerEvent,
 
 				Instance: TriggerEventTask{Timer: timer},
 			})

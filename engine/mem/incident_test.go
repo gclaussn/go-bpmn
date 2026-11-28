@@ -55,9 +55,10 @@ func TestResolveIncident(t *testing.T) {
 		ProcessId:         pgtype.Int4{Int32: 100, Valid: true},
 		ProcessInstanceId: pgtype.Int4{Int32: 1000, Valid: true},
 
-		BpmnElementId:  pgtype.Text{String: "test-element", Valid: true},
-		SerializedTask: pgtype.Text{String: `{"test":true}`, Valid: true},
-		Type:           engine.TaskJoinParallelGateway,
+		BpmnElementId:   pgtype.Text{String: "test-element", Valid: true},
+		BpmnElementType: model.ElementParallelGateway,
+		SerializedTask:  pgtype.Text{String: `{"test":true}`, Valid: true},
+		Type:            engine.TaskJoinParallelGateway,
 	}
 
 	mustInsertEntities(t, e, []any{job, task})
@@ -251,14 +252,15 @@ func TestResolveIncident(t *testing.T) {
 			ProcessId:         task.ProcessId.Int32,
 			ProcessInstanceId: task.ProcessInstanceId.Int32,
 
-			BpmnElementId:  task.BpmnElementId.String,
-			CreatedAt:      retryTask.CreatedAt,
-			CreatedBy:      cmd.WorkerId,
-			DueAt:          retryTask.CreatedAt,
-			RetryCount:     0,
-			SerializedTask: retryTask.SerializedTask,
-			State:          engine.WorkDue,
-			Type:           task.Type,
+			BpmnElementId:   task.BpmnElementId.String,
+			BpmnElementType: task.BpmnElementType,
+			CreatedAt:       retryTask.CreatedAt,
+			CreatedBy:       cmd.WorkerId,
+			DueAt:           retryTask.CreatedAt,
+			RetryCount:      0,
+			SerializedTask:  retryTask.SerializedTask,
+			State:           engine.WorkDue,
+			Type:            task.Type,
 		}, retryTask)
 	})
 
@@ -301,14 +303,15 @@ func TestResolveIncident(t *testing.T) {
 			ProcessId:         task.ProcessId.Int32,
 			ProcessInstanceId: task.ProcessInstanceId.Int32,
 
-			BpmnElementId:  task.BpmnElementId.String,
-			CreatedAt:      retryTask.CreatedAt,
-			CreatedBy:      cmd.WorkerId,
-			DueAt:          retryTask.CreatedAt.Add(24 * time.Hour),
-			RetryCount:     0,
-			SerializedTask: retryTask.SerializedTask,
-			State:          engine.WorkCreated,
-			Type:           task.Type,
+			BpmnElementId:   task.BpmnElementId.String,
+			BpmnElementType: task.BpmnElementType,
+			CreatedAt:       retryTask.CreatedAt,
+			CreatedBy:       cmd.WorkerId,
+			DueAt:           retryTask.CreatedAt.Add(24 * time.Hour),
+			RetryCount:      0,
+			SerializedTask:  retryTask.SerializedTask,
+			State:           engine.WorkCreated,
+			Type:            task.Type,
 		}, retryTask)
 	})
 }

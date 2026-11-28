@@ -8,6 +8,7 @@ import (
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/engine/internal"
+	"github.com/gclaussn/go-bpmn/model"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -129,6 +130,7 @@ RETURNING
 	process_instance_id,
 
 	bpmn_element_id,
+	bpmn_element_type,
 	created_at,
 	created_by
 `, name)
@@ -140,7 +142,11 @@ RETURNING
 
 	var entities []*internal.SignalSubscriptionEntity
 	for rows.Next() {
-		var entity internal.SignalSubscriptionEntity
+		var (
+			entity internal.SignalSubscriptionEntity
+
+			bpmnElementTypeValue string
+		)
 
 		if err := rows.Scan(
 			&entity.Id,
@@ -153,6 +159,7 @@ RETURNING
 			&entity.ProcessInstanceId,
 
 			&entity.BpmnElementId,
+			&bpmnElementTypeValue,
 			&entity.CreatedAt,
 			&entity.CreatedBy,
 		); err != nil {
@@ -160,6 +167,7 @@ RETURNING
 		}
 
 		entity.Name = name
+		entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
 
 		entities = append(entities, &entity)
 	}
@@ -178,6 +186,7 @@ INSERT INTO signal_subscription (
 	process_instance_id,
 
 	bpmn_element_id,
+	bpmn_element_type,
 	created_at,
 	created_by,
 	name
@@ -192,7 +201,8 @@ INSERT INTO signal_subscription (
 	$6,
 	$7,
 	$8,
-	$9
+	$9,
+	$10
 ) RETURNING id
 `,
 		entity.Partition,
@@ -203,6 +213,7 @@ INSERT INTO signal_subscription (
 		entity.ProcessInstanceId,
 
 		entity.BpmnElementId,
+		entity.BpmnElementType.String(),
 		entity.CreatedAt,
 		entity.CreatedBy,
 		entity.Name,
@@ -225,6 +236,7 @@ SELECT
 	process_id,
 
 	bpmn_element_id,
+	bpmn_element_type,
 	created_at,
 	created_by,
 	name
@@ -248,7 +260,11 @@ FOR UPDATE
 
 	var entities []*internal.SignalSubscriptionEntity
 	for rows.Next() {
-		var entity internal.SignalSubscriptionEntity
+		var (
+			entity internal.SignalSubscriptionEntity
+
+			bpmnElementTypeValue string
+		)
 
 		if err := rows.Scan(
 			&entity.Id,
@@ -258,6 +274,7 @@ FOR UPDATE
 			&entity.ProcessId,
 
 			&entity.BpmnElementId,
+			&bpmnElementTypeValue,
 			&entity.CreatedAt,
 			&entity.CreatedBy,
 			&entity.Name,
@@ -267,6 +284,7 @@ FOR UPDATE
 
 		entity.Partition = processInstance.Partition
 		entity.ProcessInstanceId = processInstance.Id
+		entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
 
 		entities = append(entities, &entity)
 	}
@@ -292,7 +310,11 @@ func (r signalSubscriptionRepository) Query(criteria engine.SignalSubscriptionCr
 
 	results := make([]engine.SignalSubscription, 0)
 	for rows.Next() {
-		var entity internal.SignalSubscriptionEntity
+		var (
+			entity internal.SignalSubscriptionEntity
+
+			bpmnElementTypeValue string
+		)
 
 		if err := rows.Scan(
 			&entity.Id,
@@ -305,12 +327,15 @@ func (r signalSubscriptionRepository) Query(criteria engine.SignalSubscriptionCr
 			&entity.ProcessInstanceId,
 
 			&entity.BpmnElementId,
+			&bpmnElementTypeValue,
 			&entity.CreatedAt,
 			&entity.CreatedBy,
 			&entity.Name,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan signal subscription row: %v", err)
 		}
+
+		entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
 
 		results = append(results, entity.SignalSubscription())
 	}

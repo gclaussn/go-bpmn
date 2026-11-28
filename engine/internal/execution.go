@@ -282,10 +282,11 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 					ProcessId:         execution.ProcessId,
 					ProcessInstanceId: execution.ProcessInstanceId,
 
-					BpmnElementId: execution.BpmnElementId,
-					CreatedAt:     ctx.Time(),
-					CreatedBy:     ec.engineOrWorkerId,
-					Name:          node.eventDefinition.SignalName.String,
+					BpmnElementId:   execution.BpmnElementId,
+					BpmnElementType: execution.BpmnElementType,
+					CreatedAt:       ctx.Time(),
+					CreatedBy:       ec.engineOrWorkerId,
+					Name:            node.eventDefinition.SignalName.String,
 				}
 
 				entities = append(entities, &signalSubscription)
@@ -353,12 +354,13 @@ func (ec *executionContext) continueExecutions(ctx Context) error {
 				ProcessId:         pgtype.Int4{Int32: execution.ProcessId, Valid: true},
 				ProcessInstanceId: pgtype.Int4{Int32: execution.ProcessInstanceId, Valid: true},
 
-				BpmnElementId: pgtype.Text{String: execution.BpmnElementId, Valid: true},
-				CreatedAt:     ctx.Time(),
-				CreatedBy:     ec.engineOrWorkerId,
-				DueAt:         ctx.Time(),
-				State:         engine.WorkCreated,
-				Type:          taskType,
+				BpmnElementId:   pgtype.Text{String: execution.BpmnElementId, Valid: true},
+				BpmnElementType: execution.BpmnElementType,
+				CreatedAt:       ctx.Time(),
+				CreatedBy:       ec.engineOrWorkerId,
+				DueAt:           ctx.Time(),
+				State:           engine.WorkCreated,
+				Type:            taskType,
 
 				Instance: taskInstance,
 			}

@@ -35,6 +35,8 @@ var Tables = []string{
 	"signal_subscription",
 	"signal_variable",
 	"task",
+	"task_queue",
+	"task_queue_lock",
 	"user_task",
 	"variable",
 }

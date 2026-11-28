@@ -79,12 +79,8 @@ type ExecuteTasksCmd struct {
 	// Task condition - must be used in combination with a partition.
 	Id int32 `json:"id,omitempty"`
 
-	// Process condition.
-	ProcessId int32 `json:"processId,omitempty"`
 	// Process instance condition - must be used in combination with a partition.
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"`
-	// Task type condition.
-	Type TaskType `json:"type,omitempty"`
 
 	// Maximum number of tasks to lock and execute.
 	Limit int `json:"limit,omitempty" validate:"gte=1,lte=100"`

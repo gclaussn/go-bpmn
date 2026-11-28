@@ -8,6 +8,7 @@ import (
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/engine/internal"
+	"github.com/gclaussn/go-bpmn/model"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -246,6 +247,7 @@ INSERT INTO message_subscription (
 	process_instance_id,
 
 	bpmn_element_id,
+	bpmn_element_type,
 	correlation_key,
 	created_at,
 	created_by,
@@ -262,7 +264,8 @@ INSERT INTO message_subscription (
 	$7,
 	$8,
 	$9,
-	$10
+	$10,
+	$11
 ) RETURNING id
 `,
 		entity.Partition,
@@ -273,6 +276,7 @@ INSERT INTO message_subscription (
 		entity.ProcessInstanceId,
 
 		entity.BpmnElementId,
+		entity.BpmnElementType.String(),
 		entity.CorrelationKey,
 		entity.CreatedAt,
 		entity.CreatedBy,
@@ -299,6 +303,7 @@ SELECT
 	process_instance_id,
 
 	bpmn_element_id,
+	bpmn_element_type,
 	created_at,
 	created_by
 FROM
@@ -313,7 +318,11 @@ LIMIT
 FOR UPDATE SKIP LOCKED
 `, name, correlationKey)
 
-	var entity internal.MessageSubscriptionEntity
+	var (
+		entity internal.MessageSubscriptionEntity
+
+		bpmnElementTypeValue string
+	)
 	if err := row.Scan(
 		&entity.Id,
 
@@ -325,6 +334,7 @@ FOR UPDATE SKIP LOCKED
 		&entity.ProcessInstanceId,
 
 		&entity.BpmnElementId,
+		&bpmnElementTypeValue,
 		&entity.CreatedAt,
 		&entity.CreatedBy,
 	); err != nil {
@@ -337,6 +347,7 @@ FOR UPDATE SKIP LOCKED
 
 	entity.Name = name
 	entity.CorrelationKey = correlationKey
+	entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
 
 	return &entity, nil
 }
@@ -351,6 +362,7 @@ SELECT
 	process_id,
 
 	bpmn_element_id,
+	bpmn_element_type,
 	correlation_key,
 	created_at,
 	created_by,
@@ -375,7 +387,11 @@ FOR UPDATE
 
 	var entities []*internal.MessageSubscriptionEntity
 	for rows.Next() {
-		var entity internal.MessageSubscriptionEntity
+		var (
+			entity internal.MessageSubscriptionEntity
+
+			bpmnElementTypeValue string
+		)
 
 		if err := rows.Scan(
 			&entity.Id,
@@ -385,6 +401,7 @@ FOR UPDATE
 			&entity.ProcessId,
 
 			&entity.BpmnElementId,
+			&bpmnElementTypeValue,
 			&entity.CorrelationKey,
 			&entity.CreatedAt,
 			&entity.CreatedBy,
@@ -395,6 +412,7 @@ FOR UPDATE
 
 		entity.Partition = processInstance.Partition
 		entity.ProcessInstanceId = processInstance.Id
+		entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
 
 		entities = append(entities, &entity)
 	}
@@ -420,7 +438,11 @@ func (r messageSubscriptionRepository) Query(criteria engine.MessageSubscription
 
 	results := make([]engine.MessageSubscription, 0)
 	for rows.Next() {
-		var entity internal.MessageSubscriptionEntity
+		var (
+			entity internal.MessageSubscriptionEntity
+
+			bpmnElementTypeValue string
+		)
 
 		if err := rows.Scan(
 			&entity.Id,
@@ -433,6 +455,7 @@ func (r messageSubscriptionRepository) Query(criteria engine.MessageSubscription
 			&entity.ProcessInstanceId,
 
 			&entity.BpmnElementId,
+			&bpmnElementTypeValue,
 			&entity.CorrelationKey,
 			&entity.CreatedAt,
 			&entity.CreatedBy,
@@ -440,6 +463,8 @@ func (r messageSubscriptionRepository) Query(criteria engine.MessageSubscription
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan message subscription row: %v", err)
 		}
+
+		entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
 
 		results = append(results, entity.MessageSubscription())
 	}

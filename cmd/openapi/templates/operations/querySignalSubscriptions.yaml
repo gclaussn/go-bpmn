@@ -34,6 +34,7 @@ responses:
               processId: 2
               processInstanceId: 576
               bpmnElementId: signalCatchEvent
+              bpmnElementType: SIGNAL_CATCH_EVENT
               createdAt: "2025-05-01T19:25:42.749Z"
               createdBy: go-bpmn
               name: example-signal

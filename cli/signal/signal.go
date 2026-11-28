@@ -14,7 +14,7 @@ import (
 var signalTemplate string
 
 const (
-	allSubscriptionColumns     = "id,partition,elementId,elementInstanceId,processId,processInstanceId,bpmnElementId,createdAt,createdBy,name"
+	allSubscriptionColumns     = "id,partition,elementId,elementInstanceId,processId,processInstanceId,bpmnElementId,bpmnElementType,createdAt,createdBy,name"
 	defaultSubscriptionColumns = "id,partition,processInstanceId,bpmnElementId,name,createdAt"
 )
 
@@ -121,6 +121,7 @@ func newQuerySubscriptionsCmd() *cobra.Command {
 					common.FormatId(result.ProcessInstanceId),
 
 					result.BpmnElementId,
+					result.BpmnElementType.String(),
 					common.FormatTime(result.CreatedAt),
 					result.CreatedBy,
 					result.Name,

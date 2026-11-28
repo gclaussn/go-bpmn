@@ -46,10 +46,11 @@ type SignalSubscriptionEntity struct {
 	ProcessId         int32
 	ProcessInstanceId int32
 
-	BpmnElementId string
-	CreatedAt     time.Time
-	CreatedBy     string
-	Name          string
+	BpmnElementId   string
+	BpmnElementType model.ElementType
+	CreatedAt       time.Time
+	CreatedBy       string
+	Name            string
 }
 
 func (e SignalSubscriptionEntity) SignalSubscription() engine.SignalSubscription {
@@ -63,10 +64,11 @@ func (e SignalSubscriptionEntity) SignalSubscription() engine.SignalSubscription
 		ProcessId:         e.ProcessId,
 		ProcessInstanceId: e.ProcessInstanceId,
 
-		BpmnElementId: e.BpmnElementId,
-		CreatedAt:     e.CreatedAt,
-		CreatedBy:     e.CreatedBy,
-		Name:          e.Name,
+		BpmnElementId:   e.BpmnElementId,
+		BpmnElementType: e.BpmnElementType,
+		CreatedAt:       e.CreatedAt,
+		CreatedBy:       e.CreatedBy,
+		Name:            e.Name,
 	}
 }
 
@@ -184,12 +186,13 @@ func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.Signal, error) {
 			ProcessId:         pgtype.Int4{Int32: signalSubscription.ProcessId, Valid: true},
 			ProcessInstanceId: pgtype.Int4{Int32: signalSubscription.ProcessInstanceId, Valid: true},
 
-			BpmnElementId: pgtype.Text{String: signalSubscription.BpmnElementId, Valid: true},
-			CreatedAt:     signal.CreatedAt,
-			CreatedBy:     signal.CreatedBy,
-			DueAt:         signal.CreatedAt,
-			State:         engine.WorkCreated,
-			Type:          engine.TaskTriggerEvent,
+			BpmnElementId:   pgtype.Text{String: signalSubscription.BpmnElementId, Valid: true},
+			BpmnElementType: signalSubscription.BpmnElementType,
+			CreatedAt:       signal.CreatedAt,
+			CreatedBy:       signal.CreatedBy,
+			DueAt:           signal.CreatedAt,
+			State:           engine.WorkCreated,
+			Type:            engine.TaskTriggerEvent,
 
 			Instance: TriggerEventTask{SignalId: signal.Id},
 		})
@@ -205,12 +208,13 @@ func SendSignal(ctx Context, cmd engine.SendSignalCmd) (engine.Signal, error) {
 			ElementId: pgtype.Int4{Int32: eventDefinition.ElementId, Valid: true},
 			ProcessId: pgtype.Int4{Int32: eventDefinition.ProcessId, Valid: true},
 
-			BpmnElementId: pgtype.Text{String: eventDefinition.BpmnElementId, Valid: true},
-			CreatedAt:     signal.CreatedAt,
-			CreatedBy:     signal.CreatedBy,
-			DueAt:         signal.CreatedAt,
-			State:         engine.WorkCreated,
-			Type:          engine.TaskTriggerEvent,
+			BpmnElementId:   pgtype.Text{String: eventDefinition.BpmnElementId, Valid: true},
+			BpmnElementType: eventDefinition.BpmnElementType,
+			CreatedAt:       signal.CreatedAt,
+			CreatedBy:       signal.CreatedBy,
+			DueAt:           signal.CreatedAt,
+			State:           engine.WorkCreated,
+			Type:            engine.TaskTriggerEvent,
 
 			Instance: TriggerEventTask{SignalId: signal.Id},
 		})
@@ -239,12 +243,13 @@ func (ec *executionContext) setSignalName(ctx Context, job *JobEntity, jobComple
 		ProcessId:         pgtype.Int4{Int32: execution.ProcessId, Valid: true},
 		ProcessInstanceId: pgtype.Int4{Int32: execution.ProcessInstanceId, Valid: true},
 
-		BpmnElementId: pgtype.Text{String: execution.BpmnElementId, Valid: true},
-		CreatedAt:     ctx.Time(),
-		CreatedBy:     ec.engineOrWorkerId,
-		DueAt:         ctx.Time(),
-		State:         engine.WorkCreated,
-		Type:          engine.TaskTriggerEvent,
+		BpmnElementId:   pgtype.Text{String: execution.BpmnElementId, Valid: true},
+		BpmnElementType: execution.BpmnElementType,
+		CreatedAt:       ctx.Time(),
+		CreatedBy:       ec.engineOrWorkerId,
+		DueAt:           ctx.Time(),
+		State:           engine.WorkCreated,
+		Type:            engine.TaskTriggerEvent,
 
 		Instance: TriggerEventTask{},
 	}
@@ -283,10 +288,11 @@ func (ec *executionContext) subscribeSignal(ctx Context, job *JobEntity, jobComp
 		ProcessId:         execution.ProcessId,
 		ProcessInstanceId: execution.ProcessInstanceId,
 
-		BpmnElementId: execution.BpmnElementId,
-		CreatedAt:     ctx.Time(),
-		CreatedBy:     ec.engineOrWorkerId,
-		Name:          jobCompletion.SignalName,
+		BpmnElementId:   execution.BpmnElementId,
+		BpmnElementType: execution.BpmnElementType,
+		CreatedAt:       ctx.Time(),
+		CreatedBy:       ec.engineOrWorkerId,
+		Name:            jobCompletion.SignalName,
 	}
 
 	if err := ctx.SignalSubscriptions().Insert(&signalSubscription); err != nil {
@@ -372,10 +378,11 @@ func (ec *executionContext) triggerSignalBoundaryEvent(ctx Context, signalId int
 			ProcessId:         newExecution.ProcessId,
 			ProcessInstanceId: newExecution.ProcessInstanceId,
 
-			BpmnElementId: newExecution.BpmnElementId,
-			CreatedAt:     ctx.Time(),
-			CreatedBy:     signal.CreatedBy,
-			Name:          signal.Name,
+			BpmnElementId:   newExecution.BpmnElementId,
+			BpmnElementType: newExecution.BpmnElementType,
+			CreatedAt:       ctx.Time(),
+			CreatedBy:       signal.CreatedBy,
+			Name:            signal.Name,
 		}
 
 		if err := ctx.SignalSubscriptions().Insert(&signalSubscription); err != nil {

@@ -60,11 +60,12 @@ type MessageSubscriptionEntity struct {
 	ProcessId         int32
 	ProcessInstanceId int32
 
-	BpmnElementId  string
-	CorrelationKey string
-	CreatedAt      time.Time
-	CreatedBy      string
-	Name           string
+	BpmnElementId   string
+	BpmnElementType model.ElementType
+	CorrelationKey  string
+	CreatedAt       time.Time
+	CreatedBy       string
+	Name            string
 }
 
 func (e MessageSubscriptionEntity) MessageSubscription() engine.MessageSubscription {
@@ -78,11 +79,12 @@ func (e MessageSubscriptionEntity) MessageSubscription() engine.MessageSubscript
 		ProcessId:         e.ProcessId,
 		ProcessInstanceId: e.ProcessInstanceId,
 
-		BpmnElementId:  e.BpmnElementId,
-		CorrelationKey: e.CorrelationKey,
-		CreatedAt:      e.CreatedAt,
-		CreatedBy:      e.CreatedBy,
-		Name:           e.Name,
+		BpmnElementId:   e.BpmnElementId,
+		BpmnElementType: e.BpmnElementType,
+		CorrelationKey:  e.CorrelationKey,
+		CreatedAt:       e.CreatedAt,
+		CreatedBy:       e.CreatedBy,
+		Name:            e.Name,
 	}
 }
 
@@ -218,12 +220,13 @@ func SendMessage(ctx Context, cmd engine.SendMessageCmd) (engine.Message, error)
 			ProcessId:         pgtype.Int4{Int32: messageSubscription.ProcessId, Valid: true},
 			ProcessInstanceId: pgtype.Int4{Int32: messageSubscription.ProcessInstanceId, Valid: true},
 
-			BpmnElementId: pgtype.Text{String: messageSubscription.BpmnElementId, Valid: true},
-			CreatedAt:     message.CreatedAt,
-			CreatedBy:     message.CreatedBy,
-			DueAt:         message.CreatedAt,
-			State:         engine.WorkCreated,
-			Type:          engine.TaskTriggerEvent,
+			BpmnElementId:   pgtype.Text{String: messageSubscription.BpmnElementId, Valid: true},
+			BpmnElementType: messageSubscription.BpmnElementType,
+			CreatedAt:       message.CreatedAt,
+			CreatedBy:       message.CreatedBy,
+			DueAt:           message.CreatedAt,
+			State:           engine.WorkCreated,
+			Type:            engine.TaskTriggerEvent,
 
 			Instance: TriggerEventTask{MessageId: message.Id},
 		}
@@ -239,12 +242,13 @@ func SendMessage(ctx Context, cmd engine.SendMessageCmd) (engine.Message, error)
 			ElementId: pgtype.Int4{Int32: eventDefinition.ElementId, Valid: true},
 			ProcessId: pgtype.Int4{Int32: eventDefinition.ProcessId, Valid: true},
 
-			BpmnElementId: pgtype.Text{String: eventDefinition.BpmnElementId, Valid: true},
-			CreatedAt:     message.CreatedAt,
-			CreatedBy:     message.CreatedBy,
-			DueAt:         message.CreatedAt,
-			State:         engine.WorkCreated,
-			Type:          engine.TaskTriggerEvent,
+			BpmnElementId:   pgtype.Text{String: eventDefinition.BpmnElementId, Valid: true},
+			BpmnElementType: eventDefinition.BpmnElementType,
+			CreatedAt:       message.CreatedAt,
+			CreatedBy:       message.CreatedBy,
+			DueAt:           message.CreatedAt,
+			State:           engine.WorkCreated,
+			Type:            engine.TaskTriggerEvent,
 
 			Instance: TriggerEventTask{MessageId: message.Id, Timer: cmd.ExpirationTimer},
 		}
@@ -333,12 +337,13 @@ func (ec *executionContext) subscribeMessage(ctx Context, job *JobEntity, jobCom
 			ProcessId:         pgtype.Int4{Int32: execution.ProcessId, Valid: true},
 			ProcessInstanceId: pgtype.Int4{Int32: execution.ProcessInstanceId, Valid: true},
 
-			BpmnElementId: pgtype.Text{String: execution.BpmnElementId, Valid: true},
-			CreatedAt:     ctx.Time(),
-			CreatedBy:     ec.engineOrWorkerId,
-			DueAt:         ctx.Time(),
-			State:         engine.WorkCreated,
-			Type:          engine.TaskTriggerEvent,
+			BpmnElementId:   pgtype.Text{String: execution.BpmnElementId, Valid: true},
+			BpmnElementType: execution.BpmnElementType,
+			CreatedAt:       ctx.Time(),
+			CreatedBy:       ec.engineOrWorkerId,
+			DueAt:           ctx.Time(),
+			State:           engine.WorkCreated,
+			Type:            engine.TaskTriggerEvent,
 
 			Instance: TriggerEventTask{MessageId: bufferedMessage.Id},
 		}
@@ -369,11 +374,12 @@ func (ec *executionContext) subscribeMessage(ctx Context, job *JobEntity, jobCom
 			ProcessId:         execution.ProcessId,
 			ProcessInstanceId: execution.ProcessInstanceId,
 
-			BpmnElementId:  execution.BpmnElementId,
-			CorrelationKey: jobCompletion.MessageCorrelationKey,
-			CreatedAt:      ctx.Time(),
-			CreatedBy:      ec.engineOrWorkerId,
-			Name:           messageName,
+			BpmnElementId:   execution.BpmnElementId,
+			BpmnElementType: execution.BpmnElementType,
+			CorrelationKey:  jobCompletion.MessageCorrelationKey,
+			CreatedAt:       ctx.Time(),
+			CreatedBy:       ec.engineOrWorkerId,
+			Name:            messageName,
 		}
 
 		if err := ctx.MessageSubscriptions().Insert(&messageSubscription); err != nil {
@@ -465,12 +471,13 @@ func (ec *executionContext) triggerMessageBoundaryEvent(ctx Context, messageId i
 				ProcessId:         pgtype.Int4{Int32: newExecution.ProcessId, Valid: true},
 				ProcessInstanceId: pgtype.Int4{Int32: newExecution.ProcessInstanceId, Valid: true},
 
-				BpmnElementId: pgtype.Text{String: newExecution.BpmnElementId, Valid: true},
-				CreatedAt:     ctx.Time(),
-				CreatedBy:     ec.engineOrWorkerId,
-				DueAt:         ctx.Time(),
-				State:         engine.WorkCreated,
-				Type:          engine.TaskTriggerEvent,
+				BpmnElementId:   pgtype.Text{String: newExecution.BpmnElementId, Valid: true},
+				BpmnElementType: newExecution.BpmnElementType,
+				CreatedAt:       ctx.Time(),
+				CreatedBy:       ec.engineOrWorkerId,
+				DueAt:           ctx.Time(),
+				State:           engine.WorkCreated,
+				Type:            engine.TaskTriggerEvent,
 
 				Instance: TriggerEventTask{MessageId: bufferedMessage.Id},
 			}
@@ -494,11 +501,12 @@ func (ec *executionContext) triggerMessageBoundaryEvent(ctx Context, messageId i
 				ProcessId:         newExecution.ProcessId,
 				ProcessInstanceId: newExecution.ProcessInstanceId,
 
-				BpmnElementId:  newExecution.BpmnElementId,
-				CorrelationKey: message.CorrelationKey,
-				CreatedAt:      ctx.Time(),
-				CreatedBy:      ec.engineOrWorkerId,
-				Name:           message.Name,
+				BpmnElementId:   newExecution.BpmnElementId,
+				BpmnElementType: newExecution.BpmnElementType,
+				CorrelationKey:  message.CorrelationKey,
+				CreatedAt:       ctx.Time(),
+				CreatedBy:       ec.engineOrWorkerId,
+				Name:            message.Name,
 			}
 
 			if err := ctx.MessageSubscriptions().Insert(&messageSubscription); err != nil {

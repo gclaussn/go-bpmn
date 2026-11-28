@@ -695,11 +695,12 @@ type MessageSubscription struct {
 	ProcessId         int32 `json:"processId" validate:"required"`         // ID of the related process.
 	ProcessInstanceId int32 `json:"processInstanceId" validate:"required"` // ID of the enclosing process instance.
 
-	BpmnElementId  string    `json:"bpmnElementId" validate:"required"`  // Element ID within the BPMN XML.
-	CorrelationKey string    `json:"correlationKey" validate:"required"` // Key, used to correlate a message subscription with a message.
-	CreatedAt      time.Time `json:"createdAt" validate:"required"`      // Creation time.
-	CreatedBy      string    `json:"createdBy" validate:"required"`      // ID of the worker or engine that subscribed to a message.
-	Name           string    `json:"name" validate:"required"`           // Message name.
+	BpmnElementId   string            `json:"bpmnElementId" validate:"required"`   // Element ID within the BPMN XML.
+	BpmnElementType model.ElementType `json:"bpmnElementType" validate:"required"` // BPMN element type.
+	CorrelationKey  string            `json:"correlationKey" validate:"required"`  // Key, used to correlate a message subscription with a message.
+	CreatedAt       time.Time         `json:"createdAt" validate:"required"`       // Creation time.
+	CreatedBy       string            `json:"createdBy" validate:"required"`       // ID of the worker or engine that subscribed to a message.
+	Name            string            `json:"name" validate:"required"`            // Message name.
 }
 
 func (v MessageSubscription) String() string {
@@ -834,10 +835,11 @@ type SignalSubscription struct {
 	ProcessId         int32 `json:"processId" validate:"required"`         // ID of the related process.
 	ProcessInstanceId int32 `json:"processInstanceId" validate:"required"` // ID of the enclosing process instance.
 
-	BpmnElementId string    `json:"bpmnElementId" validate:"required"` // Element ID within the BPMN XML.
-	CreatedAt     time.Time `json:"createdAt" validate:"required"`     // Creation time.
-	CreatedBy     string    `json:"createdBy" validate:"required"`     // ID of the worker or engine that subscribed to a signal.
-	Name          string    `json:"name" validate:"required"`          // Signal name.
+	BpmnElementId   string            `json:"bpmnElementId" validate:"required"`   // Element ID within the BPMN XML.
+	BpmnElementType model.ElementType `json:"bpmnElementType" validate:"required"` // BPMN element type.
+	CreatedAt       time.Time         `json:"createdAt" validate:"required"`       // Creation time.
+	CreatedBy       string            `json:"createdBy" validate:"required"`       // ID of the worker or engine that subscribed to a signal.
+	Name            string            `json:"name" validate:"required"`            // Signal name.
 }
 
 func (v SignalSubscription) String() string {
@@ -873,18 +875,19 @@ type Task struct {
 	ProcessId         int32 `json:"processId,omitempty"`         // ID of the related process.
 	ProcessInstanceId int32 `json:"processInstanceId,omitempty"` // ID of the enclosing process instance.
 
-	BpmnElementId  string    `json:"bpmnElementId,omitempty"`              // Element ID within the BPMN XML - set if task is element specific.
-	CompletedAt    time.Time `json:"completedAt,omitzero"`                 // Completion time.
-	CreatedAt      time.Time `json:"createdAt" validate:"required"`        // Creation time.
-	CreatedBy      string    `json:"createdBy" validate:"required"`        // ID of the worker or engine that created the task.
-	DueAt          time.Time `json:"dueAt" validate:"required"`            // Point in time when a task can be locked by an engine.
-	Error          string    `json:"error,omitempty"`                      // Error, indicating a technical problem.
-	LockedAt       time.Time `json:"lockedAt,omitzero"`                    // Lock time.
-	LockedBy       string    `json:"lockedBy,omitempty"`                   // ID of the engine that locked the task.
-	RetryCount     int       `json:"retryCount" validate:"required,gte=0"` // Retry indicator, which is increased for each failed attempt.
-	SerializedTask string    `json:"serializedTask,omitempty"`             // JSON serialized task.
-	State          WorkState `json:"state" validate:"required"`            // Current state.
-	Type           TaskType  `json:"type" validate:"required"`             // Task type.
+	BpmnElementId   string            `json:"bpmnElementId,omitempty"`              // Element ID within the BPMN XML - set if task is element specific.
+	BpmnElementType model.ElementType `json:"bpmnElementType,omitempty"`            // BPMN element type - set if task is element specific.
+	CompletedAt     time.Time         `json:"completedAt,omitzero"`                 // Completion time.
+	CreatedAt       time.Time         `json:"createdAt" validate:"required"`        // Creation time.
+	CreatedBy       string            `json:"createdBy" validate:"required"`        // ID of the worker or engine that created the task.
+	DueAt           time.Time         `json:"dueAt" validate:"required"`            // Point in time when a task can be locked by an engine.
+	Error           string            `json:"error,omitempty"`                      // Error, indicating a technical problem.
+	LockedAt        time.Time         `json:"lockedAt,omitzero"`                    // Lock time.
+	LockedBy        string            `json:"lockedBy,omitempty"`                   // ID of the engine that locked the task.
+	RetryCount      int               `json:"retryCount" validate:"required,gte=0"` // Retry indicator, which is increased for each failed attempt.
+	SerializedTask  string            `json:"serializedTask,omitempty"`             // JSON serialized task.
+	State           WorkState         `json:"state" validate:"required"`            // Current state.
+	Type            TaskType          `json:"type" validate:"required"`             // Task type.
 }
 
 func (v Task) HasError() bool {

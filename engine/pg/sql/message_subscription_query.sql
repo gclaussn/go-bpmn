@@ -9,6 +9,7 @@ SELECT
 	process_instance_id,
 
 	bpmn_element_id,
+	bpmm_element_type,
 	correlation_key,
 	created_at,
 	created_by,

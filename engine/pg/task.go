@@ -5,10 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
 	"github.com/gclaussn/go-bpmn/engine/internal"
+	"github.com/gclaussn/go-bpmn/model"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -41,6 +44,7 @@ INSERT INTO task (
 	process_instance_id,
 
 	bpmn_element_id,
+	bpmn_element_type,
 	created_at,
 	created_by,
 	due_at,
@@ -64,7 +68,8 @@ INSERT INTO task (
 	$11,
 	$12,
 	$13,
-	$14
+	$14,
+	$15
 ) RETURNING id
 `,
 		entity.Partition,
@@ -76,6 +81,7 @@ INSERT INTO task (
 		entity.ProcessInstanceId,
 
 		entity.BpmnElementId,
+		pgtype.Text{String: entity.BpmnElementType.String(), Valid: entity.BpmnElementType != 0},
 		entity.CreatedAt,
 		entity.CreatedBy,
 		entity.DueAt,
@@ -87,6 +93,58 @@ INSERT INTO task (
 
 	if err := row.Scan(&entity.Id); err != nil {
 		return fmt.Errorf("failed to insert task %+v: %v", entity, err)
+	}
+
+	// insert into queue
+	if _, err := r.tx.Exec(r.txCtx, `
+INSERT INTO task_queue (
+	partition,
+	task_id,
+
+	element_id,
+	element_instance_id,
+	process_id,
+	process_instance_id,
+
+	bpmn_element_id,
+	bpmn_element_type,
+	due_at,
+	retry_count,
+	serialized_task,
+	type
+) VALUES (
+	$1,
+	$2,
+
+	$3,
+	$4,
+	$5,
+	$6,
+
+	$7,
+	$8,
+	$9,
+	$10,
+	$11,
+	$12
+)
+`,
+		entity.Partition,
+		entity.Id,
+
+		entity.ElementId,
+		entity.ElementInstanceId,
+		entity.ProcessId,
+		entity.ProcessInstanceId,
+
+		entity.BpmnElementId,
+		pgtype.Text{String: entity.BpmnElementType.String(), Valid: entity.BpmnElementType != 0},
+		entity.DueAt,
+		entity.RetryCount,
+		entity.SerializedTask,
+		entity.Type.String(),
+	); err != nil {
+		return fmt.Errorf("failed to insert task %+v into queue: %v", entity, err)
 	}
 
 	return nil
@@ -122,6 +180,7 @@ INSERT INTO task (
 	process_instance_id,
 
 	bpmn_element_id,
+	bpmn_element_type,
 	created_at,
 	created_by,
 	due_at,
@@ -145,7 +204,8 @@ INSERT INTO task (
 	$11,
 	$12,
 	$13,
-	$14
+	$14,
+	$15
 ) RETURNING id
 `,
 			entity.Partition,
@@ -157,6 +217,7 @@ INSERT INTO task (
 			entity.ProcessInstanceId,
 
 			entity.BpmnElementId,
+			pgtype.Text{String: entity.BpmnElementType.String(), Valid: entity.BpmnElementType != 0},
 			entity.CreatedAt,
 			entity.CreatedBy,
 			entity.DueAt,
@@ -178,6 +239,69 @@ INSERT INTO task (
 		}
 	}
 
+	// insert into queue
+	queueBatch := &pgx.Batch{}
+
+	for _, entity := range entities {
+		queueBatch.Queue(`
+INSERT INTO task_queue (
+	partition,
+	task_id,
+
+	element_id,
+	element_instance_id,
+	process_id,
+	process_instance_id,
+
+	bpmn_element_id,
+	bpmn_elemnt_type,
+	due_at,
+	retry_count,
+	serialized_task,
+	type
+) VALUES (
+	$1,
+	$2,
+
+	$3,
+	$4,
+	$5,
+	$6,
+
+	$7,
+	$8,
+	$9,
+	$10,
+	$11,
+	$12
+)
+`,
+			entity.Partition,
+			entity.Id,
+
+			entity.ElementId,
+			entity.ElementInstanceId,
+			entity.ProcessId,
+			entity.ProcessInstanceId,
+
+			entity.BpmnElementId,
+			pgtype.Text{String: entity.BpmnElementType.String(), Valid: entity.BpmnElementType != 0},
+			entity.DueAt,
+			entity.RetryCount,
+			entity.SerializedTask,
+			entity.Type.String(),
+		)
+	}
+
+	queueBatchResults := r.tx.SendBatch(r.txCtx, queueBatch)
+	defer queueBatchResults.Close()
+
+	for i := range entities {
+		if _, err := queueBatchResults.Exec(); err != nil {
+			return fmt.Errorf("failed to insert task %+v into queue: %v", entities[i], err)
+		}
+	}
+
 	return nil
 }
 
@@ -190,6 +314,7 @@ SELECT
 	process_instance_id,
 
 	bpmn_element_id,
+	bpmn_element_type,
 	completed_at,
 	created_at,
 	created_by,
@@ -209,9 +334,11 @@ WHERE
 `, partition, id)
 
 	var (
-		entity     internal.TaskEntity
-		stateValue string
-		typeValue  string
+		entity internal.TaskEntity
+
+		bpmnElementTypeValue string
+		stateValue           string
+		typeValue            string
 	)
 	if err := row.Scan(
 		&entity.ElementId,
@@ -220,6 +347,7 @@ WHERE
 		&entity.ProcessInstanceId,
 
 		&entity.BpmnElementId,
+		&bpmnElementTypeValue,
 		&entity.CompletedAt,
 		&entity.CreatedAt,
 		&entity.CreatedBy,
@@ -237,6 +365,7 @@ WHERE
 
 	entity.Partition = partition
 	entity.Id = id
+	entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
 	entity.State = engine.MapWorkState(stateValue)
 	entity.Type = engine.MapTaskType(typeValue)
 
@@ -250,7 +379,9 @@ UPDATE
 SET
 	completed_at = $3,
 	error = $4,
-	state = $5
+	locked_at = $5,
+	locked_by = $6,
+	state = $7
 WHERE
 	partition = $1 AND
 	id = $2
@@ -260,9 +391,28 @@ WHERE
 
 		entity.CompletedAt,
 		entity.Error,
+		entity.LockedAt,
+		entity.LockedBy,
 		entity.State.String(),
 	); err != nil {
 		return fmt.Errorf("failed to update task %+v: %v", entity, err)
+	}
+
+	if !entity.CompletedAt.Valid {
+		return nil
+	}
+
+	if _, err := r.tx.Exec(r.txCtx, `
+DELETE FROM
+	task_queue_lock
+WHERE
+	partition = $1 AND
+	task_id = $2
+`,
+		entity.Partition,
+		entity.Id,
+	); err != nil {
+		return fmt.Errorf("failed to delete locked task %s/%d from queue lock: %v", entity.Partition.Format(time.DateOnly), entity.Id, err)
 	}
 
 	return nil
@@ -287,9 +437,11 @@ func (r taskRepository) Query(criteria engine.TaskCriteria, options engine.Query
 	results := make([]engine.Task, 0)
 	for rows.Next() {
 		var (
-			entity     internal.TaskEntity
-			stateValue string
-			typeValue  string
+			entity internal.TaskEntity
+
+			bpmnElementTypeValue string
+			stateValue           string
+			typeValue            string
 		)
 
 		if err := rows.Scan(
@@ -302,6 +454,7 @@ func (r taskRepository) Query(criteria engine.TaskCriteria, options engine.Query
 			&entity.ProcessInstanceId,
 
 			&entity.BpmnElementId,
+			&bpmnElementTypeValue,
 			&entity.CompletedAt,
 			&entity.CreatedAt,
 			&entity.CreatedBy,
@@ -317,6 +470,7 @@ func (r taskRepository) Query(criteria engine.TaskCriteria, options engine.Query
 			return nil, fmt.Errorf("failed to scan task row: %v", err)
 		}
 
+		entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
 		entity.State = engine.MapWorkState(stateValue)
 		entity.Type = engine.MapTaskType(typeValue)
 
@@ -347,15 +501,23 @@ func (r taskRepository) Lock(cmd engine.ExecuteTasksCmd, lockedAt time.Time) ([]
 
 	defer rows.Close()
 
-	var entities []*internal.TaskEntity
+	var (
+		queueIds []int64
+		entities []*internal.TaskEntity
+	)
 	for rows.Next() {
 		var (
-			entity     internal.TaskEntity
-			stateValue string
-			typeValue  string
+			queueId int64
+			entity  internal.TaskEntity
+
+			bpmnElementTypeValue string
+			stateValue           string
+			typeValue            string
 		)
 
 		if err := rows.Scan(
+			&queueId,
+
 			&entity.Partition,
 			&entity.Id,
 
@@ -365,19 +527,18 @@ func (r taskRepository) Lock(cmd engine.ExecuteTasksCmd, lockedAt time.Time) ([]
 			&entity.ProcessInstanceId,
 
 			&entity.BpmnElementId,
-			&entity.CreatedAt,
-			&entity.CreatedBy,
+			&bpmnElementTypeValue,
 			&entity.DueAt,
-			&entity.LockedAt,
-			&entity.LockedBy,
 			&entity.RetryCount,
 			&entity.SerializedTask,
-			&stateValue,
 			&typeValue,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan task lock row: %v", err)
 		}
 
+		queueIds = append(queueIds, queueId)
+
+		entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
 		entity.State = engine.MapWorkState(stateValue)
 		entity.Type = engine.MapTaskType(typeValue)
 
@@ -430,19 +591,212 @@ func (r taskRepository) Lock(cmd engine.ExecuteTasksCmd, lockedAt time.Time) ([]
 		entities = append(entities, &entity)
 	}
 
+	if len(entities) == 0 {
+		return entities, nil
+	}
+
+	// delete from queue
+	queueIdsToDelete := make([]string, len(queueIds))
+	for i, queueId := range queueIds {
+		queueIdsToDelete[i] = strconv.FormatInt(queueId, 10)
+	}
+
+	if _, err := r.tx.Exec(r.txCtx, fmt.Sprintf("DELETE FROM task_queue WHERE id IN (%s)", strings.Join(queueIdsToDelete, ","))); err != nil {
+		return nil, fmt.Errorf("failed to delete locked tasks from pool: %v", err)
+	}
+
+	// insert into queue lock
+	batch := &pgx.Batch{}
+
+	for i, entity := range entities {
+		batch.Queue(`
+INSERT INTO task_queue_lock (
+	id,
+
+	partition,
+	task_id,
+
+	element_id,
+	element_instance_id,
+	process_id,
+	process_instance_id,
+
+	bpmn_element_id,
+	bpmn_element_type,
+	due_at,
+	locked_at,
+	locked_by,
+	retry_count,
+	serialized_task,
+	type
+) VALUES (
+	$1,
+
+	$2,
+	$3,
+
+	$4,
+	$5,
+	$6,
+	$7,
+
+	$8,
+	$9,
+	$10,
+	$11,
+	$12,
+	$13,
+	$14,
+	$15
+)
+`,
+			queueIds[i],
+
+			entity.Partition,
+			entity.Id,
+
+			entity.ElementId,
+			entity.ElementInstanceId,
+			entity.ProcessId,
+			entity.ProcessInstanceId,
+
+			entity.BpmnElementId,
+			entity.BpmnElementType.String(),
+			entity.DueAt,
+			entity.LockedAt,
+			entity.LockedBy,
+			entity.RetryCount,
+			entity.SerializedTask,
+			entity.Type.String(),
+		)
+	}
+
+	batchResults := r.tx.SendBatch(r.txCtx, batch)
+	defer batchResults.Close()
+
+	for i := range entities {
+		if _, err := batchResults.Exec(); err != nil {
+			return nil, fmt.Errorf("failed to insert task %+v into queue lock: %v", entities[i], err)
+		}
+	}
+
 	return entities, nil
 }
 
 func (r taskRepository) Unlock(cmd engine.UnlockTasksCmd) (int, error) {
+	// delete from queue lock
 	var sql bytes.Buffer
 	if err := sqlTaskUnlock.Execute(&sql, cmd); err != nil {
 		return -1, fmt.Errorf("failed to execute task unlock template: %v", err)
 	}
 
-	commandTag, err := r.tx.Exec(r.txCtx, sql.String())
+	rows, err := r.tx.Query(r.txCtx, sql.String())
 	if err != nil {
 		return -1, fmt.Errorf("failed to unlock tasks: %v", err)
 	}
 
-	return int(commandTag.RowsAffected()), nil
+	defer rows.Close()
+
+	var entities []internal.TaskEntity
+	for rows.Next() {
+		var (
+			entity internal.TaskEntity
+
+			bpmnElementTypeValue string
+			typeValue            string
+		)
+
+		if err := rows.Scan(
+			&entity.Partition,
+			&entity.Id,
+
+			&entity.ElementId,
+			&entity.ElementInstanceId,
+			&entity.ProcessId,
+			&entity.ProcessInstanceId,
+
+			&entity.BpmnElementId,
+			&bpmnElementTypeValue,
+			&entity.DueAt,
+			&entity.RetryCount,
+			&entity.SerializedTask,
+			&typeValue,
+		); err != nil {
+			return -1, fmt.Errorf("failed to scan task unlock row: %v", err)
+		}
+
+		entity.BpmnElementType = model.MapElementType(bpmnElementTypeValue)
+		entity.Type = engine.MapTaskType(typeValue)
+
+		entities = append(entities, entity)
+	}
+
+	if len(entities) == 0 {
+		return 0, nil
+	}
+
+	// insert into queue
+	batch := &pgx.Batch{}
+
+	for _, entity := range entities {
+		batch.Queue(`
+INSERT INTO task_queue (
+	partition,
+	task_id,
+
+	element_id,
+	element_instance_id,
+	process_id,
+	process_instance_id,
+
+	bpmn_element_id,
+	bpmn_elemnt_type,
+	due_at,
+	retry_count,
+	serialized_task,
+	type
+) VALUES (
+	$1,
+	$2,
+
+	$3,
+	$4,
+	$5,
+	$6,
+
+	$7,
+	$8,
+	$9,
+	$10,
+	$11,
+	$12
+)
+`,
+			entity.Partition,
+			entity.Id,
+
+			entity.ElementId,
+			entity.ElementInstanceId,
+			entity.ProcessId,
+			entity.ProcessInstanceId,
+
+			entity.BpmnElementId,
+			pgtype.Text{String: entity.BpmnElementType.String(), Valid: entity.BpmnElementType != 0},
+			entity.DueAt,
+			entity.RetryCount,
+			entity.SerializedTask,
+			entity.Type.String(),
+		)
+	}
+
+	batchResults := r.tx.SendBatch(r.txCtx, batch)
+	defer batchResults.Close()
+
+	for i := range entities {
+		if _, err := batchResults.Exec(); err != nil {
+			return -1, fmt.Errorf("failed to insert task %+v into queue: %v", entities[i], err)
+		}
+	}
+
+	return len(entities), nil
 }

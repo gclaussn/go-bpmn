@@ -84,10 +84,10 @@ INSERT INTO job (
 	if _, err := r.tx.Exec(r.txCtx, `
 INSERT INTO job_pool (
 	partition,
+	job_id,
 
 	element_id,
 	element_instance_id,
-	job_id,
 	process_id,
 	process_instance_id,
 
@@ -99,8 +99,8 @@ INSERT INTO job_pool (
 	type
 ) VALUES (
 	$1,
-
 	$2,
+
 	$3,
 	$4,
 	$5,
@@ -115,10 +115,10 @@ INSERT INTO job_pool (
 )
 `,
 		entity.Partition,
+		entity.Id,
 
 		entity.ElementId,
 		entity.ElementInstanceId,
-		entity.Id,
 		entity.ProcessId,
 		entity.ProcessInstanceId,
 
@@ -246,7 +246,7 @@ WHERE
 		entity.Partition,
 		entity.Id,
 	); err != nil {
-		return fmt.Errorf("failed to delete locked job %s/%d from pool: %v", entity.Partition.Format(time.DateOnly), entity.Id, err)
+		return fmt.Errorf("failed to delete locked job %s/%d from pool lock: %v", entity.Partition.Format(time.DateOnly), entity.Id, err)
 	}
 
 	return nil
@@ -351,10 +351,10 @@ func (r jobRepository) Lock(cmd engine.LockJobsCmd, lockedAt time.Time) ([]inter
 			&poolId,
 
 			&entity.Partition,
+			&entity.Id,
 
 			&entity.ElementId,
 			&entity.ElementInstanceId,
-			&entity.Id,
 			&entity.ProcessId,
 			&entity.ProcessInstanceId,
 
@@ -401,10 +401,10 @@ INSERT INTO job_pool_lock (
 	id,
 
 	partition,
+	job_id,
 
 	element_id,
 	element_instance_id,
-	job_id,
 	process_id,
 	process_instance_id,
 
@@ -420,8 +420,8 @@ INSERT INTO job_pool_lock (
 	$1,
 
 	$2,
-
 	$3,
+
 	$4,
 	$5,
 	$6,
@@ -435,15 +435,15 @@ INSERT INTO job_pool_lock (
 	$13,
 	$14,
 	$15
-) RETURNING id
+)
 `,
 			poolIds[i],
 
 			entity.Partition,
+			entity.Id,
 
 			entity.ElementId,
 			entity.ElementInstanceId,
-			entity.Id,
 			entity.ProcessId,
 			entity.ProcessInstanceId,
 
@@ -495,10 +495,10 @@ func (r jobRepository) Unlock(cmd engine.UnlockJobsCmd) (int, error) {
 
 		if err := rows.Scan(
 			&entity.Partition,
+			&entity.Id,
 
 			&entity.ElementId,
 			&entity.ElementInstanceId,
-			&entity.Id,
 			&entity.ProcessId,
 			&entity.ProcessInstanceId,
 
@@ -529,10 +529,10 @@ func (r jobRepository) Unlock(cmd engine.UnlockJobsCmd) (int, error) {
 		batch.Queue(`
 INSERT INTO job_pool (
 	partition,
+	job_id,
 
 	element_id,
 	element_instance_id,
-	job_id,
 	process_id,
 	process_instance_id,
 
@@ -544,8 +544,8 @@ INSERT INTO job_pool (
 	type
 ) VALUES (
 	$1,
-
 	$2,
+
 	$3,
 	$4,
 	$5,
@@ -560,10 +560,10 @@ INSERT INTO job_pool (
 ) RETURNING id
 `,
 			entity.Partition,
+			entity.Id,
 
 			entity.ElementId,
 			entity.ElementInstanceId,
-			entity.Id,
 			entity.ProcessId,
 			entity.ProcessInstanceId,
 

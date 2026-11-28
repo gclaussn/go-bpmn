@@ -2,10 +2,10 @@ CREATE TABLE IF NOT EXISTS job_pool_lock (
 	id BIGINT PRIMARY KEY,
 
 	partition DATE NOT NULL,
+	job_id INTEGER NOT NULL,
 
 	element_id INTEGER NOT NULL,
 	element_instance_id INTEGER NOT NULL,
-	job_id INTEGER NOT NULL,
 	process_id INTEGER NOT NULL,
 	process_instance_id INTEGER NOT NULL,
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gclaussn/go-bpmn/engine"
+	"github.com/gclaussn/go-bpmn/model"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -39,18 +40,19 @@ type TaskEntity struct {
 	ProcessId         pgtype.Int4
 	ProcessInstanceId pgtype.Int4
 
-	BpmnElementId  pgtype.Text
-	CompletedAt    pgtype.Timestamp
-	CreatedAt      time.Time
-	CreatedBy      string
-	DueAt          time.Time
-	Error          pgtype.Text
-	LockedAt       pgtype.Timestamp
-	LockedBy       pgtype.Text
-	RetryCount     int
-	SerializedTask pgtype.Text
-	State          engine.WorkState
-	Type           engine.TaskType
+	BpmnElementId   pgtype.Text
+	BpmnElementType model.ElementType
+	CompletedAt     pgtype.Timestamp
+	CreatedAt       time.Time
+	CreatedBy       string
+	DueAt           time.Time
+	Error           pgtype.Text
+	LockedAt        pgtype.Timestamp
+	LockedBy        pgtype.Text
+	RetryCount      int
+	SerializedTask  pgtype.Text
+	State           engine.WorkState
+	Type            engine.TaskType
 
 	Instance Task // task instance that should be executed
 }
@@ -65,18 +67,19 @@ func (e TaskEntity) Task() engine.Task {
 		ProcessId:         e.ProcessId.Int32,
 		ProcessInstanceId: e.ProcessInstanceId.Int32,
 
-		BpmnElementId:  e.BpmnElementId.String,
-		CompletedAt:    e.CompletedAt.Time,
-		CreatedAt:      e.CreatedAt,
-		CreatedBy:      e.CreatedBy,
-		DueAt:          e.DueAt,
-		Error:          e.Error.String,
-		LockedAt:       e.LockedAt.Time,
-		LockedBy:       e.LockedBy.String,
-		RetryCount:     e.RetryCount,
-		SerializedTask: e.SerializedTask.String,
-		State:          e.State,
-		Type:           e.Type,
+		BpmnElementId:   e.BpmnElementId.String,
+		BpmnElementType: e.BpmnElementType,
+		CompletedAt:     e.CompletedAt.Time,
+		CreatedAt:       e.CreatedAt,
+		CreatedBy:       e.CreatedBy,
+		DueAt:           e.DueAt,
+		Error:           e.Error.String,
+		LockedAt:        e.LockedAt.Time,
+		LockedBy:        e.LockedBy.String,
+		RetryCount:      e.RetryCount,
+		SerializedTask:  e.SerializedTask.String,
+		State:           e.State,
+		Type:            e.Type,
 	}
 }
 
@@ -174,14 +177,15 @@ func ExecuteTask(ctx Context, task *TaskEntity) error {
 			ProcessId:         task.ProcessId,
 			ProcessInstanceId: task.ProcessInstanceId,
 
-			BpmnElementId:  task.BpmnElementId,
-			CreatedAt:      ctx.Time(),
-			CreatedBy:      ctx.Options().EngineId,
-			DueAt:          ctx.Time(),
-			RetryCount:     task.RetryCount + 1,
-			SerializedTask: task.SerializedTask,
-			State:          engine.WorkCreated,
-			Type:           task.Type,
+			BpmnElementId:   task.BpmnElementId,
+			BpmnElementType: task.BpmnElementType,
+			CreatedAt:       ctx.Time(),
+			CreatedBy:       ctx.Options().EngineId,
+			DueAt:           ctx.Time(),
+			RetryCount:      task.RetryCount + 1,
+			SerializedTask:  task.SerializedTask,
+			State:           engine.WorkCreated,
+			Type:            task.Type,
 
 			Instance: task.Instance,
 		}

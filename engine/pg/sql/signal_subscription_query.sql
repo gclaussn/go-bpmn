@@ -9,6 +9,7 @@ SELECT
 	process_instance_id,
 
 	bpmn_element_id,
+	bpmn_element_type,
 	created_at,
 	created_by,
 	name

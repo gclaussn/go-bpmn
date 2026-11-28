@@ -10,10 +10,10 @@ WHERE
 {{end}}
 RETURNING
 	partition,
+	job_id,
 
 	element_id,
 	element_instance_id,
-	job_id,
 	process_id,
 	process_instance_id,
 

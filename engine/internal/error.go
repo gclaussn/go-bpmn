@@ -33,12 +33,13 @@ func (ec *executionContext) throwError(ctx Context, errorCode string) (bool, err
 			ProcessId:         pgtype.Int4{Int32: boundaryEvent.ProcessId, Valid: true},
 			ProcessInstanceId: pgtype.Int4{Int32: boundaryEvent.ProcessInstanceId, Valid: true},
 
-			BpmnElementId: pgtype.Text{String: boundaryEvent.BpmnElementId, Valid: true},
-			CreatedAt:     ctx.Time(),
-			CreatedBy:     ec.engineOrWorkerId,
-			DueAt:         ctx.Time(),
-			State:         engine.WorkCreated,
-			Type:          engine.TaskTriggerEvent,
+			BpmnElementId:   pgtype.Text{String: boundaryEvent.BpmnElementId, Valid: true},
+			BpmnElementType: boundaryEvent.BpmnElementType,
+			CreatedAt:       ctx.Time(),
+			CreatedBy:       ec.engineOrWorkerId,
+			DueAt:           ctx.Time(),
+			State:           engine.WorkCreated,
+			Type:            engine.TaskTriggerEvent,
 
 			Instance: TriggerEventTask{ErrorCode: errorCode},
 		}
@@ -108,12 +109,13 @@ func (ec *executionContext) setErrorCode(ctx Context, job *JobEntity, jobComplet
 			ProcessId:         pgtype.Int4{Int32: execution.ProcessId, Valid: true},
 			ProcessInstanceId: pgtype.Int4{Int32: execution.ProcessInstanceId, Valid: true},
 
-			BpmnElementId: pgtype.Text{String: execution.BpmnElementId, Valid: true},
-			CreatedAt:     ctx.Time(),
-			CreatedBy:     ec.engineOrWorkerId,
-			DueAt:         ctx.Time(),
-			State:         engine.WorkCreated,
-			Type:          engine.TaskTriggerEvent,
+			BpmnElementId:   pgtype.Text{String: execution.BpmnElementId, Valid: true},
+			BpmnElementType: execution.BpmnElementType,
+			CreatedAt:       ctx.Time(),
+			CreatedBy:       ec.engineOrWorkerId,
+			DueAt:           ctx.Time(),
+			State:           engine.WorkCreated,
+			Type:            engine.TaskTriggerEvent,
 
 			Instance: TriggerEventTask{},
 		}
@@ -187,12 +189,13 @@ func (ec *executionContext) triggerErrorEndEvent(ctx Context) error {
 			ProcessId:         pgtype.Int4{Int32: boundaryEvent.ProcessId, Valid: true},
 			ProcessInstanceId: pgtype.Int4{Int32: boundaryEvent.ProcessInstanceId, Valid: true},
 
-			BpmnElementId: pgtype.Text{String: boundaryEvent.BpmnElementId, Valid: true},
-			CreatedAt:     ctx.Time(),
-			CreatedBy:     ec.engineOrWorkerId,
-			DueAt:         ctx.Time(),
-			State:         engine.WorkCreated,
-			Type:          engine.TaskTriggerEvent,
+			BpmnElementId:   pgtype.Text{String: boundaryEvent.BpmnElementId, Valid: true},
+			BpmnElementType: boundaryEvent.BpmnElementType,
+			CreatedAt:       ctx.Time(),
+			CreatedBy:       ec.engineOrWorkerId,
+			DueAt:           ctx.Time(),
+			State:           engine.WorkCreated,
+			Type:            engine.TaskTriggerEvent,
 
 			Instance: TriggerEventTask{ErrorCode: errorCode},
 		}

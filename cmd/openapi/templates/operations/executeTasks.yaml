@@ -37,6 +37,8 @@ responses:
               elementInstanceId: 4932
               processId: 2
               processInstanceId: 576
+              bpmnElementId: join
+              bpmnElementType: PARALLEL_GATEWAY
               completedAt: "2025-05-01T19:38:23.021Z"
               createdAt: "2025-05-01T19:38:16.633Z"
               createdBy: go-bpmn

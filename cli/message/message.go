@@ -15,7 +15,7 @@ var messageTemplate string
 
 const (
 	allColumns                 = "id,correlationKey,createdAt,createdBy,expiresAt,correlated,name,uniqueKey"
-	allSubscriptionColumns     = "id,partition,elementId,elementInstanceId,processId,processInstanceId,bpmnElementId,correlationKey,createdAt,createdBy,name"
+	allSubscriptionColumns     = "id,partition,elementId,elementInstanceId,processId,processInstanceId,bpmnElementId,bpmnElementType,correlationKey,createdAt,createdBy,name"
 	defaultColumns             = "id,name,correlationKey,uniqueKey,correlated,createdAt,createdBy,expiresAt"
 	defaultSubscriptionColumns = "id,partition,processInstanceId,bpmnElementId,name,correlationKey,createdAt"
 )
@@ -190,6 +190,7 @@ func newQuerySubscriptionsCmd() *cobra.Command {
 					common.FormatId(result.ProcessInstanceId),
 
 					result.BpmnElementId,
+					result.BpmnElementType.String(),
 					result.CorrelationKey,
 					common.FormatTime(result.CreatedAt),
 					result.CreatedBy,
